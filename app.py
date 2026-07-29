@@ -59,7 +59,7 @@ def create_app() -> Flask:
     app.config["SECRET_KEY"] = os.environ.get(
         "SECRET_KEY", "arcano-local-dev-key-change-me"
     )
-    app.config["MAX_CONTENT_LENGTH"] = 12 * 1024 * 1024  # 12 MB
+    app.config["MAX_CONTENT_LENGTH"] = 300 * 1024 * 1024  # 300 MB (para importar portadas)
 
     # Carpeta de portadas. En produccion (Render) se define COVERS_PATH apuntando
     # al disco persistente; en local usa static/covers como siempre.
