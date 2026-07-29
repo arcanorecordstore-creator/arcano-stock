@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Revisar factura &middot; Arcano{% endblock %}
+
+{% macro fmt_uyu(n) -%}
+{{ '{:,.0f}'.format(n or 0).replace(',', '.') }}
+{%- endmacro %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Revisar factura</h1>
+        <p class="page-sub">
+            {{ items|length }} disco{{ 's' if items|length != 1 else '' }} detectado{{ 's' if items|length != 1 else '' }}
+            {% if info.fuente %}&middot; Fuente: {{ info.fuente }}{% endif %}
+            &middot; Confianza:
+            <span class="prefill-confianza prefill-confianza-{{ info.confianza or 'media' }}">{{ info.confianza or 'media' }}</span>
+        </p>
+    </div>
+    <div class="page-actions">
+        <form method="post" action="{{ url_for('disc_invoice_cancel') }}" style="display:inline">
+            <button type="submit" class="btn btn-ghost">Descartar todo</button>
+        </form>
+    </div>
+</section>
+
+<div class="invoice-summary">
+    <div class="invoice-summary-item">
+        <span class="invoice-summary-label">Envio total detectado</span>
+        <span class="invoice-summary-value">€ {{ '%.2f'|format(info.envio_total_eur or 0) }}</span>
+    </div>
+    <div class="invoice-summary-item">
+        <span class="invoice-summary-label">Envio por disco</span>
+        <span class="invoice-summary-value">€ {{ '%.2f'|format(info.envio_por_disco_eur or 0) }}</span>
+    </div>
+    {% if info.subtotal_discos_eur %}
+    <div class="invoice-summary-item">
+        <span class="invoice-summary-label">Subtotal discos</span>
+        <span class="invoice-summary-value">€ {{ '%.2f'|format(info.subtotal_discos_eur) }}</span>
+    </div>
+    {% endif %}
+    {% if info.total_factura_eur %}
+    <div class="invoice-summary-item">
+        <span class="invoice-summary-label">Total factura</span>
+        <span class="invoice-summary-value">€ {{ '%.2f'|format(info.total_factura_eur) }}</span>
+    </div>
+    {% endif %}
+    <div class="invoice-summary-item">
+        <span class="invoice-summary-label">Costo API</span>
+        <span class="invoice-summary-value">${{ '%.4f'|format(info.cost_usd or 0) }}</span>
+    </div>
+</div>
+
+<!-- Reparto manual de envio -->
+<div class="bulk-shipping">
+    <div class="bulk-shipping-field">
+        <label for="bulk-envio">Envio total (manual)</label>
+        <input type="number" id="bulk-envio" step="0.01" min="0" placeholder="Ej: 15.00"
+               value="{{ '%.2f'|format(info.envio_total_eur) if info.envio_total_eur else '' }}">
+        <span class="bulk-shipping-hint">EUR. Se reparte en partes iguales entre los discos cargados.</span>
+    </div>
+    <button type="button" class="btn btn-ghost" id="bulk-envio-apply">Aplicar a todos</button>
+</div>
+
+{% if info.notas_extraccion %}
+<div class="prefill-banner" style="margin-bottom: 16px;">
+    <div class="prefill-banner-icon">!</div>
+    <div class="prefill-banner-body">
+        <strong>Nota del modelo:</strong> {{ info.notas_extraccion }}
+    </div>
+</div>
+{% endif %}
+
+<div class="prefill-banner prefill-banner-info">
+    <div class="prefill-banner-icon">i</div>
+    <div class="prefill-banner-body">
+        {% if info.portadas_encontradas %}
+        Se encontraron <strong>{{ info.portadas_encontradas }}</strong> portadas en Deejay.de (ya aparecen en las cards).
+        Para los discos sin portada, podes subir una manual abajo de cada card.
+        {% else %}
+        No se encontraron portadas automaticamente en Deejay.de. Podes subir una manual en cada card si queres.
+        {% endif %}
+    </div>
+</div>
+
+<form method="post" action="{{ url_for('disc_invoice_review') }}" class="invoice-form" id="invoice-form">
+    <input type="hidden" name="item_count" value="{{ items|length }}">
+
+    <div class="invoice-cards">
+        {% for item in items %}
+        <div class="invoice-card {% if item.duplicado_id %}invoice-card-duplicate{% endif %}" data-idx="{{ loop.index0 }}">
+            <div class="invoice-card-head">
+                <span class="invoice-card-num">#{{ loop.index }}</span>
+                {% if item.duplicado_id %}
+                <span class="invoice-card-badge">
+                    Ya existe en stock (#{{ item.duplicado_id }}, stock actual: {{ item.duplicado_stock_actual }}) &mdash; se sumara
+                    <a href="{{ url_for('disc_detail', disc_id=item.duplicado_id) }}" target="_blank" class="link">ver existente &nearr;</a>
+                </span>
+                {% endif %}
+                <label class="invoice-card-skip">
+                    <input type="checkbox" name="item_{{ loop.index0 }}_skip">
+                    No cargar este
+                </label>
+            </div>
+
+            <input type="hidden" name="item_{{ loop.index0 }}_duplicado_id" value="{{ item.duplicado_id or '' }}">
+            <input type="hidden" name="item_{{ loop.index0 }}_cover_local" value="{{ item.cover_local_manual or '' }}" id="cover_local_{{ loop.index0 }}">
+
+            <div class="invoice-card-body">
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>Artista</label>
+                        <input type="text" name="item_{{ loop.index0 }}_artista" value="{{ item.artista or '' }}" required>
+                    </div>
+                    <div class="form-field">
+                        <label>Titulo</label>
+                        <input type="text" name="item_{{ loop.index0 }}_titulo" value="{{ item.titulo or '' }}" required>
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-field">
+                        <label>Sello</label>
+                        <input type="text" name="item_{{ loop.index0 }}_sello" value="{{ item.sello or '' }}">
+                    </div>
+                    <div class="form-field form-field-sm">
+                        <label>Anio</label>
+                        <input type="number" name="item_{{ loop.index0 }}_anio" min="1900" max="2100" value="{{ item.anio or '' }}" placeholder="Auto">
+                    </div>
+                    <div class="form-field form-field-sm">
+                        <label>Formato</label>
+                        <input type="text" name="item_{{ loop.index0 }}_formato" value="{{ item.formato or '' }}" placeholder='12"'>
+                    </div>
+                    <div class="form-field form-field-sm">
+                        <label>Pais</label>
+                        <input type="text" name="item_{{ loop.index0 }}_pais" value="{{ item.pais or '' }}" placeholder="Alemania">
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-field form-field-sm">
+                        <label>Costo &euro;</label>
+                        <input type="number" step="0.01" min="0" name="item_{{ loop.index0 }}_costo_eur" value="{{ '%.2f'|format(item.costo_eur or 0) }}">
+                    </div>
+                    <div class="form-field form-field-sm">
+                        <label>Envio &euro;</label>
+                        <input type="number" step="0.01" min="0" name="item_{{ loop.index0 }}_envio_eur" value="{{ '%.2f'|format(item.envio_eur or 0) }}" data-envio-input>
+                    </div>
+                    <div class="form-field form-field-sm">
+                        <label>Precio venta UYU</label>
+                        <input type="number" step="1" min="0" name="item_{{ loop.index0 }}_precio_uyu" value="0" placeholder="Completar">
+                    </div>
+                    <div class="form-field form-field-sm">
+                        <label>{% if item.duplicado_id %}Stock a sumar{% else %}Stock{% endif %}</label>
+                        <input type="number" min="1" step="1" name="item_{{ loop.index0 }}_stock" value="1">
+                    </div>
+                    <div class="form-field form-field-sm">
+                        <label>Estado</label>
+                        <select name="item_{{ loop.index0 }}_estado">
+                            {% for e in estados %}
+                                <option value="{{ e }}" {% if e == 'En camino' %}selected{% endif %}>{{ e }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Upload manual de portada -->
+                <div class="invoice-cover-upload">
+                    <div class="invoice-cover-preview" id="preview_{{ loop.index0 }}">
+                        {% if item.cover_local_manual %}
+                        <img src="{{ url_for('serve_cover', filename=item.cover_local_manual) }}" alt="Portada">
+                        {% else %}
+                        <div class="invoice-cover-empty">Sin portada cargada (se buscara en Deejay.de al confirmar)</div>
+                        {% endif %}
+                    </div>
+                    <label class="btn btn-ghost btn-sm">
+                        <span>{% if item.cover_local_manual %}Cambiar portada{% else %}Subir portada manual{% endif %}</span>
+                        <input type="file" accept="image/png,image/jpeg,image/gif,image/webp" hidden
+                               data-cover-upload data-idx="{{ loop.index0 }}">
+                    </label>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div class="invoice-actions">
+        <button type="submit" class="btn btn-ghost" formaction="{{ url_for('disc_invoice_cancel') }}" formnovalidate>Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="confirm-btn">Confirmar y agregar al stock</button>
+    </div>
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+(function () {
+    'use strict';
+
+    // ----- Bulk envio: aplicar valor a todos los inputs de envio -----
+    var bulkInput = document.getElementById('bulk-envio');
+    var bulkBtn = document.getElementById('bulk-envio-apply');
+    var envioInputs = document.querySelectorAll('[data-envio-input]');
+
+    if (bulkBtn) {
+        bulkBtn.addEventListener('click', function () {
+            var total = parseFloat((bulkInput.value || '0').replace(',', '.'));
+            if (!isFinite(total) || total < 0) {
+                alert('Ingresa un monto valido (numero >= 0).');
+                return;
+            }
+            var n = envioInputs.length;
+            if (n === 0) return;
+            var perDisc = total / n;
+            envioInputs.forEach(function (inp) {
+                inp.value = perDisc.toFixed(2);
+            });
+            alert('Envio aplicado: ' + total.toFixed(2) + ' EUR / ' + n + ' discos = ' + perDisc.toFixed(2) + ' por disco.');
+        });
+    }
+
+    // ----- Upload manual de portada por card -----
+    document.querySelectorAll('[data-cover-upload]').forEach(function (input) {
+        input.addEventListener('change', function (ev) {
+            var file = input.files && input.files[0];
+            if (!file) return;
+            var idx = input.dataset.idx;
+            var formData = new FormData();
+            formData.append('item_idx', idx);
+            formData.append('cover', file);
+
+            var preview = document.getElementById('preview_' + idx);
+            preview.innerHTML = '<div class="invoice-cover-empty">Subiendo...</div>';
+
+            fetch('{{ url_for("disc_invoice_upload_cover") }}', {
+                method: 'POST',
+                body: formData,
+            })
+            .then(function (resp) { return resp.json(); })
+            .then(function (data) {
+                if (data.ok) {
+                    preview.innerHTML = '<img src="' + data.url + '" alt="Portada">';
+                    document.getElementById('cover_local_' + idx).value = data.filename;
+                } else {
+                    preview.innerHTML = '<div class="invoice-cover-empty">Error: ' + (data.error || 'desconocido') + '</div>';
+                }
+            })
+            .catch(function (err) {
+                preview.innerHTML = '<div class="invoice-cover-empty">Error de red: ' + err + '</div>';
+            });
+        });
+    });
+
+    // ----- Indicador al confirmar -----
+    var confirmBtn = document.getElementById('confirm-btn');
+    var form = document.getElementById('invoice-form');
+    if (form && confirmBtn) {
+        form.addEventListener('submit', function () {
+            confirmBtn.disabled = true;
+            confirmBtn.textContent = 'Guardando...';
+        });
+    }
+})();
+</script>
+{% endblock %}

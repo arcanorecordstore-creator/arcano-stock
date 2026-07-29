@@ -1,0 +1,128 @@
+{% extends "public/base.html" %}
+
+{% block title %}Favoritos &middot; Arcano Record Store{% endblock %}
+
+{% block content %}
+
+<section class="public-hero">
+    <h1 class="public-hero-title">Tus favoritos</h1>
+    <p class="public-hero-tagline">Los discos que fuiste guardando. Se guardan en este dispositivo.</p>
+</section>
+
+<div id="fav-empty" class="public-empty" hidden>
+    <p>Todavia no guardaste ningun disco.</p>
+    <p class="public-empty-hint">Tocá el corazon en cualquier disco para guardarlo aca.</p>
+    <a href="{{ url_for('home') }}" class="btn btn-primary">Ver el catalogo</a>
+</div>
+
+<div id="fav-loading" class="public-empty">
+    <p>Cargando tus favoritos...</p>
+</div>
+
+<div id="fav-actions" class="fav-actions" hidden>
+    <span id="fav-total" class="public-results-count"></span>
+    {% if whatsapp %}
+    <a href="#" id="fav-whatsapp" target="_blank" rel="noopener" class="btn btn-primary">Consultar por todos por WhatsApp</a>
+    {% endif %}
+    <button type="button" id="fav-clear" class="btn btn-ghost">Vaciar favoritos</button>
+</div>
+
+<div class="public-grid" id="fav-grid"></div>
+
+<script>
+(function () {
+    var KEY = 'arcano-favs';
+    var grid = document.getElementById('fav-grid');
+    var empty = document.getElementById('fav-empty');
+    var loading = document.getElementById('fav-loading');
+    var actions = document.getElementById('fav-actions');
+    var totalEl = document.getElementById('fav-total');
+    var clearBtn = document.getElementById('fav-clear');
+    var waBtn = document.getElementById('fav-whatsapp');
+    var waNumber = {{ whatsapp|tojson if whatsapp else '""'|safe }};
+
+    function getFavs() {
+        try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
+        catch (e) { return []; }
+    }
+    function setFavs(arr) {
+        try { localStorage.setItem(KEY, JSON.stringify(arr)); } catch (e) {}
+    }
+
+    var ids = getFavs();
+    if (!ids.length) {
+        loading.hidden = true;
+        empty.hidden = false;
+        return;
+    }
+
+    fetch('{{ url_for("api_discos_por_id") }}?ids=' + ids.join(','))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            loading.hidden = true;
+            var discos = (data && data.discos) || [];
+            if (!discos.length) {
+                empty.hidden = false;
+                return;
+            }
+            actions.hidden = false;
+            totalEl.textContent = discos.length + ' disco' + (discos.length !== 1 ? 's' : '') + ' guardado' + (discos.length !== 1 ? 's' : '');
+
+            discos.forEach(function (d) {
+                var card = document.createElement('div');
+                card.className = 'public-card fav-card';
+                var precio = d.precio_uyu > 0 ? ('$ ' + d.precio_uyu.toLocaleString('es-UY')) : 'Precio a consultar';
+                var estadoBadge = d.disponible ? '' : '<span class="public-card-badge" style="background:rgba(0,0,0,0.75);">' + (d.estado || '') + '</span>';
+                var coverHtml = d.cover
+                    ? '<img src="' + d.cover + '" alt="" loading="lazy">'
+                    : '<div class="public-card-cover-empty">&#9834;</div>';
+                card.innerHTML =
+                    '<a href="' + d.url + '" class="fav-card-link">' +
+                        '<div class="public-card-cover">' + coverHtml +
+                            '<div class="public-card-badges">' + estadoBadge + '</div>' +
+                        '</div>' +
+                        '<div class="public-card-info">' +
+                            '<div class="public-card-artist">' + escapeHtml(d.artista) + '</div>' +
+                            '<div class="public-card-title">' + escapeHtml(d.titulo) + '</div>' +
+                            (d.sello ? '<div class="public-card-label">' + escapeHtml(d.sello) + '</div>' : '') +
+                            '<div class="public-card-price">' + precio + '</div>' +
+                        '</div>' +
+                    '</a>' +
+                    '<button type="button" class="fav-btn fav-btn-card is-fav" data-fav-id="' + d.id + '" title="Quitar de favoritos">' +
+                        '<span class="fav-icon-off">&#9825;</span><span class="fav-icon-on">&#9829;</span>' +
+                    '</button>';
+                grid.appendChild(card);
+            });
+
+            // Boton WhatsApp con lista
+            if (waBtn && waNumber) {
+                var lines = discos.filter(function (d) { return d.disponible; }).map(function (d) {
+                    return '- ' + d.artista + ' - ' + d.titulo;
+                });
+                var msg = 'Hola! Me interesan estos discos de Arcano:\n' + lines.join('\n');
+                waBtn.href = 'https://wa.me/' + waNumber + '?text=' + encodeURIComponent(msg);
+            }
+
+            // Rebind global de favoritos para las cards nuevas
+            if (window.ArcanoFavs && window.ArcanoFavs.rebind) window.ArcanoFavs.rebind();
+        })
+        .catch(function () {
+            loading.hidden = true;
+            empty.hidden = false;
+        });
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            if (!confirm('Vaciar todos los favoritos?')) return;
+            setFavs([]);
+            window.location.reload();
+        });
+    }
+
+    function escapeHtml(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+})();
+</script>
+
+{% endblock %}

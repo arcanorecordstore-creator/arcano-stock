@@ -1,0 +1,349 @@
+{% extends "public/base.html" %}
+
+{% block title %}Catalogo &middot; Arcano Record Store{% endblock %}
+
+{% block content %}
+
+{% set hero_h = hero_title or 'Vinilos electronicos' %}
+{% set hero_sub = hero_subtitle or tagline %}
+
+{% if banner_video_url %}
+<section class="public-hero public-hero-with-banner public-hero-video">
+    <video class="public-hero-video-bg" autoplay muted loop playsinline{% if banner_url %} poster="{{ banner_url }}"{% endif %}>
+        <source src="{{ banner_video_url }}" type="video/mp4">
+    </video>
+    <div class="public-hero-overlay">
+        <h1 class="public-hero-title">{{ hero_h }}</h1>
+        {% if hero_sub %}<p class="public-hero-tagline">{{ hero_sub }}</p>{% endif %}
+    </div>
+</section>
+{% elif banner_url %}
+<section class="public-hero public-hero-with-banner" style="background-image: url('{{ banner_url }}');">
+    <div class="public-hero-overlay">
+        <h1 class="public-hero-title">{{ hero_h }}</h1>
+        {% if hero_sub %}<p class="public-hero-tagline">{{ hero_sub }}</p>{% endif %}
+    </div>
+</section>
+{% else %}
+<section class="public-hero">
+    <h1 class="public-hero-title">{{ hero_h }}</h1>
+    {% if hero_sub %}<p class="public-hero-tagline">{{ hero_sub }}</p>{% endif %}
+</section>
+{% endif %}
+
+{% macro carrusel(discos, titulo, carrusel_id) %}
+<section class="public-carrusel" data-carrusel="{{ carrusel_id }}" data-velocidad="{{ carrusel_velocidad or 7 }}">
+    <div class="public-carrusel-head">
+        <div class="public-carrusel-titlewrap">
+            <span class="public-carrusel-icon">{% if carrusel_id == 'destacados' %}&#9733;{% else %}&#10022;{% endif %}</span>
+            <h2 class="public-carrusel-title">{{ titulo }}</h2>
+        </div>
+        <div class="public-carrusel-nav">
+            <button type="button" class="carrusel-btn carrusel-prev" aria-label="Anterior">&#9664;</button>
+            <button type="button" class="carrusel-btn carrusel-next" aria-label="Siguiente">&#9654;</button>
+        </div>
+    </div>
+    <div class="public-carrusel-viewport">
+        <div class="public-carrusel-track">
+            {% for d in discos %}
+            <a href="{{ url_for('public_disc', disc_id=d.id) }}" class="carrusel-card">
+                <div class="carrusel-cover">
+                    {% if d.cover_local %}
+                        <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="{{ d.artista }} - {{ d.titulo }}" loading="lazy">
+                    {% elif d.cover_url %}
+                        <img src="{{ d.cover_url }}" alt="{{ d.artista }} - {{ d.titulo }}" loading="lazy">
+                    {% else %}
+                        <div class="carrusel-cover-empty">&#9834;</div>
+                    {% endif %}
+                </div>
+                <div class="carrusel-info">
+                    <div class="carrusel-artist">{{ d.artista }}</div>
+                    <div class="carrusel-title-disc">{{ d.titulo }}</div>
+                    {% if d.sello %}<div class="carrusel-label">{{ d.sello }}</div>{% endif %}
+                    {% if d.precio_uyu > 0 %}<div class="carrusel-price">$ {{ '{:,.0f}'.format(d.precio_uyu).replace(',', '.') }}</div>{% endif %}
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="public-carrusel-progress" aria-hidden="true">
+        <div class="public-carrusel-progress-bar"></div>
+    </div>
+</section>
+{% endmacro %}
+
+{% if destacados %}
+{{ carrusel(destacados, 'Discos destacados', 'destacados') }}
+{% endif %}
+
+{% if nuevos_ingresos %}
+{{ carrusel(nuevos_ingresos, 'Nuevos ingresos', 'nuevos') }}
+{% endif %}
+
+<form method="get" action="{{ url_for('home') }}" class="public-search-bar" id="public-filters">
+    <div class="public-filters-top">
+        <div class="public-search-wrap">
+            <input type="text" name="q" placeholder="Buscar por artista, titulo, sello, genero..." value="{{ filtro_q }}" class="public-filter-search" id="public-search-input" autocomplete="off">
+            <div class="public-search-suggestions" id="search-suggestions" hidden></div>
+        </div>
+        <select name="orden" class="public-filter-select">
+            <option value="nuevos" {% if filtro_orden == 'nuevos' %}selected{% endif %}>Mas nuevos primero</option>
+            <option value="precio_asc" {% if filtro_orden == 'precio_asc' %}selected{% endif %}>Precio: menor a mayor</option>
+            <option value="precio_desc" {% if filtro_orden == 'precio_desc' %}selected{% endif %}>Precio: mayor a menor</option>
+            <option value="artista" {% if filtro_orden == 'artista' %}selected{% endif %}>Por artista (A-Z)</option>
+        </select>
+        <button type="submit" class="btn btn-primary">Buscar</button>
+        <button type="button" class="btn btn-ghost public-sidebar-toggle" id="sidebar-toggle">
+            Filtros{% if filtros_activos > 0 %} <span class="filters-badge">{{ filtros_activos }}</span>{% endif %}
+        </button>
+    </div>
+
+    <div class="public-layout">
+        <aside class="public-sidebar" id="public-sidebar">
+            <div class="public-sidebar-head">
+                <span class="public-sidebar-title">Filtros{% if filtros_activos > 0 %} <span class="filters-badge">{{ filtros_activos }}</span>{% endif %}</span>
+                {% if filtros_activos > 0 or filtro_q or filtro_orden != 'nuevos' %}
+                <a href="{{ url_for('home') }}" class="public-sidebar-clear">Limpiar</a>
+                {% endif %}
+            </div>
+
+            {% if generos %}
+            <div class="filter-block">
+                <div class="filter-block-title">Genero</div>
+                <div class="filter-checks">
+                    {% for g, cnt in generos %}
+                    <label class="filter-check">
+                        <input type="checkbox" name="genero" value="{{ g }}" {% if g in filtro_generos %}checked{% endif %}>
+                        <span>{{ g }}</span><span class="filter-count">{{ cnt }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="filter-block">
+                <div class="filter-block-title">Precio (UYU)</div>
+                <div class="filter-price-row">
+                    <input type="number" name="precio_min" class="filter-price-input" placeholder="{{ precio_rango.min }}" value="{{ filtro_precio_min if filtro_precio_min is not none else '' }}" min="0" step="100">
+                    <span class="filter-price-sep">&mdash;</span>
+                    <input type="number" name="precio_max" class="filter-price-input" placeholder="{{ precio_rango.max }}" value="{{ filtro_precio_max if filtro_precio_max is not none else '' }}" min="0" step="100">
+                </div>
+            </div>
+
+            <div class="filter-block">
+                <div class="filter-block-title">Audio</div>
+                <label class="filter-check filter-check-inline">
+                    <input type="checkbox" name="con_sample" value="1" {% if filtro_con_sample %}checked{% endif %}>
+                    <span>Solo con sample escuchable</span>
+                </label>
+            </div>
+
+            {% if formatos %}
+            <div class="filter-block">
+                <div class="filter-block-title">Formato</div>
+                <div class="filter-checks">
+                    {% for f, cnt in formatos %}
+                    <label class="filter-check">
+                        <input type="checkbox" name="formato" value="{{ f }}" {% if f in filtro_formatos %}checked{% endif %}>
+                        <span>{{ f }}</span><span class="filter-count">{{ cnt }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if paises %}
+            <div class="filter-block">
+                <div class="filter-block-title">Pais</div>
+                <div class="filter-checks">
+                    {% for p, cnt in paises %}
+                    <label class="filter-check">
+                        <input type="checkbox" name="pais" value="{{ p }}" {% if p in filtro_paises %}checked{% endif %}>
+                        <span>{{ p }}</span><span class="filter-count">{{ cnt }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if decadas %}
+            <div class="filter-block">
+                <div class="filter-block-title">Decada</div>
+                <div class="filter-checks">
+                    {% for dec, cnt in decadas %}
+                    <label class="filter-check">
+                        <input type="checkbox" name="decada" value="{{ dec }}" {% if dec in filtro_decadas %}checked{% endif %}>
+                        <span>{{ dec }}</span><span class="filter-count">{{ cnt }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if tags_disponibles %}
+            <div class="filter-block">
+                <div class="filter-block-title">Tags</div>
+                <div class="filter-checks">
+                    {% for t, cnt in tags_disponibles %}
+                    <label class="filter-check">
+                        <input type="checkbox" name="tag" value="{{ t }}" {% if t in filtro_tags %}checked{% endif %}>
+                        <span>{{ t }}</span><span class="filter-count">{{ cnt }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if sellos %}
+            <div class="filter-block">
+                <div class="filter-block-title">Sellos</div>
+                <div class="filter-checks">
+                    {% for s in sellos %}
+                    <label class="filter-check">
+                        <input type="checkbox" name="sello" value="{{ s }}" {% if s in filtro_sellos %}checked{% endif %}>
+                        <span>{{ s }}</span><span class="filter-count">{{ sellos_count[s] }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="filter-block filter-block-actions">
+                <button type="submit" class="btn btn-primary btn-block">Aplicar filtros</button>
+            </div>
+        </aside>
+
+        <div class="public-catalog">
+
+
+{% if discs %}
+<p class="public-results-count">
+    {{ total_resultados }} disco{{ 's' if total_resultados != 1 else '' }} disponible{{ 's' if total_resultados != 1 else '' }}
+    {% if total_paginas > 1 %}<span class="public-results-page">&middot; pagina {{ pagina }} de {{ total_paginas }}</span>{% endif %}
+</p>
+
+<div class="public-grid public-grid-{{ card_tamano or 'mediano' }}"{% if grid_columnas and grid_columnas != 'auto' %} style="grid-template-columns: repeat({{ grid_columnas }}, 1fr);"{% endif %}>
+    {% for d in discs %}
+    <a href="{{ url_for('public_disc', disc_id=d.id) }}" class="public-card">
+        <div class="public-card-cover">
+            {% if d.cover_local %}
+                <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="{{ d.artista }} - {{ d.titulo }}" loading="lazy">
+            {% elif d.cover_url %}
+                <img src="{{ d.cover_url }}" alt="{{ d.artista }} - {{ d.titulo }}" loading="lazy">
+            {% else %}
+                <div class="public-card-cover-empty">&#9834;</div>
+            {% endif %}
+            <div class="public-card-badges">
+                {% if d.mostrar_cartel_nuevo %}
+                <span class="public-card-badge public-card-badge-new">Nuevo</span>
+                {% endif %}
+                {% if d.mostrar_cartel_ultima %}
+                <span class="public-card-badge public-card-badge-last">Ultima copia</span>
+                {% endif %}
+            </div>
+            {% set ps = d.primer_track_sample %}
+            {% if ps %}
+            {% set card_cover = url_for('serve_cover', filename=d.cover_local) if d.cover_local else (d.cover_url if d.cover_url else '') %}
+            {% set tracks_data = [] %}
+            {% for t in d.tracks_con_sample %}
+                {% set _ = tracks_data.append({
+                    'kind': t.sample_kind,
+                    'audioUrl': url_for('static', filename='samples/' + t.sample_local) if t.sample_kind == 'local' else '',
+                    'youtubeId': t.youtube_video_id or '',
+                    'youtubeStart': t.youtube_start or 0,
+                    'soundcloudUrl': t.youtube_url if t.sample_kind == 'soundcloud' else '',
+                    'title': t.titulo,
+                    'artist': t.artista or d.artista
+                }) %}
+            {% endfor %}
+            <button type="button" class="card-play-btn" data-play="{{ ps.sample_kind }}"
+                    data-tracks="{{ tracks_data|tojson|forceescape }}"
+                    data-cover-url="{{ card_cover }}"
+                    {% if ps.sample_kind == 'local' %}data-audio-url="{{ url_for('static', filename='samples/' + ps.sample_local) }}"{% endif %}
+                    {% if ps.sample_kind == 'youtube' %}data-youtube-id="{{ ps.youtube_video_id }}" data-youtube-start="{{ ps.youtube_start or 0 }}"{% endif %}
+                    {% if ps.sample_kind == 'soundcloud' %}data-soundcloud-url="{{ ps.youtube_url }}"{% endif %}
+                    data-track-title="{{ ps.titulo }}"
+                    data-track-artist="{{ ps.artista or d.artista }}"
+                    aria-label="Escuchar {{ d.artista }} - {{ d.titulo }}" title="Escuchar preview">
+                <span class="play-icon">&#9654;</span>
+                <span class="pause-icon" hidden>&#9724;</span>
+            </button>
+            {% endif %}
+            <button type="button" class="fav-btn fav-btn-card" data-fav-id="{{ d.id }}" aria-label="Guardar en favoritos" title="Guardar en favoritos">
+                <span class="fav-icon-off">&#9825;</span>
+                <span class="fav-icon-on">&#9829;</span>
+            </button>
+            <button type="button" class="cart-btn cart-btn-card" data-cart-id="{{ d.id }}" aria-label="Agregar al carrito" title="Agregar al carrito">
+                <span class="cart-icon-off">&#43;</span>
+                <span class="cart-icon-on">&#10003;</span>
+            </button>
+        </div>
+        <div class="public-card-info">
+            <div class="public-card-artist">{{ d.artista }}</div>
+            <div class="public-card-title">{{ d.titulo }}</div>
+            {% if d.sello %}<div class="public-card-label">{{ d.sello }}{% if d.anio %} &middot; {{ d.anio }}{% endif %}</div>{% endif %}
+            {% if d.tags_list %}
+            <div class="public-card-tags">
+                {% for tag in d.tags_list[:2] %}
+                {% set tag_slug = tag.lower().replace(' ', '-').replace('/', '-') %}
+                <span class="public-badge public-badge-sm public-badge-{{ tag_slug }}">{{ tag }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if d.precio_uyu > 0 %}
+            <div class="public-card-price">$ {{ '{:,.0f}'.format(d.precio_uyu).replace(',', '.') }}</div>
+            {% else %}
+            <div class="public-card-price public-card-price-tba">Precio a consultar</div>
+            {% endif %}
+        </div>
+    </a>
+    {% endfor %}
+</div>
+
+{% if total_paginas > 1 %}
+<nav class="public-pagination" aria-label="Paginacion">
+    {% if pagina > 1 %}
+    <a href="{{ url_pagina(pagina - 1) }}" class="pagination-btn">&larr; Anterior</a>
+    {% else %}
+    <span class="pagination-btn disabled">&larr; Anterior</span>
+    {% endif %}
+
+    <div class="pagination-pages">
+        {% for n in range(1, total_paginas + 1) %}
+            {% if n == 1 or n == total_paginas or (n >= pagina - 2 and n <= pagina + 2) %}
+                {% if n == pagina %}
+                <span class="pagination-page active">{{ n }}</span>
+                {% else %}
+                <a href="{{ url_pagina(n) }}" class="pagination-page">{{ n }}</a>
+                {% endif %}
+            {% elif n == pagina - 3 or n == pagina + 3 %}
+                <span class="pagination-ellipsis">&hellip;</span>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    {% if pagina < total_paginas %}
+    <a href="{{ url_pagina(pagina + 1) }}" class="pagination-btn">Siguiente &rarr;</a>
+    {% else %}
+    <span class="pagination-btn disabled">Siguiente &rarr;</span>
+    {% endif %}
+</nav>
+{% endif %}
+
+{% else %}
+<div class="public-empty">
+    {% if filtro_q or filtro_sellos or filtro_generos or filtro_tags or filtro_formatos or filtro_paises or filtro_decadas or filtro_con_sample or filtro_precio_min is not none or filtro_precio_max is not none %}
+        <p>No encontramos discos con esos filtros.</p>
+        <a href="{{ url_for('home') }}" class="btn btn-ghost">Ver todo el catalogo</a>
+    {% else %}
+        <p>Por ahora no hay discos disponibles en el catalogo.</p>
+        <p class="public-empty-hint">Volve pronto o seguinos en Instagram para enterarte cuando lleguen los proximos.</p>
+    {% endif %}
+</div>
+{% endif %}
+
+        </div><!-- /public-catalog -->
+    </div><!-- /public-layout -->
+</form>
+
+{% endblock %}

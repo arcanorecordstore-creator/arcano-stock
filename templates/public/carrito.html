@@ -1,0 +1,145 @@
+{% extends "public/base.html" %}
+
+{% block title %}Carrito &middot; Arcano Record Store{% endblock %}
+
+{% block content %}
+
+<section class="public-hero">
+    <h1 class="public-hero-title">Tu carrito</h1>
+    <p class="public-hero-tagline">Revisá los discos y reservá todos juntos en una sola operacion.</p>
+</section>
+
+<div id="cart-empty" class="public-empty" hidden>
+    <p>Tu carrito esta vacio.</p>
+    <p class="public-empty-hint">Agregá discos desde el catalogo con el boton +.</p>
+    <a href="{{ url_for('home') }}" class="btn btn-primary">Ver el catalogo</a>
+</div>
+
+<div id="cart-loading" class="public-empty">
+    <p>Cargando tu carrito...</p>
+</div>
+
+<div class="cart-layout" id="cart-layout" hidden>
+    <div class="cart-items" id="cart-items"></div>
+
+    <aside class="cart-summary">
+        <h2 class="cart-summary-title">Resumen</h2>
+        <div class="cart-summary-row">
+            <span>Discos</span>
+            <span id="cart-summary-count">0</span>
+        </div>
+        <div class="cart-summary-row cart-summary-total">
+            <span>Total estimado</span>
+            <span id="cart-summary-total">$ 0</span>
+        </div>
+        <p class="cart-summary-note">El total es orientativo. Coordinamos el precio final y el envio por WhatsApp.</p>
+        <a href="#" id="cart-checkout-btn" class="btn btn-primary cart-checkout-btn">Reservar todo</a>
+        <button type="button" id="cart-clear" class="btn btn-ghost cart-clear-btn">Vaciar carrito</button>
+    </aside>
+</div>
+
+<script>
+(function () {
+    var KEY = 'arcano-cart';
+    var loading = document.getElementById('cart-loading');
+    var empty = document.getElementById('cart-empty');
+    var layout = document.getElementById('cart-layout');
+    var itemsEl = document.getElementById('cart-items');
+    var countEl = document.getElementById('cart-summary-count');
+    var totalEl = document.getElementById('cart-summary-total');
+    var checkoutBtn = document.getElementById('cart-checkout-btn');
+    var clearBtn = document.getElementById('cart-clear');
+
+    function getCart() {
+        try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
+        catch (e) { return []; }
+    }
+    function setCart(arr) {
+        try { localStorage.setItem(KEY, JSON.stringify(arr)); } catch (e) {}
+    }
+
+    var ids = getCart();
+    if (!ids.length) {
+        loading.hidden = true;
+        empty.hidden = false;
+        return;
+    }
+
+    fetch('{{ url_for("api_discos_por_id") }}?ids=' + ids.join(','))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            loading.hidden = true;
+            var discos = (data && data.discos) || [];
+            if (!discos.length) {
+                empty.hidden = false;
+                return;
+            }
+            layout.hidden = false;
+            render(discos);
+        })
+        .catch(function () {
+            loading.hidden = true;
+            empty.hidden = false;
+        });
+
+    function render(discos) {
+        var total = 0;
+        var disponibles = 0;
+        itemsEl.innerHTML = '';
+        discos.forEach(function (d) {
+            if (d.disponible) { total += d.precio_uyu; disponibles++; }
+            var row = document.createElement('div');
+            row.className = 'cart-item' + (d.disponible ? '' : ' cart-item-unavailable');
+            var cover = d.cover ? '<img src="' + d.cover + '" alt="">' : '<div class="cart-item-cover-empty">&#9834;</div>';
+            var precio = d.precio_uyu > 0 ? ('$ ' + d.precio_uyu.toLocaleString('es-UY')) : 'A consultar';
+            row.innerHTML =
+                '<div class="cart-item-cover">' + cover + '</div>' +
+                '<div class="cart-item-info">' +
+                    '<a href="' + d.url + '" class="cart-item-title">' + esc(d.artista) + ' - ' + esc(d.titulo) + '</a>' +
+                    (d.sello ? '<div class="cart-item-label">' + esc(d.sello) + '</div>' : '') +
+                    (d.disponible ? '' : '<div class="cart-item-warn">Ya no disponible</div>') +
+                '</div>' +
+                '<div class="cart-item-price">' + precio + '</div>' +
+                '<button type="button" class="cart-item-remove" data-id="' + d.id + '" title="Quitar">&times;</button>';
+            itemsEl.appendChild(row);
+        });
+
+        countEl.textContent = disponibles;
+        totalEl.textContent = '$ ' + total.toLocaleString('es-UY');
+
+        // Checkout link con ids disponibles
+        var availIds = discos.filter(function (d) { return d.disponible; }).map(function (d) { return d.id; });
+        checkoutBtn.href = '{{ url_for("public_checkout") }}?ids=' + availIds.join(',');
+        if (!availIds.length) {
+            checkoutBtn.classList.add('disabled');
+            checkoutBtn.addEventListener('click', function (e) { e.preventDefault(); });
+        }
+
+        // Botones quitar
+        itemsEl.querySelectorAll('.cart-item-remove').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var id = String(btn.dataset.id);
+                var cart = getCart();
+                var i = cart.indexOf(id);
+                if (i !== -1) cart.splice(i, 1);
+                setCart(cart);
+                window.location.reload();
+            });
+        });
+    }
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function () {
+            if (!confirm('Vaciar el carrito?')) return;
+            setCart([]);
+            window.location.reload();
+        });
+    }
+
+    function esc(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+})();
+</script>
+
+{% endblock %}

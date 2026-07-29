@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+
+{% block title %}Agregar desde URL &middot; Arcano{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Agregar desde URL</h1>
+        <p class="page-sub">Pega una o varias URLs de Deejay.de (una por linea) y extrae los datos automaticamente (sin costo de API).</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('disc_new') }}" class="btn btn-ghost">Cargar manual en su lugar</a>
+    </div>
+</section>
+
+{% if failed_url %}
+<div class="upload-warning">
+    <strong>El ultimo intento fallo.</strong>
+    URL: <code>{{ failed_url }}</code><br>
+    Si esto sigue fallando, usa
+    <a href="{{ url_for('disc_new_from_image') }}" class="link">Desde screenshot</a>
+    como alternativa. Despues de cargar, podes pegar esa misma URL en el campo "URL fuente" del formulario.
+</div>
+{% endif %}
+
+<div class="upload-grid">
+
+    <section class="upload-card">
+        <form method="post" action="{{ url_for('disc_new_from_url') }}" id="url-form">
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="urls">URL(s) del disco</label>
+                    <textarea id="urls" name="urls" rows="5"
+                              placeholder="Pega una URL por linea:&#10;https://www.deejay.de/..._1158955&#10;https://www.deejay.de/..._1160022&#10;https://www.deejay.de/..._1161033"
+                              required>{% if failed_url %}{{ failed_url }}{% endif %}</textarea>
+                    <span class="form-field-hint">Una URL por linea. Se van a cargar de a uno: revisas y guardas cada disco, y salta al siguiente.</span>
+                </div>
+            </div>
+
+            <div class="upload-actions">
+                <button type="submit" class="btn btn-primary" id="url-submit">
+                    Extraer datos
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <aside class="upload-aside">
+        <h3 class="upload-aside-title">Como funciona</h3>
+        <ol class="upload-steps">
+            <li>Pegas una o varias URLs (una por linea).</li>
+            <li>La app intenta acceder a la pagina esquivando proteccion anti-bot.</li>
+            <li>Extrae artista, titulo, sello, precio, tracklist y portada del HTML.</li>
+            <li>Te llevamos al formulario de alta <strong>prellenado</strong>, disco por disco. Revisas, buscas audios y guardas cada uno.</li>
+        </ol>
+
+        <h3 class="upload-aside-title">Sitios soportados</h3>
+        <p class="upload-aside-text">
+            Actualmente solo <strong>deejay.de</strong>. Para otras tiendas (Discogs, Hardwax, Bandcamp), usar
+            <a href="{{ url_for('disc_new_from_image') }}" class="link">Desde screenshot</a>.
+        </p>
+
+        <h3 class="upload-aside-title">Si falla</h3>
+        <p class="upload-aside-text">
+            Deejay.de usa Cloudflare. El scraping puede fallar a veces. Si pasa, usa
+            <a href="{{ url_for('disc_new_from_image') }}" class="link">Desde screenshot</a>:
+            es un poco mas lento y cuesta unos centavos pero funciona siempre.
+        </p>
+
+        <h3 class="upload-aside-title">Costo</h3>
+        <p class="upload-aside-text">
+            <strong>Gratis.</strong> El scraping no usa la API de Anthropic.
+        </p>
+    </aside>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+// Indicador de carga al submitear
+document.getElementById('url-form').addEventListener('submit', function () {
+    var btn = document.getElementById('url-submit');
+    btn.disabled = true;
+    btn.textContent = 'Extrayendo datos...';
+});
+</script>
+{% endblock %}

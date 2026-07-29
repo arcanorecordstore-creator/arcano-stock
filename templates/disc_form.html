@@ -1,0 +1,533 @@
+{% extends "base.html" %}
+
+{% block title %}{{ 'Editar' if mode == 'edit' else 'Agregar' }} disco &middot; Arcano{% endblock %}
+
+{% macro field_value(name, fallback) -%}
+{%- if form_data and form_data.get(name) is not none -%}{{ form_data.get(name) }}{%- elif fallback is not none -%}{{ fallback }}{%- endif -%}
+{%- endmacro %}
+
+{% block content %}
+{% if url_queue_total and url_queue_total > 1 %}
+<div class="url-queue-banner">
+    <div class="url-queue-info">
+        <strong>Carga en tanda:</strong> disco {{ url_queue_done + 1 }} de {{ url_queue_total }}.
+        {% if url_queue_pendientes > 0 %}
+            Quedan <strong>{{ url_queue_pendientes }}</strong> despues de este.
+        {% else %}
+            Este es el ultimo.
+        {% endif %}
+        <span class="url-queue-hint">Al guardar, sigue el proximo automaticamente.</span>
+    </div>
+    <div class="url-queue-actions">
+        {% if url_queue_pendientes > 0 %}
+        <form method="post" action="{{ url_for('disc_url_queue_next') }}" style="display:inline;" data-confirm="Saltear este disco sin guardarlo?">
+            <button type="submit" class="btn btn-ghost btn-sm">Saltear este &rarr;</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('disc_url_queue_cancel') }}" style="display:inline;">
+            <button type="submit" class="btn btn-ghost btn-sm">Cancelar tanda</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">
+            {% if mode == 'edit' %}Editar disco{% else %}Agregar disco{% endif %}
+        </h1>
+        <p class="page-sub">
+            {% if mode == 'edit' %}#{{ disc.id }} &middot; ingresado {{ disc.fecha_ingreso.strftime('%d/%m/%Y') if disc.fecha_ingreso else '' }}{% else %}Carga manual. Para ingreso mas rapido usar &quot;Desde URL&quot; o &quot;Desde screenshot&quot;.{% endif %}
+        </p>
+    </div>
+    <div class="page-actions">
+        {% if mode == 'new' %}
+            <a href="{{ url_for('disc_new_from_url') }}" class="btn btn-ghost">Pegar URL</a>
+            <a href="{{ url_for('disc_new_from_image') }}" class="btn btn-ghost">Subir screenshot</a>
+            <a href="{{ url_for('disc_new_from_invoice') }}" class="btn btn-ghost">Desde factura</a>
+        {% endif %}
+        <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Cancelar</a>
+    </div>
+</section>
+
+{% if prefill_info %}
+<div class="prefill-banner">
+    <div class="prefill-banner-icon">&#10003;</div>
+    <div class="prefill-banner-body">
+        {% if prefill_info.fuente == 'scraping' %}
+            <strong>Datos extraidos via scraping (gratis).</strong>
+        {% else %}
+            <strong>Datos extraidos via IA.</strong>
+        {% endif %}
+        Confianza: <span class="prefill-confianza prefill-confianza-{{ prefill_info.confianza or 'media' }}">{{ prefill_info.confianza or 'media' }}</span>.
+        {% if prefill_info.cost_usd and prefill_info.cost_usd > 0 %}
+        Tokens usados: {{ prefill_info.input_tokens + prefill_info.output_tokens }}.
+        Costo: ${{ '%.4f'|format(prefill_info.cost_usd) }} USD.
+        {% endif %}
+        {% if prefill_info.notas_extraccion %}<br><em>Nota:</em> {{ prefill_info.notas_extraccion }}{% endif %}
+        <br><span class="prefill-hint">Revisa y completa los precios en UYU, stock, condicion y notas antes de guardar.</span>
+    </div>
+</div>
+{% endif %}
+
+<form method="post" class="disc-form"
+      action="{% if mode == 'edit' %}{{ url_for('disc_edit', disc_id=disc.id) }}{% else %}{{ url_for('disc_new') }}{% endif %}"
+      data-tc="{{ disc.tc_usado if disc.tc_usado else tc }}">
+
+    <input type="hidden" name="cover_local" value="{{ disc.cover_local or '' }}">
+
+    <div class="form-grid">
+
+        <div class="form-section">
+            <h2 class="form-section-title">Datos del disco</h2>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="artista">Artista <span class="req">*</span></label>
+                    <input type="text" id="artista" name="artista" required
+                           value="{{ field_value('artista', disc.artista) }}">
+                </div>
+                <div class="form-field">
+                    <label for="titulo">Titulo <span class="req">*</span></label>
+                    <input type="text" id="titulo" name="titulo" required
+                           value="{{ field_value('titulo', disc.titulo) }}">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="sello">Sello</label>
+                    <input type="text" id="sello" name="sello"
+                           value="{{ field_value('sello', disc.sello) }}">
+                </div>
+                <div class="form-field form-field-sm">
+                    <label for="anio">Anio</label>
+                    <input type="number" id="anio" name="anio" min="1900" max="2100"
+                           value="{{ field_value('anio', disc.anio) }}">
+                </div>
+                <div class="form-field form-field-sm">
+                    <label for="formato">Formato</label>
+                    <input type="text" id="formato" name="formato" placeholder='12"' list="formato-list"
+                           value="{{ field_value('formato', disc.formato) }}">
+                    <datalist id="formato-list">
+                        <option value='12"'>
+                        <option value='2x12"'>
+                        <option value='7"'>
+                        <option value='10"'>
+                        <option value="LP">
+                        <option value="2xLP">
+                        <option value="EP">
+                    </datalist>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="genero">Genero</label>
+                    <input type="text" id="genero" name="genero"
+                           value="{{ field_value('genero', disc.genero) }}">
+                </div>
+                <div class="form-field form-field-sm">
+                    <label for="pais">Pais de origen</label>
+                    <input type="text" id="pais" name="pais" list="pais-list" placeholder="Alemania"
+                           value="{{ field_value('pais', disc.pais) }}">
+                    <datalist id="pais-list">
+                        <option value="Alemania">
+                        <option value="Reino Unido">
+                        <option value="Espana">
+                        <option value="Francia">
+                        <option value="Italia">
+                        <option value="Estados Unidos">
+                        <option value="Paises Bajos">
+                        <option value="Uruguay">
+                        <option value="Argentina">
+                    </datalist>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="tracklist">Tracklist (texto)</label>
+                    <textarea id="tracklist" name="tracklist" rows="4"
+                              placeholder="A1. Artista - Titulo&#10;A2. Artista - Titulo&#10;B1. ...">{{ field_value('tracklist', disc.tracklist) }}</textarea>
+                    <span class="form-field-hint">Se usa como fallback. Abajo podes buscar el audio de cada track.</span>
+                </div>
+            </div>
+
+            {% if mode == 'new' %}
+            <div class="form-row" id="tracks-section">
+                <div class="form-field form-field-full">
+                    <label>Audios de los tracks <span class="form-field-hint">(busca el sample de cada track antes de guardar)</span></label>
+                    <div class="tracks-new-editor" id="tracks-new-editor" data-disc-artista-field="artista">
+                        <div class="tracks-editor-toolbar">
+                            <button type="button" class="btn btn-ghost btn-sm" id="tracks-new-load">Cargar tracks del tracklist</button>
+                            <button type="button" class="btn btn-ghost btn-sm" id="tracks-new-search-all" title="Busca en YouTube y SoundCloud el audio de cada track">&#128269; Buscar audios de todos</button>
+                            <span class="tracks-search-all-status" id="tracks-new-status"></span>
+                        </div>
+                        <div class="tracks-new-list" id="tracks-new-list">
+                            <div class="tracks-empty">Escribi o scrapea el tracklist arriba y toca "Cargar tracks del tracklist".</div>
+                        </div>
+                    </div>
+                    <input type="hidden" name="tracks_json" id="tracks-new-json" value="">
+                </div>
+            </div>
+            {% endif %}
+
+            {% if mode == 'edit' %}
+            <div class="form-row" id="tracks-section">
+                <div class="form-field form-field-full">
+                    <label>Tracklist estructurado <span class="form-field-hint">(con samples reproducibles en la tienda)</span></label>
+                    <p class="tracks-help">Por cada track pod&eacute;s pegar un link de YouTube <strong>o</strong> subir un MP3 propio. El MP3 es m&aacute;s confiable: algunos videos de sellos est&aacute;n bloqueados para reproducir fuera de YouTube.</p>
+
+                    <div class="tracks-editor" id="tracks-editor" data-disc-id="{{ disc.id }}" data-disc-artista="{{ disc.artista or '' }}">
+                        <div class="tracks-editor-toolbar">
+                            <button type="button" class="btn btn-ghost btn-sm" id="tracks-add-btn">+ Agregar track</button>
+                            <button type="button" class="btn btn-ghost btn-sm" id="tracks-parse-btn">Parsear desde texto arriba</button>
+                            <button type="button" class="btn btn-ghost btn-sm" id="tracks-search-all-btn" title="Busca en YouTube y SoundCloud el sample de cada track que todavia no tenga uno">&#128269; Buscar samples de todos</button>
+                            <span class="tracks-search-all-status" id="tracks-search-all-status"></span>
+                        </div>
+
+                        <div class="tracks-editor-list" id="tracks-list">
+                            <!-- Se rellena por JS al cargar -->
+                            <div class="tracks-empty" id="tracks-empty">Cargando tracks...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <h2 class="form-section-title">Multimedia</h2>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="cover_url">URL de portada</label>
+                    <input type="url" id="cover_url" name="cover_url"
+                           value="{{ field_value('cover_url', disc.cover_url) }}">
+                </div>
+            </div>
+            {% if disc.cover_local %}
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label>Portada actual</label>
+                    <div class="cover-preview-inline">
+                        <img src="{{ url_for('serve_cover', filename=disc.cover_local) }}" alt="Portada">
+                        <span class="cover-filename">{{ disc.cover_local }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if mode == 'edit' %}
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label>{% if disc.cover_local %}Cambiar portada{% else %}Subir portada manual{% endif %}</label>
+                    <div class="cover-upload-inline">
+                        <input type="file" id="cover-upload-input" accept="image/png,image/jpeg,image/gif,image/webp" hidden>
+                        <button type="button" class="btn btn-ghost btn-sm" id="cover-upload-btn">Seleccionar imagen...</button>
+                        <span class="cover-upload-hint">PNG, JPG, GIF o WEBP. Se sube al hacer click en "Subir ahora".</span>
+                        <button type="button" class="btn btn-ghost btn-sm" id="cover-upload-submit" hidden>Subir ahora</button>
+                    </div>
+                    <div class="cover-upload-status" id="cover-upload-status"></div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label>Galeria de fotos <span class="form-field-hint">(fotos reales del vinilo, contratapa, etiqueta... se muestran en la ficha publica)</span></label>
+                    <div class="gallery-editor" id="gallery-editor" data-disc-id="{{ disc.id }}">
+                        <div class="gallery-grid" id="gallery-grid">
+                            <div class="gallery-loading" id="gallery-loading">Cargando fotos...</div>
+                        </div>
+                        <div class="gallery-upload">
+                            <input type="file" id="gallery-upload-input" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden>
+                            <button type="button" class="btn btn-ghost btn-sm" id="gallery-upload-btn">+ Agregar fotos</button>
+                            <span class="gallery-upload-hint">Podes seleccionar varias a la vez. Arrastra las miniaturas para reordenar.</span>
+                        </div>
+                        <div class="gallery-status" id="gallery-status"></div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="sample_url">URL audio sample</label>
+                    <input type="url" id="sample_url" name="sample_url"
+                           value="{{ field_value('sample_url', disc.sample_url) }}">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="source_url">URL fuente (Deejay.de u otro)</label>
+                    <input type="url" id="source_url" name="source_url"
+                           value="{{ field_value('source_url', disc.source_url) }}">
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <h2 class="form-section-title">Precios y stock</h2>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="costo_eur">Costo &euro;</label>
+                    <input type="number" id="costo_eur" name="costo_eur" step="0.01" min="0"
+                           data-calc="cost"
+                           value="{{ field_value('costo_eur', '%.2f'|format(disc.costo_eur) if disc.costo_eur is not none else '') }}">
+                </div>
+                <div class="form-field">
+                    <label for="envio_eur">Envio &euro;</label>
+                    <input type="number" id="envio_eur" name="envio_eur" step="0.01" min="0"
+                           data-calc="cost"
+                           value="{{ field_value('envio_eur', '%.2f'|format(disc.envio_eur) if disc.envio_eur is not none else '') }}">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="precio_uyu">Precio venta UYU</label>
+                    <input type="number" id="precio_uyu" name="precio_uyu" step="1" min="0"
+                           data-calc="cost"
+                           value="{{ field_value('precio_uyu', '%.0f'|format(disc.precio_uyu) if disc.precio_uyu is not none else '') }}">
+                </div>
+                <div class="form-field form-field-sm">
+                    <label for="stock">Stock</label>
+                    <input type="number" id="stock" name="stock" min="1" step="1"
+                           value="{{ field_value('stock', disc.stock or 1) }}">
+                </div>
+            </div>
+
+            <div class="calc-preview">
+                <div class="calc-row">
+                    <span class="calc-label">TC EUR&rarr;UYU</span>
+                    <span class="calc-value" id="calc-tc">{{ disc.tc_usado if disc.tc_usado else tc }}</span>
+                </div>
+                <div class="calc-row">
+                    <span class="calc-label">Costo final UYU</span>
+                    <span class="calc-value" id="calc-costo-uyu">—</span>
+                </div>
+                <div class="calc-row">
+                    <span class="calc-label">Ganancia UYU</span>
+                    <span class="calc-value calc-gain" id="calc-ganancia">—</span>
+                </div>
+                <div class="calc-row">
+                    <span class="calc-label">Margen</span>
+                    <span class="calc-value" id="calc-margen">—</span>
+                </div>
+                {% if mode == 'edit' %}
+                <p class="calc-hint">TC al ingreso: <strong>{{ disc.tc_usado }}</strong>. Al editar costos, el costo final se recalcula con el TC al ingreso, no con el TC actual.</p>
+                {% else %}
+                <p class="calc-hint">El costo final se calcula con el TC actual ({{ tc }}) al momento de guardar.</p>
+                {% endif %}
+            </div>
+
+            <h2 class="form-section-title">Estado e inventario</h2>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="estado">Estado</label>
+                    <select id="estado" name="estado">
+                        {% for e in estados %}
+                            <option value="{{ e }}" {% if (form_data.get('estado') if form_data else disc.estado) == e %}selected{% endif %}>{{ e }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="condicion">Condicion</label>
+                    <select id="condicion" name="condicion">
+                        <option value="">— Sin especificar —</option>
+                        {% for c in condiciones %}
+                            <option value="{{ c }}" {% if (form_data.get('condicion') if form_data else disc.condicion) == c %}selected{% endif %}>{{ c }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="origen">Origen <span class="form-field-hint">(de donde viene el disco)</span></label>
+                    <select id="origen" name="origen">
+                        <option value="arcano" {% if (form_data.get('origen') if form_data else (disc.origen or 'arcano')) == 'arcano' %}selected{% endif %}>Arcano (comprado para vender)</option>
+                        <option value="personal" {% if (form_data.get('origen') if form_data else disc.origen) == 'personal' %}selected{% endif %}>Personal (mi coleccion)</option>
+                    </select>
+                </div>
+            </div>
+
+            {% if mode == 'edit' %}
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="fecha_ingreso">Fecha de compra / ingreso <span class="form-field-hint">(cuando entro al stock)</span></label>
+                    <input type="date" id="fecha_ingreso" name="fecha_ingreso" value="{{ disc.fecha_ingreso.strftime('%Y-%m-%d') if disc.fecha_ingreso else '' }}">
+                </div>
+                <div class="form-field">
+                    <label for="fecha_venta">Fecha de venta <span class="form-field-hint">(se completa sola al vender; editable)</span></label>
+                    <input type="date" id="fecha_venta" name="fecha_venta" value="{{ disc.fecha_venta.strftime('%Y-%m-%d') if disc.fecha_venta else '' }}">
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="descripcion_publica">Descripcion publica <span class="form-field-hint">(visible en la ficha de tienda)</span></label>
+                    <textarea id="descripcion_publica" name="descripcion_publica" rows="4" placeholder="Descripcion editorial: como descubriste el disco, que te gusta, recomendacion DJ, contexto del sello...">{{ field_value('descripcion_publica', disc.descripcion_publica) }}</textarea>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="tags">Tags <span class="form-field-hint">(separados por coma, se muestran como badges en la ficha publica)</span></label>
+                    <input type="text" id="tags" name="tags" list="tags-suggested" value="{{ field_value('tags', disc.tags) }}" placeholder="Vinyl Only, Repress, White Label...">
+                    <datalist id="tags-suggested">
+                        <option value="Vinyl Only">
+                        <option value="White Label">
+                        <option value="Repress">
+                        <option value="Pre-order">
+                        <option value="Limited">
+                        <option value="Test Press">
+                        <option value="Coloured Vinyl">
+                        <option value="Import">
+                        <option value="Signed">
+                        <option value="Second Hand">
+                    </datalist>
+                    <div class="tag-chips-quick">
+                        {% for suggested in ['Vinyl Only', 'Repress', 'Limited', 'White Label', 'Pre-order', 'Coloured Vinyl'] %}
+                        <button type="button" class="tag-chip-quick" data-tag="{{ suggested }}">+ {{ suggested }}</button>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label class="checkbox-field">
+                        <input type="checkbox" name="destacado" value="1" {% if disc.destacado %}checked{% endif %}>
+                        <span>Destacar en la home <span class="form-field-hint">(aparece en la seccion Destacados arriba del catalogo)</span></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label class="checkbox-field">
+                        <input type="checkbox" name="en_nuevos" value="1" {% if disc.en_nuevos %}checked{% endif %}>
+                        <span>Marcar en "Nuevos ingresos" <span class="form-field-hint">(fuerza que aparezca en la seccion Nuevos ingresos)</span></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="cartel_nuevo">Cartel "Nuevo"</label>
+                    <select id="cartel_nuevo" name="cartel_nuevo">
+                        <option value="auto" {% if (disc.cartel_nuevo or 'auto') == 'auto' %}selected{% endif %}>Automatico (14 dias)</option>
+                        <option value="si" {% if disc.cartel_nuevo == 'si' %}selected{% endif %}>Siempre mostrar</option>
+                        <option value="no" {% if disc.cartel_nuevo == 'no' %}selected{% endif %}>Nunca mostrar</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label class="checkbox-field" style="margin-top: 28px;">
+                        <input type="checkbox" name="cartel_ultima" value="1" {% if disc.cartel_ultima %}checked{% endif %}>
+                        <span>Mostrar cartel "Ultima copia"</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="notas">Notas privadas</label>
+                    <textarea id="notas" name="notas" rows="3" placeholder="Notas internas (no visibles en tienda publica)">{{ field_value('notas', disc.notas) }}</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-footer">
+        {% if mode == 'edit' %}
+            <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        {% else %}
+            <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Cancelar</a>
+            <button type="submit" class="btn btn-primary">Agregar al stock</button>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+// Tag chips: agregar tags rapidos al input tags
+(function () {
+    var tagsInput = document.getElementById('tags');
+    if (!tagsInput) return;
+    document.querySelectorAll('.tag-chip-quick').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            var tag = chip.dataset.tag;
+            var current = tagsInput.value.split(',').map(function (t) { return t.trim(); }).filter(Boolean);
+            if (current.indexOf(tag) === -1) {
+                current.push(tag);
+                tagsInput.value = current.join(', ');
+                tagsInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        });
+    });
+})();
+</script>
+{% if mode == 'edit' %}
+<script>
+(function () {
+    var btn = document.getElementById('cover-upload-btn');
+    var input = document.getElementById('cover-upload-input');
+    var submit = document.getElementById('cover-upload-submit');
+    var status = document.getElementById('cover-upload-status');
+    if (!btn || !input || !submit) return;
+
+    btn.addEventListener('click', function () { input.click(); });
+    input.addEventListener('change', function () {
+        if (input.files && input.files[0]) {
+            btn.textContent = input.files[0].name;
+            submit.hidden = false;
+        }
+    });
+
+    submit.addEventListener('click', function () {
+        if (!input.files || !input.files[0]) return;
+        var file = input.files[0];
+        var fd = new FormData();
+        fd.append('cover', file);
+
+        submit.disabled = true;
+        submit.textContent = 'Subiendo...';
+        status.textContent = '';
+
+        fetch('{{ url_for("disc_upload_cover", disc_id=disc.id) }}', {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: fd,
+        })
+        .then(function (resp) { return resp.json(); })
+        .then(function (data) {
+            if (data.ok) {
+                status.textContent = 'Portada subida. Recargando...';
+                setTimeout(function () { window.location.reload(); }, 600);
+            } else {
+                submit.disabled = false;
+                submit.textContent = 'Subir ahora';
+                status.textContent = 'Error: ' + (data.error || 'desconocido');
+                status.style.color = 'var(--loss)';
+            }
+        })
+        .catch(function (err) {
+            submit.disabled = false;
+            submit.textContent = 'Subir ahora';
+            status.textContent = 'Error de red: ' + err;
+            status.style.color = 'var(--loss)';
+        });
+    });
+})();
+</script>
+{% endif %}
+{% if mode == 'edit' %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="{{ url_for('static', filename='js/tracks_editor.js') }}"></script>
+<script src="{{ url_for('static', filename='js/gallery_editor.js') }}"></script>
+{% endif %}
+{% if mode == 'new' %}
+<script src="{{ url_for('static', filename='js/tracks_new_editor.js') }}"></script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "public/base.html" %}
+
+{% block title %}Crear cuenta &middot; Arcano Record Store{% endblock %}
+
+{% block content %}
+
+<section class="public-auth">
+    <h1 class="public-auth-title">Crear cuenta</h1>
+    <p class="public-auth-sub">Guarda tus reservas y segui su estado. Es opcional: tambien podes reservar sin cuenta.</p>
+
+    <form method="post" action="{{ url_for('cliente_registro') }}" class="public-auth-form">
+        <div class="form-field">
+            <label for="nombre">Nombre</label>
+            <input type="text" id="nombre" name="nombre" required value="{{ form.nombre or '' }}" autofocus>
+        </div>
+        <div class="form-field">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required value="{{ form.email or '' }}">
+        </div>
+        <div class="form-field">
+            <label for="whatsapp">WhatsApp <span class="form-field-hint">(opcional, con codigo de pais)</span></label>
+            <input type="tel" id="whatsapp" name="whatsapp" value="{{ form.whatsapp or '' }}" placeholder="+598 99 123 456">
+            <span class="form-field-hint">Si ya reservaste antes con este numero, esas reservas se van a asociar a tu cuenta.</span>
+        </div>
+        <div class="form-field">
+            <label for="password">Contrasena <span class="form-field-hint">(minimo 6 caracteres)</span></label>
+            <input type="password" id="password" name="password" required minlength="6">
+        </div>
+        <div class="form-field">
+            <label for="password2">Repetir contrasena</label>
+            <input type="password" id="password2" name="password2" required minlength="6">
+        </div>
+        <button type="submit" class="btn btn-primary public-auth-submit">Crear cuenta</button>
+    </form>
+
+    <p class="public-auth-alt">Ya tenes cuenta? <a href="{{ url_for('cliente_login_page') }}">Inicia sesion</a></p>
+</section>
+
+{% endblock %}

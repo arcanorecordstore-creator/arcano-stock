@@ -1,0 +1,51 @@
+{% extends "public/base.html" %}
+
+{% block title %}Mi cuenta &middot; Arcano Record Store{% endblock %}
+
+{% block content %}
+
+<section class="public-cuenta">
+    <div class="public-cuenta-head">
+        <div>
+            <h1 class="public-cuenta-title">Hola, {{ cliente.nombre }}</h1>
+            <p class="public-cuenta-email">{{ cliente.email }}</p>
+        </div>
+        <form method="post" action="{{ url_for('cliente_logout_route') }}">
+            <button type="submit" class="btn btn-ghost btn-sm">Cerrar sesion</button>
+        </form>
+    </div>
+
+    <h2 class="public-cuenta-subtitle">Mis reservas</h2>
+
+    {% if reservas %}
+    <div class="public-cuenta-reservas">
+        {% for r in reservas %}
+        <div class="cuenta-reserva">
+            <div class="cuenta-reserva-head">
+                <span class="cuenta-reserva-id">Reserva #{{ r.id }}</span>
+                <span class="cuenta-reserva-fecha">{{ r.fecha.strftime('%d/%m/%Y') if r.fecha else '' }}</span>
+                <span class="badge badge-{{ 'reservado' if r.estado == 'Pendiente' else 'disponible' if r.estado == 'Confirmada' else 'vendido' if r.estado == 'Completada' else 'descartado' }}">{{ r.estado }}</span>
+            </div>
+            <div class="cuenta-reserva-items">
+                {% for item in r.items_efectivos %}
+                <div class="cuenta-reserva-item">
+                    <span>{{ item.artista_snap }} &mdash; {{ item.titulo_snap }}</span>
+                    {% if item.precio_uyu_snap %}<span class="cuenta-reserva-precio">$ {{ '{:,.0f}'.format(item.precio_uyu_snap).replace(',', '.') }}</span>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% if r.total_uyu > 0 %}
+            <div class="cuenta-reserva-total">Total: $ {{ '{:,.0f}'.format(r.total_uyu).replace(',', '.') }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="public-empty">
+        <p>Todavia no tenes reservas.</p>
+        <a href="{{ url_for('home') }}" class="btn btn-primary">Ver el catalogo</a>
+    </div>
+    {% endif %}
+</section>
+
+{% endblock %}

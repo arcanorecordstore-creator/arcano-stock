@@ -1,0 +1,12 @@
+Flask
+SQLAlchemy
+Flask-SQLAlchemy
+python-dotenv
+requests
+beautifulsoup4
+anthropic
+cloudscraper
+pypdfium2
+Pillow
+yt-dlp
+gunicorn

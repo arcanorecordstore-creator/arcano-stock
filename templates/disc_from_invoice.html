@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Agregar desde factura &middot; Arcano{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Agregar desde factura</h1>
+        <p class="page-sub">Subi una factura o listado de compra con varios discos. La IA los extrae todos juntos.</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('disc_new') }}" class="btn btn-ghost">Cargar uno manual</a>
+    </div>
+</section>
+
+<div class="upload-grid">
+
+    <section class="upload-card">
+        {% if not api_key_set %}
+        <div class="upload-warning">
+            <strong>API key no configurada.</strong>
+            Editar el archivo <code>.env</code> y agregar la linea
+            <code>ANTHROPIC_API_KEY=sk-ant-...</code>, despues reiniciar el servidor.
+        </div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('disc_new_from_invoice') }}" id="upload-form">
+            <div class="dropzone" id="dropzone">
+                <div class="dropzone-icon">&#8682;</div>
+                <p class="dropzone-title">Arrastra la factura aqui</p>
+                <p class="dropzone-sub">o <span class="dropzone-link">selecciona un archivo</span></p>
+                <p class="dropzone-meta">PNG, JPG, GIF, WEBP o PDF &middot; max 10 MB (PDF: 20 MB)</p>
+                <input type="file" id="screenshot" name="invoice" accept="image/png,image/jpeg,image/gif,image/webp,application/pdf" required hidden>
+            </div>
+
+            <div class="preview-wrap" id="preview-wrap" hidden>
+                <img id="preview-img" alt="Preview">
+                <div class="preview-info">
+                    <span class="preview-name" id="preview-name"></span>
+                    <span class="preview-size" id="preview-size"></span>
+                    <button type="button" class="action-btn danger" id="preview-clear">Quitar</button>
+                </div>
+            </div>
+
+            <div class="upload-actions">
+                <button type="submit" class="btn btn-primary" id="upload-submit" {% if not api_key_set %}disabled{% endif %}>
+                    Analizar factura y buscar portadas
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <aside class="upload-aside">
+        <h3 class="upload-aside-title">Como funciona</h3>
+        <ol class="upload-steps">
+            <li>Subis una factura/listado de Deejay.de u otra tienda con multiples discos.</li>
+            <li>La IA extrae todos los discos + el costo de envio en una sola pasada.</li>
+            <li>Te llevamos a una pantalla de revision donde podes <strong>editar cada disco</strong> antes de guardar.</li>
+            <li>El envio total se reparte en partes iguales entre los discos.</li>
+            <li>Si un disco ya existe en tu stock, se <strong>suma al stock</strong> del existente y se reescribe el costo con la ultima compra.</li>
+        </ol>
+
+        <h3 class="upload-aside-title">Costo aproximado</h3>
+        <p class="upload-aside-text">
+            <strong>$0.01 a $0.03 USD</strong> por factura, sin importar cuantos discos tenga. Mucho mas barato que cargarlos uno por uno.
+        </p>
+
+        <h3 class="upload-aside-title">Tip</h3>
+        <p class="upload-aside-text">
+            Cuanto mas clara la factura, mejor extraccion. Si la imagen esta torcida o con poca luz, recortala antes en Paint.
+        </p>
+    </aside>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %}

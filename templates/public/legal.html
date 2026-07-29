@@ -1,0 +1,69 @@
+{% extends "public/base.html" %}
+
+{% block title %}Informacion legal &middot; Arcano Record Store{% endblock %}
+{% block meta_description %}Terminos, envios, privacidad y cookies de Arcano Record Store.{% endblock %}
+
+{% block content %}
+
+<section class="public-legal">
+    <h1 class="public-legal-title">Informacion</h1>
+
+    <nav class="public-legal-nav">
+        <a href="#terminos">Terminos y condiciones</a>
+        <a href="#envios">Envios y devoluciones</a>
+        <a href="#privacidad">Politica de privacidad</a>
+        <a href="#cookies">Politica de cookies</a>
+    </nav>
+
+    <article class="public-legal-section" id="terminos">
+        <h2>Terminos y condiciones</h2>
+        {% if legal_terminos %}
+        <div class="public-legal-body">{{ legal_terminos|replace('\n\n', '</p><p>')|replace('\n', '<br>')|safe }}</div>
+        {% else %}
+        <p>Al reservar o comprar en Arcano Record Store aceptas coordinar el pago y la entrega
+        por los canales indicados (WhatsApp / Instagram). Los precios estan expresados en pesos
+        uruguayos e incluyen el valor del disco. El envio se coordina aparte. Nos reservamos el
+        derecho de cancelar una reserva si el disco ya no esta disponible, avisandote de inmediato.</p>
+        {% endif %}
+    </article>
+
+    <article class="public-legal-section" id="envios">
+        <h2>Envios y devoluciones</h2>
+        {% if legal_envios %}
+        <div class="public-legal-body">{{ legal_envios|replace('\n\n', '</p><p>')|replace('\n', '<br>')|safe }}</div>
+        {% elif envios %}
+        <div class="public-legal-body">{{ envios|replace('\n\n', '</p><p>')|replace('\n', '<br>')|safe }}</div>
+        {% else %}
+        <p>Hacemos envios a todo Uruguay y coordinamos retiro en Montevideo. El costo y el tiempo
+        de envio se coordinan por mensaje directo segun tu ubicacion. Los vinilos se revisan y
+        embalan con cuidado antes de despachar. Si un disco llega danado por el transporte,
+        escribinos y lo resolvemos.</p>
+        {% endif %}
+    </article>
+
+    <article class="public-legal-section" id="privacidad">
+        <h2>Politica de privacidad</h2>
+        {% if legal_privacidad %}
+        <div class="public-legal-body">{{ legal_privacidad|replace('\n\n', '</p><p>')|replace('\n', '<br>')|safe }}</div>
+        {% else %}
+        <p>Los datos que nos dejas al reservar (nombre, WhatsApp y opcionalmente email) se usan
+        unicamente para coordinar tu compra. No los compartimos con terceros ni los usamos para
+        otra cosa. Podes pedirnos que borremos tus datos cuando quieras escribiendonos por los
+        canales de contacto.</p>
+        {% endif %}
+    </article>
+
+    <article class="public-legal-section" id="cookies">
+        <h2>Politica de cookies</h2>
+        {% if legal_cookies %}
+        <div class="public-legal-body">{{ legal_cookies|replace('\n\n', '</p><p>')|replace('\n', '<br>')|safe }}</div>
+        {% else %}
+        <p>Esta tienda usa almacenamiento local del navegador para recordar tus favoritos, tu
+        carrito y tu preferencia de tema (claro / oscuro). No usamos cookies de rastreo ni
+        publicidad. La informacion queda en tu dispositivo y podes borrarla limpiando los datos
+        del navegador.</p>
+        {% endif %}
+    </article>
+</section>
+
+{% endblock %}

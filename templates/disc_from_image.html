@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+
+{% block title %}Agregar desde screenshot &middot; Arcano{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Agregar desde screenshot</h1>
+        <p class="page-sub">Subi una imagen y la IA extrae los datos automaticamente.</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('disc_new') }}" class="btn btn-ghost">Cargar manual en su lugar</a>
+    </div>
+</section>
+
+<div class="upload-grid">
+
+    <section class="upload-card">
+        {% if not api_key_set %}
+        <div class="upload-warning">
+            <strong>API key no configurada.</strong>
+            Editar el archivo <code>.env</code> en la carpeta del proyecto y agregar la linea
+            <code>ANTHROPIC_API_KEY=sk-ant-...</code> con tu clave de Anthropic.
+            Despues reiniciar el servidor.
+        </div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('disc_new_from_image') }}" id="upload-form">
+            <div class="dropzone" id="dropzone">
+                <div class="dropzone-icon">&#8682;</div>
+                <p class="dropzone-title">Arrastra una imagen aqui</p>
+                <p class="dropzone-sub">o <span class="dropzone-link">selecciona un archivo</span></p>
+                <p class="dropzone-meta">PNG, JPG, GIF, WEBP o PDF &middot; max 10 MB (PDF: 20 MB)</p>
+                <input type="file" id="screenshot" name="screenshot" accept="image/png,image/jpeg,image/gif,image/webp,application/pdf" required hidden>
+            </div>
+
+            <div class="preview-wrap" id="preview-wrap" hidden>
+                <img id="preview-img" alt="Preview">
+                <div class="preview-info">
+                    <span class="preview-name" id="preview-name"></span>
+                    <span class="preview-size" id="preview-size"></span>
+                    <button type="button" class="action-btn danger" id="preview-clear">Quitar</button>
+                </div>
+            </div>
+
+            <div class="upload-actions">
+                <button type="submit" class="btn btn-primary" id="upload-submit" {% if not api_key_set %}disabled{% endif %}>
+                    Extraer datos con IA
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <aside class="upload-aside">
+        <h3 class="upload-aside-title">Como funciona</h3>
+        <ol class="upload-steps">
+            <li>Subis un screenshot de Deejay.de, Discogs, Hardwax, Bandcamp u otra fuente.</li>
+            <li>La imagen se manda a Claude (Anthropic) que la analiza con vision.</li>
+            <li>Te devuelve un JSON con los datos del disco: artista, titulo, sello, precio, tracklist, etc.</li>
+            <li>Te llevamos al formulario de alta <strong>prellenado</strong>. Revisas, corregis y guardas.</li>
+        </ol>
+
+        <h3 class="upload-aside-title">Costo aproximado</h3>
+        <p class="upload-aside-text">
+            Cada imagen procesada cuesta aproximadamente <strong>$0.01 a $0.02 USD</strong>
+            dependiendo del tamano. El gasto acumulado se ve en
+            <a href="{{ url_for('settings_page') }}" class="link">Ajustes</a>.
+        </p>
+
+        <h3 class="upload-aside-title">Privacidad</h3>
+        <p class="upload-aside-text">
+            La imagen se envia solo a la API de Anthropic. No se guarda en sus servidores para entrenamiento (segun politica de la API).
+        </p>
+    </aside>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/upload.js') }}"></script>
+{% endblock %}

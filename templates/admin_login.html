@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login &middot; Arcano admin</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-body">
+
+<div class="login-wrap">
+    <div class="login-card">
+        <div class="login-brand">
+            <h1 class="brand-logo">ARCANO</h1>
+            <p class="brand-tagline">Stock manager &middot; Acceso privado</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flashes">
+                    {% for cat, msg in messages %}
+                        <div class="flash flash-{{ cat }}">{{ msg }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <form method="post" action="{{ url_for('admin_login') }}" class="login-form">
+            {% if next_url %}
+            <input type="hidden" name="next" value="{{ next_url }}">
+            {% endif %}
+
+            <div class="form-field">
+                <label for="user">Usuario</label>
+                <input type="text" id="user" name="user" required autofocus autocomplete="username">
+            </div>
+
+            <div class="form-field">
+                <label for="password">Contrasenia</label>
+                <input type="password" id="password" name="password" required autocomplete="current-password">
+            </div>
+
+            <button type="submit" class="btn btn-primary login-submit">Entrar</button>
+        </form>
+
+        <p class="login-foot">
+            Si olvidaste la contrasenia, editar el archivo <code>.env</code> y cambiar la linea <code>ADMIN_PASS=...</code>
+        </p>
+    </div>
+</div>
+
+</body>
+</html>

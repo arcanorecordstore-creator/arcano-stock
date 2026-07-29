@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Reservas &middot; Arcano admin{% endblock %}
+
+{% block content %}
+
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Reservas</h1>
+        <p class="page-sub">
+            {% if contadores.Pendiente > 0 %}
+            <strong>{{ contadores.Pendiente }} pendiente{{ 's' if contadores.Pendiente != 1 else '' }}</strong> &middot;
+            {% endif %}
+            {{ contadores.Confirmada }} confirmadas &middot;
+            {{ contadores.Completada }} completadas &middot;
+            {{ contadores.Cancelada }} canceladas
+        </p>
+    </div>
+</section>
+
+<div class="reserva-filters">
+    <a href="{{ url_for('admin_reservas') }}" class="reserva-filter-chip {% if not filtro_estado %}active{% endif %}">
+        Todas ({{ contadores.Pendiente + contadores.Confirmada + contadores.Completada + contadores.Cancelada }})
+    </a>
+    {% for e in estados %}
+    <a href="{{ url_for('admin_reservas', estado=e) }}" class="reserva-filter-chip {% if filtro_estado == e %}active{% endif %}">
+        {{ e }} ({{ contadores[e] }})
+    </a>
+    {% endfor %}
+</div>
+
+{% if reservas %}
+<div class="reserva-list">
+    {% for r in reservas %}
+    <a href="{{ url_for('admin_reserva_detail', reserva_id=r.id) }}" class="reserva-card {% if r.estado == 'Pendiente' %}reserva-pending{% endif %}">
+        <div class="reserva-card-head">
+            <span class="reserva-card-num">#{{ r.id }}</span>
+            <span class="badge badge-{{ 'reservado' if r.estado == 'Pendiente' else 'disponible' if r.estado == 'Confirmada' else 'vendido' if r.estado == 'Completada' else 'descartado' }}">{{ r.estado }}</span>
+            <span class="reserva-card-date">{{ r.fecha.strftime('%d/%m/%Y %H:%M') }} UTC</span>
+        </div>
+        <div class="reserva-card-body">
+            <div class="reserva-card-disc">
+                {% set items = r.items_efectivos %}
+                {% if items|length == 1 %}
+                    <strong>{{ items[0].artista_snap or '(disco)' }}</strong> &mdash; {{ items[0].titulo_snap or '' }}
+                {% elif items|length > 1 %}
+                    <strong>{{ items|length }} discos</strong>
+                    <span class="reserva-card-multi">{{ items[0].artista_snap }} &middot; {{ items[1].artista_snap }}{% if items|length > 2 %} +{{ items|length - 2 }}{% endif %}</span>
+                {% else %}
+                    <strong>(sin discos)</strong>
+                {% endif %}
+                {% if r.total_uyu > 0 %}<span class="reserva-card-total">$ {{ '{:,.0f}'.format(r.total_uyu).replace(',', '.') }}</span>{% endif %}
+            </div>
+            <div class="reserva-card-cliente">
+                {{ r.nombre }} &middot; {{ r.whatsapp }}
+                {% if r.email %}&middot; {{ r.email }}{% endif %}
+            </div>
+            {% if r.nota %}
+            <div class="reserva-card-nota">"{{ r.nota }}"</div>
+            {% endif %}
+        </div>
+    </a>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">&#9999;</div>
+    <h2>Sin reservas</h2>
+    <p>{% if filtro_estado %}No hay reservas en estado "{{ filtro_estado }}".{% else %}Todavia no llegaron reservas desde la tienda.{% endif %}</p>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,14 @@
+{% extends "public/base.html" %}
+
+{% block title %}404 &middot; Arcano Record Store{% endblock %}
+
+{% block content %}
+
+<section class="public-not-found">
+    <div class="not-found-num">404</div>
+    <h1>Pagina no encontrada</h1>
+    <p>El link que seguiste no existe o ya no esta disponible.</p>
+    <a href="{{ url_for('home') }}" class="btn btn-primary">Volver al catalogo</a>
+</section>
+
+{% endblock %}

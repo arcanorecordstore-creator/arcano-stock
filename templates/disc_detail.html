@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}{{ disc.artista }} - {{ disc.titulo }} &middot; Arcano{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">{{ disc.artista }}</h1>
+        <p class="page-sub">{{ disc.titulo }}{% if disc.sello %} &middot; {{ disc.sello }}{% endif %}</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">&larr; Volver</a>
+        <a href="{{ url_for('disc_edit', disc_id=disc.id) }}" class="btn btn-primary">Editar</a>
+    </div>
+</section>
+
+<div class="detail-grid">
+
+    <!-- Columna izquierda: portada + acciones -->
+    <aside class="detail-left">
+        <div class="detail-cover-wrap">
+            {% if disc.cover_local %}
+                <img src="{{ url_for('serve_cover', filename=disc.cover_local) }}" alt="{{ disc.artista }} - {{ disc.titulo }}" class="detail-cover">
+            {% elif disc.cover_url %}
+                <img src="{{ disc.cover_url }}" alt="{{ disc.artista }} - {{ disc.titulo }}" class="detail-cover">
+            {% else %}
+                <div class="detail-cover detail-cover-placeholder">&#9834;</div>
+            {% endif %}
+        </div>
+
+        <div class="detail-actions">
+            <p class="detail-actions-label">Estado actual</p>
+            {% set estado_class = {
+                'Disponible': 'badge-disponible',
+                'Reservado': 'badge-reservado',
+                'Vendido': 'badge-vendido',
+                'Apartado para mi': 'badge-apartado',
+                'En camino': 'badge-encamino',
+                'Descartado': 'badge-descartado',
+            } %}
+            <span class="badge {{ estado_class.get(disc.estado, 'badge-default') }} badge-lg">{{ disc.estado }}</span>
+
+            <p class="detail-actions-label">Cambiar a</p>
+            <div class="detail-status-buttons">
+                {% for e in estados if e != disc.estado %}
+                <form method="post" action="{{ url_for('disc_status', disc_id=disc.id) }}">
+                    <input type="hidden" name="estado" value="{{ e }}">
+                    <button type="submit" class="action-btn">{{ e }}</button>
+                </form>
+                {% endfor %}
+            </div>
+
+            <p class="detail-actions-label">Acciones</p>
+            <form method="post" action="{{ url_for('disc_delete', disc_id=disc.id) }}"
+                  data-confirm="¿Eliminar '{{ disc.artista }} - {{ disc.titulo }}'? Esta accion no se puede deshacer.">
+                <button type="submit" class="action-btn danger" style="width: 100%;">Eliminar disco</button>
+            </form>
+        </div>
+
+        {% if disc.sample_url %}
+        <div class="detail-sample">
+            <p class="detail-actions-label">Audio sample</p>
+            <audio controls preload="metadata" style="width: 100%;">
+                <source src="{{ disc.sample_url }}">
+                Tu navegador no soporta audio.
+            </audio>
+        </div>
+        {% endif %}
+    </aside>
+
+    <!-- Columna derecha: metadata + tracklist + historial -->
+    <div class="detail-right">
+
+        <!-- Card: metadata principal -->
+        <section class="detail-card">
+            <h2 class="detail-card-title">Datos</h2>
+            <div class="detail-meta-grid">
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Sello</span>
+                    <span class="detail-meta-value">{{ disc.sello or '—' }}</span>
+                </div>
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Anio</span>
+                    <span class="detail-meta-value">{{ disc.anio or '—' }}</span>
+                </div>
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Formato</span>
+                    <span class="detail-meta-value">{{ disc.formato or '—' }}</span>
+                </div>
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Genero</span>
+                    <span class="detail-meta-value">{{ disc.genero or '—' }}</span>
+                </div>
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Condicion</span>
+                    <span class="detail-meta-value">{{ disc.condicion or '—' }}</span>
+                </div>
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Stock</span>
+                    <span class="detail-meta-value">{{ disc.stock }} {{ 'unidad' if disc.stock == 1 else 'unidades' }}</span>
+                </div>
+            </div>
+            {% if disc.source_url %}
+            <p class="detail-source">
+                <a href="{{ disc.source_url }}" target="_blank" rel="noopener" class="link">Ver en fuente original &nearr;</a>
+            </p>
+            {% endif %}
+        </section>
+
+        <!-- Card: precios -->
+        <section class="detail-card">
+            <h2 class="detail-card-title">Precios</h2>
+            <div class="detail-price-grid">
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Costo &euro;</span>
+                    <span class="detail-meta-value">{{ '%.2f'|format(disc.costo_eur or 0) }}</span>
+                </div>
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Envio &euro;</span>
+                    <span class="detail-meta-value">{{ '%.2f'|format(disc.envio_eur or 0) }}</span>
+                </div>
+                <div class="detail-meta">
+                    <span class="detail-meta-label">TC al ingreso</span>
+                    <span class="detail-meta-value">{{ disc.tc_usado }}</span>
+                </div>
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Costo final UYU</span>
+                    <span class="detail-meta-value">{{ '{:,.0f}'.format(disc.costo_final_uyu or 0).replace(',', '.') }}</span>
+                </div>
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Precio venta UYU</span>
+                    <span class="detail-meta-value">{{ '{:,.0f}'.format(disc.precio_uyu or 0).replace(',', '.') }}</span>
+                </div>
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Ganancia UYU</span>
+                    <span class="detail-meta-value {% if (disc.ganancia_uyu or 0) >= 0 %}detail-gain{% else %}detail-loss{% endif %}">{{ '{:,.0f}'.format(disc.ganancia_uyu or 0).replace(',', '.') }}</span>
+                </div>
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Margen</span>
+                    <span class="detail-meta-value {% if (disc.margen_pct or 0) < 0 %}detail-loss{% endif %}">{{ '%.1f'|format(disc.margen_pct or 0) }}%</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Card: tracklist -->
+        {% if disc.tracklist %}
+        <section class="detail-card">
+            <h2 class="detail-card-title">Tracklist</h2>
+            <ul class="tracklist">
+                {% for line in disc.tracklist.split('\n') %}
+                    {% set t = line.strip() %}
+                    {% if t %}
+                    <li>{{ t }}</li>
+                    {% endif %}
+                {% endfor %}
+            </ul>
+        </section>
+        {% endif %}
+
+        <!-- Card: notas privadas -->
+        {% if disc.notas %}
+        <section class="detail-card">
+            <h2 class="detail-card-title">Notas privadas</h2>
+            <p class="detail-notas">{{ disc.notas }}</p>
+        </section>
+        {% endif %}
+
+        <!-- Card: timeline -->
+        <section class="detail-card">
+            <h2 class="detail-card-title">Historial de estados</h2>
+            <div class="timeline">
+                <div class="timeline-entry timeline-entry-static">
+                    <span class="timeline-dot"></span>
+                    <div class="timeline-body">
+                        <span class="timeline-event">Ingreso al stock</span>
+                        <span class="timeline-date">{{ disc.fecha_ingreso.strftime('%d/%m/%Y %H:%M') if disc.fecha_ingreso else '—' }} UTC</span>
+                    </div>
+                </div>
+                {% if disc.fecha_reserva %}
+                <div class="timeline-entry">
+                    <span class="timeline-dot timeline-dot-reservado"></span>
+                    <div class="timeline-body">
+                        <span class="timeline-event">Reservado</span>
+                        <span class="timeline-date">{{ disc.fecha_reserva.strftime('%d/%m/%Y %H:%M') }} UTC</span>
+                    </div>
+                </div>
+                {% endif %}
+                {% if disc.fecha_venta %}
+                <div class="timeline-entry">
+                    <span class="timeline-dot timeline-dot-vendido"></span>
+                    <div class="timeline-body">
+                        <span class="timeline-event">Vendido</span>
+                        <span class="timeline-date">{{ disc.fecha_venta.strftime('%d/%m/%Y %H:%M') }} UTC</span>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if history %}
+                <div class="timeline-divider">Eventos detallados</div>
+                {% for h in history %}
+                <div class="timeline-entry">
+                    <span class="timeline-dot"></span>
+                    <div class="timeline-body">
+                        <span class="timeline-event">{{ h.estado }}</span>
+                        {% if h.nota %}<span class="timeline-note">{{ h.nota }}</span>{% endif %}
+                        <span class="timeline-date">{{ h.fecha.strftime('%d/%m/%Y %H:%M') }} UTC</span>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </section>
+
+        <p class="detail-footer-meta">
+            ID interno: #{{ disc.id }} &middot;
+            Ultima modificacion: {{ disc.fecha_modificacion.strftime('%d/%m/%Y %H:%M') if disc.fecha_modificacion else '—' }} UTC
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}

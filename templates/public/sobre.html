@@ -1,0 +1,81 @@
+{% extends "public/base.html" %}
+
+{% block title %}Sobre Arcano &middot; Record Store{% endblock %}
+
+{% block content %}
+
+<section class="public-sobre">
+    <header class="public-sobre-header">
+        <h1 class="public-sobre-title">Sobre Arcano</h1>
+        <p class="public-sobre-subtitle">Record store &middot; Montevideo, Uruguay</p>
+    </header>
+
+    {% if about %}
+    <section class="public-sobre-block">
+        <div class="public-sobre-block-body">
+            {% for paragraph in about.split('\n\n') %}
+                {% if paragraph.strip() %}
+                <p>{{ paragraph.strip() }}</p>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if about_curaduria %}
+    <section class="public-sobre-block">
+        <h2 class="public-sobre-block-title">Curaduria</h2>
+        <div class="public-sobre-block-body">
+            {% for paragraph in about_curaduria.split('\n\n') %}
+                {% if paragraph.strip() %}
+                <p>{{ paragraph.strip() }}</p>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if about_como_funciona %}
+    <section class="public-sobre-block">
+        <h2 class="public-sobre-block-title">Como funciona</h2>
+        <div class="public-sobre-block-body">
+            {% for paragraph in about_como_funciona.split('\n\n') %}
+                {% if paragraph.strip() %}
+                <p>{{ paragraph.strip() }}</p>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <div class="public-sobre-grid">
+        {% if envios %}
+        <div class="public-sobre-card">
+            <h2 class="public-sobre-card-title">Envios</h2>
+            <p>{{ envios }}</p>
+        </div>
+        {% endif %}
+        <div class="public-sobre-card">
+            <h2 class="public-sobre-card-title">Contacto</h2>
+            <ul class="public-sobre-contacts">
+                {% if instagram %}
+                <li>
+                    <span class="public-sobre-contact-label">Instagram</span>
+                    <a href="https://instagram.com/{{ instagram }}" target="_blank" rel="noopener">@{{ instagram }}</a>
+                </li>
+                {% endif %}
+                {% if whatsapp %}
+                <li>
+                    <span class="public-sobre-contact-label">WhatsApp</span>
+                    <a href="https://wa.me/{{ whatsapp }}" target="_blank" rel="noopener">{{ whatsapp }}</a>
+                </li>
+                {% endif %}
+                {% if not instagram and not whatsapp %}
+                <li><span class="public-sobre-contact-label">Configurar contactos en Ajustes</span></li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</section>
+
+{% endblock %}

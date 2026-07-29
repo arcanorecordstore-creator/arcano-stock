@@ -1,0 +1,324 @@
+{% extends "base.html" %}
+
+{% block title %}Stock &middot; Arcano{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Stock</h1>
+        <p class="page-sub">{{ totals.total }} discos &middot; {{ totals.stock_total }} unidades</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('export_csv') }}" class="btn btn-ghost" title="Descargar CSV de todo el stock">Exportar CSV</a>
+        <a href="{{ url_for('disc_new') }}" class="btn btn-primary">+ Agregar disco</a>
+    </div>
+</section>
+
+<div class="quick-actions">
+    <a href="{{ url_for('disc_new') }}" class="quick-action">
+        <span class="quick-action-icon">&#43;</span>
+        <span class="quick-action-label">Agregar disco</span>
+        <span class="quick-action-sub">Carga manual</span>
+    </a>
+    <a href="{{ url_for('disc_new_from_invoice') }}" class="quick-action">
+        <span class="quick-action-icon">&#128196;</span>
+        <span class="quick-action-label">Desde factura</span>
+        <span class="quick-action-sub">Escanear PDF/imagen</span>
+    </a>
+    <a href="{{ url_for('disc_new_from_url') }}" class="quick-action">
+        <span class="quick-action-icon">&#128279;</span>
+        <span class="quick-action-label">Desde URL</span>
+        <span class="quick-action-sub">Deejay.de</span>
+    </a>
+    <a href="{{ url_for('admin_reservas') }}" class="quick-action {% if reservas_pendientes_count > 0 %}quick-action-alert{% endif %}">
+        <span class="quick-action-icon">&#9873;</span>
+        <span class="quick-action-label">Reservas</span>
+        <span class="quick-action-sub">{% if reservas_pendientes_count > 0 %}{{ reservas_pendientes_count }} pendiente{{ 's' if reservas_pendientes_count != 1 else '' }}{% else %}Al dia{% endif %}</span>
+    </a>
+    <a href="{{ url_for('home') }}" target="_blank" class="quick-action">
+        <span class="quick-action-icon">&#8599;</span>
+        <span class="quick-action-label">Ver tienda</span>
+        <span class="quick-action-sub">Vista publica</span>
+    </a>
+</div>
+
+<form class="filters" method="get" action="{{ url_for('dashboard') }}">
+    <div class="filter-group filter-search">
+        <label for="q">Buscar</label>
+        <input type="text" id="q" name="q" value="{{ filtros.q }}" placeholder="Artista, titulo o sello..." autocomplete="off">
+    </div>
+    <div class="filter-group">
+        <label for="estado">Estado</label>
+        <select id="estado" name="estado">
+            <option value="todos" {% if filtros.estado == 'todos' %}selected{% endif %}>Todos</option>
+            {% for e in estados %}
+                <option value="{{ e }}" {% if filtros.estado == e %}selected{% endif %}>{{ e }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-group">
+        <label for="sello">Sello</label>
+        <select id="sello" name="sello">
+            <option value="todos" {% if filtros.sello == 'todos' %}selected{% endif %}>Todos</option>
+            {% for s in sellos %}
+                <option value="{{ s }}" {% if filtros.sello == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="filter-group">
+        <label for="origen">Origen</label>
+        <select id="origen" name="origen">
+            <option value="todos" {% if filtros.origen == 'todos' %}selected{% endif %}>Todos</option>
+            <option value="arcano" {% if filtros.origen == 'arcano' %}selected{% endif %}>Arcano</option>
+            <option value="personal" {% if filtros.origen == 'personal' %}selected{% endif %}>Personal</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label for="tipo_fecha">Filtrar por fecha</label>
+        <select id="tipo_fecha" name="tipo_fecha">
+            <option value="ingreso" {% if filtros.tipo_fecha == 'ingreso' %}selected{% endif %}>de compra</option>
+            <option value="venta" {% if filtros.tipo_fecha == 'venta' %}selected{% endif %}>de venta</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label for="fecha_desde">Desde</label>
+        <input type="date" id="fecha_desde" name="fecha_desde" value="{{ filtros.fecha_desde }}">
+    </div>
+    <div class="filter-group">
+        <label for="fecha_hasta">Hasta</label>
+        <input type="date" id="fecha_hasta" name="fecha_hasta" value="{{ filtros.fecha_hasta }}">
+    </div>
+    <div class="filter-group">
+        <label for="order">Ordenar por</label>
+        <select id="order" name="order">
+            <option value="fecha_ingreso" {% if filtros.order == 'fecha_ingreso' %}selected{% endif %}>Fecha ingreso</option>
+            <option value="precio_uyu" {% if filtros.order == 'precio_uyu' %}selected{% endif %}>Precio</option>
+            <option value="costo_final_uyu" {% if filtros.order == 'costo_final_uyu' %}selected{% endif %}>Costo final</option>
+            <option value="artista" {% if filtros.order == 'artista' %}selected{% endif %}>Artista</option>
+            <option value="sello" {% if filtros.order == 'sello' %}selected{% endif %}>Sello</option>
+        </select>
+    </div>
+    <div class="filter-group">
+        <label for="dir">Direccion</label>
+        <select id="dir" name="dir">
+            <option value="desc" {% if filtros.dir == 'desc' %}selected{% endif %}>Descendente</option>
+            <option value="asc" {% if filtros.dir == 'asc' %}selected{% endif %}>Ascendente</option>
+        </select>
+    </div>
+    <div class="filter-actions">
+        <button type="submit" class="btn btn-primary">Aplicar</button>
+        <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Limpiar</a>
+    </div>
+</form>
+
+{% if discs %}
+<div class="table-wrap">
+    <table class="stock-table" data-estados="{{ estados|join('|') }}">
+        <thead>
+            <tr>
+                <th class="col-check"><input type="checkbox" id="select-all" title="Seleccionar todo"></th>
+                <th class="col-cover"></th>
+                <th class="col-main">Artista &mdash; Titulo</th>
+                <th class="col-label">Sello</th>
+                <th class="col-fmt">Fmt</th>
+                <th class="col-num">Costo &euro;</th>
+                <th class="col-num">Envio &euro;</th>
+                <th class="col-num">Costo final UYU</th>
+                <th class="col-num">Precio UYU</th>
+                <th class="col-num">Ganancia UYU</th>
+                <th class="col-num">Margen</th>
+                <th class="col-status">Estado</th>
+                <th class="col-origen">Origen</th>
+                <th class="col-home" title="Marcar para las secciones de la home">Home</th>
+                <th class="col-stock">Stock</th>
+                <th class="col-fecha">Fechas</th>
+                <th class="col-actions">Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in discs %}
+            <tr data-disc-id="{{ d.id }}">
+                <td class="col-check"><input type="checkbox" class="row-check" name="ids[]" value="{{ d.id }}"></td>
+                <td class="col-cover">
+                    <a href="{{ url_for('disc_detail', disc_id=d.id) }}">
+                    {% if d.cover_local %}
+                        <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="" class="cover-thumb">
+                    {% else %}
+                        <div class="cover-placeholder">&#9834;</div>
+                    {% endif %}
+                    </a>
+                </td>
+                <td class="col-main">
+                    <div class="main-artist col-editable-text" data-edit="artista" data-disc-id="{{ d.id }}" data-raw="{{ d.artista }}" title="Click para editar el artista">{{ d.artista }}</div>
+                    <div class="main-title col-editable-text" data-edit="titulo" data-disc-id="{{ d.id }}" data-raw="{{ d.titulo }}" title="Click para editar el titulo">{{ d.titulo }}</div>
+                    <div class="main-meta">
+                        {% if d.anio %}<span class="main-anio">{{ d.anio }}</span> &middot; {% endif %}<span class="main-genero col-editable-text" data-edit="genero" data-disc-id="{{ d.id }}" data-raw="{{ d.genero or '' }}" title="Click para editar el genero">{{ d.genero or '+ genero' }}</span>
+                    </div>
+                    <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="main-ver-ficha" title="Abrir ficha completa">ver ficha &rarr;</a>
+                </td>
+                <td class="col-label col-editable-text" data-edit="sello" data-disc-id="{{ d.id }}" data-raw="{{ d.sello or '' }}" title="Click para editar el sello">{{ d.sello or '—' }}</td>
+                <td class="col-fmt">{{ d.formato or '—' }}</td>
+                <td class="col-num col-editable" data-edit="costo_eur" data-disc-id="{{ d.id }}" data-raw="{{ '%.2f'|format(d.costo_eur or 0) }}" title="Click para editar el costo">{{ '%.2f'|format(d.costo_eur or 0) }}</td>
+                <td class="col-num col-editable" data-edit="envio_eur" data-disc-id="{{ d.id }}" data-raw="{{ '%.2f'|format(d.envio_eur or 0) }}" title="Click para editar el envio">{{ '%.2f'|format(d.envio_eur or 0) }}</td>
+                <td class="col-num col-costofinal">{{ '{:,.0f}'.format(d.costo_final_uyu or 0).replace(',', '.') }}</td>
+                <td class="col-num col-editable" data-edit="precio_uyu" data-disc-id="{{ d.id }}" data-raw="{{ d.precio_uyu or 0 }}" title="Click para editar el precio">{{ '{:,.0f}'.format(d.precio_uyu or 0).replace(',', '.') }}</td>
+                <td class="col-num col-ganancia {% if (d.ganancia_uyu or 0) >= 0 %}gain{% else %}loss{% endif %}">{{ '{:,.0f}'.format(d.ganancia_uyu or 0).replace(',', '.') }}</td>
+                <td class="col-num col-margen {% if (d.margen_pct or 0) >= 0 %}{% else %}loss{% endif %}">{{ '%.1f'|format(d.margen_pct or 0) }}%</td>
+                <td class="col-status col-editable-estado" data-disc-id="{{ d.id }}" data-estado="{{ d.estado }}" title="Click para cambiar el estado">
+                    {% set estado_class = {
+                        'Disponible': 'badge-disponible',
+                        'Reservado': 'badge-reservado',
+                        'Vendido': 'badge-vendido',
+                        'Apartado para mi': 'badge-apartado',
+                        'En camino': 'badge-encamino',
+                        'Descartado': 'badge-descartado',
+                    } %}
+                    <span class="badge {{ estado_class.get(d.estado, 'badge-default') }}">{{ d.estado }}</span>
+                </td>
+                <td class="col-origen col-editable-origen" data-disc-id="{{ d.id }}" data-origen="{{ d.origen }}" title="Click para cambiar origen">
+                    {% if d.origen == 'personal' %}
+                    <span class="badge badge-personal">Personal</span>
+                    {% else %}
+                    <span class="badge badge-arcano">Arcano</span>
+                    {% endif %}
+                </td>
+                <td class="col-stock col-editable" data-edit="stock" data-disc-id="{{ d.id }}" data-raw="{{ d.stock }}" title="Click para editar el stock">{{ d.stock }}</td>
+                <td class="col-home">
+                    <label class="home-check" title="Destacado">
+                        <input type="checkbox" class="mark-home" data-campo="destacado" data-disc-id="{{ d.id }}" {% if d.destacado %}checked{% endif %}>
+                        <span class="home-check-icon">&#9733;</span>
+                    </label>
+                    <label class="home-check" title="Nuevos ingresos (carrusel)">
+                        <input type="checkbox" class="mark-home" data-campo="en_nuevos" data-disc-id="{{ d.id }}" {% if d.en_nuevos %}checked{% endif %}>
+                        <span class="home-check-icon">N</span>
+                    </label>
+                    <label class="home-check" title="Cartel Ultima copia">
+                        <input type="checkbox" class="mark-home" data-campo="cartel_ultima" data-disc-id="{{ d.id }}" {% if d.cartel_ultima %}checked{% endif %}>
+                        <span class="home-check-icon">&#9888;</span>
+                    </label>
+                    <select class="cartel-nuevo-select" data-disc-id="{{ d.id }}" title="Cartel Nuevo">
+                        <option value="auto" {% if d.cartel_nuevo == 'auto' %}selected{% endif %}>Nuevo: auto</option>
+                        <option value="si" {% if d.cartel_nuevo == 'si' %}selected{% endif %}>Nuevo: si</option>
+                        <option value="no" {% if d.cartel_nuevo == 'no' %}selected{% endif %}>Nuevo: no</option>
+                    </select>
+                </td>
+                <td class="col-fecha">
+                    <div class="fecha-compra" title="Fecha de compra / ingreso">&#8595; {{ d.fecha_ingreso.strftime('%d/%m/%y') if d.fecha_ingreso else '—' }}</div>
+                    {% if d.fecha_venta %}
+                    <div class="fecha-venta" title="Fecha de venta">&#8593; {{ d.fecha_venta.strftime('%d/%m/%y') }}</div>
+                    {% endif %}
+                </td>
+                <td class="col-actions">
+                    <div class="row-actions">
+                        <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="action-btn" title="Ver detalle">Ver</a>
+                        <a href="{{ url_for('disc_edit', disc_id=d.id) }}" class="action-btn" title="Editar">Editar</a>
+                        <div class="action-menu">
+                            <button type="button" class="action-btn" data-menu-trigger>Estado &#9662;</button>
+                            <div class="action-menu-list" data-menu-list>
+                                {% for e in estados if e != d.estado %}
+                                <form method="post" action="{{ url_for('disc_status', disc_id=d.id) }}">
+                                    <button type="submit" name="estado" value="{{ e }}">{{ e }}</button>
+                                </form>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <form method="post" action="{{ url_for('disc_delete', disc_id=d.id) }}" class="inline-form" data-confirm="¿Eliminar el disco '{{ d.artista }} - {{ d.titulo }}'? Esta accion no se puede deshacer.">
+                            <button type="submit" class="action-btn danger">Eliminar</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="totals-row">
+                <td colspan="5" class="totals-label">Totales</td>
+                <td class="col-num">{{ '%.2f'|format(totals.suma_costo_eur) }}</td>
+                <td class="col-num">{{ '%.2f'|format(totals.suma_envio_eur) }}</td>
+                <td class="col-num">{{ '{:,.0f}'.format(totals.suma_costo_final_uyu).replace(',', '.') }}</td>
+                <td class="col-num">{{ '{:,.0f}'.format(totals.suma_precio_uyu).replace(',', '.') }}</td>
+                <td class="col-num gain">—</td>
+                <td class="col-num">—</td>
+                <td class="col-status">—</td>
+                <td class="col-stock">{{ totals.stock_total }}</td>
+                <td class="col-actions">—</td>
+            </tr>
+        </tfoot>
+    </table>
+</div>
+
+<section class="summary-cards">
+    <div class="summary-card">
+        <span class="summary-label">Recuento</span>
+        <span class="summary-value">{{ totals.total }}</span>
+        <span class="summary-foot">{{ totals.stock_total }} unidades</span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Inversion total &euro;</span>
+        <span class="summary-value">{{ '%.2f'|format(totals.suma_costo_eur + totals.suma_envio_eur) }}</span>
+        <span class="summary-foot">Costo + envio</span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Costo final UYU</span>
+        <span class="summary-value">{{ '{:,.0f}'.format(totals.suma_costo_final_uyu).replace(',', '.') }}</span>
+        <span class="summary-foot">Inversion en UYU</span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Precio total UYU</span>
+        <span class="summary-value">{{ '{:,.0f}'.format(totals.suma_precio_uyu).replace(',', '.') }}</span>
+        <span class="summary-foot">Si se vende todo lo listado</span>
+    </div>
+    <div class="summary-card highlight">
+        <span class="summary-label">Ganancia potencial</span>
+        <span class="summary-value">{{ '{:,.0f}'.format(totals.ganancia_potencial_uyu).replace(',', '.') }}</span>
+        <span class="summary-foot">Solo discos disponibles</span>
+    </div>
+    <div class="summary-card">
+        <span class="summary-label">Ganancia realizada</span>
+        <span class="summary-value">{{ '{:,.0f}'.format(totals.ganancia_realizada_uyu).replace(',', '.') }}</span>
+        <span class="summary-foot">Discos vendidos</span>
+    </div>
+</section>
+
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">&#9834;</div>
+    <h2>Sin resultados</h2>
+    <p>No se encontraron discos con los filtros actuales.</p>
+    <div class="empty-actions">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Limpiar filtros</a>
+        <a href="{{ url_for('disc_new') }}" class="btn btn-primary">+ Agregar disco</a>
+    </div>
+</div>
+{% endif %}
+
+<!-- Barra flotante de acciones masivas -->
+<div class="bulk-bar" id="bulk-bar" hidden>
+    <span class="bulk-count"><span id="bulk-count-num">0</span> seleccionados</span>
+    <div class="bulk-actions-buttons">
+        <form method="post" action="{{ url_for('disc_bulk_action') }}" id="bulk-status-form" style="display:inline-flex; gap:6px; align-items:center;">
+            <input type="hidden" name="action" value="status">
+            <div id="bulk-status-ids"></div>
+            <select name="nuevo_estado" required>
+                <option value="">Cambiar estado a...</option>
+                {% for e in estados %}
+                <option value="{{ e }}">{{ e }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-ghost">Aplicar</button>
+        </form>
+        <form method="post" action="{{ url_for('disc_bulk_action') }}" id="bulk-delete-form"
+              data-confirm="¿Eliminar los discos seleccionados? Esta accion no se puede deshacer.">
+            <input type="hidden" name="action" value="delete">
+            <div id="bulk-delete-ids"></div>
+            <button type="submit" class="btn btn-ghost danger">Eliminar seleccionados</button>
+        </form>
+        <button type="button" class="btn btn-ghost" id="bulk-clear">Cancelar</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard_quick_edit.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block title %}Reserva #{{ reserva.id }} &middot; Arcano admin{% endblock %}
+
+{% block content %}
+
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Reserva #{{ reserva.id }}</h1>
+        <p class="page-sub">{{ reserva.fecha.strftime('%d/%m/%Y %H:%M') }} UTC &middot; Estado: <span class="badge badge-{{ 'reservado' if reserva.estado == 'Pendiente' else 'disponible' if reserva.estado == 'Confirmada' else 'vendido' if reserva.estado == 'Completada' else 'descartado' }}">{{ reserva.estado }}</span></p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('admin_reservas') }}" class="btn btn-ghost">&larr; Volver</a>
+    </div>
+</section>
+
+<div class="detail-grid">
+
+    <aside class="detail-left">
+        <div class="detail-card">
+            <h2 class="detail-card-title">Cliente</h2>
+            <div class="detail-meta-grid">
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Nombre</span>
+                    <span class="detail-meta-value">{{ reserva.nombre }}</span>
+                </div>
+                <div class="detail-meta">
+                    <span class="detail-meta-label">WhatsApp</span>
+                    <span class="detail-meta-value">
+                        <a href="https://wa.me/{{ reserva.whatsapp|replace('+', '')|replace(' ', '')|replace('-', '') }}" target="_blank" rel="noopener" class="link">{{ reserva.whatsapp }} &nearr;</a>
+                    </span>
+                </div>
+                {% if reserva.email %}
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Email</span>
+                    <span class="detail-meta-value"><a href="mailto:{{ reserva.email }}" class="link">{{ reserva.email }}</a></span>
+                </div>
+                {% endif %}
+            </div>
+
+            {% if reserva.nota %}
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-1);">
+                <span class="detail-meta-label">Nota del cliente</span>
+                <p class="detail-notas">{{ reserva.nota }}</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="detail-actions">
+            <p class="detail-actions-label">Cambiar estado</p>
+            <form method="post" action="{{ url_for('admin_reserva_detail', reserva_id=reserva.id) }}">
+                <input type="hidden" name="accion" value="estado">
+                <div class="detail-status-buttons">
+                    {% for e in estados if e != reserva.estado %}
+                    <button type="submit" name="nuevo_estado" value="{{ e }}" class="action-btn">{{ e }}</button>
+                    {% endfor %}
+                </div>
+            </form>
+
+            <p class="detail-actions-label">Acciones</p>
+            <form method="post" action="{{ url_for('admin_reserva_detail', reserva_id=reserva.id) }}"
+                  data-confirm="¿Eliminar reserva #{{ reserva.id }}? Esto no se puede deshacer.">
+                <input type="hidden" name="accion" value="delete">
+                <button type="submit" class="action-btn danger" style="width: 100%;">Eliminar reserva</button>
+            </form>
+        </div>
+    </aside>
+
+    <div class="detail-right">
+        {% if conflictos %}
+        <div class="detail-card" style="border-color: var(--status-reservado-border); background: var(--status-reservado-bg);">
+            <h2 class="detail-card-title" style="color: var(--status-reservado-fg);">&#9888; Atencion: posible conflicto</h2>
+            <p style="color: var(--text-2); font-size: 13px; line-height: 1.6;">
+                {{ conflictos|length }} disco(s) de esta reserva ya estan Vendidos o Reservados por otra via.
+                Revisá antes de confirmar:
+            </p>
+            <ul style="margin: 8px 0 0; padding-left: 18px; color: var(--text-3); font-size: 13px;">
+                {% for item in conflictos %}
+                <li>{{ item.artista_snap }} - {{ item.titulo_snap }} ({{ item.disco.estado if item.disco else '?' }})</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <div class="detail-card">
+            <h2 class="detail-card-title">Discos de la reserva ({{ reserva.cantidad_discos }})</h2>
+            {% for item in reserva.items_efectivos %}
+            <div class="reserva-item-row">
+                {% set d = item.disco %}
+                {% if d and d.cover_local %}
+                <a href="{{ url_for('disc_detail', disc_id=d.id) }}">
+                    <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="" class="reserva-item-cover">
+                </a>
+                {% else %}
+                <div class="reserva-item-cover reserva-item-cover-empty">&#9834;</div>
+                {% endif %}
+                <div class="reserva-item-body">
+                    <div class="reserva-item-title">{{ item.artista_snap }} &mdash; {{ item.titulo_snap }}</div>
+                    <div class="reserva-item-meta">
+                        {% if item.precio_uyu_snap %}$ {{ '{:,.0f}'.format(item.precio_uyu_snap).replace(',', '.') }}{% endif %}
+                        {% if d %}
+                            &middot; Estado actual: <strong>{{ d.estado }}</strong> &middot; Stock: {{ d.stock }}
+                            &middot; <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="link">Ver &rarr;</a>
+                        {% else %}
+                            &middot; <span style="color: var(--text-5);">disco eliminado del stock</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <div class="reserva-item-total">
+                <span>Total estimado</span>
+                <strong>$ {{ '{:,.0f}'.format(reserva.total_uyu).replace(',', '.') }} UYU</strong>
+            </div>
+        </div>
+
+        <div class="detail-card">
+            <h2 class="detail-card-title">Flujo</h2>
+            <p style="color: var(--text-3); font-size: 13px; line-height: 1.6;">
+                <strong>Pendiente</strong>: el cliente reservo, todavia no coordinaron nada. El disco esta en estado "Reservado".<br><br>
+                <strong>Confirmada</strong>: ya hablaste con el cliente y le aseguraste la guarda.<br><br>
+                <strong>Completada</strong>: cliente pago y retiro. Marca al disco como Vendido automaticamente.<br><br>
+                <strong>Cancelada</strong>: por la razon que sea (no contesto, se arrepintio). El disco vuelve a Disponible automaticamente.
+            </p>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}

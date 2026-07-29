@@ -1,0 +1,31 @@
+# Configuracion de despliegue en Render para Arcano Record Store.
+# Render lee este archivo y crea el servicio automaticamente.
+services:
+  - type: web
+    name: arcano-record-store
+    runtime: python
+    plan: starter            # USD 7/mes, siempre activo, permite disco persistente
+    region: oregon           # region por defecto
+    branch: main
+    buildCommand: "pip install -r requirements.txt"
+    # gunicorn = servidor de produccion. app:app = objeto 'app' del archivo app.py
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+    # Disco persistente: aca viven la base de datos y las portadas.
+    # NO se borran entre reinicios ni despliegues.
+    disk:
+      name: arcano-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: DATABASE_PATH
+        value: /var/data/arcano_stock.db
+      - key: COVERS_PATH
+        value: /var/data/covers
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: "3.12.0"
+      # Estas se completan a mano en el panel de Render (por seguridad):
+      #   ADMIN_USER        -> tu usuario de admin
+      #   ADMIN_PASS        -> tu contraseña de admin
+      #   ANTHROPIC_API_KEY -> tu API key (para escaneo con vision)

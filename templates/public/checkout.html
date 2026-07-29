@@ -1,0 +1,104 @@
+{% extends "public/base.html" %}
+
+{% block title %}Reservar carrito &middot; Arcano Record Store{% endblock %}
+
+{% block content %}
+
+<a href="{{ url_for('public_carrito') }}" class="public-back">&larr; Volver al carrito</a>
+
+<section class="public-reserve">
+    <h1 class="public-reserve-title" style="font-size: 24px; letter-spacing: 0; text-transform: none; color: var(--text-1); margin-bottom: 20px;">Reservar carrito</h1>
+
+    <div class="checkout-resumen" id="checkout-resumen">
+        <div class="public-empty"><p>Cargando resumen...</p></div>
+    </div>
+
+    <form method="post" action="{{ url_for('public_checkout') }}" class="public-reserve-form" id="checkout-form">
+        <input type="hidden" name="ids" id="checkout-ids" value="{{ ids }}">
+
+        <div class="form-field">
+            <label for="nombre">Tu nombre</label>
+            <input type="text" id="nombre" name="nombre" required value="{{ form.nombre or '' }}" autofocus placeholder="Como te llamas">
+        </div>
+
+        <div class="form-field">
+            <label for="whatsapp">WhatsApp <span class="form-field-hint">(con codigo de pais)</span></label>
+            <input type="tel" id="whatsapp" name="whatsapp" required value="{{ form.whatsapp or '' }}" placeholder="+598 99 123 456">
+        </div>
+
+        <div class="form-field">
+            <label for="email">Email <span class="form-field-hint">(opcional)</span></label>
+            <input type="email" id="email" name="email" value="{{ form.email or '' }}" placeholder="tu@email.com">
+        </div>
+
+        <div class="form-field">
+            <label for="nota">Mensaje <span class="form-field-hint">(opcional)</span></label>
+            <textarea id="nota" name="nota" rows="3" placeholder="Algo que quieras aclarar...">{{ form.nota or '' }}</textarea>
+        </div>
+
+        <div class="public-reserve-disclaimer">
+            <p>Al reservar, apartamos los discos disponibles de tu carrito.</p>
+            <p>Te contactamos por WhatsApp para coordinar pago y entrega.</p>
+        </div>
+
+        <button type="submit" class="btn btn-primary public-reserve-submit">Confirmar reserva</button>
+    </form>
+</section>
+
+<script>
+(function () {
+    var idsField = document.getElementById('checkout-ids');
+    var resumenEl = document.getElementById('checkout-resumen');
+    var ids = (idsField.value || '').split(',').filter(Boolean);
+
+    // Si no vinieron ids por la URL, tomar del carrito local
+    if (!ids.length) {
+        try { ids = JSON.parse(localStorage.getItem('arcano-cart') || '[]'); } catch (e) { ids = []; }
+        idsField.value = ids.join(',');
+    }
+
+    if (!ids.length) {
+        resumenEl.innerHTML = '<div class="public-empty"><p>No hay discos para reservar.</p><a href="{{ url_for("home") }}" class="btn btn-primary">Ver catalogo</a></div>';
+        document.getElementById('checkout-form').style.display = 'none';
+        return;
+    }
+
+    fetch('{{ url_for("api_discos_por_id") }}?ids=' + ids.join(','))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            var discos = ((data && data.discos) || []).filter(function (d) { return d.disponible; });
+            if (!discos.length) {
+                resumenEl.innerHTML = '<div class="public-empty"><p>Los discos del carrito ya no estan disponibles.</p></div>';
+                document.getElementById('checkout-form').style.display = 'none';
+                return;
+            }
+            idsField.value = discos.map(function (d) { return d.id; }).join(',');
+            var total = 0;
+            var html = '<div class="checkout-list">';
+            discos.forEach(function (d) {
+                total += d.precio_uyu;
+                var cover = d.cover ? '<img src="' + d.cover + '" alt="">' : '<div class="cart-item-cover-empty">&#9834;</div>';
+                html += '<div class="checkout-item">' +
+                    '<div class="checkout-item-cover">' + cover + '</div>' +
+                    '<div class="checkout-item-info"><strong>' + esc(d.artista) + '</strong> - ' + esc(d.titulo) +
+                    (d.sello ? '<div class="cart-item-label">' + esc(d.sello) + '</div>' : '') + '</div>' +
+                    '<div class="checkout-item-price">$ ' + d.precio_uyu.toLocaleString('es-UY') + '</div>' +
+                    '</div>';
+            });
+            html += '</div>';
+            html += '<div class="checkout-total"><span>' + discos.length + ' disco' + (discos.length !== 1 ? 's' : '') + '</span><strong>$ ' + total.toLocaleString('es-UY') + '</strong></div>';
+            resumenEl.innerHTML = html;
+        });
+
+    function esc(s) {
+        return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Al enviar con exito, vaciar carrito (se hace del lado servidor el resto)
+    document.getElementById('checkout-form').addEventListener('submit', function () {
+        try { localStorage.removeItem('arcano-cart'); } catch (e) {}
+    });
+})();
+</script>
+
+{% endblock %}

@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+
+{% block title %}Resumen &middot; Arcano{% endblock %}
+
+{% macro fmt_uyu(n) -%}
+{{ '{:,.0f}'.format(n or 0).replace(',', '.') }}
+{%- endmacro %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Resumen</h1>
+        <p class="page-sub">Metricas del negocio en tiempo real</p>
+    </div>
+</section>
+
+<!-- ============================================================
+     KPIs principales
+     ============================================================ -->
+<section class="kpi-grid">
+    <div class="kpi-card">
+        <span class="kpi-label">Stock disponible</span>
+        <span class="kpi-value">{{ kpis.stock_disponible_unidades }}</span>
+        <span class="kpi-foot">{{ kpis.stock_disponible_titulos }} titulos &middot; unidades totales</span>
+    </div>
+
+    <div class="kpi-card">
+        <span class="kpi-label">Inversion inmovilizada</span>
+        <span class="kpi-value">{{ fmt_uyu(kpis.inversion_uyu) }}</span>
+        <span class="kpi-foot">UYU en stock disponible</span>
+    </div>
+
+    <div class="kpi-card kpi-highlight">
+        <span class="kpi-label">Ganancia potencial</span>
+        <span class="kpi-value">{{ fmt_uyu(kpis.ganancia_potencial_uyu) }}</span>
+        <span class="kpi-foot">Si vendes todo el stock al precio cargado</span>
+    </div>
+
+    <div class="kpi-card">
+        <span class="kpi-label">Valor venta total</span>
+        <span class="kpi-value">{{ fmt_uyu(kpis.valor_venta_uyu) }}</span>
+        <span class="kpi-foot">Precio listado de todo el stock</span>
+    </div>
+
+    <div class="kpi-card">
+        <span class="kpi-label">Margen promedio</span>
+        <span class="kpi-value">{{ '%.1f'|format(kpis.margen_promedio) }}%</span>
+        <span class="kpi-foot">Promedio entre disponibles y vendidos</span>
+    </div>
+
+    <div class="kpi-card">
+        <span class="kpi-label">Ventas historicas</span>
+        <span class="kpi-value">{{ kpis.ventas_total_unidades }}</span>
+        <span class="kpi-foot">{{ kpis.ventas_total_titulos }} titulos vendidos</span>
+    </div>
+
+    <div class="kpi-card">
+        <span class="kpi-label">Facturacion total</span>
+        <span class="kpi-value">{{ fmt_uyu(kpis.facturado_uyu) }}</span>
+        <span class="kpi-foot">UYU facturados historicamente</span>
+    </div>
+
+    <div class="kpi-card kpi-highlight">
+        <span class="kpi-label">Ganancia realizada</span>
+        <span class="kpi-value">{{ fmt_uyu(kpis.ganancia_realizada_uyu) }}</span>
+        <span class="kpi-foot">UYU netos en ventas concretadas</span>
+    </div>
+</section>
+
+<!-- ============================================================
+     Mes en curso + grafico 6m
+     ============================================================ -->
+<section class="resumen-row">
+
+    <div class="resumen-card resumen-card-month">
+        <h2 class="resumen-card-title">Mes en curso &middot; {{ mes_actual.mes_label }}</h2>
+        <div class="month-stats">
+            <div class="month-stat">
+                <span class="month-stat-label">Ventas</span>
+                <span class="month-stat-value">{{ mes_actual.ventas_count }}</span>
+            </div>
+            <div class="month-stat">
+                <span class="month-stat-label">Unidades</span>
+                <span class="month-stat-value">{{ mes_actual.unidades }}</span>
+            </div>
+            <div class="month-stat">
+                <span class="month-stat-label">Facturado</span>
+                <span class="month-stat-value">{{ fmt_uyu(mes_actual.facturado_uyu) }}</span>
+            </div>
+            <div class="month-stat highlight">
+                <span class="month-stat-label">Ganancia neta</span>
+                <span class="month-stat-value">{{ fmt_uyu(mes_actual.ganancia_uyu) }}</span>
+            </div>
+        </div>
+        <p class="month-period">Desde {{ mes_actual.mes_inicio }}</p>
+    </div>
+
+    <div class="resumen-card resumen-card-chart">
+        <h2 class="resumen-card-title">Ventas (ultimos 6 meses)</h2>
+        {% set max_facturado = ventas_6m | map(attribute='facturado_uyu') | max %}
+        {% if max_facturado and max_facturado > 0 %}
+            {% set max_val = max_facturado %}
+            <div class="bar-chart">
+                {% for m in ventas_6m %}
+                    {% set h = (m.facturado_uyu / max_val * 100) if max_val > 0 else 0 %}
+                    <div class="bar-col">
+                        <div class="bar-tooltip">
+                            <strong>{{ fmt_uyu(m.facturado_uyu) }}</strong> UYU<br>
+                            {{ m.unidades }} unidades &middot; {{ m.ventas }} ventas
+                        </div>
+                        <div class="bar-wrap">
+                            <div class="bar-fill" style="height: {{ h }}%;"></div>
+                        </div>
+                        <span class="bar-label">{{ m.label }}</span>
+                        <span class="bar-value">{{ fmt_uyu(m.facturado_uyu) }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="chart-empty">
+                <p>Todavia no hay ventas registradas.</p>
+                <p class="chart-empty-hint">Cuando marques discos como Vendido van a aparecer aca.</p>
+            </div>
+        {% endif %}
+    </div>
+
+</section>
+
+<!-- ============================================================
+     Top sellos: inversion y rotacion
+     ============================================================ -->
+<section class="resumen-row">
+
+    <div class="resumen-card">
+        <h2 class="resumen-card-title">Top 5 sellos por inversion</h2>
+        <p class="resumen-card-sub">Donde tenes mas plata invertida en stock disponible.</p>
+        {% if top_sellos_inversion %}
+        <table class="rank-table">
+            <thead>
+                <tr>
+                    <th class="rank-num">#</th>
+                    <th>Sello</th>
+                    <th class="rank-num-cell">Titulos</th>
+                    <th class="rank-num-cell">Unidades</th>
+                    <th class="rank-num-cell">Inversion UYU</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in top_sellos_inversion %}
+                <tr>
+                    <td class="rank-num">{{ loop.index }}</td>
+                    <td class="rank-name">{{ s.sello }}</td>
+                    <td class="rank-num-cell">{{ s.titulos }}</td>
+                    <td class="rank-num-cell">{{ s.unidades }}</td>
+                    <td class="rank-num-cell rank-strong">{{ fmt_uyu(s.inversion_uyu) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="resumen-empty">No hay discos disponibles con sello cargado.</p>
+        {% endif %}
+    </div>
+
+    <div class="resumen-card">
+        <h2 class="resumen-card-title">Top 5 sellos por rotacion</h2>
+        <p class="resumen-card-sub">Sellos con mas titulos vendidos historicamente.</p>
+        {% if top_sellos_rotacion %}
+        <table class="rank-table">
+            <thead>
+                <tr>
+                    <th class="rank-num">#</th>
+                    <th>Sello</th>
+                    <th class="rank-num-cell">Titulos</th>
+                    <th class="rank-num-cell">Unidades</th>
+                    <th class="rank-num-cell">Facturado UYU</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in top_sellos_rotacion %}
+                <tr>
+                    <td class="rank-num">{{ loop.index }}</td>
+                    <td class="rank-name">{{ s.sello }}</td>
+                    <td class="rank-num-cell">{{ s.titulos_vendidos }}</td>
+                    <td class="rank-num-cell">{{ s.unidades_vendidas }}</td>
+                    <td class="rank-num-cell rank-strong">{{ fmt_uyu(s.facturado_uyu) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="resumen-empty">No hay ventas registradas todavia.</p>
+        {% endif %}
+    </div>
+
+</section>
+
+<!-- ============================================================
+     Top discos rentables
+     ============================================================ -->
+<section class="resumen-card resumen-card-full">
+    <h2 class="resumen-card-title">Top 5 discos mas rentables (vendidos)</h2>
+    <p class="resumen-card-sub">Ranking de discos vendidos ordenados por margen porcentual.</p>
+    {% if top_discos_rentables %}
+    <table class="rank-table">
+        <thead>
+            <tr>
+                <th class="rank-num">#</th>
+                <th>Disco</th>
+                <th>Sello</th>
+                <th class="rank-num-cell">Precio UYU</th>
+                <th class="rank-num-cell">Ganancia UYU</th>
+                <th class="rank-num-cell">Margen</th>
+                <th>Fecha venta</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for d in top_discos_rentables %}
+            <tr>
+                <td class="rank-num">{{ loop.index }}</td>
+                <td class="rank-name">
+                    <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="rank-link">
+                        <strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}
+                    </a>
+                </td>
+                <td>{{ d.sello or '—' }}</td>
+                <td class="rank-num-cell">{{ fmt_uyu(d.precio_uyu) }}</td>
+                <td class="rank-num-cell rank-gain">{{ fmt_uyu(d.ganancia_uyu) }}</td>
+                <td class="rank-num-cell rank-strong">{{ '%.1f'|format(d.margen_pct) }}%</td>
+                <td>{{ d.fecha_venta.strftime('%d/%m/%Y') if d.fecha_venta else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="resumen-empty">No hay ventas registradas todavia. Cuando marques discos como Vendido vas a ver el ranking aca.</p>
+    {% endif %}
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}

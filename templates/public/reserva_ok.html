@@ -1,0 +1,63 @@
+{% extends "public/base.html" %}
+
+{% block title %}Reserva confirmada &middot; Arcano{% endblock %}
+
+{% block content %}
+
+<section class="public-reserve-ok">
+    <div class="public-reserve-ok-icon">&#10003;</div>
+    <h1 class="public-reserve-ok-title">Reserva enviada</h1>
+    <p class="public-reserve-ok-text">
+        Gracias <strong>{{ reserva.nombre }}</strong>. Te vamos a contactar por WhatsApp a la brevedad para coordinar el pago y la entrega.
+    </p>
+
+    <div class="public-reserve-ok-summary">
+        {% if multi %}
+            {% for item in reserva.items_efectivos %}
+            <div class="public-reserve-ok-row">
+                <span class="public-reserve-ok-label">{{ loop.index }}. {{ item.artista_snap }}</span>
+                <span class="public-reserve-ok-value">
+                    {{ item.titulo_snap }}
+                    {% if item.precio_uyu_snap %}&middot; $ {{ '{:,.0f}'.format(item.precio_uyu_snap).replace(',', '.') }}{% endif %}
+                </span>
+            </div>
+            {% endfor %}
+            <div class="public-reserve-ok-row" style="border-top: 1px solid var(--border-2); margin-top: 4px; padding-top: 12px;">
+                <span class="public-reserve-ok-label">Total estimado</span>
+                <span class="public-reserve-ok-value">$ {{ '{:,.0f}'.format(reserva.total_uyu).replace(',', '.') }} UYU</span>
+            </div>
+        {% else %}
+            <div class="public-reserve-ok-row">
+                <span class="public-reserve-ok-label">Disco</span>
+                <span class="public-reserve-ok-value">{{ disc.artista }} - {{ disc.titulo }}</span>
+            </div>
+            {% if disc.precio_uyu > 0 %}
+            <div class="public-reserve-ok-row">
+                <span class="public-reserve-ok-label">Precio</span>
+                <span class="public-reserve-ok-value">$ {{ '{:,.0f}'.format(disc.precio_uyu).replace(',', '.') }} UYU</span>
+            </div>
+            {% endif %}
+        {% endif %}
+        <div class="public-reserve-ok-row">
+            <span class="public-reserve-ok-label">Tu WhatsApp</span>
+            <span class="public-reserve-ok-value">{{ reserva.whatsapp }}</span>
+        </div>
+        <div class="public-reserve-ok-row">
+            <span class="public-reserve-ok-label">Reserva</span>
+            <span class="public-reserve-ok-value">#{{ reserva.id }}</span>
+        </div>
+    </div>
+
+    {% if whatsapp %}
+    {% if multi %}
+    {% set wa_msg = 'Hola! Hice la reserva #' ~ reserva.id ~ ' de ' ~ reserva.cantidad_discos ~ ' discos en Arcano.' %}
+    {% else %}
+    {% set wa_msg = 'Hola! Reserve ' ~ disc.artista ~ ' - ' ~ disc.titulo ~ ' (reserva #' ~ reserva.id ~ ')' %}
+    {% endif %}
+    <a href="https://wa.me/{{ whatsapp }}?text={{ wa_msg|urlencode }}" target="_blank" rel="noopener" class="btn btn-primary public-reserve-ok-cta">Escribir por WhatsApp ahora</a>
+    {% endif %}
+
+    <a href="{{ url_for('home') }}" class="public-reserve-ok-back">Volver al catalogo</a>
+</section>
+
+{% endblock %}

@@ -1,0 +1,340 @@
+{% extends "base.html" %}
+
+{% block title %}Ajustes &middot; Arcano{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Ajustes</h1>
+        <p class="page-sub">Configuracion global del sistema</p>
+    </div>
+</section>
+
+<div class="settings-grid">
+
+    <section class="settings-card">
+        <header class="settings-card-head">
+            <h2 class="settings-card-title">Tipo de cambio EUR &rarr; UYU</h2>
+            <p class="settings-card-sub">
+                Se usa para calcular el costo final en UYU al momento de ingresar un disco nuevo.
+                Los discos ya cargados <strong>mantienen su costo final original</strong> aunque cambies este valor.
+            </p>
+        </header>
+
+        <form method="post" action="{{ url_for('settings_update_tc') }}" class="settings-form">
+            <div class="tc-current">
+                <span class="tc-label">Valor actual</span>
+                <span class="tc-value">{{ tc }}</span>
+                {% if tc_updated_at %}
+                    <span class="tc-meta">Ultima modificacion: {{ tc_updated_at.strftime('%d/%m/%Y %H:%M') }} UTC</span>
+                {% endif %}
+            </div>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="tc_eur_uyu">Nuevo tipo de cambio</label>
+                    <input type="number" id="tc_eur_uyu" name="tc_eur_uyu"
+                           step="0.01" min="0.01" max="10000" value="{{ tc }}" required>
+                </div>
+            </div>
+
+            <div class="settings-actions">
+                <button type="submit" class="btn btn-primary">Guardar nuevo TC</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="settings-card">
+        <header class="settings-card-head">
+            <h2 class="settings-card-title">Recalcular stock disponible</h2>
+            <p class="settings-card-sub">
+                Aplica el TC actual <strong>({{ tc }})</strong> a todos los discos en estado
+                <span class="badge badge-disponible">Disponible</span>,
+                reescribiendo su costo final en UYU.
+            </p>
+        </header>
+
+        <div class="recalc-stats">
+            <div class="recalc-stat">
+                <span class="recalc-label">Discos disponibles afectados</span>
+                <span class="recalc-value">{{ discos_disponibles }}</span>
+            </div>
+            <div class="recalc-stat">
+                <span class="recalc-label">Total en DB</span>
+                <span class="recalc-value muted">{{ total_discos }}</span>
+            </div>
+        </div>
+
+        <div class="recalc-warning">
+            <strong>Atencion:</strong> esta accion sobreescribe el snapshot historico de los discos disponibles.
+            Los discos vendidos, reservados o en otros estados <strong>no se modifican</strong>.
+        </div>
+
+        <form method="post" action="{{ url_for('settings_recalculate') }}"
+              data-confirm="Esto va a recalcular {{ discos_disponibles }} discos disponibles con TC = {{ tc }}. Los costos finales anteriores se pierden. ¿Continuar?">
+            <div class="settings-actions">
+                <button type="submit" class="btn btn-primary" {% if discos_disponibles == 0 %}disabled{% endif %}>
+                    Recalcular {{ discos_disponibles }} discos
+                </button>
+            </div>
+        </form>
+    </section>
+
+    <section class="settings-card">
+        <header class="settings-card-head">
+            <h2 class="settings-card-title">API de Anthropic (vision)</h2>
+            <p class="settings-card-sub">
+                Estado de la API key y consumo acumulado para extraccion de datos desde screenshots.
+            </p>
+        </header>
+
+        <div class="api-status">
+            {% if api_key_set %}
+                <span class="badge badge-disponible">API key configurada</span>
+            {% else %}
+                <span class="badge badge-descartado">API key NO configurada</span>
+                <p class="api-hint">Editar el archivo <code>.env</code> y agregar <code>ANTHROPIC_API_KEY=sk-ant-...</code>, despues reiniciar el servidor.</p>
+            {% endif %}
+        </div>
+
+        <div class="recalc-stats">
+            <div class="recalc-stat">
+                <span class="recalc-label">Imagenes procesadas</span>
+                <span class="recalc-value">{{ api_calls_count }}</span>
+            </div>
+            <div class="recalc-stat">
+                <span class="recalc-label">Gasto total USD</span>
+                <span class="recalc-value">${{ '%.4f'|format(api_cost_total) }}</span>
+            </div>
+        </div>
+
+        <form method="post" action="{{ url_for('settings_reset_api_counter') }}"
+              data-confirm="¿Reiniciar el contador de gasto API a 0? Esta accion no afecta tu cuenta de Anthropic, solo el contador local.">
+            <div class="settings-actions">
+                <button type="submit" class="btn btn-ghost">Reiniciar contador</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="settings-card">
+        <header class="settings-card-head">
+            <h2 class="settings-card-title">Resumen de inventario</h2>
+            <p class="settings-card-sub">Distribucion actual de discos por estado.</p>
+        </header>
+
+    <section class="settings-section">
+        <header class="settings-section-head">
+            <h2 class="settings-section-title">Tienda publica</h2>
+            <p class="settings-section-sub">Textos editables que aparecen en la tienda (en <code>{{ url_for('home', _external=False) }}</code>).</p>
+        </header>
+
+        <form method="post" action="{{ url_for('settings_update_public') }}" class="settings-form">
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="public_tagline">Tagline <span class="form-field-hint">(frase corta en la home)</span></label>
+                    <input type="text" id="public_tagline" name="public_tagline" value="{{ public_tagline or '' }}" placeholder="Vinilos de electronica seleccionados a mano. Montevideo.">
+                </div>
+            </div>
+
+            <div class="settings-subsection-head">
+                <h3 class="settings-subsection-title">Grilla del catalogo</h3>
+                <p class="settings-subsection-sub">Como se muestran los discos en la tienda. Aplica para todos los visitantes.</p>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="public_grid_columnas">Columnas (discos por fila)</label>
+                    <select id="public_grid_columnas" name="public_grid_columnas">
+                        <option value="auto" {% if public_grid_columnas == 'auto' %}selected{% endif %}>Automatico (segun pantalla)</option>
+                        <option value="2" {% if public_grid_columnas == '2' %}selected{% endif %}>2 columnas</option>
+                        <option value="3" {% if public_grid_columnas == '3' %}selected{% endif %}>3 columnas</option>
+                        <option value="4" {% if public_grid_columnas == '4' %}selected{% endif %}>4 columnas</option>
+                        <option value="5" {% if public_grid_columnas == '5' %}selected{% endif %}>5 columnas</option>
+                        <option value="6" {% if public_grid_columnas == '6' %}selected{% endif %}>6 columnas</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="public_card_tamano">Tamano de los discos</label>
+                    <select id="public_card_tamano" name="public_card_tamano">
+                        <option value="chico" {% if public_card_tamano == 'chico' %}selected{% endif %}>Chico</option>
+                        <option value="mediano" {% if (public_card_tamano or 'mediano') == 'mediano' %}selected{% endif %}>Mediano</option>
+                        <option value="grande" {% if public_card_tamano == 'grande' %}selected{% endif %}>Grande</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="public_discos_por_pagina">Discos por pagina <span class="form-field-hint">(maximo 48)</span></label>
+                    <input type="number" id="public_discos_por_pagina" name="public_discos_por_pagina" value="{{ public_discos_por_pagina or '24' }}" min="4" max="48" step="4">
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="public_carrusel_velocidad">Velocidad de los carruseles <span class="form-field-hint">(segundos por slide, mas alto = mas lento)</span></label>
+                    <input type="number" id="public_carrusel_velocidad" name="public_carrusel_velocidad" value="{{ public_carrusel_velocidad or '7' }}" min="3" max="20" step="1">
+                </div>
+            </div>
+
+            <div class="settings-subsection-head">
+                <h3 class="settings-subsection-title">Hero (texto sobrepuesto al banner)</h3>
+                <p class="settings-subsection-sub">Titulo y subtitulo grandes que aparecen sobre el banner de la home. Si los dejas vacios se usa "Vinilos electronicos" y el tagline.</p>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="public_hero_title">Titulo del hero</label>
+                    <input type="text" id="public_hero_title" name="public_hero_title" value="{{ public_hero_title or '' }}" placeholder="Vinilos electronicos">
+                </div>
+                <div class="form-field">
+                    <label for="public_hero_subtitle">Subtitulo del hero</label>
+                    <input type="text" id="public_hero_subtitle" name="public_hero_subtitle" value="{{ public_hero_subtitle or '' }}" placeholder="(si vacio, usa el tagline)">
+                </div>
+            </div>
+
+            <div class="settings-subsection-head">
+                <h3 class="settings-subsection-title">Pagina "Sobre Arcano"</h3>
+                <p class="settings-subsection-sub">Tres bloques editables que aparecen en orden en <code>{{ url_for('public_sobre') }}</code>. Podes dejar alguno en blanco.</p>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="public_about">1. Intro &mdash; quien es Arcano</label>
+                    <textarea id="public_about" name="public_about" rows="4" placeholder="Quien sos, de donde sale Arcano, historia corta...">{{ public_about or '' }}</textarea>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="public_about_curaduria">2. Curaduria &mdash; que traes</label>
+                    <textarea id="public_about_curaduria" name="public_about_curaduria" rows="4" placeholder="Sellos que seguis, generos, criterio para elegir discos, frecuencia de novedades...">{{ public_about_curaduria or '' }}</textarea>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="public_about_como_funciona">3. Como funciona &mdash; pasos para comprar</label>
+                    <textarea id="public_about_como_funciona" name="public_about_como_funciona" rows="4" placeholder="Como reservar, formas de pago, plazos de entrega...">{{ public_about_como_funciona or '' }}</textarea>
+                </div>
+            </div>
+
+            <div class="settings-subsection-head">
+                <h3 class="settings-subsection-title">Envios y contactos</h3>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="public_envios">Politica de envios <span class="form-field-hint">(card aparte en /sobre y footer)</span></label>
+                    <textarea id="public_envios" name="public_envios" rows="3" placeholder="Como hacen los envios, retiros, costos aproximados...">{{ public_envios or '' }}</textarea>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field">
+                    <label for="public_instagram">Instagram <span class="form-field-hint">(handle sin @)</span></label>
+                    <input type="text" id="public_instagram" name="public_instagram" value="{{ public_instagram or '' }}" placeholder="arcanorecordstore">
+                </div>
+                <div class="form-field">
+                    <label for="public_whatsapp">WhatsApp <span class="form-field-hint">(con codigo pais, sin + ni espacios)</span></label>
+                    <input type="text" id="public_whatsapp" name="public_whatsapp" value="{{ public_whatsapp or '' }}" placeholder="59899123456">
+                </div>
+            </div>
+
+            <div class="form-footer">
+                <button type="submit" class="btn btn-primary">Guardar textos publicos</button>
+                <a href="{{ url_for('home') }}" target="_blank" class="btn btn-ghost">Ver tienda &nearr;</a>
+            </div>
+        </form>
+
+        <div class="settings-subsection-head" style="margin-top: 32px;">
+            <h3 class="settings-subsection-title">Banner de portada (home)</h3>
+            <p class="settings-subsection-sub">Imagen que aparece arriba del catalogo como fondo del hero. Opcional. Recomendado: 1600x500px, JPG.</p>
+        </div>
+
+        {% if public_banner_url %}
+        <div class="settings-banner-preview">
+            <img src="{{ public_banner_url }}" alt="Banner actual">
+            <form method="post" action="{{ url_for('settings_clear_banner') }}" data-confirm="Quitar el banner actual?">
+                <button type="submit" class="btn btn-ghost danger btn-sm">Quitar banner</button>
+            </form>
+        </div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('settings_upload_banner') }}" enctype="multipart/form-data" class="settings-form" style="margin-top: 12px;">
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="banner">{% if public_banner_url %}Cambiar banner{% else %}Subir banner{% endif %}</label>
+                    <input type="file" id="banner" name="banner" accept="image/jpeg,image/png,image/webp" required>
+                </div>
+            </div>
+            <div class="form-footer">
+                <button type="submit" class="btn btn-primary">Subir imagen</button>
+            </div>
+        </form>
+
+        <form method="post" action="{{ url_for('settings_update_public') }}" class="settings-form" style="margin-top: 16px;">
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="public_banner_video_url">Video de fondo <span class="form-field-hint">(URL de un .mp4; opcional, reemplaza la imagen)</span></label>
+                    <input type="text" id="public_banner_video_url" name="public_banner_video_url" value="{{ public_banner_video_url or '' }}" placeholder="https://.../loop.mp4  o  /static/covers/loop.mp4">
+                    <span class="form-field-hint">Tip: un loop corto y liviano (menos de 5 MB) queda mejor. Si ponés video, la imagen queda como poster de carga.</span>
+                </div>
+            </div>
+            {# Campos ocultos para no pisar los otros textos al guardar solo el video #}
+            <input type="hidden" name="public_tagline" value="{{ public_tagline or '' }}">
+            <input type="hidden" name="public_hero_title" value="{{ public_hero_title or '' }}">
+            <input type="hidden" name="public_hero_subtitle" value="{{ public_hero_subtitle or '' }}">
+            <input type="hidden" name="public_about" value="{{ public_about or '' }}">
+            <input type="hidden" name="public_about_curaduria" value="{{ public_about_curaduria or '' }}">
+            <input type="hidden" name="public_about_como_funciona" value="{{ public_about_como_funciona or '' }}">
+            <input type="hidden" name="public_envios" value="{{ public_envios or '' }}">
+            <input type="hidden" name="public_instagram" value="{{ public_instagram or '' }}">
+            <input type="hidden" name="public_whatsapp" value="{{ public_whatsapp or '' }}">
+            <div class="form-footer">
+                <button type="submit" class="btn btn-primary">Guardar video de fondo</button>
+            </div>
+        </form>
+    </section>
+
+    <section class="settings-section">
+        <header class="settings-section-head">
+            <h2 class="settings-section-title">Paginas legales</h2>
+            <p class="settings-section-sub">Textos que aparecen en <code>{{ url_for('public_legal', _external=False) }}</code>. Si dejas alguno vacio, se muestra un texto por defecto sensato. Separa parrafos con una linea en blanco.</p>
+        </header>
+
+        <form method="post" action="{{ url_for('settings_update_legal') }}" class="settings-form">
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="public_legal_terminos">Terminos y condiciones</label>
+                    <textarea id="public_legal_terminos" name="public_legal_terminos" rows="5" placeholder="(vacio = texto por defecto)">{{ public_legal_terminos or '' }}</textarea>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="public_legal_envios">Envios y devoluciones</label>
+                    <textarea id="public_legal_envios" name="public_legal_envios" rows="5" placeholder="(vacio = texto por defecto)">{{ public_legal_envios or '' }}</textarea>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="public_legal_privacidad">Politica de privacidad</label>
+                    <textarea id="public_legal_privacidad" name="public_legal_privacidad" rows="5" placeholder="(vacio = texto por defecto)">{{ public_legal_privacidad or '' }}</textarea>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="public_legal_cookies">Politica de cookies</label>
+                    <textarea id="public_legal_cookies" name="public_legal_cookies" rows="5" placeholder="(vacio = texto por defecto)">{{ public_legal_cookies or '' }}</textarea>
+                </div>
+            </div>
+            <div class="form-footer">
+                <button type="submit" class="btn btn-primary">Guardar textos legales</button>
+                <a href="{{ url_for('public_legal') }}" target="_blank" class="btn btn-ghost">Ver pagina legal &nearr;</a>
+            </div>
+        </form>
+    </section>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "public/base.html" %}
+
+{% block title %}Iniciar sesion &middot; Arcano Record Store{% endblock %}
+
+{% block content %}
+
+<section class="public-auth">
+    <h1 class="public-auth-title">Iniciar sesion</h1>
+
+    <form method="post" action="{{ url_for('cliente_login_page') }}{% if request.args.get('next') %}?next={{ request.args.get('next')|urlencode }}{% endif %}" class="public-auth-form">
+        <div class="form-field">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required value="{{ form.email or '' }}" autofocus>
+        </div>
+        <div class="form-field">
+            <label for="password">Contrasena</label>
+            <input type="password" id="password" name="password" required>
+        </div>
+        <button type="submit" class="btn btn-primary public-auth-submit">Ingresar</button>
+    </form>
+
+    <p class="public-auth-alt">No tenes cuenta? <a href="{{ url_for('cliente_registro') }}">Crear una</a></p>
+</section>
+
+{% endblock %}
