@@ -2,6 +2,8 @@
 import csv
 import io
 import os
+import shutil
+import zipfile
 from datetime import datetime
 
 from flask import (
@@ -1792,6 +1794,83 @@ def register_routes(app: Flask) -> None:
     # Settings
     # ----------------------------------------------------------------------
 
+    @app.route("/admin/importar", methods=["GET", "POST"])
+    @auth.admin_required
+    def admin_importar():
+        """Importacion unica: sube la base de datos y un ZIP de portadas.
+        Pensado para migrar los datos locales al servidor de produccion."""
+        if request.method == "GET":
+            # Contar discos actuales para mostrar en la pagina
+            try:
+                total_actual = Disc.query.count()
+            except Exception:
+                total_actual = 0
+            return render_template("admin_importar.html", total_actual=total_actual)
+
+        resultado = {"db": None, "covers": None, "errores": []}
+
+        # --- 1. Importar base de datos ---
+        db_file = request.files.get("db_file")
+        if db_file and db_file.filename:
+            if not db_file.filename.endswith(".db"):
+                resultado["errores"].append("El archivo de base debe terminar en .db")
+            else:
+                # Ruta de la base actual
+                db_uri = app.config["SQLALCHEMY_DATABASE_URI"]
+                db_path = db_uri.replace("sqlite:///", "")
+                if not os.path.isabs(db_path):
+                    db_path = os.path.join(app.instance_path, db_path)
+                try:
+                    # Backup de la base actual antes de reemplazar
+                    if os.path.exists(db_path):
+                        backup = db_path + ".backup-" + datetime.utcnow().strftime("%Y%m%d%H%M%S")
+                        shutil.copy2(db_path, backup)
+                    os.makedirs(os.path.dirname(db_path), exist_ok=True)
+                    # Cerrar conexiones antes de sobrescribir
+                    db.session.remove()
+                    db.engine.dispose()
+                    db_file.save(db_path)
+                    resultado["db"] = "Base de datos importada correctamente."
+                except Exception as e:
+                    resultado["errores"].append(f"Error al importar base: {e}")
+
+        # --- 2. Importar portadas (ZIP) ---
+        covers_zip = request.files.get("covers_zip")
+        if covers_zip and covers_zip.filename:
+            if not covers_zip.filename.endswith(".zip"):
+                resultado["errores"].append("Las portadas deben venir en un archivo .zip")
+            else:
+                covers_dir = app.config["COVERS_DIR"]
+                os.makedirs(covers_dir, exist_ok=True)
+                try:
+                    count = 0
+                    with zipfile.ZipFile(covers_zip) as zf:
+                        for name in zf.namelist():
+                            if name.endswith("/"):
+                                continue
+                            # Solo imagenes, y aplanar cualquier subcarpeta
+                            base = os.path.basename(name)
+                            if not base:
+                                continue
+                            ext = base.lower().rsplit(".", 1)[-1] if "." in base else ""
+                            if ext not in ("jpg", "jpeg", "png", "webp", "gif"):
+                                continue
+                            with zf.open(name) as src, open(os.path.join(covers_dir, base), "wb") as dst:
+                                shutil.copyfileobj(src, dst)
+                            count += 1
+                    resultado["covers"] = f"{count} portadas importadas."
+                except Exception as e:
+                    resultado["errores"].append(f"Error al importar portadas: {e}")
+
+        # Contar discos despues de importar
+        try:
+            resultado["total"] = Disc.query.count()
+        except Exception:
+            resultado["total"] = 0
+
+        return render_template("admin_importar.html", resultado=resultado,
+                               total_actual=resultado.get("total", 0))
+
     @app.route("/admin/settings")
     @auth.admin_required
     def settings_page():
@@ -2311,18 +2390,45 @@ def register_routes(app: Flask) -> None:
         if disc.estado not in ("Disponible", "Reservado", "Vendido"):
             return render_template("public/not_found.html", **_public_context()), 404
 
-        # Otros discos del mismo sello para "Tambien podria gustarte"
+        # "Similares a este titulo": prioriza mismo genero, completa con mismo
+        # sello y luego otros disponibles. Asi siempre hay sugerencias relevantes.
         relacionados = []
-        if disc.sello:
-            relacionados = (
-                Disc.query
-                .filter(Disc.sello == disc.sello)
-                .filter(Disc.id != disc.id)
-                .filter(Disc.estado == "Disponible")
-                .filter(Disc.stock > 0)
-                .order_by(Disc.fecha_ingreso.desc())
-                .limit(4)
-                .all()
+        vistos = {disc.id}
+
+        def _agregar(query, faltan):
+            nuevos = []
+            for d in query.limit(faltan * 3).all():
+                if d.id not in vistos:
+                    vistos.add(d.id)
+                    nuevos.append(d)
+                    if len(nuevos) >= faltan:
+                        break
+            return nuevos
+
+        base = (
+            Disc.query
+            .filter(Disc.id != disc.id)
+            .filter(Disc.estado == "Disponible")
+            .filter(Disc.stock > 0)
+        )
+
+        # 1. Mismo genero (lo mas relevante para diggear)
+        if disc.genero:
+            relacionados += _agregar(
+                base.filter(Disc.genero == disc.genero).order_by(Disc.fecha_ingreso.desc()),
+                4 - len(relacionados),
+            )
+        # 2. Completar con mismo sello
+        if len(relacionados) < 4 and disc.sello:
+            relacionados += _agregar(
+                base.filter(Disc.sello == disc.sello).order_by(Disc.fecha_ingreso.desc()),
+                4 - len(relacionados),
+            )
+        # 3. Completar con otros recientes si aun faltan
+        if len(relacionados) < 4:
+            relacionados += _agregar(
+                base.order_by(Disc.fecha_ingreso.desc()),
+                4 - len(relacionados),
             )
 
         return render_template(

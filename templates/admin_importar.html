@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Importar datos &middot; Arcano{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Importar datos</h1>
+        <p class="page-sub">Subir la base de datos y las portadas desde tu PC</p>
+    </div>
+</section>
+
+<div style="max-width: 720px;">
+
+    {% if resultado %}
+    <div class="settings-card" style="margin-bottom: 24px;">
+        <header class="settings-card-head">
+            <h2 class="settings-card-title">Resultado de la importacion</h2>
+        </header>
+        <div style="padding: 16px 0;">
+            {% if resultado.db %}<p style="color: #4ade80;">&#10003; {{ resultado.db }}</p>{% endif %}
+            {% if resultado.covers %}<p style="color: #4ade80;">&#10003; {{ resultado.covers }}</p>{% endif %}
+            {% if resultado.errores %}
+                {% for err in resultado.errores %}
+                <p style="color: #f87171;">&#9888; {{ err }}</p>
+                {% endfor %}
+            {% endif %}
+            <p style="margin-top: 12px; font-weight: 600;">Discos en la tienda ahora: {{ resultado.total }}</p>
+            {% if resultado.total > 0 and not resultado.errores %}
+            <p style="margin-top: 8px;">
+                <a href="{{ url_for('home') }}" target="_blank" class="btn btn-primary">Ver la tienda</a>
+                <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Ir al dashboard</a>
+            </p>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="settings-card">
+        <header class="settings-card-head">
+            <h2 class="settings-card-title">Subir archivos</h2>
+            <p class="settings-card-sub">
+                Actualmente hay <strong>{{ total_actual }}</strong> discos en la tienda.
+                Si subis una base de datos, se reemplaza la actual (se guarda un backup automatico).
+            </p>
+        </header>
+
+        <form method="post" enctype="multipart/form-data" style="padding: 16px 0;">
+            <div class="form-field" style="margin-bottom: 20px;">
+                <label for="db_file">1. Base de datos <span class="form-field-hint">(el archivo arcano_stock.db de tu PC)</span></label>
+                <input type="file" id="db_file" name="db_file" accept=".db">
+                <p class="form-field-hint" style="margin-top: 6px;">
+                    Esta en: C:\Users\facun\herramientas\arcano_stock\instance\arcano_stock.db
+                </p>
+            </div>
+
+            <div class="form-field" style="margin-bottom: 20px;">
+                <label for="covers_zip">2. Portadas <span class="form-field-hint">(un archivo ZIP con las imagenes)</span></label>
+                <input type="file" id="covers_zip" name="covers_zip" accept=".zip">
+                <p class="form-field-hint" style="margin-top: 6px;">
+                    Comprimi la carpeta static\covers en un ZIP y subilo aca.
+                </p>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Importar datos</button>
+        </form>
+    </div>
+
+    <div class="settings-card" style="margin-top: 24px; border-color: rgba(255,180,0,0.3);">
+        <header class="settings-card-head">
+            <h2 class="settings-card-title">&#9888; Importante</h2>
+        </header>
+        <div style="padding: 12px 0;">
+            <p>Podes subir los dos archivos juntos o de a uno.</p>
+            <p style="margin-top: 8px;">Una vez que confirmes que todo se ve bien en la tienda, avisame para sacar esta pagina por seguridad.</p>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
