@@ -2,8 +2,6 @@
 import csv
 import io
 import os
-import shutil
-import zipfile
 from datetime import datetime
 
 from flask import (
@@ -59,7 +57,7 @@ def create_app() -> Flask:
     app.config["SECRET_KEY"] = os.environ.get(
         "SECRET_KEY", "arcano-local-dev-key-change-me"
     )
-    app.config["MAX_CONTENT_LENGTH"] = 300 * 1024 * 1024  # 300 MB (para importar portadas)
+    app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB
 
     # Carpeta de portadas. En produccion (Render) se define COVERS_PATH apuntando
     # al disco persistente; en local usa static/covers como siempre.
@@ -1792,85 +1790,6 @@ def register_routes(app: Flask) -> None:
 
     # ----------------------------------------------------------------------
     # Settings
-    # ----------------------------------------------------------------------
-
-    @app.route("/admin/importar", methods=["GET", "POST"])
-    @auth.admin_required
-    def admin_importar():
-        """Importacion unica: sube la base de datos y un ZIP de portadas.
-        Pensado para migrar los datos locales al servidor de produccion."""
-        if request.method == "GET":
-            # Contar discos actuales para mostrar en la pagina
-            try:
-                total_actual = Disc.query.count()
-            except Exception:
-                total_actual = 0
-            return render_template("admin_importar.html", total_actual=total_actual)
-
-        resultado = {"db": None, "covers": None, "errores": []}
-
-        # --- 1. Importar base de datos ---
-        db_file = request.files.get("db_file")
-        if db_file and db_file.filename:
-            if not db_file.filename.endswith(".db"):
-                resultado["errores"].append("El archivo de base debe terminar en .db")
-            else:
-                # Ruta de la base actual
-                db_uri = app.config["SQLALCHEMY_DATABASE_URI"]
-                db_path = db_uri.replace("sqlite:///", "")
-                if not os.path.isabs(db_path):
-                    db_path = os.path.join(app.instance_path, db_path)
-                try:
-                    # Backup de la base actual antes de reemplazar
-                    if os.path.exists(db_path):
-                        backup = db_path + ".backup-" + datetime.utcnow().strftime("%Y%m%d%H%M%S")
-                        shutil.copy2(db_path, backup)
-                    os.makedirs(os.path.dirname(db_path), exist_ok=True)
-                    # Cerrar conexiones antes de sobrescribir
-                    db.session.remove()
-                    db.engine.dispose()
-                    db_file.save(db_path)
-                    resultado["db"] = "Base de datos importada correctamente."
-                except Exception as e:
-                    resultado["errores"].append(f"Error al importar base: {e}")
-
-        # --- 2. Importar portadas (ZIP) ---
-        covers_zip = request.files.get("covers_zip")
-        if covers_zip and covers_zip.filename:
-            if not covers_zip.filename.endswith(".zip"):
-                resultado["errores"].append("Las portadas deben venir en un archivo .zip")
-            else:
-                covers_dir = app.config["COVERS_DIR"]
-                os.makedirs(covers_dir, exist_ok=True)
-                try:
-                    count = 0
-                    with zipfile.ZipFile(covers_zip) as zf:
-                        for name in zf.namelist():
-                            if name.endswith("/"):
-                                continue
-                            # Solo imagenes, y aplanar cualquier subcarpeta
-                            base = os.path.basename(name)
-                            if not base:
-                                continue
-                            ext = base.lower().rsplit(".", 1)[-1] if "." in base else ""
-                            if ext not in ("jpg", "jpeg", "png", "webp", "gif"):
-                                continue
-                            with zf.open(name) as src, open(os.path.join(covers_dir, base), "wb") as dst:
-                                shutil.copyfileobj(src, dst)
-                            count += 1
-                    resultado["covers"] = f"{count} portadas importadas."
-                except Exception as e:
-                    resultado["errores"].append(f"Error al importar portadas: {e}")
-
-        # Contar discos despues de importar
-        try:
-            resultado["total"] = Disc.query.count()
-        except Exception:
-            resultado["total"] = 0
-
-        return render_template("admin_importar.html", resultado=resultado,
-                               total_actual=resultado.get("total", 0))
-
     @app.route("/admin/settings")
     @auth.admin_required
     def settings_page():
