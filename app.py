@@ -2379,7 +2379,9 @@ def register_routes(app: Flask) -> None:
                 errores.append("Ingresa tu nombre.")
             if len(whatsapp) < 7:
                 errores.append("Ingresa un WhatsApp valido (con codigo de pais).")
-            if email and "@" not in email:
+            if not email:
+                errores.append("Ingresa tu email para enviarte la confirmacion.")
+            elif "@" not in email:
                 errores.append("El email no parece valido.")
 
             if errores:
@@ -2633,7 +2635,9 @@ def register_routes(app: Flask) -> None:
                 errores.append("Ingresa tu nombre.")
             if len(whatsapp) < 7:
                 errores.append("Ingresa un WhatsApp valido (con codigo de pais).")
-            if email and "@" not in email:
+            if not email:
+                errores.append("Ingresa tu email para enviarte la confirmacion.")
+            elif "@" not in email:
                 errores.append("El email no parece valido.")
 
             # Traer discos y validar disponibilidad
