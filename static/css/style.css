@@ -6629,3 +6629,190 @@ td.num,
     padding: 8px 16px;
     letter-spacing: 0.3px;
 }
+
+/* =========================================================================
+   ADMIN RESPONSIVE — adaptacion para celular (<= 768px)
+   ========================================================================= */
+@media (max-width: 768px) {
+    /* --- Header y navegacion --- */
+    .topbar {
+        flex-wrap: wrap;
+        padding: 10px 12px;
+        gap: 8px;
+    }
+    .topbar-brand { flex: 1 1 auto; }
+    .topbar-nav {
+        order: 3;
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 4px;
+        padding-bottom: 4px;
+        scrollbar-width: thin;
+    }
+    .topbar-nav .nav-link {
+        white-space: nowrap;
+        flex: 0 0 auto;
+        font-size: 13px;
+        padding: 8px 12px;
+    }
+    .topbar-meta { flex: 0 0 auto; }
+
+    /* --- Filtros del dashboard: apilar --- */
+    .filters {
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+        padding: 12px !important;
+    }
+    .stock-filters, .filters-row, .filter-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px;
+    }
+    .filter-group {
+        width: 100%;
+        min-width: 0;
+    }
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* --- Tabla de stock -> tarjetas apiladas --- */
+    .stock-table {
+        min-width: 0 !important;  /* anular el min-width: 1300px de desktop */
+    }
+    .table-wrap {
+        overflow-x: visible !important;
+    }
+    .stock-table thead {
+        display: none;  /* ocultar encabezados en mobile */
+    }
+    .stock-table, .stock-table tbody, .stock-table tr, .stock-table td {
+        display: block;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    .stock-table tr {
+        margin-bottom: 16px;
+        border: 1px solid var(--border-2, #333);
+        border-radius: 10px;
+        padding: 12px;
+        position: relative;
+        background: var(--bg-1, #1a1a1a);
+    }
+    .stock-table td {
+        border: none;
+        padding: 4px 0;
+        text-align: left !important;
+    }
+    /* Mostrar etiqueta antes de los numeros */
+    .stock-table td.col-num::before {
+        content: attr(data-label);
+        display: inline-block;
+        min-width: 120px;
+        color: var(--text-4, #888);
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    /* La portada y el titulo destacados arriba */
+    .stock-table td.col-cover {
+        display: inline-block;
+        width: auto;
+        vertical-align: top;
+        margin-right: 12px;
+    }
+    .stock-table td.col-cover .cover-thumb,
+    .stock-table td.col-cover .cover-placeholder {
+        width: 64px;
+        height: 64px;
+    }
+    .stock-table td.col-main {
+        display: inline-block;
+        width: calc(100% - 90px);
+        min-width: 0;
+        vertical-align: top;
+    }
+    .stock-table td.col-main .main-artist { font-size: 15px; font-weight: 600; }
+    .stock-table td.col-main .main-title { font-size: 14px; }
+    /* Ocultar columnas secundarias en mobile (costo, envio, ganancia, margen, origen, fechas) */
+    .stock-table td.col-fmt,
+    .stock-table td.col-num.col-costofinal,
+    .stock-table td.col-ganancia,
+    .stock-table td.col-margen,
+    .stock-table td.col-origen,
+    .stock-table td.col-fecha {
+        display: none;
+    }
+    /* El checkbox de seleccion arriba a la derecha */
+    .stock-table td.col-check {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: auto;
+    }
+    /* Controles Home y acciones: en linea, con espacio para el dedo */
+    .stock-table td.col-home {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        padding-top: 10px;
+        margin-top: 8px;
+        border-top: 1px solid var(--border-1, #2a2a2a);
+    }
+    .stock-table td.col-home .home-check-icon {
+        width: 32px;
+        height: 32px;
+        font-size: 15px;
+    }
+    .stock-table td.col-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        padding-top: 8px;
+    }
+    .stock-table td.col-actions .btn {
+        flex: 1 1 auto;
+        min-width: 80px;
+        text-align: center;
+        padding: 10px;
+    }
+
+    /* --- Formularios del admin: campos a ancho completo --- */
+    .form-row {
+        grid-template-columns: 1fr !important;
+        gap: 12px;
+    }
+    .form-field, .form-field-sm, .form-field-full {
+        width: 100%;
+    }
+    input, select, textarea {
+        font-size: 16px; /* evita que iOS haga zoom al enfocar */
+    }
+    .btn {
+        min-height: 44px; /* target tactil comodo */
+    }
+
+    /* Barra de acciones masivas: apilar */
+    .bulk-actions {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    /* Cards de acciones rapidas del dashboard */
+    .quick-actions, .dashboard-cards, .action-cards {
+        grid-template-columns: 1fr 1fr !important;
+    }
+}
+
+/* Pantallas muy chicas (celulares angostos) */
+@media (max-width: 400px) {
+    .quick-actions, .dashboard-cards, .action-cards {
+        grid-template-columns: 1fr !important;
+    }
+    .stock-table td.col-main { width: calc(100% - 84px); }
+}
