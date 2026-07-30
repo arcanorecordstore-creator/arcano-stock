@@ -19,7 +19,7 @@ import config
 
 
 def is_configured() -> bool:
-    """True si todas las variables SMTP necesarias estan seteadas."""
+    """True si todas las variables SMTP necesarias estan seteadas (para notificar al admin)."""
     return all([
         config.SMTP_HOST,
         config.SMTP_USER,
@@ -29,15 +29,29 @@ def is_configured() -> bool:
     ])
 
 
-def send_email(subject: str, body_text: str, body_html: str = None) -> tuple[bool, str]:
-    """Envia un email. Devuelve (ok, mensaje)."""
-    if not is_configured():
-        return False, "SMTP no configurado en .env"
+def can_send() -> bool:
+    """True si se puede enviar mail a un destinatario dado (no requiere SMTP_TO)."""
+    return all([
+        config.SMTP_HOST,
+        config.SMTP_USER,
+        config.SMTP_PASS,
+        config.SMTP_FROM,
+    ])
+
+
+def send_email(subject: str, body_text: str, body_html: str = None, to: str = None) -> tuple[bool, str]:
+    """Envia un email. Si 'to' no se especifica, usa SMTP_TO (el admin)."""
+    if not can_send():
+        return False, "SMTP no configurado"
+
+    destinatario = to or config.SMTP_TO
+    if not destinatario:
+        return False, "Sin destinatario"
 
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject
     msg["From"] = formataddr(("Arcano Record Store", config.SMTP_FROM))
-    msg["To"] = config.SMTP_TO
+    msg["To"] = destinatario
 
     msg.attach(MIMEText(body_text, "plain", "utf-8"))
     if body_html:
@@ -47,7 +61,7 @@ def send_email(subject: str, body_text: str, body_html: str = None) -> tuple[boo
         with smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT, timeout=15) as server:
             server.starttls()
             server.login(config.SMTP_USER, config.SMTP_PASS)
-            server.sendmail(config.SMTP_FROM, [config.SMTP_TO], msg.as_string())
+            server.sendmail(config.SMTP_FROM, [destinatario], msg.as_string())
         return True, "Enviado"
     except smtplib.SMTPAuthenticationError as e:
         return False, f"Autenticacion SMTP fallida: {e}"
@@ -105,3 +119,53 @@ Email: {reserva.email or '—'}</p>
 </body></html>"""
 
     return send_email(subject, body_text, body_html)
+
+
+def send_reserva_confirmacion_cliente(reserva, disc) -> tuple[bool, str]:
+    """Envia un email de confirmacion al CLIENTE que reservo."""
+    if not reserva.email:
+        return False, "El cliente no dejo email"
+
+    subject = f"Confirmamos tu reserva - {disc.artista} - {disc.titulo}"
+
+    precio_uyu = (disc.precio_uyu or 0)
+    body_text = f"""Hola {reserva.nombre},
+
+Recibimos tu reserva en Arcano Record Store. Estos son los detalles:
+
+DISCO
+  Artista:  {disc.artista}
+  Titulo:   {disc.titulo}
+  Sello:    {disc.sello or '—'}
+  Precio:   $ {precio_uyu:,.0f} UYU
+
+Nos vamos a contactar con vos por WhatsApp ({reserva.whatsapp}) para
+coordinar el pago y la entrega o retiro.
+
+Gracias por elegir Arcano.
+
+Arcano Record Store
+Montevideo, Uruguay
+"""
+
+    body_html = f"""<html><body style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; background: #0a0a0a; color: #fff;">
+<h1 style="letter-spacing: 4px; font-weight: 300;">ARCANO</h1>
+<h2 style="color: #10b981; font-size: 16px;">Confirmamos tu reserva</h2>
+
+<p>Hola <strong>{reserva.nombre}</strong>, recibimos tu reserva. Estos son los detalles:</p>
+
+<h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 2px;">Disco</h3>
+<p><strong>{disc.artista}</strong><br>
+{disc.titulo}<br>
+<span style="color: #888;">{disc.sello or '—'}</span><br>
+<span style="color: #10b981;">$ {precio_uyu:,.0f} UYU</span></p>
+
+<p>Nos vamos a contactar con vos por WhatsApp (<strong>{reserva.whatsapp}</strong>) para coordinar el pago y la entrega o retiro.</p>
+
+<p style="margin-top: 24px;">Gracias por elegir Arcano.</p>
+
+<hr style="border: none; border-top: 1px solid #333; margin: 30px 0;">
+<p style="font-size: 11px; color: #666;">Arcano Record Store &middot; Montevideo, Uruguay<br>Reserva #{reserva.id}</p>
+</body></html>"""
+
+    return send_email(subject, body_text, body_html, to=reserva.email)

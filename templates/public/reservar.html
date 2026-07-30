@@ -29,6 +29,11 @@
     </div>
 
     <form method="post" action="{{ url_for('public_reservar', disc_id=disc.id) }}" class="public-reserve-form">
+        {% if cliente %}
+        <div class="reserve-logged-notice">
+            Reservando como <strong>{{ cliente.nombre }}</strong>. Podes ajustar los datos si queres.
+        </div>
+        {% endif %}
         <div class="form-field">
             <label for="nombre">Tu nombre</label>
             <input type="text" id="nombre" name="nombre" required value="{{ form.nombre or '' }}" autofocus placeholder="Como te llamas">

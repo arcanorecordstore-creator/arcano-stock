@@ -2414,10 +2414,17 @@ def register_routes(app: Flask) -> None:
             db.session.add(item)
             db.session.commit()
 
-            # Mandar email (opcional, si SMTP esta configurado)
+            # Mandar email al admin (opcional, si SMTP esta configurado)
             if mailer.is_configured():
                 try:
                     mailer.send_reserva_notification(reserva, disc)
+                except Exception:
+                    pass
+
+            # Mandar confirmacion al cliente (si dejo email)
+            if reserva.email and mailer.can_send():
+                try:
+                    mailer.send_reserva_confirmacion_cliente(reserva, disc)
                 except Exception:
                     pass
 
@@ -2428,10 +2435,20 @@ def register_routes(app: Flask) -> None:
                 **_public_context(),
             )
 
+        # Si el cliente esta logueado, precargar sus datos para no pedirlos de nuevo
+        cliente = None
+        if auth.cliente_actual_id():
+            cliente = Cliente.query.get(auth.cliente_actual_id())
+
         return render_template(
             "public/reservar.html",
             disc=disc,
-            form={},
+            form={
+                "nombre": cliente.nombre if cliente else "",
+                "email": cliente.email if cliente else "",
+                "whatsapp": cliente.whatsapp if cliente else "",
+            },
+            cliente=cliente,
             **_public_context(),
         )
 

@@ -6500,3 +6500,30 @@ td.num,
     padding: 2px 8px;
     border-radius: 8px;
 }
+
+/* Badge de genero en el titulo de "Similares" */
+.public-related-genre {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--accent);
+    background: var(--bg-2);
+    padding: 3px 10px;
+    border-radius: 12px;
+    margin-left: 8px;
+    vertical-align: middle;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+/* Aviso de cliente logueado en el form de reserva */
+.reserve-logged-notice {
+    background: var(--bg-2);
+    border: 1px solid var(--border-2);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: var(--text-2);
+}
+.reserve-logged-notice strong { color: var(--text-1); }
