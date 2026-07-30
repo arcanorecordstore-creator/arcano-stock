@@ -3653,11 +3653,17 @@ body.app { display: block; padding: 0; }
 
 @media (max-width: 600px) {
     .public-hero-with-banner {
-        min-height: 200px;
+        min-height: 0;
+        /* La imagen panoramica se ve completa, el contenedor toma su forma */
+        background-size: contain;
+        background-position: center;
+        background-color: var(--bg-1, #111);
+        aspect-ratio: 16 / 5;
     }
     .public-hero-overlay {
-        min-height: 200px;
-        padding: 24px 16px 20px;
+        min-height: 0;
+        height: 100%;
+        padding: 16px;
     }
     .public-hero-with-banner .public-hero-title {
         font-size: 24px;
