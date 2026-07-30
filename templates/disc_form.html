@@ -288,6 +288,11 @@
                            data-calc="cost"
                            value="{{ field_value('precio_uyu', '%.0f'|format(disc.precio_uyu) if disc.precio_uyu is not none else '') }}">
                 </div>
+                <div class="form-field">
+                    <label for="precio_oferta">Precio oferta <span class="form-field-hint">(opcional, para SALE)</span></label>
+                    <input type="number" id="precio_oferta" name="precio_oferta" step="1" min="0"
+                           value="{{ field_value('precio_oferta', '%.0f'|format(disc.precio_oferta) if disc.precio_oferta is not none else '') }}">
+                </div>
                 <div class="form-field form-field-sm">
                     <label for="stock">Stock</label>
                     <input type="number" id="stock" name="stock" min="1" step="1"
@@ -423,6 +428,10 @@
                     <label class="checkbox-field" style="margin-top: 28px;">
                         <input type="checkbox" name="cartel_ultima" value="1" {% if disc.cartel_ultima %}checked{% endif %}>
                         <span>Mostrar cartel "Ultima copia"</span>
+                    </label>
+                    <label class="checkbox-field">
+                        <input type="checkbox" name="mostrar_agotado" value="1" {% if disc.mostrar_agotado %}checked{% endif %}>
+                        <span>Mostrar en catalogo aunque este agotado</span>
                     </label>
                 </div>
             </div>

@@ -196,6 +196,11 @@
                         <input type="checkbox" class="mark-home" data-campo="cartel_ultima" data-disc-id="{{ d.id }}" {% if d.cartel_ultima %}checked{% endif %}>
                         <span class="home-check-icon">&#9888;</span>
                     </label>
+                    <label class="home-check" title="Mostrar aunque este agotado">
+                        <input type="checkbox" class="mark-home" data-campo="mostrar_agotado" data-disc-id="{{ d.id }}" {% if d.mostrar_agotado %}checked{% endif %}>
+                        <span class="home-check-icon">A</span>
+                    </label>
+                    {% if d.en_oferta %}<span class="home-sale-flag" title="En oferta (-{{ d.descuento_pct }}%)">SALE</span>{% endif %}
                     <select class="cartel-nuevo-select" data-disc-id="{{ d.id }}" title="Cartel Nuevo">
                         <option value="auto" {% if d.cartel_nuevo == 'auto' %}selected{% endif %}>Nuevo: auto</option>
                         <option value="si" {% if d.cartel_nuevo == 'si' %}selected{% endif %}>Nuevo: si</option>

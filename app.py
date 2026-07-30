@@ -298,6 +298,9 @@ def populate_disc_from_form(disc: Disc, form) -> list[str]:
     disc.costo_eur = _parse_float(form.get("costo_eur"), default=0.0)
     disc.envio_eur = _parse_float(form.get("envio_eur"), default=0.0)
     disc.precio_uyu = _parse_float(form.get("precio_uyu"), default=0.0)
+    # Precio de oferta (opcional). Vacio o 0 = sin oferta.
+    _po = _parse_float(form.get("precio_oferta"), default=0.0)
+    disc.precio_oferta = _po if _po and _po > 0 else None
 
     if not disc.tc_usado:
         disc.tc_usado = Setting.get_tc()
@@ -315,6 +318,7 @@ def populate_disc_from_form(disc: Disc, form) -> list[str]:
     disc.destacado = form.get("destacado") == "1"
     disc.en_nuevos = form.get("en_nuevos") == "1"
     disc.cartel_ultima = form.get("cartel_ultima") == "1"
+    disc.mostrar_agotado = form.get("mostrar_agotado") == "1"
     cn = (form.get("cartel_nuevo") or "auto").strip()
     if cn in ("auto", "si", "no"):
         disc.cartel_nuevo = cn
@@ -1748,7 +1752,7 @@ def register_routes(app: Flask) -> None:
             db.session.commit()
             return jsonify({"ok": True, "campo": campo, "valor": disc.origen})
 
-        elif campo in ("destacado", "en_nuevos", "cartel_ultima"):
+        elif campo in ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado"):
             # valor viene como "1"/"0" o true/false
             nuevo = str(valor) in ("1", "true", "True", "on")
             setattr(disc, campo, nuevo)
@@ -2031,6 +2035,22 @@ def register_routes(app: Flask) -> None:
     # TIENDA PUBLICA
     # ----------------------------------------------------------------------
 
+    def _banner_url_si_existe():
+        """Devuelve la URL del banner solo si el archivo existe en disco.
+        Evita mostrar una imagen rota si el banner se configuro pero el
+        archivo no esta (ej: se perdio en una migracion)."""
+        url = Setting.get("public_banner_url", "")
+        if not url:
+            return ""
+        # La URL es tipo /covers/banner_xxxx.jpg -> extraer el filename
+        filename = url.rstrip("/").split("/")[-1]
+        if not filename:
+            return ""
+        path = os.path.join(app.config["COVERS_DIR"], filename)
+        if os.path.exists(path):
+            return url
+        return ""
+
     def _public_context():
         """Contexto comun para todas las paginas publicas."""
         return {
@@ -2041,7 +2061,7 @@ def register_routes(app: Flask) -> None:
             "envios": Setting.get("public_envios", ""),
             "instagram": Setting.get("public_instagram", ""),
             "whatsapp": Setting.get("public_whatsapp", ""),
-            "banner_url": Setting.get("public_banner_url", ""),
+            "banner_url": _banner_url_si_existe(),
             "hero_title": Setting.get("public_hero_title", ""),
             "hero_subtitle": Setting.get("public_hero_subtitle", ""),
             "banner_video_url": Setting.get("public_banner_video_url", ""),
@@ -2100,10 +2120,17 @@ def register_routes(app: Flask) -> None:
     @app.route("/")
     def home():
         """Catalogo publico de discos disponibles."""
+        from sqlalchemy import or_ as _or
         all_disponibles = (
             Disc.query
-            .filter(Disc.estado == "Disponible")
-            .filter(Disc.stock > 0)
+            .filter(
+                _or(
+                    # Disponibles con stock
+                    (Disc.estado == "Disponible") & (Disc.stock > 0),
+                    # O agotados que el admin eligio mostrar igual
+                    Disc.mostrar_agotado == True,  # noqa: E712
+                )
+            )
             .all()
         )
         discs = list(all_disponibles)

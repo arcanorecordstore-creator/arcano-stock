@@ -6527,3 +6527,88 @@ td.num,
     color: var(--text-2);
 }
 .reserve-logged-notice strong { color: var(--text-1); }
+
+/* =========================================================================
+   Sistema de ofertas (SALE): precio tachado, badge de descuento
+   ========================================================================= */
+.public-card-badge-sale {
+    background: #ef4444;
+    color: #fff;
+    font-weight: 700;
+}
+.public-card-price-oferta {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.precio-tachado {
+    text-decoration: line-through;
+    color: var(--text-4);
+    font-size: 0.85em;
+    font-weight: 400;
+}
+.precio-oferta {
+    color: #ef4444;
+    font-weight: 700;
+}
+/* En la ficha del disco */
+.public-disc-price-oferta {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.public-disc-price-oferta .precio-tachado {
+    font-size: 20px;
+}
+.public-disc-price-oferta .precio-oferta {
+    font-size: 32px;
+}
+.public-disc-sale-badge {
+    background: #ef4444;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 8px;
+    letter-spacing: 0.5px;
+}
+
+/* Discos agotados visibles en el catalogo */
+.public-card-agotado {
+    opacity: 0.75;
+}
+.public-card-agotado-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.45);
+    z-index: 2;
+    pointer-events: none;
+}
+.public-card-agotado-overlay span {
+    background: rgba(0,0,0,0.8);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 16px;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.2);
+}
+/* Flag SALE en el dashboard */
+.home-sale-flag {
+    display: inline-block;
+    background: #ef4444;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+}

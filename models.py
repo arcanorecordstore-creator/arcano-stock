@@ -88,6 +88,11 @@ class Disc(db.Model):
     cartel_nuevo = db.Column(db.String(10), nullable=False, default="auto")
     # Cartel "Ultima copia": manual, solo si el admin lo marca
     cartel_ultima = db.Column(db.Boolean, nullable=False, default=False)
+    # Precio de oferta (opcional). Si esta seteado y es menor al precio, se
+    # muestra el precio tachado con el de oferta al lado (SALE).
+    precio_oferta = db.Column(db.Float, nullable=True, default=None)
+    # Mostrar en el catalogo aunque este agotado/vendido (con sello "Agotado")
+    mostrar_agotado = db.Column(db.Boolean, nullable=False, default=False)
 
     # Timestamps
     fecha_ingreso = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -132,6 +137,29 @@ class Disc(db.Model):
     def mostrar_cartel_ultima(self) -> bool:
         """El cartel 'Ultima copia' es 100% manual."""
         return bool(getattr(self, "cartel_ultima", False))
+
+    @property
+    def en_oferta(self) -> bool:
+        """True si tiene un precio de oferta valido (menor al precio normal)."""
+        po = getattr(self, "precio_oferta", None)
+        return bool(po and po > 0 and self.precio_uyu and po < self.precio_uyu)
+
+    @property
+    def precio_mostrar(self) -> float:
+        """Precio a cobrar: el de oferta si aplica, si no el normal."""
+        return self.precio_oferta if self.en_oferta else self.precio_uyu
+
+    @property
+    def descuento_pct(self) -> int:
+        """Porcentaje de descuento (entero) si esta en oferta."""
+        if not self.en_oferta:
+            return 0
+        return round((1 - (self.precio_oferta / self.precio_uyu)) * 100)
+
+    @property
+    def esta_agotado(self) -> bool:
+        """True si el disco no esta disponible para comprar."""
+        return self.estado != "Disponible" or (self.stock or 0) <= 0
 
     @property
     def margen_pct(self) -> float:
@@ -721,6 +749,16 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN cartel_ultima BOOLEAN DEFAULT 0"))
                     conn.commit()
                 print("Migracion: columna cartel_ultima agregada a discs")
+            if "precio_oferta" not in cols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN precio_oferta FLOAT"))
+                    conn.commit()
+                print("Migracion: columna precio_oferta agregada a discs")
+            if "mostrar_agotado" not in cols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN mostrar_agotado BOOLEAN DEFAULT 0"))
+                    conn.commit()
+                print("Migracion: columna mostrar_agotado agregada a discs")
             if "origen" not in cols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN origen VARCHAR(20) DEFAULT 'arcano'"))

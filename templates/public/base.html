@@ -137,7 +137,7 @@
     <div class="public-footer-inner">
         <div class="public-footer-col">
             <h3 class="public-footer-title">Arcano Record Store</h3>
-            <p class="public-footer-text">Vinilos de musica electronica seleccionados a mano. Montevideo, Uruguay.</p>
+            {% if tagline %}<p class="public-footer-text">{{ tagline }}</p>{% endif %}
         </div>
         <div class="public-footer-col">
             <h3 class="public-footer-title">Contacto</h3>
