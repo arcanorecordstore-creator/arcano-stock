@@ -1794,6 +1794,31 @@ def register_routes(app: Flask) -> None:
 
     # ----------------------------------------------------------------------
     # Settings
+    @app.route("/admin/diag-banner")
+    @auth.admin_required
+    def diag_banner():
+        """Diagnostico temporal del banner: muestra que hay guardado y si el
+        archivo existe. Sirve para depurar por que no se ve el banner."""
+        url = Setting.get("public_banner_url", "")
+        video = Setting.get("public_banner_video_url", "")
+        covers_dir = app.config["COVERS_DIR"]
+        info = [f"public_banner_url guardada: {url!r}"]
+        info.append(f"public_banner_video_url: {video!r}")
+        info.append(f"COVERS_DIR: {covers_dir}")
+        if url:
+            filename = url.rstrip("/").split("/")[-1].split("?")[0]
+            info.append(f"filename extraido: {filename!r}")
+            p1 = os.path.join(covers_dir, filename)
+            info.append(f"existe en COVERS_DIR: {os.path.exists(p1)} ({p1})")
+        # Listar archivos banner_ en el directorio
+        try:
+            archivos = [f for f in os.listdir(covers_dir) if "banner" in f.lower()]
+            info.append(f"archivos con 'banner' en COVERS_DIR: {archivos}")
+        except Exception as e:
+            info.append(f"error listando COVERS_DIR: {e}")
+        info.append(f"_banner_url_si_existe() devuelve: {_banner_url_si_existe()!r}")
+        return "<pre>" + "\n".join(info) + "</pre>"
+
     @app.route("/admin/settings")
     @auth.admin_required
     def settings_page():
@@ -2042,13 +2067,23 @@ def register_routes(app: Flask) -> None:
         url = Setting.get("public_banner_url", "")
         if not url:
             return ""
-        # La URL es tipo /covers/banner_xxxx.jpg -> extraer el filename
-        filename = url.rstrip("/").split("/")[-1]
+        # Si es una URL externa (http), devolverla tal cual
+        if url.startswith("http://") or url.startswith("https://"):
+            return url
+        # Extraer el filename del final de la ruta (soporta /covers/x.jpg,
+        # /static/covers/x.jpg, etc.)
+        filename = url.rstrip("/").split("/")[-1].split("?")[0]
         if not filename:
             return ""
-        path = os.path.join(app.config["COVERS_DIR"], filename)
-        if os.path.exists(path):
-            return url
+        # Buscar el archivo en las ubicaciones posibles
+        posibles = [
+            os.path.join(app.config["COVERS_DIR"], filename),
+            os.path.join(app.static_folder, "covers", filename),
+        ]
+        for path in posibles:
+            if os.path.exists(path):
+                # Normalizar la URL para servir siempre via serve_cover
+                return url_for("serve_cover", filename=filename)
         return ""
 
     def _public_context():
@@ -2961,7 +2996,9 @@ def register_routes(app: Flask) -> None:
             flash(f"Error al guardar archivo: {e}", "error")
             return redirect(url_for("settings_page"))
 
-        Setting.set("public_banner_url", url_for("serve_cover", filename=filename))
+        # Guardar una ruta fija y simple. Guardamos solo el nombre del archivo
+        # con un prefijo conocido; _banner_url_si_existe lo resuelve al servir.
+        Setting.set("public_banner_url", f"/covers/{filename}")
         flash("Banner actualizado.", "success")
         return redirect(url_for("settings_page"))
 
