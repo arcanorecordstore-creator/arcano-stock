@@ -6680,8 +6680,40 @@ td.num,
         width: 100%;
         box-sizing: border-box;
     }
+    .filter-group.filter-search {
+        grid-column: 1 / -1;  /* el buscador ocupa todo el ancho, bien visible */
+    }
+    .filter-group.filter-search input {
+        font-size: 16px;
+        padding: 12px;
+    }
 
-    /* --- Tabla de stock -> tarjetas apiladas --- */
+    /* --- Barra de seleccion multiple: no tapar, fija abajo full-width --- */
+    .bulk-bar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        transform: none;
+        width: 100%;
+        max-width: 100%;
+        border-radius: 12px 12px 0 0;
+        padding: 10px 12px;
+        gap: 8px;
+        flex-direction: column;
+        align-items: stretch;
+        box-shadow: 0 -6px 24px rgba(0,0,0,0.55);
+    }
+    .bulk-count { text-align: center; font-size: 13px; }
+    .bulk-actions-buttons { width: 100%; justify-content: center; }
+    .bulk-actions-buttons select,
+    .bulk-actions-buttons .btn {
+        flex: 1 1 auto;
+        min-height: 44px;
+    }
+    /* Espacio abajo para que la barra fija no tape el ultimo disco */
+    .stock-table { padding-bottom: 90px; }
     .stock-table {
         min-width: 0 !important;  /* anular el min-width: 1300px de desktop */
     }
