@@ -45,6 +45,10 @@
 </head>
 <body class="public-body">
 
+{% if anuncio_texto %}
+<div class="public-anuncio-bar">{{ anuncio_texto }}</div>
+{% endif %}
+
 <header class="public-topbar">
     <div class="public-topbar-inner">
         <button type="button" class="public-hamburger" id="public-hamburger" aria-label="Abrir menu" aria-expanded="false">

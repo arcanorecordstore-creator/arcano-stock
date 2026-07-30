@@ -1857,6 +1857,7 @@ def register_routes(app: Flask) -> None:
             api_key_set=bool(config.ANTHROPIC_API_KEY),
             # Textos publicos
             public_tagline=Setting.get("public_tagline", ""),
+            public_anuncio_texto=Setting.get("public_anuncio_texto", ""),
             public_about=Setting.get("public_about", ""),
             public_about_curaduria=Setting.get("public_about_curaduria", ""),
             public_about_como_funciona=Setting.get("public_about_como_funciona", ""),
@@ -2097,6 +2098,7 @@ def register_routes(app: Flask) -> None:
             "instagram": Setting.get("public_instagram", ""),
             "whatsapp": Setting.get("public_whatsapp", ""),
             "banner_url": _banner_url_si_existe(),
+            "anuncio_texto": Setting.get("public_anuncio_texto", ""),
             "hero_title": Setting.get("public_hero_title", ""),
             "hero_subtitle": Setting.get("public_hero_subtitle", ""),
             "banner_video_url": Setting.get("public_banner_video_url", ""),
@@ -2917,6 +2919,7 @@ def register_routes(app: Flask) -> None:
         """Actualiza los textos publicos de la tienda."""
         keys = [
             "public_tagline",
+            "public_anuncio_texto",
             "public_hero_title",
             "public_hero_subtitle",
             "public_banner_video_url",

@@ -6612,3 +6612,14 @@ td.num,
     letter-spacing: 0.5px;
     vertical-align: middle;
 }
+
+/* Barra de anuncio (envio gratis, etc.) arriba de toda la web */
+.public-anuncio-bar {
+    background: var(--accent, #10b981);
+    color: #fff;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 16px;
+    letter-spacing: 0.3px;
+}
