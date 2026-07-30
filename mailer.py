@@ -169,3 +169,51 @@ Montevideo, Uruguay
 </body></html>"""
 
     return send_email(subject, body_text, body_html, to=reserva.email)
+
+
+def send_reserva_confirmacion_cliente_multi(reserva, discs) -> tuple[bool, str]:
+    """Confirmacion al cliente para una reserva con varios discos (carrito)."""
+    if not reserva.email:
+        return False, "El cliente no dejo email"
+
+    total = sum((d.precio_uyu or 0) for d in discs)
+    lineas = "\n".join(
+        f"  - {d.artista} - {d.titulo} ($ {(d.precio_uyu or 0):,.0f} UYU)"
+        for d in discs
+    )
+    subject = f"Confirmamos tu reserva - {len(discs)} disco(s)"
+    body_text = f"""Hola {reserva.nombre},
+
+Recibimos tu reserva en Arcano Record Store. Estos son los discos:
+
+{lineas}
+
+TOTAL: $ {total:,.0f} UYU
+
+Nos vamos a contactar con vos por WhatsApp ({reserva.whatsapp}) para
+coordinar el pago y la entrega o retiro.
+
+Gracias por elegir Arcano.
+
+Arcano Record Store
+Montevideo, Uruguay
+"""
+
+    filas_html = "".join(
+        f'<p style="margin:4px 0;"><strong>{d.artista}</strong> - {d.titulo} '
+        f'<span style="color:#10b981;">$ {(d.precio_uyu or 0):,.0f} UYU</span></p>'
+        for d in discs
+    )
+    body_html = f"""<html><body style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; background: #0a0a0a; color: #fff;">
+<h1 style="letter-spacing: 4px; font-weight: 300;">ARCANO</h1>
+<h2 style="color: #10b981; font-size: 16px;">Confirmamos tu reserva</h2>
+<p>Hola <strong>{reserva.nombre}</strong>, recibimos tu reserva de estos discos:</p>
+{filas_html}
+<p style="margin-top:12px;"><strong>Total: $ {total:,.0f} UYU</strong></p>
+<p>Nos vamos a contactar con vos por WhatsApp (<strong>{reserva.whatsapp}</strong>) para coordinar el pago y la entrega o retiro.</p>
+<p style="margin-top: 24px;">Gracias por elegir Arcano.</p>
+<hr style="border: none; border-top: 1px solid #333; margin: 30px 0;">
+<p style="font-size: 11px; color: #666;">Arcano Record Store &middot; Montevideo, Uruguay<br>Reserva #{reserva.id}</p>
+</body></html>"""
+
+    return send_email(subject, body_text, body_html, to=reserva.email)

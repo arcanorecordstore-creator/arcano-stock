@@ -2679,10 +2679,17 @@ def register_routes(app: Flask) -> None:
 
             db.session.commit()
 
-            # Email opcional (best-effort, no rompe si falla)
+            # Email al admin (best-effort, no rompe si falla)
             if mailer.is_configured():
                 try:
                     mailer.send_reserva_notification(reserva, disponibles[0])
+                except Exception:
+                    pass
+
+            # Confirmacion al cliente (si dejo email)
+            if reserva.email and mailer.can_send():
+                try:
+                    mailer.send_reserva_confirmacion_cliente_multi(reserva, disponibles)
                 except Exception:
                     pass
 
