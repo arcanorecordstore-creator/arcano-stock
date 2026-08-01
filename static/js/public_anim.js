@@ -76,11 +76,12 @@
     }
 
     function updateCount() {
-        var el = document.getElementById('fav-count');
-        if (!el) return;
         var n = getFavs().length;
-        if (n > 0) { el.textContent = n; el.hidden = false; }
-        else { el.hidden = true; }
+        // Actualiza todos los contadores de favoritos (nav, drawer, bottom-nav)
+        document.querySelectorAll('.fav-count').forEach(function (el) {
+            if (n > 0) { el.textContent = n; el.hidden = false; }
+            else { el.hidden = true; }
+        });
     }
 
     function paintButtons() {
@@ -157,11 +158,12 @@
     }
 
     function updateCount() {
-        var el = document.getElementById('cart-count');
-        if (!el) return;
         var n = getCart().length;
-        if (n > 0) { el.textContent = n; el.hidden = false; }
-        else { el.hidden = true; }
+        // Actualiza todos los contadores de carrito (nav, drawer, topbar, bottom-nav)
+        document.querySelectorAll('.cart-count').forEach(function (el) {
+            if (n > 0) { el.textContent = n; el.hidden = false; }
+            else { el.hidden = true; }
+        });
     }
 
     function paintButtons() {

@@ -58,6 +58,10 @@
             <span class="brand-logo">ARCANO</span>
             <span class="public-brand-sub">Record store &middot; Montevideo</span>
         </a>
+        <a href="{{ url_for('public_carrito') }}" class="public-topbar-cart" aria-label="Ver carrito" title="Carrito">
+            <span class="topbar-cart-icon">&#128722;</span>
+            <span class="cart-count" id="cart-count-top" hidden>0</span>
+        </a>
         <nav class="public-nav public-nav-desktop">
             <a href="{{ url_for('home') }}" class="public-nav-link {% if request.endpoint == 'home' %}active{% endif %}">Catalogo</a>
             <a href="{{ url_for('public_sobre') }}" class="public-nav-link {% if request.endpoint == 'public_sobre' %}active{% endif %}">Sobre Arcano</a>
@@ -82,6 +86,35 @@
         </nav>
     </div>
 </header>
+
+<!-- Barra de navegacion inferior (solo mobile) -->
+<nav class="public-bottom-nav" aria-label="Navegacion principal movil">
+    <a href="{{ url_for('home') }}" class="bottom-nav-item {% if request.endpoint == 'home' %}active{% endif %}">
+        <span class="bottom-nav-icon">&#9835;</span>
+        <span class="bottom-nav-label">Catalogo</span>
+    </a>
+    <a href="{{ url_for('public_favoritos') }}" class="bottom-nav-item {% if request.endpoint == 'public_favoritos' %}active{% endif %}">
+        <span class="bottom-nav-icon">&#9825;</span>
+        <span class="bottom-nav-label">Favoritos</span>
+        <span class="bottom-nav-badge fav-count" id="fav-count-bottom" hidden>0</span>
+    </a>
+    <a href="{{ url_for('public_carrito') }}" class="bottom-nav-item {% if request.endpoint in ['public_carrito', 'public_checkout'] %}active{% endif %}">
+        <span class="bottom-nav-icon">&#128722;</span>
+        <span class="bottom-nav-label">Carrito</span>
+        <span class="bottom-nav-badge cart-count" id="cart-count-bottom" hidden>0</span>
+    </a>
+    {% if cliente_actual %}
+    <a href="{{ url_for('cliente_cuenta') }}" class="bottom-nav-item {% if request.endpoint == 'cliente_cuenta' %}active{% endif %}">
+        <span class="bottom-nav-icon">&#9679;</span>
+        <span class="bottom-nav-label">Cuenta</span>
+    </a>
+    {% else %}
+    <a href="{{ url_for('cliente_login_page') }}" class="bottom-nav-item {% if request.endpoint in ['cliente_login_page', 'cliente_registro'] %}active{% endif %}">
+        <span class="bottom-nav-icon">&#9679;</span>
+        <span class="bottom-nav-label">Ingresar</span>
+    </a>
+    {% endif %}
+</nav>
 
 <!-- Panel lateral (drawer) -->
 <div class="public-drawer-overlay" id="public-drawer-overlay" hidden></div>

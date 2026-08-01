@@ -1873,6 +1873,7 @@ def register_routes(app: Flask) -> None:
             public_legal_privacidad=Setting.get("public_legal_privacidad", ""),
             public_legal_cookies=Setting.get("public_legal_cookies", ""),
             public_grid_columnas=Setting.get("public_grid_columnas", "auto"),
+            public_grid_mobile=Setting.get("public_grid_mobile", "1"),
             public_discos_por_pagina=Setting.get("public_discos_por_pagina", "24"),
             public_carrusel_velocidad=Setting.get("public_carrusel_velocidad", "7"),
             public_card_tamano=Setting.get("public_card_tamano", "mediano"),
@@ -2107,6 +2108,7 @@ def register_routes(app: Flask) -> None:
             "legal_privacidad": Setting.get("public_legal_privacidad", ""),
             "legal_cookies": Setting.get("public_legal_cookies", ""),
             "grid_columnas": Setting.get("public_grid_columnas", "auto"),
+            "grid_mobile": Setting.get("public_grid_mobile", "1"),
             "carrusel_velocidad": Setting.get("public_carrusel_velocidad", "7"),
             "card_tamano": Setting.get("public_card_tamano", "mediano"),
         }
@@ -2930,6 +2932,7 @@ def register_routes(app: Flask) -> None:
             "public_instagram",
             "public_whatsapp",
             "public_grid_columnas",
+            "public_grid_mobile",
             "public_discos_por_pagina",
             "public_carrusel_velocidad",
             "public_card_tamano",

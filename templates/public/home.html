@@ -222,7 +222,7 @@
     {% if total_paginas > 1 %}<span class="public-results-page">&middot; pagina {{ pagina }} de {{ total_paginas }}</span>{% endif %}
 </p>
 
-<div class="public-grid public-grid-{{ card_tamano or 'mediano' }}"{% if grid_columnas and grid_columnas != 'auto' %} style="grid-template-columns: repeat({{ grid_columnas }}, 1fr);"{% endif %}>
+<div class="public-grid public-grid-{{ card_tamano or 'mediano' }}" data-mobile-cols="{{ grid_mobile or '1' }}"{% if grid_columnas and grid_columnas != 'auto' %} style="grid-template-columns: repeat({{ grid_columnas }}, 1fr);"{% endif %}>
     {% for d in discs %}
     <a href="{{ url_for('public_disc', disc_id=d.id) }}" class="public-card{% if d.esta_agotado %} public-card-agotado{% endif %}">
         <div class="public-card-cover">

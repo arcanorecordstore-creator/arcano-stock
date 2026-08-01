@@ -159,6 +159,14 @@
                         <option value="5" {% if public_grid_columnas == '5' %}selected{% endif %}>5 columnas</option>
                         <option value="6" {% if public_grid_columnas == '6' %}selected{% endif %}>6 columnas</option>
                     </select>
+                    <p class="form-field-hint" style="margin-top: 6px;">En computadora. En celular se ajusta aparte (abajo).</p>
+                </div>
+                <div class="form-field">
+                    <label for="public_grid_mobile">Columnas en celular</label>
+                    <select id="public_grid_mobile" name="public_grid_mobile">
+                        <option value="1" {% if public_grid_mobile == '1' %}selected{% endif %}>1 columna (grande)</option>
+                        <option value="2" {% if public_grid_mobile == '2' %}selected{% endif %}>2 columnas (ver mas discos)</option>
+                    </select>
                 </div>
                 <div class="form-field">
                     <label for="public_card_tamano">Tamano de los discos</label>

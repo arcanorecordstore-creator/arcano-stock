@@ -6136,7 +6136,16 @@ td.num,
     .public-grid[style] { grid-template-columns: repeat(2, 1fr) !important; }
 }
 @media (max-width: 520px) {
+    /* Por defecto 1 columna, pero respeta la config del admin (data-mobile-cols) */
     .public-grid[style] { grid-template-columns: 1fr !important; }
+    .public-grid[data-mobile-cols="2"],
+    .public-grid[data-mobile-cols="2"][style] {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+    }
+    /* En 2 columnas, achicar un poco los textos de las cards */
+    .public-grid[data-mobile-cols="2"] .public-card-title { font-size: 12px; }
+    .public-grid[data-mobile-cols="2"] .public-card-price { font-size: 13px; }
 }
 
 /* =========================================================================
@@ -6847,4 +6856,90 @@ td.num,
         grid-template-columns: 1fr !important;
     }
     .stock-table td.col-main { width: calc(100% - 84px); }
+}
+
+/* =========================================================================
+   MOBILE: carrito en topbar + barra de navegacion inferior
+   ========================================================================= */
+/* Carrito arriba (al lado de la hamburguesa) - oculto en desktop */
+.public-topbar-cart {
+    display: none;
+    position: relative;
+    align-items: center;
+    justify-content: center;
+    width: 42px;
+    height: 42px;
+    text-decoration: none;
+    color: var(--text-1);
+    font-size: 20px;
+}
+.public-topbar-cart .cart-count {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: var(--accent, #10b981);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    min-width: 16px;
+    height: 16px;
+    line-height: 16px;
+    text-align: center;
+    border-radius: 8px;
+    padding: 0 4px;
+}
+
+/* Barra de navegacion inferior - oculta en desktop */
+.public-bottom-nav {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 90;
+    background: var(--bg-1, #111);
+    border-top: 1px solid var(--border-2, #333);
+    padding: 6px 0 max(6px, env(safe-area-inset-bottom));
+}
+.bottom-nav-item {
+    flex: 1 1 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    text-decoration: none;
+    color: var(--text-3, #999);
+    font-size: 10px;
+    padding: 4px 0;
+    position: relative;
+    transition: color 0.15s ease;
+}
+.bottom-nav-item.active { color: var(--accent, #10b981); }
+.bottom-nav-icon { font-size: 20px; line-height: 1; }
+.bottom-nav-label { font-size: 10px; letter-spacing: 0.2px; }
+.bottom-nav-badge {
+    position: absolute;
+    top: 0;
+    right: 50%;
+    transform: translateX(16px);
+    background: var(--accent, #10b981);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 700;
+    min-width: 15px;
+    height: 15px;
+    line-height: 15px;
+    text-align: center;
+    border-radius: 8px;
+    padding: 0 3px;
+}
+
+/* Activar en mobile */
+@media (max-width: 700px) {
+    .public-topbar-cart { display: flex; }
+    .public-bottom-nav { display: flex; }
+    /* Dejar espacio abajo para que la barra no tape el contenido ni el footer */
+    .public-body { padding-bottom: 64px; }
+    /* Si el reproductor flotante esta activo, subirlo para no chocar con la barra */
+    .floating-player { bottom: 72px; }
 }
