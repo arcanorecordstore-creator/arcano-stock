@@ -167,10 +167,10 @@
                 <td class="col-status col-editable-estado" data-disc-id="{{ d.id }}" data-estado="{{ d.estado }}" title="Click para cambiar el estado">
                     {% set estado_class = {
                         'Disponible': 'badge-disponible',
+                        'Pre-order': 'badge-preorder',
                         'Reservado': 'badge-reservado',
                         'Vendido': 'badge-vendido',
                         'Apartado para mi': 'badge-apartado',
-                        'En camino': 'badge-encamino',
                         'Descartado': 'badge-descartado',
                     } %}
                     <span class="badge {{ estado_class.get(d.estado, 'badge-default') }}">{{ d.estado }}</span>
