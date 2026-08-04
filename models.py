@@ -11,6 +11,7 @@ db = SQLAlchemy()
 
 ESTADOS_DISCO = [
     "Disponible",
+    "Pre-order",
     "Reservado",
     "Vendido",
     "Apartado para mi",
@@ -92,8 +93,12 @@ class Disc(db.Model):
     precio_oferta = db.Column(db.Float, nullable=True, default=None)
     # Mostrar en el catalogo aunque este agotado/vendido (con sello "Agotado")
     mostrar_agotado = db.Column(db.Boolean, nullable=False, default=False)
-    # Pre-order: el disco todavia no llego pero se puede reservar por adelantado
+    # Mostrar en el carrusel "Pre-order" del inicio (toggle manual, como destacado).
+    # Solo tiene efecto si ademas el estado es "Pre-order".
     es_preorder = db.Column(db.Boolean, nullable=False, default=False)
+    # Cantidad de copias vendidas de este disco (para facturacion).
+    # Permite registrar que se vendio mas de 1 copia del mismo titulo.
+    copias_vendidas = db.Column(db.Integer, nullable=False, default=0)
 
     # Timestamps
     fecha_ingreso = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -141,8 +146,14 @@ class Disc(db.Model):
 
     @property
     def mostrar_preorder(self) -> bool:
-        """El cartel 'Pre-order' es 100% manual."""
-        return bool(getattr(self, "es_preorder", False))
+        """True si el disco esta en estado Pre-order (muestra cartel y se reserva)."""
+        return self.estado == "Pre-order"
+
+    @property
+    def en_carrusel_preorder(self) -> bool:
+        """True si debe salir en el carrusel Pre-order del inicio:
+        tiene que estar en estado Pre-order Y con el toggle prendido."""
+        return self.estado == "Pre-order" and bool(getattr(self, "es_preorder", False))
 
     @property
     def en_oferta(self) -> bool:
@@ -164,8 +175,25 @@ class Disc(db.Model):
 
     @property
     def esta_agotado(self) -> bool:
-        """True si el disco no esta disponible para comprar."""
+        """True si el disco no esta disponible para comprar.
+        Los pre-orders NO se consideran agotados (se pueden reservar)."""
+        if self.estado == "Pre-order":
+            return False
         return self.estado != "Disponible" or (self.stock or 0) <= 0
+
+    @property
+    def copias_facturadas(self) -> int:
+        """Cantidad de copias vendidas a efectos de facturacion.
+        Usa copias_vendidas; si es 0 pero el disco esta Vendido, cuenta 1."""
+        cv = getattr(self, "copias_vendidas", 0) or 0
+        if cv > 0:
+            return cv
+        return 1 if self.estado == "Vendido" else 0
+
+    @property
+    def total_facturado_uyu(self) -> float:
+        """Total facturado por este disco: precio x copias vendidas."""
+        return (self.precio_mostrar or self.precio_uyu or 0) * self.copias_facturadas
 
     @property
     def margen_pct(self) -> float:
@@ -770,15 +798,38 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN es_preorder BOOLEAN DEFAULT 0"))
                     conn.commit()
                 print("Migracion: columna es_preorder agregada a discs")
-            # Convertir discos "En camino" en pre-orders (el estado ya no existe)
+            if "copias_vendidas" not in cols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN copias_vendidas INTEGER DEFAULT 0"))
+                    conn.commit()
+                print("Migracion: columna copias_vendidas agregada a discs")
+            # Para discos ya Vendidos sin copias registradas, asumir 1 copia
             with db.engine.connect() as conn:
                 res = conn.execute(text(
-                    "UPDATE discs SET es_preorder = 1, estado = 'Disponible' "
-                    "WHERE estado = 'En camino'"
+                    "UPDATE discs SET copias_vendidas = 1 "
+                    "WHERE estado = 'Vendido' AND (copias_vendidas IS NULL OR copias_vendidas = 0)"
                 ))
                 conn.commit()
                 if res.rowcount:
-                    print(f"Migracion: {res.rowcount} discos 'En camino' convertidos a pre-order")
+                    print(f"Migracion: {res.rowcount} discos vendidos con copias_vendidas=1 por defecto")
+            # Convertir discos "En camino" (estado viejo) en estado "Pre-order"
+            with db.engine.connect() as conn:
+                res = conn.execute(text(
+                    "UPDATE discs SET estado = 'Pre-order' WHERE estado = 'En camino'"
+                ))
+                conn.commit()
+                if res.rowcount:
+                    print(f"Migracion: {res.rowcount} discos 'En camino' pasados a estado 'Pre-order'")
+            # Los que estaban marcados es_preorder=1 con estado Disponible: pasarlos
+            # a estado Pre-order (antes el flag significaba "es pre-order")
+            with db.engine.connect() as conn:
+                res = conn.execute(text(
+                    "UPDATE discs SET estado = 'Pre-order' "
+                    "WHERE es_preorder = 1 AND estado = 'Disponible'"
+                ))
+                conn.commit()
+                if res.rowcount:
+                    print(f"Migracion: {res.rowcount} discos con flag pre-order pasados a estado 'Pre-order'")
             if "origen" not in cols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN origen VARCHAR(20) DEFAULT 'arcano'"))

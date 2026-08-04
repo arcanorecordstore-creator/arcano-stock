@@ -37,15 +37,14 @@ def kpis_principales() -> dict:
 
     # ---- Ventas historicas ----
     vendidos = Disc.query.filter_by(estado="Vendido").all()
-    ventas_total_unidades = sum(d.stock or 0 for d in vendidos) or len(vendidos)
-    # Para vendidos: la cantidad facturada es precio_uyu * (stock al momento de la venta).
-    # Pero como solo tenemos el stock actual, asumimos que cuando se marca vendido
-    # se vendio la cantidad que figura en stock.
+    # Cantidad total de copias vendidas (suma de copias_vendidas de cada titulo)
+    ventas_total_unidades = sum(d.copias_facturadas for d in vendidos)
+    # Facturado: precio x cantidad de copias vendidas de cada disco
     facturado_uyu = sum(
-        (d.precio_uyu or 0) * (d.stock or 1) for d in vendidos
+        (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in vendidos
     )
     costo_vendido_uyu = sum(
-        (d.costo_final_uyu or 0) * (d.stock or 1) for d in vendidos
+        (d.costo_final_uyu or 0) * d.copias_facturadas for d in vendidos
     )
     ganancia_realizada_uyu = facturado_uyu - costo_vendido_uyu
 
@@ -84,9 +83,9 @@ def kpis_mes_actual() -> dict:
         .all()
     )
 
-    unidades = sum(d.stock or 1 for d in vendidos_mes)
-    facturado = sum((d.precio_uyu or 0) * (d.stock or 1) for d in vendidos_mes)
-    costo = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in vendidos_mes)
+    unidades = sum(d.copias_facturadas for d in vendidos_mes)
+    facturado = sum((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in vendidos_mes)
+    costo = sum((d.costo_final_uyu or 0) * d.copias_facturadas for d in vendidos_mes)
     ganancia = facturado - costo
 
     return {
@@ -133,8 +132,8 @@ def top_sellos_rotacion(limit: int = 5) -> list[dict]:
         db.session.query(
             Disc.sello,
             func.count(Disc.id).label("titulos"),
-            func.sum(Disc.stock).label("unidades"),
-            func.sum(Disc.precio_uyu * Disc.stock).label("facturado"),
+            func.sum(Disc.copias_vendidas).label("unidades"),
+            func.sum(Disc.precio_uyu * Disc.copias_vendidas).label("facturado"),
         )
         .filter(Disc.estado == "Vendido")
         .filter(Disc.sello.isnot(None))
@@ -215,9 +214,9 @@ def ventas_ultimos_6_meses() -> list[dict]:
             .filter(Disc.fecha_venta < fin)
             .all()
         )
-        unidades = sum(d.stock or 1 for d in vendidos)
-        facturado = sum((d.precio_uyu or 0) * (d.stock or 1) for d in vendidos)
-        ganancia = facturado - sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in vendidos)
+        unidades = sum(d.copias_facturadas for d in vendidos)
+        facturado = sum((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in vendidos)
+        ganancia = facturado - sum((d.costo_final_uyu or 0) * d.copias_facturadas for d in vendidos)
 
         salida.append({
             "year": y,

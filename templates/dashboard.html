@@ -200,7 +200,7 @@
                         <input type="checkbox" class="mark-home" data-campo="mostrar_agotado" data-disc-id="{{ d.id }}" {% if d.mostrar_agotado %}checked{% endif %}>
                         <span class="home-check-icon">A</span>
                     </label>
-                    <label class="home-check" title="Pre-order (pre-venta)">
+                    <label class="home-check" title="Mostrar en carrusel Pre-order (requiere estado Pre-order)">
                         <input type="checkbox" class="mark-home" data-campo="es_preorder" data-disc-id="{{ d.id }}" {% if d.es_preorder %}checked{% endif %}>
                         <span class="home-check-icon">P</span>
                     </label>
@@ -305,22 +305,45 @@
 <div class="bulk-bar" id="bulk-bar" hidden>
     <span class="bulk-count"><span id="bulk-count-num">0</span> seleccionados</span>
     <div class="bulk-actions-buttons">
-        <form method="post" action="{{ url_for('disc_bulk_action') }}" id="bulk-status-form" style="display:inline-flex; gap:6px; align-items:center;">
-            <input type="hidden" name="action" value="status">
-            <div id="bulk-status-ids"></div>
-            <select name="nuevo_estado" required>
-                <option value="">Cambiar estado a...</option>
-                {% for e in estados %}
-                <option value="{{ e }}">{{ e }}</option>
-                {% endfor %}
+        <form method="post" action="{{ url_for('disc_bulk_action') }}" id="bulk-field-form" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
+            <div id="bulk-field-ids"></div>
+            <select id="bulk-field-selector" class="bulk-select">
+                <option value="">Cambiar...</option>
+                <optgroup label="Estado">
+                    <option value="status">Estado del disco</option>
+                </optgroup>
+                <optgroup label="Carteles (prender/apagar)">
+                    <option value="destacado">Destacado (carrusel)</option>
+                    <option value="en_nuevos">Nuevos ingresos (carrusel)</option>
+                    <option value="es_preorder">Pre-order (carrusel)</option>
+                    <option value="cartel_ultima">Ultima copia</option>
+                    <option value="mostrar_agotado">Agotado visible</option>
+                    <option value="cartel_nuevo">Cartel Nuevo</option>
+                </optgroup>
+                <optgroup label="Oferta">
+                    <option value="quitar_oferta">Quitar oferta (SALE)</option>
+                </optgroup>
             </select>
-            <button type="submit" class="btn btn-ghost">Aplicar</button>
+            <!-- Valor: cambia segun el campo elegido -->
+            <select name="_estado_val" id="bulk-val-estado" class="bulk-select" hidden>
+                {% for e in estados %}<option value="{{ e }}">{{ e }}</option>{% endfor %}
+            </select>
+            <select name="_bool_val" id="bulk-val-bool" class="bulk-select" hidden>
+                <option value="1">Activar</option>
+                <option value="0">Desactivar</option>
+            </select>
+            <select name="_nuevo_val" id="bulk-val-nuevo" class="bulk-select" hidden>
+                <option value="auto">auto</option>
+                <option value="si">si</option>
+                <option value="no">no</option>
+            </select>
+            <button type="submit" class="btn btn-primary" id="bulk-apply-btn">Aplicar</button>
         </form>
         <form method="post" action="{{ url_for('disc_bulk_action') }}" id="bulk-delete-form"
               data-confirm="¿Eliminar los discos seleccionados? Esta accion no se puede deshacer.">
             <input type="hidden" name="action" value="delete">
             <div id="bulk-delete-ids"></div>
-            <button type="submit" class="btn btn-ghost danger">Eliminar seleccionados</button>
+            <button type="submit" class="btn btn-ghost danger">Eliminar</button>
         </form>
         <button type="button" class="btn btn-ghost" id="bulk-clear">Cancelar</button>
     </div>

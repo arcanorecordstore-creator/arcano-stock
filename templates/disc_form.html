@@ -335,6 +335,12 @@
                         {% endfor %}
                     </select>
                 </div>
+                <div class="form-field form-field-sm">
+                    <label for="copias_vendidas">Copias vendidas</label>
+                    <input type="number" id="copias_vendidas" name="copias_vendidas" min="0" step="1"
+                           value="{{ field_value('copias_vendidas', disc.copias_vendidas if disc.copias_vendidas else '') }}"
+                           placeholder="0">
+                </div>
                 <div class="form-field">
                     <label for="condicion">Condicion</label>
                     <select id="condicion" name="condicion">
@@ -435,7 +441,7 @@
                     </label>
                     <label class="checkbox-field">
                         <input type="checkbox" name="es_preorder" value="1" {% if disc.es_preorder %}checked{% endif %}>
-                        <span>Pre-order (pre-venta, todavia no llego)</span>
+                        <span>Mostrar en el carrusel "Pre-order" del inicio (requiere estado Pre-order)</span>
                     </label>
                 </div>
             </div>

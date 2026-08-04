@@ -309,6 +309,12 @@ def populate_disc_from_form(disc: Disc, form) -> list[str]:
     disc.stock = stock
     disc.estado = estado
     disc.condicion = condicion
+    # Copias vendidas (para facturacion)
+    try:
+        cv = int(form.get("copias_vendidas") or 0)
+        disc.copias_vendidas = max(0, cv)
+    except (ValueError, TypeError):
+        disc.copias_vendidas = disc.copias_vendidas or 0
     origen = _str_or_none(form.get("origen")) or "arcano"
     if origen in ("arcano", "personal"):
         disc.origen = origen
@@ -419,6 +425,9 @@ def register_status_change(disc: Disc, nuevo_estado: str, nota: str | None = Non
         disc.fecha_reserva = ahora
     elif nuevo_estado == "Vendido" and not disc.fecha_venta:
         disc.fecha_venta = ahora
+        # Si no se registraron copias vendidas, asumir al menos 1
+        if not getattr(disc, "copias_vendidas", 0):
+            disc.copias_vendidas = 1
 
     evento = StatusHistory(
         disc_id=disc.id,
@@ -1317,6 +1326,44 @@ def register_routes(app: Flask) -> None:
             flash(f"{cambios} disco{'s' if cambios != 1 else ''} actualizado{'s' if cambios != 1 else ''} a {nuevo}.", "success")
             return redirect(url_for("dashboard"))
 
+        if action == "set_field":
+            # Cambio masivo de un parametro booleano o el cartel Nuevo
+            campo = (request.form.get("campo") or "").strip()
+            valor = (request.form.get("valor") or "").strip()
+            campos_bool = ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado", "es_preorder")
+            cambios = 0
+            if campo in campos_bool:
+                nuevo_val = valor in ("1", "true", "on", "si")
+                for d in discs:
+                    setattr(d, campo, nuevo_val)
+                    cambios += 1
+                db.session.commit()
+                etiquetas = {
+                    "destacado": "Destacado", "en_nuevos": "Nuevos ingresos",
+                    "cartel_ultima": "Ultima copia", "mostrar_agotado": "Agotado visible",
+                    "es_preorder": "Carrusel Pre-order",
+                }
+                estado_txt = "activado" if nuevo_val else "desactivado"
+                flash(f"{cambios} disco(s): {etiquetas.get(campo, campo)} {estado_txt}.", "success")
+            elif campo == "cartel_nuevo":
+                if valor in ("auto", "si", "no"):
+                    for d in discs:
+                        d.cartel_nuevo = valor
+                        cambios += 1
+                    db.session.commit()
+                    flash(f"{cambios} disco(s): cartel Nuevo = {valor}.", "success")
+                else:
+                    flash("Valor invalido para cartel Nuevo.", "error")
+            elif campo == "quitar_oferta":
+                for d in discs:
+                    d.precio_oferta = None
+                    cambios += 1
+                db.session.commit()
+                flash(f"{cambios} disco(s): oferta quitada.", "success")
+            else:
+                flash(f"Campo no valido para cambio masivo: {campo}", "error")
+            return redirect(url_for("dashboard"))
+
         flash(f"Accion desconocida: {action}", "error")
         return redirect(url_for("dashboard"))
 
@@ -2169,8 +2216,8 @@ def register_routes(app: Flask) -> None:
                     (Disc.estado == "Disponible") & (Disc.stock > 0),
                     # O agotados que el admin eligio mostrar igual
                     Disc.mostrar_agotado == True,  # noqa: E712
-                    # O pre-orders (todavia no llegaron pero se reservan)
-                    Disc.es_preorder == True,  # noqa: E712
+                    # O en estado Pre-order (se reservan por adelantado)
+                    Disc.estado == "Pre-order",
                 )
             )
             .all()
@@ -2305,6 +2352,7 @@ def register_routes(app: Flask) -> None:
         # Secciones de la home: solo en pagina 1, sin filtros ni busqueda
         destacados = []
         nuevos_ingresos = []
+        preorders_carrusel = []
         if pagina == 1 and filtros_activos == 0 and not q and orden == "nuevos":
             # --- DESTACADOS ---
             # Los marcados manualmente tienen prioridad. Si faltan para 6,
@@ -2338,11 +2386,16 @@ def register_routes(app: Flask) -> None:
                     nuevos_ingresos.append(d)
                     ids_ya.add(d.id)
 
+            # --- PRE-ORDER ---
+            # Discos en estado Pre-order con el toggle de carrusel prendido
+            preorders_carrusel = [d for d in all_disponibles if d.en_carrusel_preorder][:12]
+
         return render_template(
             "public/home.html",
             discs=discs_pagina,
             destacados=destacados,
             nuevos_ingresos=nuevos_ingresos,
+            preorders_carrusel=preorders_carrusel,
             total_resultados=total_resultados,
             pagina=pagina,
             total_paginas=total_paginas,
@@ -2376,7 +2429,7 @@ def register_routes(app: Flask) -> None:
         disc = Disc.query.get_or_404(disc_id)
         # No mostrar discos que no esten disponibles publicamente
         # (excepcion: los pre-orders se ven siempre)
-        if not disc.es_preorder and disc.estado not in ("Disponible", "Reservado", "Vendido"):
+        if disc.estado not in ("Disponible", "Pre-order", "Reservado", "Vendido"):
             return render_template("public/not_found.html", **_public_context()), 404
 
         # "Similares a este titulo": prioriza mismo genero, completa con mismo
@@ -2432,7 +2485,10 @@ def register_routes(app: Flask) -> None:
         """Form de reserva."""
         disc = Disc.query.get_or_404(disc_id)
         # Los pre-orders se pueden reservar aunque no tengan stock todavia.
-        if not disc.es_preorder and (disc.estado != "Disponible" or disc.stock <= 0):
+        # Los pre-orders se pueden reservar aunque no tengan stock todavia.
+        if disc.estado == "Pre-order":
+            pass  # permitido
+        elif disc.estado != "Disponible" or disc.stock <= 0:
             return render_template(
                 "public/not_available.html",
                 disc=disc,

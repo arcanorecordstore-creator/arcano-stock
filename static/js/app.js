@@ -127,16 +127,20 @@
     var bulkBar = document.getElementById('bulk-bar');
     var bulkCountNum = document.getElementById('bulk-count-num');
     var bulkClear = document.getElementById('bulk-clear');
-    var bulkStatusIds = document.getElementById('bulk-status-ids');
+    var bulkFieldIds = document.getElementById('bulk-field-ids');
     var bulkDeleteIds = document.getElementById('bulk-delete-ids');
 
     if (!selectAll || rowChecks.length === 0 || !bulkBar) return;
 
+    var fieldForm = document.getElementById('bulk-field-form');
+    var fieldSelector = document.getElementById('bulk-field-selector');
+    var valEstado = document.getElementById('bulk-val-estado');
+    var valBool = document.getElementById('bulk-val-bool');
+    var valNuevo = document.getElementById('bulk-val-nuevo');
+
     function getSelected() {
       var ids = [];
-      rowChecks.forEach(function (cb) {
-        if (cb.checked) ids.push(cb.value);
-      });
+      rowChecks.forEach(function (cb) { if (cb.checked) ids.push(cb.value); });
       return ids;
     }
 
@@ -146,39 +150,85 @@
       if (n > 0) {
         bulkBar.hidden = false;
         bulkCountNum.textContent = n;
-        // Inyectar hidden inputs en ambos forms
         var html = ids.map(function (id) {
           return '<input type="hidden" name="ids[]" value="' + id + '">';
         }).join('');
-        bulkStatusIds.innerHTML = html;
+        bulkFieldIds.innerHTML = html;
         bulkDeleteIds.innerHTML = html;
       } else {
         bulkBar.hidden = true;
-        bulkStatusIds.innerHTML = '';
+        bulkFieldIds.innerHTML = '';
         bulkDeleteIds.innerHTML = '';
       }
-      // Estado del checkbox "seleccionar todo"
       if (n === 0) {
-        selectAll.checked = false;
-        selectAll.indeterminate = false;
+        selectAll.checked = false; selectAll.indeterminate = false;
       } else if (n === rowChecks.length) {
-        selectAll.checked = true;
-        selectAll.indeterminate = false;
+        selectAll.checked = true; selectAll.indeterminate = false;
       } else {
-        selectAll.checked = false;
-        selectAll.indeterminate = true;
+        selectAll.checked = false; selectAll.indeterminate = true;
       }
+    }
+
+    // Mostrar el selector de valor correcto segun el campo elegido
+    function updateValueSelector() {
+      if (!fieldSelector) return;
+      var campo = fieldSelector.value;
+      // Ocultar todos
+      [valEstado, valBool, valNuevo].forEach(function (el) {
+        if (el) { el.hidden = true; el.disabled = true; }
+      });
+      if (campo === 'status' && valEstado) {
+        valEstado.hidden = false; valEstado.disabled = false;
+      } else if (campo === 'cartel_nuevo' && valNuevo) {
+        valNuevo.hidden = false; valNuevo.disabled = false;
+      } else if (campo === 'quitar_oferta') {
+        // no necesita valor
+      } else if (campo && valBool) {
+        // campos booleanos: destacado, en_nuevos, es_preorder, cartel_ultima, mostrar_agotado
+        valBool.hidden = false; valBool.disabled = false;
+      }
+    }
+
+    if (fieldSelector) {
+      fieldSelector.addEventListener('change', updateValueSelector);
+      updateValueSelector();
+    }
+
+    // Al enviar el form, armar los campos action/campo/valor correctos
+    if (fieldForm) {
+      fieldForm.addEventListener('submit', function (e) {
+        var campo = fieldSelector ? fieldSelector.value : '';
+        if (!campo) { e.preventDefault(); alert('Elegi que queres cambiar.'); return; }
+        // Limpiar hidden previos
+        fieldForm.querySelectorAll('.bulk-dyn').forEach(function (el) { el.remove(); });
+        function addHidden(name, value) {
+          var i = document.createElement('input');
+          i.type = 'hidden'; i.name = name; i.value = value; i.className = 'bulk-dyn';
+          fieldForm.appendChild(i);
+        }
+        if (campo === 'status') {
+          addHidden('action', 'status');
+          addHidden('nuevo_estado', valEstado.value);
+        } else if (campo === 'quitar_oferta') {
+          addHidden('action', 'set_field');
+          addHidden('campo', 'quitar_oferta');
+        } else if (campo === 'cartel_nuevo') {
+          addHidden('action', 'set_field');
+          addHidden('campo', 'cartel_nuevo');
+          addHidden('valor', valNuevo.value);
+        } else {
+          addHidden('action', 'set_field');
+          addHidden('campo', campo);
+          addHidden('valor', valBool.value);
+        }
+      });
     }
 
     selectAll.addEventListener('change', function () {
       rowChecks.forEach(function (cb) { cb.checked = selectAll.checked; });
       syncBar();
     });
-
-    rowChecks.forEach(function (cb) {
-      cb.addEventListener('change', syncBar);
-    });
-
+    rowChecks.forEach(function (cb) { cb.addEventListener('change', syncBar); });
     if (bulkClear) {
       bulkClear.addEventListener('click', function () {
         rowChecks.forEach(function (cb) { cb.checked = false; });
