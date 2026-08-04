@@ -115,22 +115,31 @@
 <div class="table-wrap">
     <table class="stock-table" data-estados="{{ estados|join('|') }}">
         <thead>
+            {% macro th_sort(campo, label, extra_class='') %}
+                {% set is_active = filtros.order == campo %}
+                {% set next_dir = 'asc' if (is_active and filtros.dir == 'desc') else ('desc' if is_active else 'asc') %}
+                {% set arrow = '' %}
+                {% if is_active %}{% set arrow = ' &#9650;' if filtros.dir == 'asc' else ' &#9660;' %}{% endif %}
+                <th class="{{ extra_class }} th-sortable {% if is_active %}th-sorted{% endif %}">
+                    <a href="{{ sort_url(campo, next_dir) }}" class="th-sort-link">{{ label|safe }}{{ arrow|safe }}</a>
+                </th>
+            {% endmacro %}
             <tr>
                 <th class="col-check"><input type="checkbox" id="select-all" title="Seleccionar todo"></th>
                 <th class="col-cover"></th>
-                <th class="col-main">Artista &mdash; Titulo</th>
-                <th class="col-label">Sello</th>
-                <th class="col-fmt">Fmt</th>
-                <th class="col-num">Costo &euro;</th>
-                <th class="col-num">Envio &euro;</th>
-                <th class="col-num">Costo final UYU</th>
-                <th class="col-num">Precio UYU</th>
-                <th class="col-num">Ganancia UYU</th>
-                <th class="col-num">Margen</th>
-                <th class="col-status">Estado</th>
-                <th class="col-origen">Origen</th>
+                {{ th_sort('artista', 'Artista &mdash; Titulo', 'col-main') }}
+                {{ th_sort('sello', 'Sello', 'col-label') }}
+                {{ th_sort('formato', 'Fmt', 'col-fmt') }}
+                {{ th_sort('costo_eur', 'Costo &euro;', 'col-num') }}
+                {{ th_sort('envio_eur', 'Envio &euro;', 'col-num') }}
+                {{ th_sort('costo_final_uyu', 'Costo final UYU', 'col-num') }}
+                {{ th_sort('precio_uyu', 'Precio UYU', 'col-num') }}
+                {{ th_sort('ganancia_uyu', 'Ganancia UYU', 'col-num') }}
+                {{ th_sort('margen_pct', 'Margen', 'col-num') }}
+                {{ th_sort('estado', 'Estado', 'col-status') }}
+                {{ th_sort('origen', 'Origen', 'col-origen') }}
                 <th class="col-home" title="Marcar para las secciones de la home">Home</th>
-                <th class="col-stock">Stock</th>
+                {{ th_sort('stock', 'Stock', 'col-stock') }}
                 <th class="col-fecha">Fechas</th>
                 <th class="col-actions">Acciones</th>
             </tr>

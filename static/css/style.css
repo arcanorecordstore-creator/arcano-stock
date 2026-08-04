@@ -6964,3 +6964,18 @@ td.num,
     font-size: 14px;
     font-weight: 500;
 }
+
+/* Encabezados de tabla ordenables */
+.th-sortable { cursor: pointer; }
+.th-sort-link {
+    color: inherit;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+    transition: color 0.15s ease;
+}
+.th-sort-link:hover { color: var(--accent, #10b981); }
+.th-sorted .th-sort-link { color: var(--accent, #10b981); font-weight: 700; }
+.th-sortable:hover { background: var(--bg-hover, rgba(255,255,255,0.03)); }

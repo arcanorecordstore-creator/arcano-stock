@@ -93,6 +93,14 @@ def create_app() -> Flask:
             args["pagina"] = [str(nro)]
             return url_for(request.endpoint, **{k: v for k, v in args.items()})
 
+        def sort_url(campo, direccion):
+            """Arma la URL para ordenar por `campo` conservando los filtros."""
+            args = request.args.to_dict(flat=False)
+            args["order"] = [campo]
+            args["dir"] = [direccion]
+            args.pop("pagina", None)  # volver a la primera pagina al reordenar
+            return url_for(request.endpoint, **{k: v for k, v in args.items()})
+
         # Cliente logueado (para el nav de la tienda)
         cliente_actual = None
         try:
@@ -106,6 +114,7 @@ def create_app() -> Flask:
             "reservas_pendientes_count": reservas_pendientes_count,
             "now": datetime.utcnow(),
             "url_pagina": url_pagina,
+            "sort_url": sort_url,
             "cliente_actual": cliente_actual,
         }
 
@@ -118,10 +127,16 @@ def create_app() -> Flask:
 
 ORDER_FIELDS = {
     "fecha_ingreso": Disc.fecha_ingreso,
-    "precio_uyu": Disc.precio_uyu,
-    "costo_final_uyu": Disc.costo_final_uyu,
     "artista": Disc.artista,
     "sello": Disc.sello,
+    "formato": Disc.formato,
+    "costo_eur": Disc.costo_eur,
+    "envio_eur": Disc.envio_eur,
+    "costo_final_uyu": Disc.costo_final_uyu,
+    "precio_uyu": Disc.precio_uyu,
+    "estado": Disc.estado,
+    "origen": Disc.origen,
+    "stock": Disc.stock,
 }
 
 
@@ -172,6 +187,17 @@ def query_discs(args):
 
     order_by = (args.get("order") or "fecha_ingreso").strip()
     direction = (args.get("dir") or "desc").strip()
+
+    # Campos calculados (propiedades, no columnas): se ordenan en Python
+    if order_by in ("ganancia_uyu", "margen_pct"):
+        discs = q.all()
+        reverse = direction != "asc"
+        if order_by == "ganancia_uyu":
+            discs.sort(key=lambda d: d.ganancia_uyu or 0, reverse=reverse)
+        else:
+            discs.sort(key=lambda d: d.margen_pct or 0, reverse=reverse)
+        return discs
+
     col = ORDER_FIELDS.get(order_by, Disc.fecha_ingreso)
     q = q.order_by(col.asc()) if direction == "asc" else q.order_by(col.desc())
     return q
@@ -482,7 +508,8 @@ def register_routes(app: Flask) -> None:
     @app.route("/admin/")
     @auth.admin_required
     def dashboard():
-        discs = query_discs(request.args).all()
+        _res = query_discs(request.args)
+        discs = _res if isinstance(_res, list) else _res.all()
         totals = compute_totals(discs)
         sellos = get_sellos_unicos()
         tc = Setting.get_tc()
