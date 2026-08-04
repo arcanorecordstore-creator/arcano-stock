@@ -342,6 +342,17 @@
                            placeholder="0">
                 </div>
                 <div class="form-field">
+                    <label for="pedido_id">Pedido</label>
+                    <select id="pedido_id" name="pedido_id">
+                        <option value="">Sin pedido</option>
+                        {% for p in todos_los_pedidos %}
+                        <option value="{{ p.id }}" {% if disc.pedido_id == p.id %}selected{% endif %}>
+                            {{ p.numero or ('Pedido ' ~ p.id) }}{% if p.fecha %} ({{ p.fecha.strftime('%d/%m/%Y') }}){% endif %} &middot; {{ p.proveedor }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-field">
                     <label for="condicion">Condicion</label>
                     <select id="condicion" name="condicion">
                         <option value="">— Sin especificar —</option>

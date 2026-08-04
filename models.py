@@ -99,6 +99,8 @@ class Disc(db.Model):
     # Cantidad de copias vendidas de este disco (para facturacion).
     # Permite registrar que se vendio mas de 1 copia del mismo titulo.
     copias_vendidas = db.Column(db.Integer, nullable=False, default=0)
+    # Pedido/compra al que pertenece este disco (para trackear inversion)
+    pedido_id = db.Column(db.Integer, db.ForeignKey("pedidos.id"), nullable=True)
 
     # Timestamps
     fecha_ingreso = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -815,6 +817,67 @@ class EgresoRecurrente(db.Model):
         return f"<EgresoRecurrente {self.categoria} {self.monto} {self.moneda}>"
 
 
+# Proveedores de pedidos
+PROVEEDORES_PEDIDO = ["Deejay.de", "Viaje", "Otro"]
+
+
+class Pedido(db.Model):
+    """Un pedido/compra de discos al por mayor (para trackear la inversion)."""
+    __tablename__ = "pedidos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    numero = db.Column(db.String(40), nullable=True)      # numero de pedido (texto libre)
+    fecha = db.Column(db.Date, nullable=True, default=lambda: datetime.utcnow().date())
+    cant_discos = db.Column(db.Integer, nullable=False, default=0)   # cuantos discos declara el pedido
+    costo_eur = db.Column(db.Float, nullable=False, default=0.0)     # costo total en euros
+    costo_usd = db.Column(db.Float, nullable=False, default=0.0)     # costo total en dolares
+    proveedor = db.Column(db.String(40), nullable=False, default="Deejay.de")
+    notas = db.Column(db.Text, nullable=True)
+    creado = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    # Relacion con los discos asignados a este pedido
+    discos = db.relationship("Disc", backref="pedido", lazy=True)
+
+    @property
+    def costo_total_uyu(self) -> float:
+        """Costo total del pedido en UYU (euros + dolares convertidos)."""
+        tc_eur = Setting.get_tc()
+        tc_usd = Setting.get_tc_usd()
+        return round((self.costo_eur or 0) * tc_eur + (self.costo_usd or 0) * tc_usd, 2)
+
+    @property
+    def discos_asignados(self) -> int:
+        """Cuantos discos estan realmente vinculados a este pedido."""
+        return len(self.discos)
+
+    @property
+    def discos_vendidos(self) -> int:
+        """Cuantos discos del pedido ya se vendieron."""
+        return sum(1 for d in self.discos if d.estado == "Vendido")
+
+    @property
+    def recaudado_uyu(self) -> float:
+        """Lo recaudado por las ventas de los discos de este pedido."""
+        total = 0.0
+        for d in self.discos:
+            if d.estado == "Vendido":
+                total += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+        return round(total, 2)
+
+    @property
+    def recuperado(self) -> bool:
+        """True si lo recaudado ya supero el costo total del pedido."""
+        return self.recaudado_uyu >= self.costo_total_uyu and self.costo_total_uyu > 0
+
+    @property
+    def falta_recuperar_uyu(self) -> float:
+        """Cuanto falta recaudar para cubrir el costo del pedido."""
+        return round(max(0, self.costo_total_uyu - self.recaudado_uyu), 2)
+
+    def __repr__(self):
+        return f"<Pedido {self.numero} {self.cant_discos} discos>"
+
+
 # ---------------------------------------------------------------------------
 # Inicializacion
 # ---------------------------------------------------------------------------
@@ -888,6 +951,11 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN copias_vendidas INTEGER DEFAULT 0"))
                     conn.commit()
                 print("Migracion: columna copias_vendidas agregada a discs")
+            if "pedido_id" not in cols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN pedido_id INTEGER"))
+                    conn.commit()
+                print("Migracion: columna pedido_id agregada a discs")
             # Para discos ya Vendidos sin copias registradas, asumir 1 copia
             with db.engine.connect() as conn:
                 res = conn.execute(text(

@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Pedidos &middot; Arcano{% endblock %}
+
+{% macro fmt_uyu(n) -%}
+{{ '{:,.0f}'.format(n or 0).replace(',', '.') }}
+{%- endmacro %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Pedidos</h1>
+        <p class="page-sub">Tus compras de stock. Vincula discos a cada pedido para ver si ya se pago solo.</p>
+    </div>
+</section>
+
+<!-- Resumen de pedidos -->
+{% if pedidos %}
+<section class="ped-list">
+    {% for p in pedidos %}
+    <div class="ped-card {% if p.recuperado %}ped-recuperado{% endif %}">
+        <div class="ped-card-head">
+            <div>
+                <span class="ped-numero">Pedido {{ p.numero or p.id }}</span>
+                <span class="ped-proveedor">{{ p.proveedor }}</span>
+                {% if p.fecha %}<span class="ped-fecha">{{ p.fecha.strftime('%d/%m/%Y') }}</span>{% endif %}
+            </div>
+            {% if p.recuperado %}
+            <span class="ped-badge ped-badge-ok">&#10003; Recuperado</span>
+            {% else %}
+            <span class="ped-badge ped-badge-pend">Falta {{ fmt_uyu(p.falta_recuperar_uyu) }} UYU</span>
+            {% endif %}
+        </div>
+
+        <div class="ped-stats">
+            <div class="ped-stat">
+                <span class="ped-stat-label">Costo total</span>
+                <span class="ped-stat-value">{{ fmt_uyu(p.costo_total_uyu) }} UYU</span>
+                <span class="ped-stat-detail">
+                    {% if p.costo_eur %}{{ '%.2f'|format(p.costo_eur) }} EUR{% endif %}
+                    {% if p.costo_eur and p.costo_usd %} + {% endif %}
+                    {% if p.costo_usd %}{{ '%.2f'|format(p.costo_usd) }} USD{% endif %}
+                </span>
+            </div>
+            <div class="ped-stat">
+                <span class="ped-stat-label">Discos</span>
+                <span class="ped-stat-value">{{ p.discos_asignados }} / {{ p.cant_discos }}</span>
+                <span class="ped-stat-detail">asignados / declarados</span>
+            </div>
+            <div class="ped-stat">
+                <span class="ped-stat-label">Vendidos</span>
+                <span class="ped-stat-value">{{ p.discos_vendidos }}</span>
+                <span class="ped-stat-detail">de {{ p.discos_asignados }} asignados</span>
+            </div>
+            <div class="ped-stat">
+                <span class="ped-stat-label">Recaudado</span>
+                <span class="ped-stat-value {% if p.recuperado %}ped-verde{% endif %}">{{ fmt_uyu(p.recaudado_uyu) }} UYU</span>
+                <span class="ped-stat-detail">por ventas del pedido</span>
+            </div>
+        </div>
+
+        <!-- Barra de progreso de recuperacion -->
+        {% set pct = (p.recaudado_uyu / p.costo_total_uyu * 100) if p.costo_total_uyu > 0 else 0 %}
+        {% if pct > 100 %}{% set pct = 100 %}{% endif %}
+        <div class="ped-progress">
+            <div class="ped-progress-fill {% if p.recuperado %}full{% endif %}" style="width: {{ pct }}%;"></div>
+        </div>
+
+        {% if p.notas %}<p class="ped-notas">{{ p.notas }}</p>{% endif %}
+
+        <div class="ped-card-foot">
+            <form method="post" action="{{ url_for('pedido_borrar', pedido_id=p.id) }}" class="inline-form"
+                  data-confirm="Eliminar el pedido {{ p.numero or p.id }}? Los discos quedaran sin pedido (no se borran).">
+                <button type="submit" class="action-btn danger">Eliminar pedido</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+</section>
+{% else %}
+<p class="conta-empty">No hay pedidos cargados todavia. Agrega el primero abajo.</p>
+{% endif %}
+
+<!-- Agregar pedido -->
+<section class="conta-block" style="margin-top: 32px;">
+    <h2 class="conta-block-title">Registrar un pedido</h2>
+    <form method="post" action="{{ url_for('pedido_agregar') }}" class="conta-form">
+        <div class="conta-form-grid">
+            <div class="form-field">
+                <label for="ped-numero">Numero de pedido</label>
+                <input type="text" id="ped-numero" name="numero" placeholder="ej: 1, 2, 3...">
+            </div>
+            <div class="form-field">
+                <label for="ped-fecha">Fecha</label>
+                <input type="date" id="ped-fecha" name="fecha" value="{{ now.strftime('%Y-%m-%d') }}">
+            </div>
+            <div class="form-field">
+                <label for="ped-proveedor">Proveedor</label>
+                <select id="ped-proveedor" name="proveedor">
+                    {% for prov in proveedores %}<option value="{{ prov }}">{{ prov }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-field form-field-sm">
+                <label for="ped-cant">Cantidad de discos</label>
+                <input type="number" id="ped-cant" name="cant_discos" min="0" step="1" placeholder="ej: 15">
+            </div>
+            <div class="form-field form-field-sm">
+                <label for="ped-eur">Costo en EUR</label>
+                <input type="number" id="ped-eur" name="costo_eur" min="0" step="0.01" placeholder="ej: 222.88">
+            </div>
+            <div class="form-field form-field-sm">
+                <label for="ped-usd">Costo en USD</label>
+                <input type="number" id="ped-usd" name="costo_usd" min="0" step="0.01" placeholder="ej: 0">
+            </div>
+        </div>
+        <div class="form-field">
+            <label for="ped-notas">Notas (opcional)</label>
+            <input type="text" id="ped-notas" name="notas" placeholder="lo que quieras anotar del pedido">
+        </div>
+        <button type="submit" class="btn btn-primary">Agregar pedido</button>
+        <p class="conta-form-hint">TC actual: 1 EUR = {{ tc }} UYU &middot; 1 USD = {{ tc_usd }} UYU. Despues, al editar cada disco, elegis a que pedido pertenece.</p>
+    </form>
+</section>
+{% endblock %}

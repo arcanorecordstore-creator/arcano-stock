@@ -37,6 +37,7 @@
                     {% endif %}
                 </a>
                 <a href="{{ url_for('contabilidad') }}" class="nav-link {% if request.endpoint == 'contabilidad' %}active{% endif %}">Contabilidad</a>
+                <a href="{{ url_for('pedidos') }}" class="nav-link {% if request.endpoint == 'pedidos' %}active{% endif %}">Pedidos</a>
                 <a href="{{ url_for('disc_new') }}" class="nav-link {% if request.endpoint in ['disc_new', 'disc_edit', 'disc_detail'] %}active{% endif %}">Agregar manual</a>
                 <a href="{{ url_for('disc_new_from_url') }}" class="nav-link {% if request.endpoint == 'disc_new_from_url' %}active{% endif %}">Desde URL</a>
                 <a href="{{ url_for('disc_new_from_image') }}" class="nav-link {% if request.endpoint == 'disc_new_from_image' %}active{% endif %}">Desde screenshot</a>
@@ -78,7 +79,7 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v2.57 &middot; Contabilidad completa</span>
+            <span class="footer-version">v2.58 &middot; Pedidos</span>
         </footer>
     </div>
 

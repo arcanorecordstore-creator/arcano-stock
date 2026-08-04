@@ -101,6 +101,14 @@ def create_app() -> Flask:
             args.pop("pagina", None)  # volver a la primera pagina al reordenar
             return url_for(request.endpoint, **{k: v for k, v in args.items()})
 
+        def _todos_los_pedidos():
+            """Lista de pedidos para el selector del form del disco."""
+            try:
+                from models import Pedido
+                return Pedido.query.order_by(Pedido.fecha.desc()).all()
+            except Exception:
+                return []
+
         # Cliente logueado (para el nav de la tienda)
         cliente_actual = None
         try:
@@ -116,6 +124,7 @@ def create_app() -> Flask:
             "url_pagina": url_pagina,
             "sort_url": sort_url,
             "cliente_actual": cliente_actual,
+            "todos_los_pedidos": _todos_los_pedidos(),
         }
 
     return app
@@ -344,6 +353,9 @@ def populate_disc_from_form(disc: Disc, form) -> list[str]:
         disc.copias_vendidas = max(0, cv)
     except (ValueError, TypeError):
         disc.copias_vendidas = disc.copias_vendidas or 0
+    # Pedido al que pertenece
+    pedido_id_raw = form.get("pedido_id") or ""
+    disc.pedido_id = int(pedido_id_raw) if pedido_id_raw.isdigit() else None
     origen = _str_or_none(form.get("origen")) or "arcano"
     if origen in ("arcano", "personal"):
         disc.origen = origen
@@ -1884,6 +1896,8 @@ def register_routes(app: Flask) -> None:
         recurrentes = EgresoRecurrente.query.order_by(EgresoRecurrente.categoria).all()
         por_cobrar = metrics.dinero_por_cobrar()
         ingresos_egresos_6m = metrics.ingresos_vs_egresos_6m()
+        from models import Pedido
+        pedidos_lista = Pedido.query.order_by(Pedido.fecha.desc()).all()
         return render_template(
             "contabilidad.html",
             tc=Setting.get_tc(),
@@ -1896,6 +1910,7 @@ def register_routes(app: Flask) -> None:
             monedas=["UYU", "USD", "EUR"],
             por_cobrar=por_cobrar,
             ingresos_egresos_6m=ingresos_egresos_6m,
+            pedidos_lista=pedidos_lista,
             **data,
         )
 
@@ -2078,6 +2093,66 @@ def register_routes(app: Flask) -> None:
             mimetype="text/csv",
             headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
+
+    # ---- PEDIDOS (compras de stock) ----
+    @app.route("/admin/pedidos")
+    @auth.admin_required
+    def pedidos():
+        from models import Pedido, PROVEEDORES_PEDIDO
+        lista = Pedido.query.order_by(Pedido.fecha.desc()).all()
+        return render_template(
+            "pedidos.html",
+            pedidos=lista,
+            proveedores=PROVEEDORES_PEDIDO,
+            tc=Setting.get_tc(),
+            tc_usd=Setting.get_tc_usd(),
+        )
+
+    @app.route("/admin/pedidos/agregar", methods=["POST"])
+    @auth.admin_required
+    def pedido_agregar():
+        from models import Pedido
+        from datetime import datetime as _dt
+        numero = (request.form.get("numero") or "").strip()
+        proveedor = (request.form.get("proveedor") or "Deejay.de").strip()
+        try:
+            cant = int(request.form.get("cant_discos") or 0)
+        except ValueError:
+            cant = 0
+        try:
+            costo_eur = float(request.form.get("costo_eur") or 0)
+        except ValueError:
+            costo_eur = 0
+        try:
+            costo_usd = float(request.form.get("costo_usd") or 0)
+        except ValueError:
+            costo_usd = 0
+        fecha_str = request.form.get("fecha") or ""
+        try:
+            fecha = _dt.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else _dt.utcnow().date()
+        except ValueError:
+            fecha = _dt.utcnow().date()
+        notas = (request.form.get("notas") or "").strip()
+        ped = Pedido(
+            numero=numero, fecha=fecha, cant_discos=cant,
+            costo_eur=costo_eur, costo_usd=costo_usd, proveedor=proveedor, notas=notas,
+        )
+        db.session.add(ped)
+        db.session.commit()
+        flash(f"Pedido {numero or ped.id} agregado.", "success")
+        return redirect(url_for("pedidos"))
+
+    @app.route("/admin/pedidos/<int:pedido_id>/borrar", methods=["POST"])
+    @auth.admin_required
+    def pedido_borrar(pedido_id):
+        from models import Pedido, Disc
+        ped = Pedido.query.get_or_404(pedido_id)
+        # Desvincular los discos (no borrarlos)
+        Disc.query.filter_by(pedido_id=ped.id).update({"pedido_id": None})
+        db.session.delete(ped)
+        db.session.commit()
+        flash("Pedido eliminado (los discos quedaron sin pedido).", "success")
+        return redirect(url_for("pedidos"))
 
     # ----------------------------------------------------------------------
     # Settings

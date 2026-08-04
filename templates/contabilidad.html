@@ -288,6 +288,50 @@
 </section>
 
 <!-- ============================================================
+     Pedidos (compras de stock)
+     ============================================================ -->
+{% if pedidos_lista %}
+<section class="conta-block">
+    <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <h2 class="conta-block-title">Pedidos (inversion en stock)</h2>
+        <a href="{{ url_for('pedidos') }}" class="conta-export-btn" style="margin:0;">Gestionar pedidos</a>
+    </div>
+    <table class="conta-table">
+        <thead>
+            <tr>
+                <th>Pedido</th>
+                <th>Proveedor</th>
+                <th class="col-num">Costo UYU</th>
+                <th class="col-num">Discos</th>
+                <th class="col-num">Vendidos</th>
+                <th class="col-num">Recaudado</th>
+                <th>Estado</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in pedidos_lista %}
+            <tr>
+                <td>{{ p.numero or p.id }}{% if p.fecha %} <span style="color:var(--text-3);font-size:12px;">{{ p.fecha.strftime('%d/%m/%y') }}</span>{% endif %}</td>
+                <td>{{ p.proveedor }}</td>
+                <td class="col-num">{{ fmt_uyu(p.costo_total_uyu) }}</td>
+                <td class="col-num">{{ p.discos_asignados }}/{{ p.cant_discos }}</td>
+                <td class="col-num">{{ p.discos_vendidos }}</td>
+                <td class="col-num">{{ fmt_uyu(p.recaudado_uyu) }}</td>
+                <td>
+                    {% if p.recuperado %}
+                    <span class="ped-badge ped-badge-ok">&#10003; Recuperado</span>
+                    {% else %}
+                    <span class="ped-badge ped-badge-pend">Falta {{ fmt_uyu(p.falta_recuperar_uyu) }}</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endif %}
+
+<!-- ============================================================
      KPIs completos (inventario + ventas historicas)
      ============================================================ -->
 <section class="conta-block">

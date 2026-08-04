@@ -7218,3 +7218,70 @@ td.num,
 .ie-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 .ie-dot-ing { background: #10b981; }
 .ie-dot-egr { background: #ef4444; }
+
+/* ============================================================
+   PEDIDOS
+   ============================================================ */
+.ped-list { display: flex; flex-direction: column; gap: 16px; }
+.ped-card {
+    background: var(--bg-1, #151515);
+    border: 1px solid var(--border-2, #333);
+    border-radius: 12px;
+    padding: 18px 20px;
+}
+.ped-card.ped-recuperado { border-color: rgba(16,185,129,0.4); }
+.ped-card-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+.ped-numero { font-size: 18px; font-weight: 700; margin-right: 10px; }
+.ped-proveedor {
+    font-size: 12px;
+    padding: 2px 8px;
+    background: rgba(255,255,255,0.06);
+    border-radius: 4px;
+    color: var(--text-2, #aaa);
+    margin-right: 8px;
+}
+.ped-fecha { font-size: 13px; color: var(--text-3, #888); }
+.ped-badge {
+    font-size: 13px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: 6px;
+}
+.ped-badge-ok { background: rgba(16,185,129,0.15); color: #10b981; }
+.ped-badge-pend { background: rgba(234,179,8,0.12); color: #eab308; }
+
+.ped-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 14px;
+    margin-bottom: 14px;
+}
+.ped-stat { display: flex; flex-direction: column; gap: 2px; }
+.ped-stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-3, #888); }
+.ped-stat-value { font-size: 17px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ped-stat-value.ped-verde { color: #10b981; }
+.ped-stat-detail { font-size: 11px; color: var(--text-3, #888); }
+
+.ped-progress {
+    height: 8px;
+    background: var(--bg-0, #0a0a0a);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+.ped-progress-fill {
+    height: 100%;
+    background: #eab308;
+    border-radius: 4px;
+    transition: width 0.4s ease;
+}
+.ped-progress-fill.full { background: #10b981; }
+.ped-notas { font-size: 13px; color: var(--text-2, #aaa); margin-bottom: 12px; font-style: italic; }
+.ped-card-foot { display: flex; justify-content: flex-end; }
