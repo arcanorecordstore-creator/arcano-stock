@@ -7125,3 +7125,96 @@ td.num,
     .conta-table { font-size: 13px; }
     .conta-table th:nth-child(3), .conta-table td:nth-child(3) { display: none; }
 }
+
+/* Contabilidad: comparacion, por cobrar, exportar, grafico ingresos/egresos */
+.conta-compare {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    width: fit-content;
+}
+.conta-compare.up { color: #10b981; background: rgba(16,185,129,0.1); }
+.conta-compare.down { color: #ef4444; background: rgba(239,68,68,0.1); }
+.conta-compare-detail { font-weight: 400; opacity: 0.7; font-size: 12px; }
+
+.conta-export-btn {
+    margin-left: auto;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border-2, #333);
+    color: var(--text-2, #aaa);
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.15s ease;
+}
+.conta-export-btn:hover { border-color: var(--accent, #10b981); color: var(--accent, #10b981); }
+
+.conta-cobrar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: rgba(234,179,8,0.08);
+    border: 1px solid rgba(234,179,8,0.3);
+    border-radius: 12px;
+    margin-bottom: 28px;
+}
+.conta-cobrar-label { font-weight: 600; display: block; }
+.conta-cobrar-detail { font-size: 12px; color: var(--text-3, #888); }
+.conta-cobrar-value { font-size: 22px; font-weight: 700; color: #eab308; }
+
+/* Grafico ingresos vs egresos */
+.ie-chart {
+    display: flex;
+    justify-content: space-around;
+    align-items: flex-end;
+    gap: 12px;
+    height: 200px;
+    padding: 16px 0 0;
+}
+.ie-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    height: 100%;
+    justify-content: flex-end;
+}
+.ie-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 3px;
+    height: 140px;
+    width: 100%;
+    justify-content: center;
+}
+.ie-bar {
+    width: 40%;
+    max-width: 26px;
+    border-radius: 3px 3px 0 0;
+    min-height: 2px;
+    transition: height 0.3s ease;
+}
+.ie-bar-ing { background: #10b981; }
+.ie-bar-egr { background: #ef4444; }
+.ie-label { font-size: 11px; color: var(--text-3, #888); }
+.ie-ganancia { font-size: 11px; font-weight: 600; color: var(--text-2, #aaa); font-variant-numeric: tabular-nums; }
+.ie-ganancia.neg { color: #ef4444; }
+.ie-legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-top: 14px;
+    font-size: 12px;
+    color: var(--text-3, #888);
+}
+.ie-legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.ie-dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.ie-dot-ing { background: #10b981; }
+.ie-dot-egr { background: #ef4444; }

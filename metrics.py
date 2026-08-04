@@ -309,6 +309,25 @@ def contabilidad(periodo: str = "mes_actual") -> dict:
     ganancia_bruta = ingresos_uyu - costo_discos_uyu       # margen de los discos
     ganancia_real = ganancia_bruta - egresos_uyu            # despues de gastos operativos
 
+    # --- COMPARACION con periodo anterior ---
+    comparacion = None
+    ant_inicio, ant_fin = _periodo_anterior(periodo)
+    if ant_inicio and ant_fin:
+        ant = _resumen_rango(ant_inicio, ant_fin)
+        # Variacion de la ganancia real
+        prev = ant["ganancia_real_uyu"]
+        if prev != 0:
+            var_pct = round((ganancia_real - prev) / abs(prev) * 100, 1)
+        else:
+            var_pct = None
+        comparacion = {
+            "ingresos_ant": ant["ingresos_uyu"],
+            "egresos_ant": ant["egresos_uyu"],
+            "ganancia_real_ant": prev,
+            "var_ganancia_pct": var_pct,
+            "mejoro": ganancia_real >= prev,
+        }
+
     return {
         "periodo": periodo,
         "inicio": inicio.strftime("%d/%m/%Y"),
@@ -322,4 +341,95 @@ def contabilidad(periodo: str = "mes_actual") -> dict:
         "egresos_count": len(egresos),
         "ganancia_bruta_uyu": round(ganancia_bruta, 2),
         "ganancia_real_uyu": round(ganancia_real, 2),
+        "comparacion": comparacion,
     }
+
+
+def _periodo_anterior(periodo: str):
+    """Devuelve (inicio, fin) del periodo INMEDIATAMENTE anterior al dado."""
+    from datetime import date
+    hoy = date.today()
+    if periodo == "mes_actual":
+        # anterior = mes pasado
+        if hoy.month == 1:
+            return date(hoy.year - 1, 12, 1), date(hoy.year, 1, 1)
+        return date(hoy.year, hoy.month - 1, 1), date(hoy.year, hoy.month, 1)
+    elif periodo == "mes_pasado":
+        # anterior = ante-mes
+        m = hoy.month - 2
+        y = hoy.year
+        if m <= 0:
+            m += 12
+            y -= 1
+        fin_m = m + 1
+        fin_y = y
+        if fin_m > 12:
+            fin_m = 1
+            fin_y += 1
+        return date(y, m, 1), date(fin_y, fin_m, 1)
+    elif periodo == "anio":
+        return date(hoy.year - 1, 1, 1), date(hoy.year, 1, 1)
+    return None, None
+
+
+def _resumen_rango(inicio, fin):
+    """Calcula ingresos, egresos y ganancia real de un rango de fechas (date)."""
+    from datetime import datetime as _dt
+    inicio_dt = _dt(inicio.year, inicio.month, inicio.day)
+    fin_dt = _dt(fin.year, fin.month, fin.day)
+    vendidos = (
+        Disc.query.filter(Disc.estado == "Vendido")
+        .filter(Disc.fecha_venta >= inicio_dt).filter(Disc.fecha_venta < fin_dt).all()
+    )
+    ingresos = sum((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in vendidos)
+    costo = sum((d.costo_final_uyu or 0) * d.copias_facturadas for d in vendidos)
+    egresos = (
+        Egreso.query.filter(Egreso.fecha >= inicio).filter(Egreso.fecha < fin).all()
+    )
+    egresos_uyu = sum(e.monto_uyu or 0 for e in egresos)
+    return {
+        "ingresos_uyu": round(ingresos, 2),
+        "ganancia_real_uyu": round(ingresos - costo - egresos_uyu, 2),
+        "egresos_uyu": round(egresos_uyu, 2),
+    }
+
+
+def dinero_por_cobrar() -> dict:
+    """Discos reservados: ventas casi cerradas que todavia no se cobraron."""
+    reservados = Disc.query.filter(Disc.estado == "Reservado").all()
+    total = sum((d.precio_mostrar or d.precio_uyu or 0) for d in reservados)
+    return {
+        "titulos": len(reservados),
+        "total_uyu": round(total, 2),
+        "discos": reservados,
+    }
+
+
+def ingresos_vs_egresos_6m() -> list:
+    """Ingresos, egresos y ganancia real de los ultimos 6 meses (para grafico)."""
+    from datetime import date, datetime as _dt
+    hoy = date.today()
+    meses = []
+    nombres_es = ["", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    y, m = hoy.year, hoy.month
+    # Retroceder 5 meses
+    lista = []
+    for _ in range(6):
+        lista.append((y, m))
+        m -= 1
+        if m == 0:
+            m = 12
+            y -= 1
+    lista.reverse()
+    salida = []
+    for (yy, mm) in lista:
+        inicio = date(yy, mm, 1)
+        fin = date(yy + 1, 1, 1) if mm == 12 else date(yy, mm + 1, 1)
+        r = _resumen_rango(inicio, fin)
+        salida.append({
+            "label": f"{nombres_es[mm]} {str(yy)[-2:]}",
+            "ingresos_uyu": r["ingresos_uyu"],
+            "egresos_uyu": r["egresos_uyu"],
+            "ganancia_real_uyu": r["ganancia_real_uyu"],
+        })
+    return salida
