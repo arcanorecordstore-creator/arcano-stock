@@ -117,11 +117,17 @@
         <thead>
             {% macro th_sort(campo, label, extra_class='') %}
                 {% set is_active = filtros.order == campo %}
-                {% set next_dir = 'asc' if (is_active and filtros.dir == 'desc') else ('desc' if is_active else 'asc') %}
-                {% set arrow = '' %}
-                {% if is_active %}{% set arrow = ' &#9650;' if filtros.dir == 'asc' else ' &#9660;' %}{% endif %}
+                {# Ciclo de 3 estados: inactivo -> asc -> desc -> sin orden (default) #}
+                {% if not is_active %}
+                    {% set next_order = campo %}{% set next_dir = 'asc' %}{% set arrow = '' %}
+                {% elif filtros.dir == 'asc' %}
+                    {% set next_order = campo %}{% set next_dir = 'desc' %}{% set arrow = ' &#9650;' %}
+                {% else %}
+                    {# estaba desc -> volver al orden inicial (fecha_ingreso desc) #}
+                    {% set next_order = 'fecha_ingreso' %}{% set next_dir = 'desc' %}{% set arrow = ' &#9660;' %}
+                {% endif %}
                 <th class="{{ extra_class }} th-sortable {% if is_active %}th-sorted{% endif %}">
-                    <a href="{{ sort_url(campo, next_dir) }}" class="th-sort-link">{{ label|safe }}{{ arrow|safe }}</a>
+                    <a href="{{ sort_url(next_order, next_dir) }}" class="th-sort-link">{{ label|safe }}{{ arrow|safe }}</a>
                 </th>
             {% endmacro %}
             <tr>
@@ -245,10 +251,13 @@
                 <td class="col-num">{{ '%.2f'|format(totals.suma_envio_eur) }}</td>
                 <td class="col-num">{{ '{:,.0f}'.format(totals.suma_costo_final_uyu).replace(',', '.') }}</td>
                 <td class="col-num">{{ '{:,.0f}'.format(totals.suma_precio_uyu).replace(',', '.') }}</td>
-                <td class="col-num gain">—</td>
+                <td class="col-num gain">{{ '{:,.0f}'.format(totals.suma_ganancia_uyu).replace(',', '.') }}</td>
                 <td class="col-num">—</td>
                 <td class="col-status">—</td>
+                <td class="col-origen">—</td>
+                <td class="col-home">—</td>
                 <td class="col-stock">{{ totals.stock_total }}</td>
+                <td class="col-fecha">—</td>
                 <td class="col-actions">—</td>
             </tr>
         </tfoot>

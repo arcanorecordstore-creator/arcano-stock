@@ -213,11 +213,13 @@ def compute_totals(discs):
     ganancia_realizada_uyu = 0.0
     stock_total = 0
 
+    suma_ganancia_uyu = 0.0
     for d in discs:
         suma_costo_eur += (d.costo_eur or 0) * (d.stock or 1)
         suma_envio_eur += (d.envio_eur or 0) * (d.stock or 1)
         suma_costo_final_uyu += (d.costo_final_uyu or 0) * (d.stock or 1)
         suma_precio_uyu += (d.precio_uyu or 0) * (d.stock or 1)
+        suma_ganancia_uyu += (d.ganancia_uyu or 0) * (d.stock or 1)
         stock_total += d.stock or 0
         if d.estado == "Disponible":
             ganancia_potencial_uyu += (d.ganancia_uyu or 0) * (d.stock or 1)
@@ -231,6 +233,7 @@ def compute_totals(discs):
         "suma_envio_eur": round(suma_envio_eur, 2),
         "suma_costo_final_uyu": round(suma_costo_final_uyu, 2),
         "suma_precio_uyu": round(suma_precio_uyu, 2),
+        "suma_ganancia_uyu": round(suma_ganancia_uyu, 2),
         "ganancia_potencial_uyu": round(ganancia_potencial_uyu, 2),
         "ganancia_realizada_uyu": round(ganancia_realizada_uyu, 2),
     }
