@@ -140,7 +140,28 @@
         {% endif %}
 
         <div class="public-disc-price-box">
-            {% if disc.estado == "Disponible" and disc.stock > 0 %}
+            {% if disc.mostrar_preorder %}
+                <div class="public-disc-preorder-notice">&#128337; Pre-order &middot; reservalo ahora y te lo aseguramos cuando llegue</div>
+                {% if disc.precio_uyu > 0 %}
+                {% if disc.en_oferta %}
+                <div class="public-disc-price public-disc-price-oferta">
+                    <span class="precio-tachado">$ {{ '{:,.0f}'.format(disc.precio_uyu).replace(',', '.') }}</span>
+                    <span class="precio-oferta">$ {{ '{:,.0f}'.format(disc.precio_mostrar).replace(',', '.') }} <span>UYU</span></span>
+                    <span class="public-disc-sale-badge">Oferta -{{ disc.descuento_pct }}%</span>
+                </div>
+                {% else %}
+                <div class="public-disc-price">$ {{ '{:,.0f}'.format(disc.precio_uyu).replace(',', '.') }} <span>UYU</span></div>
+                {% endif %}
+                {% else %}
+                <div class="public-disc-price public-disc-price-tba">Precio a consultar</div>
+                {% endif %}
+                <a href="{{ url_for('public_reservar', disc_id=disc.id) }}" class="btn btn-primary public-reserve-btn">Reservar en pre-order</a>
+                <button type="button" class="btn btn-ghost public-share-btn" data-share-url="{{ url_for('public_disc', disc_id=disc.id, _external=True) }}" data-share-title="{{ disc.artista }} - {{ disc.titulo }}">Compartir</button>
+                <button type="button" class="btn btn-ghost fav-btn fav-btn-full" data-fav-id="{{ disc.id }}">
+                    <span class="fav-icon-off">&#9825; Guardar en favoritos</span>
+                    <span class="fav-icon-on">&#9829; Guardado</span>
+                </button>
+            {% elif disc.estado == "Disponible" and disc.stock > 0 %}
                 {% if disc.mostrar_cartel_ultima %}
                 <div class="public-disc-urgency">&#9888; Ultima copia disponible</div>
                 {% endif %}

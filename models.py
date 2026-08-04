@@ -14,7 +14,6 @@ ESTADOS_DISCO = [
     "Reservado",
     "Vendido",
     "Apartado para mi",
-    "En camino",
     "Descartado",
 ]
 
@@ -93,6 +92,8 @@ class Disc(db.Model):
     precio_oferta = db.Column(db.Float, nullable=True, default=None)
     # Mostrar en el catalogo aunque este agotado/vendido (con sello "Agotado")
     mostrar_agotado = db.Column(db.Boolean, nullable=False, default=False)
+    # Pre-order: el disco todavia no llego pero se puede reservar por adelantado
+    es_preorder = db.Column(db.Boolean, nullable=False, default=False)
 
     # Timestamps
     fecha_ingreso = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -137,6 +138,11 @@ class Disc(db.Model):
     def mostrar_cartel_ultima(self) -> bool:
         """El cartel 'Ultima copia' es 100% manual."""
         return bool(getattr(self, "cartel_ultima", False))
+
+    @property
+    def mostrar_preorder(self) -> bool:
+        """El cartel 'Pre-order' es 100% manual."""
+        return bool(getattr(self, "es_preorder", False))
 
     @property
     def en_oferta(self) -> bool:
@@ -759,6 +765,20 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN mostrar_agotado BOOLEAN DEFAULT 0"))
                     conn.commit()
                 print("Migracion: columna mostrar_agotado agregada a discs")
+            if "es_preorder" not in cols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN es_preorder BOOLEAN DEFAULT 0"))
+                    conn.commit()
+                print("Migracion: columna es_preorder agregada a discs")
+            # Convertir discos "En camino" en pre-orders (el estado ya no existe)
+            with db.engine.connect() as conn:
+                res = conn.execute(text(
+                    "UPDATE discs SET es_preorder = 1, estado = 'Disponible' "
+                    "WHERE estado = 'En camino'"
+                ))
+                conn.commit()
+                if res.rowcount:
+                    print(f"Migracion: {res.rowcount} discos 'En camino' convertidos a pre-order")
             if "origen" not in cols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN origen VARCHAR(20) DEFAULT 'arcano'"))

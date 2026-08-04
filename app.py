@@ -319,6 +319,7 @@ def populate_disc_from_form(disc: Disc, form) -> list[str]:
     disc.en_nuevos = form.get("en_nuevos") == "1"
     disc.cartel_ultima = form.get("cartel_ultima") == "1"
     disc.mostrar_agotado = form.get("mostrar_agotado") == "1"
+    disc.es_preorder = form.get("es_preorder") == "1"
     cn = (form.get("cartel_nuevo") or "auto").strip()
     if cn in ("auto", "si", "no"):
         disc.cartel_nuevo = cn
@@ -1752,7 +1753,7 @@ def register_routes(app: Flask) -> None:
             db.session.commit()
             return jsonify({"ok": True, "campo": campo, "valor": disc.origen})
 
-        elif campo in ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado"):
+        elif campo in ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado", "es_preorder"):
             # valor viene como "1"/"0" o true/false
             nuevo = str(valor) in ("1", "true", "True", "on")
             setattr(disc, campo, nuevo)
@@ -2168,6 +2169,8 @@ def register_routes(app: Flask) -> None:
                     (Disc.estado == "Disponible") & (Disc.stock > 0),
                     # O agotados que el admin eligio mostrar igual
                     Disc.mostrar_agotado == True,  # noqa: E712
+                    # O pre-orders (todavia no llegaron pero se reservan)
+                    Disc.es_preorder == True,  # noqa: E712
                 )
             )
             .all()
@@ -2372,7 +2375,8 @@ def register_routes(app: Flask) -> None:
         """Ficha publica de un disco."""
         disc = Disc.query.get_or_404(disc_id)
         # No mostrar discos que no esten disponibles publicamente
-        if disc.estado not in ("Disponible", "Reservado", "Vendido"):
+        # (excepcion: los pre-orders se ven siempre)
+        if not disc.es_preorder and disc.estado not in ("Disponible", "Reservado", "Vendido"):
             return render_template("public/not_found.html", **_public_context()), 404
 
         # "Similares a este titulo": prioriza mismo genero, completa con mismo
@@ -2427,7 +2431,8 @@ def register_routes(app: Flask) -> None:
     def public_reservar(disc_id: int):
         """Form de reserva."""
         disc = Disc.query.get_or_404(disc_id)
-        if disc.estado != "Disponible" or disc.stock <= 0:
+        # Los pre-orders se pueden reservar aunque no tengan stock todavia.
+        if not disc.es_preorder and (disc.estado != "Disponible" or disc.stock <= 0):
             return render_template(
                 "public/not_available.html",
                 disc=disc,

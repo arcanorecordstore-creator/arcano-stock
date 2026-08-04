@@ -6863,16 +6863,20 @@ td.num,
    ========================================================================= */
 /* Carrito arriba (al lado de la hamburguesa) - oculto en desktop */
 .public-topbar-cart {
-    display: none;
+    display: flex;
     position: relative;
     align-items: center;
     justify-content: center;
     width: 42px;
     height: 42px;
+    margin-left: 8px;
     text-decoration: none;
     color: var(--text-1);
-    font-size: 20px;
+    font-size: 22px;
+    transition: opacity 0.15s ease;
 }
+.public-topbar-cart:hover { opacity: 0.7; }
+.public-topbar-cart.active { color: var(--accent, #10b981); }
 .public-topbar-cart .cart-count {
     position: absolute;
     top: 2px;
@@ -6942,4 +6946,21 @@ td.num,
     .public-body { padding-bottom: 64px; }
     /* Si el reproductor flotante esta activo, subirlo para no chocar con la barra */
     .floating-player { bottom: 72px; }
+}
+
+/* Badge y aviso de Pre-order */
+.public-card-badge-preorder {
+    background: #6366f1;
+    color: #fff;
+    font-weight: 700;
+}
+.public-disc-preorder-notice {
+    background: rgba(99, 102, 241, 0.12);
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    color: #818cf8;
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin-bottom: 14px;
+    font-size: 14px;
+    font-weight: 500;
 }

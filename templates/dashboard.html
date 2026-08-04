@@ -200,6 +200,10 @@
                         <input type="checkbox" class="mark-home" data-campo="mostrar_agotado" data-disc-id="{{ d.id }}" {% if d.mostrar_agotado %}checked{% endif %}>
                         <span class="home-check-icon">A</span>
                     </label>
+                    <label class="home-check" title="Pre-order (pre-venta)">
+                        <input type="checkbox" class="mark-home" data-campo="es_preorder" data-disc-id="{{ d.id }}" {% if d.es_preorder %}checked{% endif %}>
+                        <span class="home-check-icon">P</span>
+                    </label>
                     {% if d.en_oferta %}<span class="home-sale-flag" title="En oferta (-{{ d.descuento_pct }}%)">SALE</span>{% endif %}
                     <select class="cartel-nuevo-select" data-disc-id="{{ d.id }}" title="Cartel Nuevo">
                         <option value="auto" {% if d.cartel_nuevo == 'auto' %}selected{% endif %}>Nuevo: auto</option>
