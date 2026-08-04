@@ -221,16 +221,6 @@
                     <div class="row-actions">
                         <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="action-btn" title="Ver detalle">Ver</a>
                         <a href="{{ url_for('disc_edit', disc_id=d.id) }}" class="action-btn" title="Editar">Editar</a>
-                        <div class="action-menu">
-                            <button type="button" class="action-btn" data-menu-trigger>Estado &#9662;</button>
-                            <div class="action-menu-list" data-menu-list>
-                                {% for e in estados if e != d.estado %}
-                                <form method="post" action="{{ url_for('disc_status', disc_id=d.id) }}">
-                                    <button type="submit" name="estado" value="{{ e }}">{{ e }}</button>
-                                </form>
-                                {% endfor %}
-                            </div>
-                        </div>
                         <form method="post" action="{{ url_for('disc_delete', disc_id=d.id) }}" class="inline-form" data-confirm="¿Eliminar el disco '{{ d.artista }} - {{ d.titulo }}'? Esta accion no se puede deshacer.">
                             <button type="submit" class="action-btn danger">Eliminar</button>
                         </form>
