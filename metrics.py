@@ -6,7 +6,7 @@ para renderizar.
 from datetime import datetime, timedelta
 from sqlalchemy import func, case
 
-from models import db, Disc, StatusHistory
+from models import db, Disc, StatusHistory, Egreso
 
 
 def _month_bounds(year: int, month: int) -> tuple[datetime, datetime]:
@@ -240,4 +240,86 @@ def get_all_metrics() -> dict:
         "top_sellos_rotacion": top_sellos_rotacion(),
         "top_discos_rentables": top_discos_rentables(),
         "ventas_6m": ventas_ultimos_6_meses(),
+    }
+
+
+# ---------------------------------------------------------------------------
+# Contabilidad: egresos y ganancia real
+# ---------------------------------------------------------------------------
+
+def _rango_periodo(periodo: str):
+    """Devuelve (inicio, fin) como date segun el periodo pedido.
+    periodo: 'mes_actual', 'mes_pasado', 'anio', 'todo'."""
+    from datetime import date
+    hoy = date.today()
+    if periodo == "mes_actual":
+        inicio = date(hoy.year, hoy.month, 1)
+        fin = date(hoy.year + 1, 1, 1) if hoy.month == 12 else date(hoy.year, hoy.month + 1, 1)
+    elif periodo == "mes_pasado":
+        if hoy.month == 1:
+            inicio = date(hoy.year - 1, 12, 1)
+            fin = date(hoy.year, 1, 1)
+        else:
+            inicio = date(hoy.year, hoy.month - 1, 1)
+            fin = date(hoy.year, hoy.month, 1)
+    elif periodo == "anio":
+        inicio = date(hoy.year, 1, 1)
+        fin = date(hoy.year + 1, 1, 1)
+    else:  # todo
+        inicio = date(2000, 1, 1)
+        fin = date(hoy.year + 1, 1, 1)
+    return inicio, fin
+
+
+def contabilidad(periodo: str = "mes_actual") -> dict:
+    """Resumen contable de un periodo: ingresos, egresos y ganancia real."""
+    from datetime import datetime as _dt
+    inicio, fin = _rango_periodo(periodo)
+    inicio_dt = _dt(inicio.year, inicio.month, inicio.day)
+    fin_dt = _dt(fin.year, fin.month, fin.day)
+
+    # --- INGRESOS: discos vendidos en el periodo ---
+    vendidos = (
+        Disc.query
+        .filter(Disc.estado == "Vendido")
+        .filter(Disc.fecha_venta >= inicio_dt)
+        .filter(Disc.fecha_venta < fin_dt)
+        .all()
+    )
+    ingresos_uyu = sum((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in vendidos)
+    costo_discos_uyu = sum((d.costo_final_uyu or 0) * d.copias_facturadas for d in vendidos)
+    unidades_vendidas = sum(d.copias_facturadas for d in vendidos)
+
+    # --- EGRESOS: gastos operativos del periodo ---
+    egresos = (
+        Egreso.query
+        .filter(Egreso.fecha >= inicio)
+        .filter(Egreso.fecha < fin)
+        .all()
+    )
+    egresos_uyu = sum(e.monto_uyu or 0 for e in egresos)
+
+    # Egresos agrupados por categoria
+    por_categoria = {}
+    for e in egresos:
+        por_categoria[e.categoria] = por_categoria.get(e.categoria, 0) + (e.monto_uyu or 0)
+    egresos_por_categoria = sorted(por_categoria.items(), key=lambda x: x[1], reverse=True)
+
+    # --- GANANCIA ---
+    ganancia_bruta = ingresos_uyu - costo_discos_uyu       # margen de los discos
+    ganancia_real = ganancia_bruta - egresos_uyu            # despues de gastos operativos
+
+    return {
+        "periodo": periodo,
+        "inicio": inicio.strftime("%d/%m/%Y"),
+        "fin": (fin).strftime("%d/%m/%Y"),
+        "ingresos_uyu": round(ingresos_uyu, 2),
+        "costo_discos_uyu": round(costo_discos_uyu, 2),
+        "unidades_vendidas": unidades_vendidas,
+        "titulos_vendidos": len(vendidos),
+        "egresos_uyu": round(egresos_uyu, 2),
+        "egresos_por_categoria": [(c, round(m, 2)) for c, m in egresos_por_categoria],
+        "egresos_count": len(egresos),
+        "ganancia_bruta_uyu": round(ganancia_bruta, 2),
+        "ganancia_real_uyu": round(ganancia_real, 2),
     }

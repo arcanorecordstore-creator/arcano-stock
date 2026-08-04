@@ -1857,18 +1857,169 @@ def register_routes(app: Flask) -> None:
         return jsonify({"ok": False, "error": "Campo no editable"}), 400
 
     # ----------------------------------------------------------------------
-    # Resumen / metricas
+    # Contabilidad / metricas
     # ----------------------------------------------------------------------
 
     @app.route("/admin/resumen")
     @auth.admin_required
     def resumen():
+        # Redirect de la URL vieja a la nueva
+        return redirect(url_for("contabilidad"))
+
+    @app.route("/admin/contabilidad")
+    @auth.admin_required
+    def contabilidad():
+        from models import Egreso, EgresoRecurrente
+        periodo = request.args.get("periodo", "mes_actual")
         data = metrics.get_all_metrics()
+        conta = metrics.contabilidad(periodo)
+        # Lista de egresos del periodo para mostrar
+        inicio, fin = metrics._rango_periodo(periodo)
+        egresos = (
+            Egreso.query
+            .filter(Egreso.fecha >= inicio, Egreso.fecha < fin)
+            .order_by(Egreso.fecha.desc())
+            .all()
+        )
+        recurrentes = EgresoRecurrente.query.order_by(EgresoRecurrente.categoria).all()
         return render_template(
-            "resumen.html",
+            "contabilidad.html",
             tc=Setting.get_tc(),
+            tc_usd=Setting.get_tc_usd(),
+            conta=conta,
+            periodo=periodo,
+            egresos=egresos,
+            recurrentes=recurrentes,
+            categorias=Setting.get_categorias_egreso(),
+            monedas=["UYU", "USD", "EUR"],
             **data,
         )
+
+    def _convertir_a_uyu(monto, moneda):
+        """Convierte un monto a UYU segun la moneda y devuelve (monto_uyu, tc)."""
+        if moneda == "USD":
+            tc = Setting.get_tc_usd()
+            return monto * tc, tc
+        elif moneda == "EUR":
+            tc = Setting.get_tc()
+            return monto * tc, tc
+        return monto, 1.0
+
+    @app.route("/admin/contabilidad/egreso/agregar", methods=["POST"])
+    @auth.admin_required
+    def egreso_agregar():
+        from models import Egreso
+        from datetime import datetime as _dt
+        try:
+            monto = float(request.form.get("monto") or 0)
+        except ValueError:
+            monto = 0
+        moneda = (request.form.get("moneda") or "UYU").strip().upper()
+        if moneda not in ("UYU", "USD", "EUR"):
+            moneda = "UYU"
+        categoria = (request.form.get("categoria") or "Otros").strip()
+        # Categoria nueva?
+        nueva_cat = (request.form.get("categoria_nueva") or "").strip()
+        if nueva_cat:
+            Setting.add_categoria_egreso(nueva_cat)
+            categoria = nueva_cat
+        descripcion = (request.form.get("descripcion") or "").strip()
+        fecha_str = request.form.get("fecha") or ""
+        try:
+            fecha = _dt.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else _dt.utcnow().date()
+        except ValueError:
+            fecha = _dt.utcnow().date()
+
+        if monto <= 0:
+            flash("El monto debe ser mayor a 0.", "error")
+            return redirect(url_for("contabilidad"))
+
+        monto_uyu, tc = _convertir_a_uyu(monto, moneda)
+        e = Egreso(
+            fecha=fecha, categoria=categoria, descripcion=descripcion,
+            monto=monto, moneda=moneda, tc_usado=tc, monto_uyu=monto_uyu,
+        )
+        db.session.add(e)
+        db.session.commit()
+        flash(f"Egreso agregado: {categoria} ${monto_uyu:,.0f} UYU.", "success")
+        return redirect(url_for("contabilidad"))
+
+    @app.route("/admin/contabilidad/egreso/<int:egreso_id>/borrar", methods=["POST"])
+    @auth.admin_required
+    def egreso_borrar(egreso_id):
+        from models import Egreso
+        e = Egreso.query.get_or_404(egreso_id)
+        db.session.delete(e)
+        db.session.commit()
+        flash("Egreso eliminado.", "success")
+        return redirect(url_for("contabilidad"))
+
+    @app.route("/admin/contabilidad/recurrente/agregar", methods=["POST"])
+    @auth.admin_required
+    def recurrente_agregar():
+        from models import EgresoRecurrente
+        try:
+            monto = float(request.form.get("monto") or 0)
+        except ValueError:
+            monto = 0
+        moneda = (request.form.get("moneda") or "UYU").strip().upper()
+        categoria = (request.form.get("categoria") or "Otros").strip()
+        descripcion = (request.form.get("descripcion") or "").strip()
+        if monto <= 0:
+            flash("El monto del gasto recurrente debe ser mayor a 0.", "error")
+            return redirect(url_for("contabilidad"))
+        r = EgresoRecurrente(categoria=categoria, descripcion=descripcion, monto=monto, moneda=moneda)
+        db.session.add(r)
+        db.session.commit()
+        flash(f"Gasto mensual agregado: {categoria}.", "success")
+        return redirect(url_for("contabilidad"))
+
+    @app.route("/admin/contabilidad/recurrente/<int:rec_id>/borrar", methods=["POST"])
+    @auth.admin_required
+    def recurrente_borrar(rec_id):
+        from models import EgresoRecurrente
+        r = EgresoRecurrente.query.get_or_404(rec_id)
+        db.session.delete(r)
+        db.session.commit()
+        flash("Gasto mensual eliminado.", "success")
+        return redirect(url_for("contabilidad"))
+
+    @app.route("/admin/contabilidad/generar-mes", methods=["POST"])
+    @auth.admin_required
+    def generar_gastos_mes():
+        """Genera los egresos del mes actual a partir de los recurrentes activos.
+        Evita duplicar: no genera si ya hay un egreso de esa categoria+descripcion este mes."""
+        from models import Egreso, EgresoRecurrente
+        from datetime import datetime as _dt, date
+        hoy = date.today()
+        inicio = date(hoy.year, hoy.month, 1)
+        recurrentes = EgresoRecurrente.query.filter_by(activo=True).all()
+        creados = 0
+        for r in recurrentes:
+            # Ya existe este mes?
+            existe = (
+                Egreso.query
+                .filter(Egreso.fecha >= inicio)
+                .filter(Egreso.categoria == r.categoria)
+                .filter(Egreso.descripcion == r.descripcion)
+                .filter(Egreso.monto == r.monto)
+                .first()
+            )
+            if existe:
+                continue
+            monto_uyu, tc = _convertir_a_uyu(r.monto, r.moneda)
+            e = Egreso(
+                fecha=hoy, categoria=r.categoria, descripcion=r.descripcion,
+                monto=r.monto, moneda=r.moneda, tc_usado=tc, monto_uyu=monto_uyu,
+            )
+            db.session.add(e)
+            creados += 1
+        db.session.commit()
+        if creados:
+            flash(f"{creados} gasto(s) mensual(es) generado(s) para este mes.", "success")
+        else:
+            flash("No habia gastos mensuales nuevos para generar (ya estaban cargados).", "info")
+        return redirect(url_for("contabilidad"))
 
     # ----------------------------------------------------------------------
     # Settings

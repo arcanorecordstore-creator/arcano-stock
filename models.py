@@ -314,6 +314,38 @@ class Setting(db.Model):
         except (TypeError, ValueError):
             return TC_DEFAULT
 
+    @classmethod
+    def get_tc_usd(cls) -> float:
+        """Tipo de cambio USD->UYU como float."""
+        raw = cls.get("tc_usd_uyu", "40")
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return 40.0
+
+    @classmethod
+    def get_categorias_egreso(cls) -> list:
+        """Lista completa de categorias de egreso (default + las que agrego el usuario)."""
+        extra = cls.get("categorias_egreso_extra", "") or ""
+        extras = [c.strip() for c in extra.split(",") if c.strip()]
+        # Mantener orden: defaults primero, luego extras sin duplicar
+        todas = list(CATEGORIAS_EGRESO_DEFAULT)
+        for c in extras:
+            if c not in todas:
+                todas.append(c)
+        return todas
+
+    @classmethod
+    def add_categoria_egreso(cls, nombre: str) -> None:
+        """Agrega una categoria nueva de egreso."""
+        nombre = (nombre or "").strip()
+        if not nombre or nombre in cls.get_categorias_egreso():
+            return
+        extra = cls.get("categorias_egreso_extra", "") or ""
+        extras = [c.strip() for c in extra.split(",") if c.strip()]
+        extras.append(nombre)
+        cls.set("categorias_egreso_extra", ",".join(extras))
+
 
 # ---------------------------------------------------------------------------
 # Modelo: StatusHistory
@@ -731,6 +763,59 @@ class ReservaItem(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Contabilidad: egresos (gastos operativos)
+# ---------------------------------------------------------------------------
+
+# Categorias de gasto por defecto. El usuario puede agregar mas.
+CATEGORIAS_EGRESO_DEFAULT = [
+    "Hosting",
+    "Publicidad",
+    "Envios",
+    "Viajes",
+    "Otros",
+]
+
+MONEDAS_EGRESO = ["UYU", "USD", "EUR"]
+
+
+class Egreso(db.Model):
+    """Un gasto operativo del negocio (no un disco)."""
+    __tablename__ = "egresos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.Date, nullable=False, default=lambda: datetime.utcnow().date())
+    categoria = db.Column(db.String(60), nullable=False, default="Otros")
+    descripcion = db.Column(db.String(300), nullable=True)
+    # Monto en la moneda original
+    monto = db.Column(db.Float, nullable=False, default=0.0)
+    moneda = db.Column(db.String(3), nullable=False, default="UYU")
+    # Tipo de cambio usado para convertir a UYU (1 si ya es UYU)
+    tc_usado = db.Column(db.Float, nullable=False, default=1.0)
+    # Monto convertido a UYU (se calcula al guardar)
+    monto_uyu = db.Column(db.Float, nullable=False, default=0.0)
+    creado = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Egreso {self.categoria} {self.monto} {self.moneda}>"
+
+
+class EgresoRecurrente(db.Model):
+    """Plantilla de gasto que se repite cada mes (ej: hosting)."""
+    __tablename__ = "egresos_recurrentes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    categoria = db.Column(db.String(60), nullable=False, default="Otros")
+    descripcion = db.Column(db.String(300), nullable=True)
+    monto = db.Column(db.Float, nullable=False, default=0.0)
+    moneda = db.Column(db.String(3), nullable=False, default="UYU")
+    activo = db.Column(db.Boolean, nullable=False, default=True)
+    creado = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<EgresoRecurrente {self.categoria} {self.monto} {self.moneda}>"
+
+
+# ---------------------------------------------------------------------------
 # Inicializacion
 # ---------------------------------------------------------------------------
 
@@ -942,6 +1027,8 @@ def init_db(app) -> None:
             "public_whatsapp": "",  # con codigo de pais, sin +, ej: 59899123456
             "api_cost_total_usd": "0",
             "api_calls_count": "0",
+            "tc_usd_uyu": "40",
+            "categorias_egreso_extra": "",
         }
         for k, v in defaults_publicos.items():
             if Setting.get(k) is None:

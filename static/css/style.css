@@ -6979,3 +6979,149 @@ td.num,
 .th-sort-link:hover { color: var(--accent, #10b981); }
 .th-sorted .th-sort-link { color: var(--accent, #10b981); font-weight: 700; }
 .th-sortable:hover { background: var(--bg-hover, rgba(255,255,255,0.03)); }
+
+/* ============================================================
+   CONTABILIDAD
+   ============================================================ */
+.conta-periodo {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+.conta-periodo-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border-2, #333);
+    color: var(--text-2, #aaa);
+    text-decoration: none;
+    font-size: 14px;
+    transition: all 0.15s ease;
+}
+.conta-periodo-btn:hover { border-color: var(--accent, #10b981); }
+.conta-periodo-btn.active {
+    background: var(--accent, #10b981);
+    color: #fff;
+    border-color: var(--accent, #10b981);
+}
+
+/* Hero: ganancia real */
+.conta-hero {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 28px;
+    background: var(--bg-1, #151515);
+    border: 1px solid var(--border-2, #333);
+    border-radius: 14px;
+    margin-bottom: 24px;
+}
+.conta-hero-label {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-3, #888);
+}
+.conta-hero-value {
+    font-size: 42px;
+    font-weight: 700;
+    color: var(--accent, #10b981);
+    line-height: 1.1;
+}
+.conta-hero-value.negativo { color: #ef4444; }
+.conta-hero-cur { font-size: 20px; font-weight: 500; opacity: 0.7; }
+.conta-hero-foot { font-size: 13px; color: var(--text-3, #888); }
+
+/* Desglose */
+.conta-desglose {
+    background: var(--bg-1, #151515);
+    border: 1px solid var(--border-1, #2a2a2a);
+    border-radius: 12px;
+    padding: 8px 20px;
+    margin-bottom: 28px;
+}
+.conta-row {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas: "label value" "detail value";
+    gap: 0 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border-1, #2a2a2a);
+}
+.conta-row:last-child { border-bottom: none; }
+.conta-row-label { grid-area: label; font-weight: 600; }
+.conta-row-value { grid-area: value; align-self: center; font-variant-numeric: tabular-nums; font-size: 18px; }
+.conta-row-detail { grid-area: detail; font-size: 12px; color: var(--text-3, #888); }
+.conta-row-ingreso .conta-row-value { color: var(--accent, #10b981); }
+.conta-row-egreso .conta-row-value { color: #ef4444; }
+.conta-subtotal {
+    background: rgba(255,255,255,0.02);
+    margin: 0 -20px;
+    padding-left: 20px;
+    padding-right: 20px;
+}
+.conta-total {
+    background: rgba(16,185,129,0.08);
+    margin: 0 -20px;
+    padding-left: 20px;
+    padding-right: 20px;
+    border-radius: 0 0 12px 12px;
+}
+.conta-total .conta-row-label { font-size: 17px; }
+.conta-total .conta-row-value { font-size: 22px; font-weight: 700; color: var(--accent, #10b981); }
+
+/* Bloques */
+.conta-block { margin-bottom: 32px; }
+.conta-block-title { font-size: 18px; margin-bottom: 6px; }
+.conta-block-sub { font-size: 13px; color: var(--text-3, #888); margin-bottom: 14px; }
+
+/* Gastos por categoria */
+.conta-cat-list { display: flex; flex-direction: column; gap: 8px; }
+.conta-cat-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: var(--bg-1, #151515);
+    border-radius: 8px;
+    border: 1px solid var(--border-1, #2a2a2a);
+}
+.conta-cat-monto { font-variant-numeric: tabular-nums; color: var(--text-2, #aaa); }
+
+/* Formulario */
+.conta-form { margin-top: 8px; }
+.conta-form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+}
+.conta-form-hint { font-size: 12px; color: var(--text-3, #888); margin-top: 8px; }
+
+/* Tabla de egresos */
+.conta-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+}
+.conta-table th {
+    text-align: left;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-3, #888);
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-2, #333);
+}
+.conta-table td {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-1, #2a2a2a);
+}
+.conta-table .col-num { text-align: right; font-variant-numeric: tabular-nums; }
+.conta-table .totals-row td { font-weight: 700; border-top: 2px solid var(--border-2, #333); }
+.conta-empty { color: var(--text-3, #888); font-size: 14px; padding: 12px 0; }
+
+@media (max-width: 600px) {
+    .conta-hero-value { font-size: 32px; }
+    .conta-table { font-size: 13px; }
+    .conta-table th:nth-child(3), .conta-table td:nth-child(3) { display: none; }
+}

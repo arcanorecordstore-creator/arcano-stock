@@ -1,0 +1,270 @@
+{% extends "base.html" %}
+
+{% block title %}Contabilidad &middot; Arcano{% endblock %}
+
+{% macro fmt_uyu(n) -%}
+{{ '{:,.0f}'.format(n or 0).replace(',', '.') }}
+{%- endmacro %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Contabilidad</h1>
+        <p class="page-sub">Ingresos, egresos y ganancia real del negocio</p>
+    </div>
+</section>
+
+<!-- ============================================================
+     Selector de periodo
+     ============================================================ -->
+<section class="conta-periodo">
+    {% set periodos = [('mes_actual', 'Este mes'), ('mes_pasado', 'Mes pasado'), ('anio', 'Este ano'), ('todo', 'Todo')] %}
+    {% for val, label in periodos %}
+    <a href="{{ url_for('contabilidad', periodo=val) }}"
+       class="conta-periodo-btn {% if periodo == val %}active{% endif %}">{{ label }}</a>
+    {% endfor %}
+</section>
+
+<!-- ============================================================
+     Ganancia real (numero grande)
+     ============================================================ -->
+<section class="conta-hero">
+    <span class="conta-hero-label">Ganancia real del periodo</span>
+    <span class="conta-hero-value {% if conta.ganancia_real_uyu < 0 %}negativo{% endif %}">
+        $ {{ fmt_uyu(conta.ganancia_real_uyu) }} <span class="conta-hero-cur">UYU</span>
+    </span>
+    <span class="conta-hero-foot">
+        Ingresos menos costo de discos vendidos menos gastos operativos
+    </span>
+</section>
+
+<!-- ============================================================
+     Desglose
+     ============================================================ -->
+<section class="conta-desglose">
+    <div class="conta-row conta-row-ingreso">
+        <span class="conta-row-label">Ingresos (ventas)</span>
+        <span class="conta-row-value">+ {{ fmt_uyu(conta.ingresos_uyu) }}</span>
+        <span class="conta-row-detail">{{ conta.unidades_vendidas }} copias &middot; {{ conta.titulos_vendidos }} titulos</span>
+    </div>
+    <div class="conta-row conta-row-egreso">
+        <span class="conta-row-label">Costo de discos vendidos</span>
+        <span class="conta-row-value">&minus; {{ fmt_uyu(conta.costo_discos_uyu) }}</span>
+        <span class="conta-row-detail">Lo que te costaron los discos que vendiste</span>
+    </div>
+    <div class="conta-row conta-subtotal">
+        <span class="conta-row-label">Ganancia bruta</span>
+        <span class="conta-row-value">= {{ fmt_uyu(conta.ganancia_bruta_uyu) }}</span>
+        <span class="conta-row-detail">Margen de los discos, antes de gastos</span>
+    </div>
+    <div class="conta-row conta-row-egreso">
+        <span class="conta-row-label">Gastos operativos</span>
+        <span class="conta-row-value">&minus; {{ fmt_uyu(conta.egresos_uyu) }}</span>
+        <span class="conta-row-detail">{{ conta.egresos_count }} egreso(s) en el periodo</span>
+    </div>
+    <div class="conta-row conta-total">
+        <span class="conta-row-label">Ganancia real</span>
+        <span class="conta-row-value">= {{ fmt_uyu(conta.ganancia_real_uyu) }}</span>
+        <span class="conta-row-detail">Lo que realmente te quedo</span>
+    </div>
+</section>
+
+<!-- Egresos por categoria -->
+{% if conta.egresos_por_categoria %}
+<section class="conta-block">
+    <h2 class="conta-block-title">Gastos por categoria</h2>
+    <div class="conta-cat-list">
+        {% for cat, monto in conta.egresos_por_categoria %}
+        <div class="conta-cat-item">
+            <span class="conta-cat-name">{{ cat }}</span>
+            <span class="conta-cat-monto">{{ fmt_uyu(monto) }} UYU</span>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+<!-- ============================================================
+     Agregar egreso
+     ============================================================ -->
+<section class="conta-block">
+    <h2 class="conta-block-title">Registrar un gasto</h2>
+    <form method="post" action="{{ url_for('egreso_agregar') }}" class="conta-form">
+        <div class="conta-form-grid">
+            <div class="form-field">
+                <label for="eg-fecha">Fecha</label>
+                <input type="date" id="eg-fecha" name="fecha" value="{{ now.strftime('%Y-%m-%d') }}">
+            </div>
+            <div class="form-field">
+                <label for="eg-categoria">Categoria</label>
+                <select id="eg-categoria" name="categoria">
+                    {% for c in categorias %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-field">
+                <label for="eg-cat-nueva">O categoria nueva</label>
+                <input type="text" id="eg-cat-nueva" name="categoria_nueva" placeholder="opcional">
+            </div>
+            <div class="form-field">
+                <label for="eg-desc">Descripcion</label>
+                <input type="text" id="eg-desc" name="descripcion" placeholder="ej: campana Meta abril">
+            </div>
+            <div class="form-field form-field-sm">
+                <label for="eg-monto">Monto</label>
+                <input type="number" id="eg-monto" name="monto" step="0.01" min="0" placeholder="0" required>
+            </div>
+            <div class="form-field form-field-sm">
+                <label for="eg-moneda">Moneda</label>
+                <select id="eg-moneda" name="moneda">
+                    {% for m in monedas %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Agregar gasto</button>
+        <p class="conta-form-hint">TC actual: 1 EUR = {{ tc }} UYU &middot; 1 USD = {{ tc_usd }} UYU (se puede cambiar en Ajustes)</p>
+    </form>
+</section>
+
+<!-- ============================================================
+     Lista de egresos del periodo
+     ============================================================ -->
+<section class="conta-block">
+    <h2 class="conta-block-title">Gastos del periodo</h2>
+    {% if egresos %}
+    <table class="conta-table">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>Categoria</th>
+                <th>Descripcion</th>
+                <th class="col-num">Monto</th>
+                <th class="col-num">En UYU</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for e in egresos %}
+            <tr>
+                <td>{{ e.fecha.strftime('%d/%m/%Y') }}</td>
+                <td>{{ e.categoria }}</td>
+                <td>{{ e.descripcion or '—' }}</td>
+                <td class="col-num">{{ '%.2f'|format(e.monto) }} {{ e.moneda }}</td>
+                <td class="col-num">{{ fmt_uyu(e.monto_uyu) }}</td>
+                <td class="col-num">
+                    <form method="post" action="{{ url_for('egreso_borrar', egreso_id=e.id) }}" class="inline-form"
+                          data-confirm="Eliminar este gasto?">
+                        <button type="submit" class="action-btn danger">Borrar</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        <tfoot>
+            <tr class="totals-row">
+                <td colspan="4" class="totals-label">Total gastos</td>
+                <td class="col-num">{{ fmt_uyu(conta.egresos_uyu) }}</td>
+                <td></td>
+            </tr>
+        </tfoot>
+    </table>
+    {% else %}
+    <p class="conta-empty">No hay gastos registrados en este periodo.</p>
+    {% endif %}
+</section>
+
+<!-- ============================================================
+     Gastos recurrentes (mensuales)
+     ============================================================ -->
+<section class="conta-block">
+    <h2 class="conta-block-title">Gastos mensuales fijos</h2>
+    <p class="conta-block-sub">Los que se repiten cada mes (ej: hosting). Cargalos una vez y despues generalos con un boton.</p>
+
+    {% if recurrentes %}
+    <table class="conta-table">
+        <thead>
+            <tr>
+                <th>Categoria</th>
+                <th>Descripcion</th>
+                <th class="col-num">Monto</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in recurrentes %}
+            <tr>
+                <td>{{ r.categoria }}</td>
+                <td>{{ r.descripcion or '—' }}</td>
+                <td class="col-num">{{ '%.2f'|format(r.monto) }} {{ r.moneda }}</td>
+                <td class="col-num">
+                    <form method="post" action="{{ url_for('recurrente_borrar', rec_id=r.id) }}" class="inline-form"
+                          data-confirm="Eliminar este gasto mensual?">
+                        <button type="submit" class="action-btn danger">Borrar</button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <form method="post" action="{{ url_for('generar_gastos_mes') }}" class="inline-form" style="margin-top: 12px;">
+        <button type="submit" class="btn btn-secondary">Generar gastos de este mes</button>
+    </form>
+    {% else %}
+    <p class="conta-empty">No hay gastos mensuales fijos cargados.</p>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('recurrente_agregar') }}" class="conta-form" style="margin-top: 16px;">
+        <div class="conta-form-grid">
+            <div class="form-field">
+                <label for="rec-categoria">Categoria</label>
+                <select id="rec-categoria" name="categoria">
+                    {% for c in categorias %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+                </select>
+            </div>
+            <div class="form-field">
+                <label for="rec-desc">Descripcion</label>
+                <input type="text" id="rec-desc" name="descripcion" placeholder="ej: Render hosting">
+            </div>
+            <div class="form-field form-field-sm">
+                <label for="rec-monto">Monto</label>
+                <input type="number" id="rec-monto" name="monto" step="0.01" min="0" placeholder="0" required>
+            </div>
+            <div class="form-field form-field-sm">
+                <label for="rec-moneda">Moneda</label>
+                <select id="rec-moneda" name="moneda">
+                    {% for m in monedas %}<option value="{{ m }}">{{ m }}</option>{% endfor %}
+                </select>
+            </div>
+        </div>
+        <button type="submit" class="btn btn-ghost">Agregar gasto mensual fijo</button>
+    </form>
+</section>
+
+<!-- ============================================================
+     Metricas de inventario (lo que ya existia)
+     ============================================================ -->
+<section class="conta-block">
+    <h2 class="conta-block-title">Inventario</h2>
+    <div class="kpi-grid">
+        <div class="kpi-card">
+            <span class="kpi-label">Stock disponible</span>
+            <span class="kpi-value">{{ kpis.stock_disponible_unidades }}</span>
+            <span class="kpi-foot">{{ kpis.stock_disponible_titulos }} titulos</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Inversion inmovilizada</span>
+            <span class="kpi-value">{{ fmt_uyu(kpis.inversion_uyu) }}</span>
+            <span class="kpi-foot">UYU en stock disponible</span>
+        </div>
+        <div class="kpi-card kpi-highlight">
+            <span class="kpi-label">Ganancia potencial</span>
+            <span class="kpi-value">{{ fmt_uyu(kpis.ganancia_potencial_uyu) }}</span>
+            <span class="kpi-foot">Si vendes todo el stock</span>
+        </div>
+        <div class="kpi-card">
+            <span class="kpi-label">Valor venta total</span>
+            <span class="kpi-value">{{ fmt_uyu(kpis.valor_venta_uyu) }}</span>
+            <span class="kpi-foot">UYU del stock a precio de venta</span>
+        </div>
+    </div>
+</section>
+{% endblock %}
