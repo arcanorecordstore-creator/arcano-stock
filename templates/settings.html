@@ -266,6 +266,17 @@
             </div>
 
             <div class="form-field" style="margin-top: 14px;">
+                <label>Carruseles del inicio <span class="form-field-hint">(elegi cuales mostrar arriba del catalogo; destilda los que no quieras)</span></label>
+                <div class="carrusel-toggles">
+                    <label class="carrusel-toggle"><input type="checkbox" name="carrusel_preorder" value="1" {% if carrusel_preorder %}checked{% endif %}> <span>Pre-order</span></label>
+                    <label class="carrusel-toggle"><input type="checkbox" name="carrusel_tips" value="1" {% if carrusel_tips %}checked{% endif %}> <span>{{ tip_label or 'Tip' }}</span></label>
+                    <label class="carrusel-toggle"><input type="checkbox" name="carrusel_escuchados" value="1" {% if carrusel_escuchados %}checked{% endif %}> <span>Lo mas escuchado</span></label>
+                    <label class="carrusel-toggle"><input type="checkbox" name="carrusel_destacados" value="1" {% if carrusel_destacados %}checked{% endif %}> <span>Destacados</span></label>
+                    <label class="carrusel-toggle"><input type="checkbox" name="carrusel_nuevos" value="1" {% if carrusel_nuevos %}checked{% endif %}> <span>Nuevos ingresos</span></label>
+                </div>
+            </div>
+
+            <div class="form-field" style="margin-top: 14px;">
                 <label for="tip_label">Etiqueta de recomendacion <span class="form-field-hint">(el badge de los discos que marcas como tip; ej: "Tip", "Tip de Lapente", "Recomendado")</span></label>
                 <input type="text" id="tip_label" name="tip_label" value="{{ tip_label or 'Tip' }}" maxlength="30" style="max-width: 260px;">
             </div>

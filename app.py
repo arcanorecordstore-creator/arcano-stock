@@ -2791,6 +2791,11 @@ def register_routes(app: Flask) -> None:
             public_whatsapp=Setting.get("public_whatsapp", ""),
             analytics_snippet=Setting.get("analytics_snippet", ""),
             tip_label=Setting.get("tip_label", "Tip"),
+            carrusel_preorder=Setting.get("carrusel_preorder", "1") == "1",
+            carrusel_tips=Setting.get("carrusel_tips", "1") == "1",
+            carrusel_escuchados=Setting.get("carrusel_escuchados", "1") == "1",
+            carrusel_destacados=Setting.get("carrusel_destacados", "1") == "1",
+            carrusel_nuevos=Setting.get("carrusel_nuevos", "1") == "1",
             public_banner_url=Setting.get("public_banner_url", ""),
             public_hero_title=Setting.get("public_hero_title", ""),
             public_hero_subtitle=Setting.get("public_hero_subtitle", ""),
@@ -3318,6 +3323,11 @@ def register_routes(app: Flask) -> None:
             preorders_carrusel=preorders_carrusel,
             tips_carrusel=tips_carrusel,
             mas_escuchados=mas_escuchados,
+            car_preorder=Setting.get("carrusel_preorder", "1") == "1",
+            car_tips=Setting.get("carrusel_tips", "1") == "1",
+            car_escuchados=Setting.get("carrusel_escuchados", "1") == "1",
+            car_destacados=Setting.get("carrusel_destacados", "1") == "1",
+            car_nuevos=Setting.get("carrusel_nuevos", "1") == "1",
             total_resultados=total_resultados,
             pagina=pagina,
             total_paginas=total_paginas,
@@ -3937,8 +3947,19 @@ def register_routes(app: Flask) -> None:
             "public_card_tamano",
             "analytics_snippet",
             "tip_label",
+            "carrusel_preorder",
+            "carrusel_tips",
+            "carrusel_escuchados",
+            "carrusel_destacados",
+            "carrusel_nuevos",
         ]
+        carrusel_keys = ("carrusel_preorder", "carrusel_tips", "carrusel_escuchados",
+                         "carrusel_destacados", "carrusel_nuevos")
         for key in keys:
+            # Los toggles de carrusel son checkboxes: presente = "1", ausente = "0"
+            if key in carrusel_keys:
+                Setting.set(key, "1" if request.form.get(key) else "0")
+                continue
             value = (request.form.get(key) or "").strip()
             # Validar discos por pagina: entre 4 y 48
             if key == "public_discos_por_pagina":

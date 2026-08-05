@@ -72,23 +72,23 @@
 </section>
 {% endmacro %}
 
-{% if preorders_carrusel %}
+{% if preorders_carrusel and car_preorder %}
 {{ carrusel(preorders_carrusel, 'Pre-order', 'preorder') }}
 {% endif %}
 
-{% if tips_carrusel %}
+{% if tips_carrusel and car_tips %}
 {{ carrusel(tips_carrusel, tip_label or 'Tip', 'tips') }}
 {% endif %}
 
-{% if mas_escuchados %}
+{% if mas_escuchados and car_escuchados %}
 {{ carrusel(mas_escuchados, 'Lo mas escuchado del mes', 'escuchados') }}
 {% endif %}
 
-{% if destacados %}
+{% if destacados and car_destacados %}
 {{ carrusel(destacados, 'Discos destacados', 'destacados') }}
 {% endif %}
 
-{% if nuevos_ingresos %}
+{% if nuevos_ingresos and car_nuevos %}
 {{ carrusel(nuevos_ingresos, 'Nuevos ingresos', 'nuevos') }}
 {% endif %}
 
