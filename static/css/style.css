@@ -7757,3 +7757,34 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
         gap: 10px;
     }
 }
+
+/* Monto en UYU editable en la tabla de gastos */
+.egreso-uyu-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    justify-content: flex-end;
+}
+.egreso-uyu-input {
+    width: 78px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    padding: 3px 6px;
+    border-radius: 6px;
+    border: 1px solid var(--border-2, #333);
+    background: var(--bg-1, #1a1a1a);
+    color: var(--text-1, #eee);
+    font-size: 14px;
+}
+.egreso-uyu-input:focus { outline: none; border-color: var(--accent, #10b981); }
+.egreso-uyu-save {
+    background: none;
+    border: 1px solid var(--border-2, #333);
+    color: var(--accent, #10b981);
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 3px 7px;
+    font-size: 12px;
+    line-height: 1;
+}
+.egreso-uyu-save:hover { background: rgba(16,185,129,0.12); border-color: var(--accent, #10b981); }

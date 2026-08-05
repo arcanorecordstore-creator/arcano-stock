@@ -195,7 +195,14 @@
                 <td>{{ e.categoria }}</td>
                 <td>{{ e.descripcion or '—' }}</td>
                 <td class="col-num">{{ '%.2f'|format(e.monto) }} {{ e.moneda }}</td>
-                <td class="col-num">{{ fmt_uyu(e.monto_uyu) }}</td>
+                <td class="col-num">
+                    <form method="post" action="{{ url_for('egreso_monto_uyu', egreso_id=e.id) }}" class="egreso-uyu-form">
+                        <input type="number" step="1" min="0" name="monto_uyu"
+                               value="{{ '%.0f'|format(e.monto_uyu) }}"
+                               class="egreso-uyu-input" title="Editalo con lo que te debito el banco en pesos">
+                        <button type="submit" class="egreso-uyu-save" title="Guardar">&#10003;</button>
+                    </form>
+                </td>
                 <td class="col-num">
                     <form method="post" action="{{ url_for('egreso_borrar', egreso_id=e.id) }}" class="inline-form"
                           data-confirm="Eliminar este gasto?">

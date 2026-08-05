@@ -2153,6 +2153,37 @@ def register_routes(app: Flask) -> None:
         flash("Egreso eliminado.", "success")
         return redirect(url_for("contabilidad"))
 
+    @app.route("/admin/contabilidad/egreso/<int:egreso_id>/monto-uyu", methods=["POST"])
+    @auth.admin_required
+    def egreso_monto_uyu(egreso_id):
+        """Edita el monto real en UYU de un egreso (lo que debito el banco).
+
+        Guardar vacio recalcula desde la moneda original y el TC. Si el egreso
+        ya era en UYU, no hay nada que recalcular, asi que vacio no hace nada.
+        """
+        from models import Egreso
+        e = Egreso.query.get_or_404(egreso_id)
+        raw = (request.form.get("monto_uyu") or "").strip().replace(".", "").replace(",", ".")
+        if raw == "":
+            # Recalcular desde la moneda original * tc (si es UYU, queda igual)
+            if e.moneda == "UYU":
+                e.monto_uyu = e.monto
+            else:
+                e.monto_uyu = round((e.monto or 0) * (e.tc_usado or 1), 2)
+            db.session.commit()
+            flash("Monto recalculado con el tipo de cambio.", "success")
+        else:
+            try:
+                val = float(raw)
+                if val < 0:
+                    raise ValueError()
+                e.monto_uyu = val
+                db.session.commit()
+                flash(f"Monto en pesos actualizado: {val:,.0f} UYU.".replace(",", "."), "success")
+            except (ValueError, TypeError):
+                flash("Monto invalido.", "error")
+        return redirect(url_for("contabilidad"))
+
     @app.route("/admin/contabilidad/recurrente/agregar", methods=["POST"])
     @auth.admin_required
     def recurrente_agregar():
