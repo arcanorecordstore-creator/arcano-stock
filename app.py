@@ -2668,16 +2668,22 @@ def register_routes(app: Flask) -> None:
         nuevos_ingresos = []
         preorders_carrusel = []
         if pagina == 1 and filtros_activos == 0 and not q and orden == "nuevos":
+            # Para los carruseles solo discos realmente disponibles (o pre-order).
+            # Los vendidos/agotados NO entran, ni siquiera para completar al azar.
+            disponibles_carrusel = [
+                d for d in all_disponibles
+                if not d.esta_agotado or d.mostrar_preorder
+            ]
             # --- DESTACADOS ---
             # Los marcados manualmente tienen prioridad. Si faltan para 6,
             # se completan con aleatorios que rotan cada 10 dias.
-            marcados_dest = [d for d in all_disponibles if d.destacado]
+            marcados_dest = [d for d in disponibles_carrusel if d.destacado]
             destacados = list(marcados_dest[:6])
             if len(destacados) < 6:
                 import random as _random
                 # Semilla estable por periodo de 10 dias
                 periodo = int(datetime.utcnow().timestamp() // (10 * 86400))
-                resto = [d for d in all_disponibles if not d.destacado]
+                resto = [d for d in disponibles_carrusel if not d.destacado]
                 rng = _random.Random(periodo)
                 rng.shuffle(resto)
                 destacados += resto[: 6 - len(destacados)]
@@ -2685,9 +2691,9 @@ def register_routes(app: Flask) -> None:
             # --- NUEVOS INGRESOS ---
             # Los marcados manualmente van primero, despues los mas recientes
             # por fecha de ingreso, hasta completar 6.
-            marcados_nuevos = [d for d in all_disponibles if d.en_nuevos]
+            marcados_nuevos = [d for d in disponibles_carrusel if d.en_nuevos]
             por_fecha = sorted(
-                all_disponibles,
+                disponibles_carrusel,
                 key=lambda d: d.fecha_ingreso or datetime.min,
                 reverse=True,
             )

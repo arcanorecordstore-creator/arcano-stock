@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Arcano Stock{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script>
+        // Aplica el tema guardado ANTES de renderizar (evita el parpadeo oscuro)
+        (function () {
+            try {
+                if (localStorage.getItem('arcano-admin-theme') === 'light') {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                }
+            } catch (e) {}
+        })();
+    </script>
+</head>
+<body class="app">
+    <div class="app-shell">
+        <header class="topbar">
+            <div class="topbar-brand">
+                <a href="{{ url_for('dashboard') }}" class="brand-link">
+                    <span class="brand-logo">ARCANO</span>
+                    <span class="brand-sub">Stock Manager</span>
+                </a>
+            </div>
+            <nav class="topbar-nav">
+                <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">Dashboard</a>
+                <a href="{{ url_for('admin_reservas') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('admin_reserva') %}active{% endif %}">
+                    Reservas
+                    {% if reservas_pendientes_count > 0 %}
+                    <span class="nav-badge">{{ reservas_pendientes_count }}</span>
+                    {% endif %}
+                </a>
+                <a href="{{ url_for('contabilidad') }}" class="nav-link {% if request.endpoint == 'contabilidad' %}active{% endif %}">Contabilidad</a>
+                <a href="{{ url_for('pedidos') }}" class="nav-link {% if request.endpoint == 'pedidos' %}active{% endif %}">Pedidos</a>
+                <a href="{{ url_for('disc_new') }}" class="nav-link {% if request.endpoint in ['disc_new', 'disc_edit', 'disc_detail'] %}active{% endif %}">Agregar manual</a>
+                <a href="{{ url_for('disc_new_from_url') }}" class="nav-link {% if request.endpoint == 'disc_new_from_url' %}active{% endif %}">Desde URL</a>
+                <a href="{{ url_for('disc_new_from_image') }}" class="nav-link {% if request.endpoint == 'disc_new_from_image' %}active{% endif %}">Desde screenshot</a>
+                <a href="{{ url_for('disc_new_from_invoice') }}" class="nav-link {% if request.endpoint in ['disc_new_from_invoice', 'disc_invoice_review'] %}active{% endif %}">Desde factura</a>
+                <a href="{{ url_for('settings_page') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('settings') %}active{% endif %}">Ajustes</a>
+                <a href="{{ url_for('home') }}" target="_blank" class="nav-link nav-link-external" title="Ver tienda publica">Tienda &nearr;</a>
+            </nav>
+            <div class="topbar-meta">
+                <button type="button" class="admin-theme-toggle" id="admin-theme-toggle" title="Cambiar tema claro/oscuro" aria-label="Cambiar entre tema claro y oscuro">
+                    <span class="admin-theme-icon-dark">&#9789;</span>
+                    <span class="admin-theme-icon-light">&#9788;</span>
+                </button>
+                <span class="meta-label">TC EUR&rarr;UYU</span>
+                <span class="meta-value">{{ tc }}</span>
+                {% if session.get('admin_user') %}
+                <span class="meta-user">
+                    {{ session.get('admin_user') }}
+                    <a href="{{ url_for('admin_logout') }}" class="meta-logout" title="Cerrar sesion">&#x21AA;</a>
+                </span>
+                {% endif %}
+            </div>
+        </header>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="flash-stack">
+                {% for category, msg in messages %}
+                    <div class="flash flash-{{ category }}">
+                        <span>{{ msg }}</span>
+                    </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        {% endwith %}
+
+        <main class="app-main">
+            {% block content %}{% endblock %}
+        </main>
+
+        <footer class="app-footer">
+            <span>Arcano Record Store &middot; Montevideo</span>
+            <span class="footer-version">v2.59 &middot; Cartel vendido + carruseles</span>
+        </footer>
+    </div>
+
+    {% block scripts %}{% endblock %}
+    <script>
+        // Toggle de tema del admin (independiente del de la tienda publica)
+        (function () {
+            var btn = document.getElementById('admin-theme-toggle');
+            if (!btn) return;
+            btn.addEventListener('click', function () {
+                var isLight = document.documentElement.getAttribute('data-theme') === 'light';
+                if (isLight) {
+                    document.documentElement.removeAttribute('data-theme');
+                    try { localStorage.setItem('arcano-admin-theme', 'dark'); } catch (e) {}
+                } else {
+                    document.documentElement.setAttribute('data-theme', 'light');
+                    try { localStorage.setItem('arcano-admin-theme', 'light'); } catch (e) {}
+                }
+            });
+        })();
+    </script>
+</body>
+</html>
