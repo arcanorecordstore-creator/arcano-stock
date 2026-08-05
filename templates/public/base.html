@@ -32,15 +32,15 @@
     (function () {
         try {
             var saved = localStorage.getItem('arcano-theme');
-            var theme = saved;
-            if (!theme) {
-                // Sin preferencia guardada: respetar el sistema
-                theme = (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) ? 'light' : 'dark';
-            }
+            // Por defecto la tienda arranca en tema CLARO. Solo si el visitante
+            // eligio "oscuro" antes (guardado en su navegador) respetamos eso.
+            var theme = saved || 'light';
             if (theme === 'light') {
                 document.documentElement.setAttribute('data-theme', 'light');
             }
-        } catch (e) {}
+        } catch (e) {
+            document.documentElement.setAttribute('data-theme', 'light');
+        }
     })();
     </script>
 </head>

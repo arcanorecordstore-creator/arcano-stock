@@ -119,6 +119,13 @@ def create_app() -> Flask:
         resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
         resp.headers.setdefault("X-Content-Type-Options", "nosniff")
         resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        # HSTS: obliga al navegador a usar SIEMPRE HTTPS por un ano. Solo en
+        # produccion (Render tiene HTTPS); en local http se omite para no romper.
+        if os.environ.get("RENDER"):
+            resp.headers.setdefault(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains",
+            )
         return resp
 
     # --- Proteccion CSRF liviana para el admin: verificar el origen de los POST ---

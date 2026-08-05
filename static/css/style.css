@@ -7901,3 +7901,35 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     }
     .floating-player-volume { display: none !important; }
 }
+
+/* =========================================================================
+   v2.73 - Coordinacion de las barras fijas del fondo en MOVIL
+   Evita que la bottom-nav (carrito/ingresar), el reproductor flotante y el
+   aviso de cookies se superpongan. Orden de abajo hacia arriba:
+   bottom-nav (base)  ->  reproductor  ->  aviso de cookies.
+   ========================================================================= */
+@media (max-width: 700px) {
+    /* Alto aproximado de la bottom-nav (sin el area segura del telefono) */
+    :root { --arcano-navh: 62px; }
+
+    /* El reproductor se apoya JUSTO encima de la bottom-nav, nunca sobre ella */
+    .floating-player {
+        bottom: calc(var(--arcano-navh) + env(safe-area-inset-bottom, 0px));
+        z-index: 150;
+    }
+    /* Los iframes de SoundCloud / YouTube no deben desbordar la pantalla */
+    #fp-youtube-slot .fp-sc-iframe { height: 96px; }
+    #fp-youtube-slot .fp-yt-iframe { width: 200px; height: 112px; }
+
+    /* El aviso de cookies tampoco tapa la bottom-nav: se apoya encima de ella */
+    .cookie-banner {
+        bottom: calc(var(--arcano-navh) + env(safe-area-inset-bottom, 0px));
+        z-index: 210;
+    }
+    /* Si ademas el reproductor esta abierto, el aviso sube por encima de el.
+       El player flotante en movil apila varias filas (~224px con iframe de
+       SoundCloud/YouTube), asi que despejamos esa altura para que no se pisen. */
+    body:has(.floating-player.visible) .cookie-banner {
+        bottom: calc(var(--arcano-navh) + env(safe-area-inset-bottom, 0px) + 250px);
+    }
+}
