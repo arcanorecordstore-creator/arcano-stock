@@ -40,12 +40,19 @@
 
         <div class="ped-stats">
             <div class="ped-stat">
-                <span class="ped-stat-label">Costo total</span>
-                <span class="ped-stat-value">{{ fmt_uyu(p.costo_total_uyu) }} UYU</span>
+                <span class="ped-stat-label">Costo total {% if p.usa_costo_manual %}<span class="ped-manual-tag" title="Monto que pusiste manualmente">manual</span>{% endif %}</span>
+                <form method="post" action="{{ url_for('pedido_costo_manual', pedido_id=p.id) }}" class="ped-costo-form">
+                    <input type="number" step="0.01" min="0" name="costo_uyu_manual"
+                           value="{{ '%.0f'|format(p.costo_total_uyu) }}"
+                           class="ped-costo-input" title="Editalo con lo que te debito el banco">
+                    <span class="ped-costo-unit">UYU</span>
+                    <button type="submit" class="ped-costo-save" title="Guardar">&#10003;</button>
+                </form>
                 <span class="ped-stat-detail">
                     {% if p.costo_eur %}{{ '%.2f'|format(p.costo_eur) }} EUR{% endif %}
                     {% if p.costo_eur and p.costo_usd %} + {% endif %}
                     {% if p.costo_usd %}{{ '%.2f'|format(p.costo_usd) }} USD{% endif %}
+                    {% if p.usa_costo_manual %}&middot; calculado {{ fmt_uyu(p.costo_total_uyu_calculado) }}{% endif %}
                 </span>
             </div>
             <div class="ped-stat">

@@ -2234,6 +2234,30 @@ def register_routes(app: Flask) -> None:
         flash("Pedido eliminado (los discos quedaron sin pedido).", "success")
         return redirect(url_for("pedidos"))
 
+    @app.route("/admin/pedidos/<int:pedido_id>/costo-manual", methods=["POST"])
+    @auth.admin_required
+    def pedido_costo_manual(pedido_id):
+        """Setea (o limpia) el costo real en UYU del pedido (lo que debito el banco)."""
+        from models import Pedido
+        ped = Pedido.query.get_or_404(pedido_id)
+        raw = (request.form.get("costo_uyu_manual") or "").strip().replace(".", "").replace(",", ".")
+        if raw == "":
+            # Vacio => volver al calculo automatico
+            ped.costo_uyu_manual = None
+            db.session.commit()
+            flash("Costo del pedido: vuelve al calculo automatico.", "success")
+        else:
+            try:
+                val = float(raw)
+                if val < 0:
+                    raise ValueError()
+                ped.costo_uyu_manual = val
+                db.session.commit()
+                flash(f"Costo real del pedido guardado: {val:,.0f} UYU.".replace(",", "."), "success")
+            except (ValueError, TypeError):
+                flash("Monto invalido.", "error")
+        return redirect(url_for("pedidos"))
+
     @app.route("/admin/pedidos/exportar/excel")
     @auth.admin_required
     def pedidos_exportar_excel():

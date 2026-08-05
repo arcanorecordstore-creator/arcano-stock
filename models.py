@@ -831,6 +831,9 @@ class Pedido(db.Model):
     cant_discos = db.Column(db.Integer, nullable=False, default=0)   # cuantos discos declara el pedido
     costo_eur = db.Column(db.Float, nullable=False, default=0.0)     # costo total en euros
     costo_usd = db.Column(db.Float, nullable=False, default=0.0)     # costo total en dolares
+    # Costo real en UYU segun lo que debito el banco (opcional).
+    # Si esta seteado, se usa en vez del calculo automatico.
+    costo_uyu_manual = db.Column(db.Float, nullable=True)
     proveedor = db.Column(db.String(40), nullable=False, default="Deejay.de")
     notas = db.Column(db.Text, nullable=True)
     creado = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
@@ -840,10 +843,25 @@ class Pedido(db.Model):
 
     @property
     def costo_total_uyu(self) -> float:
-        """Costo total del pedido en UYU (euros + dolares convertidos)."""
+        """Costo total del pedido en UYU. Si hay un monto manual (lo que
+        debito el banco), se usa ese; si no, se calcula desde euros/dolares."""
+        if self.costo_uyu_manual is not None:
+            return round(self.costo_uyu_manual, 2)
         tc_eur = Setting.get_tc()
         tc_usd = Setting.get_tc_usd()
         return round((self.costo_eur or 0) * tc_eur + (self.costo_usd or 0) * tc_usd, 2)
+
+    @property
+    def costo_total_uyu_calculado(self) -> float:
+        """El costo teorico calculado desde euros/dolares (sin el manual)."""
+        tc_eur = Setting.get_tc()
+        tc_usd = Setting.get_tc_usd()
+        return round((self.costo_eur or 0) * tc_eur + (self.costo_usd or 0) * tc_usd, 2)
+
+    @property
+    def usa_costo_manual(self) -> bool:
+        """True si el costo total viene de un valor manual, no del calculo."""
+        return self.costo_uyu_manual is not None
 
     @property
     def discos_asignados(self) -> int:
@@ -1067,6 +1085,15 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN origen VARCHAR(20) DEFAULT 'arcano'"))
                     conn.commit()
                 print("Migracion: columna origen agregada a discs")
+
+        # Columna costo_uyu_manual en pedidos (monto real del banco)
+        if inspector.has_table("pedidos"):
+            pcols = [c["name"] for c in inspector.get_columns("pedidos")]
+            if "costo_uyu_manual" not in pcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE pedidos ADD COLUMN costo_uyu_manual FLOAT"))
+                    conn.commit()
+                print("Migracion: columna costo_uyu_manual agregada a pedidos")
 
         # Columna cliente_id en reservas (para cuentas de cliente)
         if inspector.has_table("reservas"):

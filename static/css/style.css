@@ -7489,3 +7489,47 @@ td.num,
     font-weight: 600;
     font-variant-numeric: tabular-nums;
 }
+
+/* Campo editable de costo total del pedido */
+.ped-costo-form {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.ped-costo-input {
+    width: 100px;
+    font-size: 17px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    padding: 3px 6px;
+    border-radius: 6px;
+    border: 1px solid var(--border-2, #333);
+    background: var(--bg-1, #1a1a1a);
+    color: var(--text-1, #eee);
+}
+.ped-costo-input:focus {
+    outline: none;
+    border-color: var(--accent, #10b981);
+}
+.ped-costo-unit { font-size: 13px; color: var(--text-3, #888); }
+.ped-costo-save {
+    background: none;
+    border: 1px solid var(--border-2, #333);
+    color: var(--accent, #10b981);
+    border-radius: 6px;
+    cursor: pointer;
+    padding: 3px 8px;
+    font-size: 13px;
+    line-height: 1;
+}
+.ped-costo-save:hover { background: rgba(16,185,129,0.12); border-color: var(--accent, #10b981); }
+.ped-manual-tag {
+    font-size: 10px;
+    background: rgba(234,179,8,0.15);
+    color: #eab308;
+    padding: 1px 6px;
+    border-radius: 4px;
+    text-transform: none;
+    letter-spacing: 0;
+    margin-left: 4px;
+}
