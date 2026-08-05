@@ -1750,6 +1750,54 @@ def register_routes(app: Flask) -> None:
         flash(f"Disco eliminado: {nombre}", "success")
         return redirect(url_for("dashboard"))
 
+    @app.route("/admin/discs/<int:disc_id>/duplicate", methods=["POST"])
+    @auth.admin_required
+    def disc_duplicate(disc_id: int):
+        """Crea una copia identica de un disco (util para copias multiples
+        del mismo titulo). Copia campos, tracks e imagenes; arranca Disponible."""
+        from models import DiscImage, Track
+        from sqlalchemy import inspect as _sa_inspect
+        orig = Disc.query.get_or_404(disc_id)
+
+        nuevo = Disc()
+        # Copiar todas las columnas menos id y timestamps unicos
+        excluir = {"id"}
+        for col in _sa_inspect(Disc).columns.keys():
+            if col in excluir:
+                continue
+            setattr(nuevo, col, getattr(orig, col))
+        # La copia arranca como Disponible y sin copias vendidas
+        nuevo.estado = "Disponible"
+        nuevo.copias_vendidas = 0
+        nuevo.fecha_venta = None
+        nuevo.fecha_ingreso = datetime.utcnow()
+        db.session.add(nuevo)
+        db.session.flush()  # para tener el id del nuevo
+
+        # Copiar tracks
+        for t in orig.tracks:
+            nt = Track()
+            for col in _sa_inspect(Track).columns.keys():
+                if col in ("id", "disc_id"):
+                    continue
+                setattr(nt, col, getattr(t, col))
+            nt.disc_id = nuevo.id
+            db.session.add(nt)
+
+        # Copiar imagenes
+        for img in orig.imagenes:
+            ni = DiscImage()
+            for col in _sa_inspect(DiscImage).columns.keys():
+                if col in ("id", "disc_id"):
+                    continue
+                setattr(ni, col, getattr(img, col))
+            ni.disc_id = nuevo.id
+            db.session.add(ni)
+
+        db.session.commit()
+        flash(f"Disco duplicado: {nuevo.artista} - {nuevo.titulo}. La copia esta como Disponible.", "success")
+        return redirect(url_for("disc_edit", disc_id=nuevo.id))
+
     @app.route("/admin/discs/<int:disc_id>/status", methods=["POST"])
     @auth.admin_required
     def disc_status(disc_id: int):

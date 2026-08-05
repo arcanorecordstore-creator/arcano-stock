@@ -2143,6 +2143,9 @@ body.app { display: block; padding: 0; }
     flex-wrap: wrap;
     justify-content: center;
 }
+.bulk-bar[hidden] {
+    display: none !important;
+}
 
 .bulk-count {
     color: var(--text-1);
@@ -6739,6 +6742,7 @@ td.num,
         align-items: stretch;
         box-shadow: 0 -6px 24px rgba(0,0,0,0.55);
     }
+    .bulk-bar[hidden] { display: none !important; }
     .bulk-count { text-align: center; font-size: 13px; }
     .bulk-actions-buttons { width: 100%; justify-content: center; }
     .bulk-actions-buttons select,

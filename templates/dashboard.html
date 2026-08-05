@@ -245,6 +245,9 @@
                     <div class="row-actions">
                         <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="action-btn" title="Ver detalle">Ver</a>
                         <a href="{{ url_for('disc_edit', disc_id=d.id) }}" class="action-btn" title="Editar">Editar</a>
+                        <form method="post" action="{{ url_for('disc_duplicate', disc_id=d.id) }}" class="inline-form" data-confirm="¿Duplicar '{{ d.artista }} - {{ d.titulo }}'? Se creara una copia identica que podes editar.">
+                            <button type="submit" class="action-btn" title="Crear una copia de este disco">Duplicar</button>
+                        </form>
                         <form method="post" action="{{ url_for('disc_delete', disc_id=d.id) }}" class="inline-form" data-confirm="¿Eliminar el disco '{{ d.artista }} - {{ d.titulo }}'? Esta accion no se puede deshacer.">
                             <button type="submit" class="action-btn danger">Eliminar</button>
                         </form>
