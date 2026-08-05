@@ -874,6 +874,24 @@ class Pedido(db.Model):
         """Cuanto falta recaudar para cubrir el costo del pedido."""
         return round(max(0, self.costo_total_uyu - self.recaudado_uyu), 2)
 
+    @property
+    def resultado_uyu(self) -> float:
+        """Ganancia (+) o perdida (-) del pedido hasta ahora:
+        lo recaudado menos el costo total del pedido."""
+        return round(self.recaudado_uyu - self.costo_total_uyu, 2)
+
+    @property
+    def resultado_potencial_uyu(self) -> float:
+        """Ganancia proyectada si se vendiera TODO el stock del pedido
+        a precio de lista, menos el costo total."""
+        potencial = 0.0
+        for d in self.discos:
+            if d.estado == "Vendido":
+                potencial += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+            else:
+                potencial += (d.precio_mostrar or d.precio_uyu or 0) * (d.stock or 0)
+        return round(potencial - self.costo_total_uyu, 2)
+
     def __repr__(self):
         return f"<Pedido {self.numero} {self.cant_discos} discos>"
 

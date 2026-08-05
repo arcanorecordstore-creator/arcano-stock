@@ -7325,3 +7325,55 @@ td.num,
 }
 .pedido-select.saved { border-color: #10b981; }
 .col-pedido { white-space: nowrap; }
+
+/* Resultado del pedido (ganancia/perdida) */
+.ped-stat-value.ped-rojo { color: #ef4444; }
+
+/* Lista de discos desplegable del pedido */
+.ped-discos { margin: 4px 0 12px; }
+.ped-discos-toggle {
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent, #10b981);
+    padding: 8px 0;
+    user-select: none;
+    list-style: none;
+}
+.ped-discos-toggle::-webkit-details-marker { display: none; }
+.ped-discos-toggle::before {
+    content: "\25B8 ";  /* triangulo derecha */
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+.ped-discos[open] .ped-discos-toggle::before { transform: rotate(90deg); }
+.ped-discos-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 8px;
+    font-size: 13px;
+}
+.ped-discos-table th {
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-3, #888);
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border-2, #333);
+}
+.ped-discos-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-1, #2a2a2a);
+}
+.ped-discos-table .col-num { text-align: right; }
+.ped-disco-estado {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.06);
+    color: var(--text-2, #aaa);
+}
+.ped-disco-estado.vendido { background: #1a1a1a; color: #fff; }
+.ped-disco-estado.disponible { background: rgba(16,185,129,0.15); color: #10b981; }
+.ped-sin-discos { font-size: 13px; color: var(--text-3, #888); font-style: italic; margin: 8px 0 12px; }

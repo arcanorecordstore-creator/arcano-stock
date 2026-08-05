@@ -57,6 +57,15 @@
                 <span class="ped-stat-value {% if p.recuperado %}ped-verde{% endif %}">{{ fmt_uyu(p.recaudado_uyu) }} UYU</span>
                 <span class="ped-stat-detail">por ventas del pedido</span>
             </div>
+            <div class="ped-stat">
+                <span class="ped-stat-label">Resultado</span>
+                <span class="ped-stat-value {% if p.resultado_uyu >= 0 %}ped-verde{% else %}ped-rojo{% endif %}">
+                    {% if p.resultado_uyu >= 0 %}+{% endif %}{{ fmt_uyu(p.resultado_uyu) }} UYU
+                </span>
+                <span class="ped-stat-detail">
+                    {% if p.resultado_uyu >= 0 %}ganancia hasta ahora{% else %}todavia en perdida{% endif %}
+                </span>
+            </div>
         </div>
 
         <!-- Barra de progreso de recuperacion -->
@@ -67,6 +76,46 @@
         </div>
 
         {% if p.notas %}<p class="ped-notas">{{ p.notas }}</p>{% endif %}
+
+        {% if p.discos %}
+        <details class="ped-discos">
+            <summary class="ped-discos-toggle">Ver los {{ p.discos_asignados }} disco(s) de este pedido</summary>
+            <table class="ped-discos-table">
+                <thead>
+                    <tr>
+                        <th>Disco</th>
+                        <th>Sello</th>
+                        <th class="col-num">Precio</th>
+                        <th>Estado</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in p.discos %}
+                    <tr>
+                        <td><strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}</td>
+                        <td>{{ d.sello or '—' }}</td>
+                        <td class="col-num">{{ fmt_uyu(d.precio_mostrar or d.precio_uyu) }}</td>
+                        <td>
+                            {% if d.estado == 'Vendido' %}
+                            <span class="ped-disco-estado vendido">Vendido</span>
+                            {% elif d.estado == 'Disponible' %}
+                            <span class="ped-disco-estado disponible">Disponible</span>
+                            {% else %}
+                            <span class="ped-disco-estado">{{ d.estado }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="col-num">
+                            <a href="{{ url_for('disc_edit', disc_id=d.id) }}" class="action-btn">Editar</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </details>
+        {% else %}
+        <p class="ped-sin-discos">Todavia no asignaste discos a este pedido. Hacelo desde el dashboard o al editar un disco.</p>
+        {% endif %}
 
         <div class="ped-card-foot">
             <form method="post" action="{{ url_for('pedido_borrar', pedido_id=p.id) }}" class="inline-form"
