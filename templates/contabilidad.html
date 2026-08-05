@@ -48,7 +48,7 @@
         $ {{ fmt_uyu(conta.ganancia_real_uyu) }} <span class="conta-hero-cur">UYU</span>
     </span>
     <span class="conta-hero-foot">
-        Ingresos menos costo de discos vendidos menos gastos operativos
+        Ventas menos costo de discos de Arcano (vendidos y en stock) menos gastos operativos
     </span>
     {% if conta.comparacion and conta.comparacion.var_ganancia_pct is not none %}
     <div class="conta-compare {% if conta.comparacion.mejoro %}up{% else %}down{% endif %}">
@@ -79,16 +79,30 @@
         <span class="conta-row-value">+ {{ fmt_uyu(conta.ingresos_uyu) }}</span>
         <span class="conta-row-detail">{{ conta.unidades_vendidas }} copias &middot; {{ conta.titulos_vendidos }} titulos</span>
     </div>
+    {% if conta.ingresos_personal_uyu > 0 %}
+    <div class="conta-row conta-row-aporte">
+        <span class="conta-row-label">&#8627; de tu coleccion personal</span>
+        <span class="conta-row-value">{{ fmt_uyu(conta.ingresos_personal_uyu) }}</span>
+        <span class="conta-row-detail">{{ conta.titulos_personal }} disco(s) &middot; aporte tuyo, no invertido por Arcano</span>
+    </div>
+    {% endif %}
     <div class="conta-row conta-row-egreso">
-        <span class="conta-row-label">Costo de discos vendidos</span>
+        <span class="conta-row-label">Costo de discos vendidos (Arcano)</span>
         <span class="conta-row-value">&minus; {{ fmt_uyu(conta.costo_discos_uyu) }}</span>
-        <span class="conta-row-detail">Lo que te costaron los discos que vendiste</span>
+        <span class="conta-row-detail">Solo los de Arcano; los personales no costaron al negocio</span>
     </div>
     <div class="conta-row conta-subtotal">
         <span class="conta-row-label">Ganancia bruta</span>
         <span class="conta-row-value">= {{ fmt_uyu(conta.ganancia_bruta_uyu) }}</span>
-        <span class="conta-row-detail">Margen de los discos, antes de gastos</span>
+        <span class="conta-row-detail">Margen de los discos vendidos, antes de gastos</span>
     </div>
+    {% if conta.costo_stock_no_vendido_uyu > 0 %}
+    <div class="conta-row conta-row-egreso">
+        <span class="conta-row-label">Costo de stock no vendido (Arcano)</span>
+        <span class="conta-row-value">&minus; {{ fmt_uyu(conta.costo_stock_no_vendido_uyu) }}</span>
+        <span class="conta-row-detail">{{ conta.stock_no_vendido_titulos }} disco(s) comprados y aun sin vender</span>
+    </div>
+    {% endif %}
     <div class="conta-row conta-row-egreso">
         <span class="conta-row-label">Gastos operativos</span>
         <span class="conta-row-value">&minus; {{ fmt_uyu(conta.egresos_uyu) }}</span>
@@ -97,7 +111,7 @@
     <div class="conta-row conta-total">
         <span class="conta-row-label">Ganancia real</span>
         <span class="conta-row-value">= {{ fmt_uyu(conta.ganancia_real_uyu) }}</span>
-        <span class="conta-row-detail">Lo que realmente te quedo</span>
+        <span class="conta-row-detail">Ventas menos costos de Arcano (vendido + stock) menos gastos</span>
     </div>
 </section>
 

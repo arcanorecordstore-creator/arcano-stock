@@ -295,9 +295,28 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
         .filter(Disc.fecha_venta < fin_dt)
         .all()
     )
+    # Separar ventas por origen: arcano (inversion del negocio) vs personal (aporte)
+    vendidos_arcano = [d for d in vendidos if (d.origen or "arcano") != "personal"]
+    vendidos_personal = [d for d in vendidos if (d.origen or "arcano") == "personal"]
+
     ingresos_uyu = sum((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in vendidos)
-    costo_discos_uyu = sum((d.costo_final_uyu or 0) * d.copias_facturadas for d in vendidos)
+    ingresos_personal_uyu = sum((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in vendidos_personal)
+    ingresos_arcano_uyu = ingresos_uyu - ingresos_personal_uyu
+
+    # Costo de discos vendidos: SOLO los de arcano (los personales no costaron al negocio)
+    costo_discos_uyu = sum((d.costo_final_uyu or 0) * d.copias_facturadas for d in vendidos_arcano)
     unidades_vendidas = sum(d.copias_facturadas for d in vendidos)
+    unidades_personal = sum(d.copias_facturadas for d in vendidos_personal)
+
+    # --- COSTO DE STOCK NO VENDIDO (solo arcano) ---
+    # Plata ya gastada en discos disponibles que todavia no se vendieron.
+    disponibles_arcano = (
+        Disc.query
+        .filter(Disc.estado == "Disponible")
+        .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
+        .all()
+    )
+    costo_stock_no_vendido_uyu = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in disponibles_arcano)
 
     # --- EGRESOS: gastos operativos del periodo ---
     egresos = (
@@ -315,8 +334,11 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
     egresos_por_categoria = sorted(por_categoria.items(), key=lambda x: x[1], reverse=True)
 
     # --- GANANCIA ---
-    ganancia_bruta = ingresos_uyu - costo_discos_uyu       # margen de los discos
-    ganancia_real = ganancia_bruta - egresos_uyu            # despues de gastos operativos
+    # Ganancia bruta: solo sobre los discos de Arcano (los personales no restan costo
+    # pero su ingreso ya esta contado; el margen "de Arcano" los excluye del costo).
+    ganancia_bruta = ingresos_uyu - costo_discos_uyu       # margen de los discos vendidos
+    # Ganancia real: descontar tambien el stock no vendido de arcano y los gastos.
+    ganancia_real = ganancia_bruta - costo_stock_no_vendido_uyu - egresos_uyu
 
     # --- COMPARACION con periodo anterior ---
     comparacion = None
@@ -351,6 +373,12 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
         "ganancia_bruta_uyu": round(ganancia_bruta, 2),
         "ganancia_real_uyu": round(ganancia_real, 2),
         "comparacion": comparacion,
+        "ingresos_arcano_uyu": round(ingresos_arcano_uyu, 2),
+        "ingresos_personal_uyu": round(ingresos_personal_uyu, 2),
+        "unidades_personal": unidades_personal,
+        "titulos_personal": len(vendidos_personal),
+        "costo_stock_no_vendido_uyu": round(costo_stock_no_vendido_uyu, 2),
+        "stock_no_vendido_titulos": len(disponibles_arcano),
     }
 
 
