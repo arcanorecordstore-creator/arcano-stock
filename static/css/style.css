@@ -7933,3 +7933,27 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
         bottom: calc(var(--arcano-navh) + env(safe-area-inset-bottom, 0px) + 250px);
     }
 }
+
+/* =========================================================================
+   v2.74 - Boton cerrar (X) del reproductor comodo y siempre alcanzable en MOVIL
+   Antes quedaba chico y podia enterrarse detras del iframe. Ahora se fija
+   arriba a la derecha del player, con buen tamano de toque y por encima de todo.
+   ========================================================================= */
+@media (max-width: 700px) {
+    .floating-player {
+        position: fixed;         /* ya lo es; asegura contexto para la X absoluta */
+        padding-right: 52px;     /* reservar el espacio de la X arriba a la derecha */
+    }
+    .floating-player-close {
+        position: absolute;
+        top: 6px;
+        right: 8px;
+        width: 40px;
+        height: 40px;
+        font-size: 22px;
+        background: var(--bg-1);
+        border-color: var(--border-2);
+        color: var(--text-1);
+        z-index: 6;              /* por encima del iframe de SoundCloud/YouTube */
+    }
+}
