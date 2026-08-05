@@ -7565,3 +7565,125 @@ td.num,
     font-size: 13px;
     cursor: pointer;
 }
+
+/* ============================================================
+   v2.69 - Curaduria visible + fluidez
+   ============================================================ */
+
+/* --- Badge Tip (card del catalogo y carruseles) --- */
+.public-card-badge-tip {
+    background: linear-gradient(135deg, #b8860b, #daa520);
+    color: #0a0a0a;
+    font-weight: 700;
+}
+/* --- Badge Tip en la ficha --- */
+.public-badge-tip-ficha {
+    background: linear-gradient(135deg, #b8860b, #daa520);
+    color: #0a0a0a;
+    font-weight: 700;
+    border: none;
+}
+
+/* --- Resena de una linea en la card --- */
+.public-card-resena {
+    font-size: 12px;
+    font-style: italic;
+    color: var(--text-2, #aaa);
+    margin-top: 4px;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* --- Cabecera de resultados con boton escuchar todo --- */
+.public-results-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+}
+.public-results-head .public-results-count { margin: 0; }
+.listen-all-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--border-3, #444);
+    background: transparent;
+    color: var(--text-1, #eee);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+}
+.listen-all-btn:hover { border-color: var(--accent, #10b981); transform: translateY(-1px); }
+.listen-all-btn.activo {
+    background: var(--accent, #10b981);
+    border-color: var(--accent, #10b981);
+    color: #0a0a0a;
+}
+
+/* --- Skeleton shimmer en covers mientras cargan --- */
+.public-card-cover, .carrusel-cover {
+    background: linear-gradient(100deg, var(--bg-2, #1a1a1a) 40%, var(--bg-1, #222) 50%, var(--bg-2, #1a1a1a) 60%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+}
+.public-card-cover:has(img.img-loaded), .carrusel-cover:has(img.img-loaded) {
+    animation: none;
+    background: var(--bg-2, #1a1a1a);
+}
+img.img-pending { opacity: 0; }
+img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
+
+/* --- Hover de cards: elevacion + zoom sutil de la cover --- */
+.public-card {
+    transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+}
+.public-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--border-3);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+.public-card-cover img {
+    transition: transform 0.35s ease, opacity 0.35s ease;
+}
+.public-card:hover .public-card-cover img {
+    transform: scale(1.04);
+}
+
+/* --- Fly to cart: la mini cover vuela al carrito --- */
+.fly-to-cart-clone {
+    position: fixed;
+    z-index: 9999;
+    border-radius: 8px;
+    pointer-events: none;
+    object-fit: cover;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+    transition: transform 0.65s cubic-bezier(0.3, 0.7, 0.4, 1), opacity 0.65s ease;
+    will-change: transform, opacity;
+}
+
+/* --- Bounce del contador del carrito --- */
+@keyframes cartBounce {
+    0% { transform: scale(1); }
+    35% { transform: scale(1.45); }
+    70% { transform: scale(0.9); }
+    100% { transform: scale(1); }
+}
+.cart-count.bounce { animation: cartBounce 0.45s ease; }
+
+/* --- View Transitions: navegacion con fundido suave --- */
+@view-transition { navigation: auto; }
+::view-transition-old(root) { animation-duration: 0.18s; }
+::view-transition-new(root) { animation-duration: 0.22s; }
+@media (prefers-reduced-motion: reduce) {
+    @view-transition { navigation: none; }
+    .public-card, .public-card-cover img, .listen-all-btn { transition: none; }
+    .public-card-cover, .carrusel-cover { animation: none; }
+}

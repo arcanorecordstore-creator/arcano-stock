@@ -93,6 +93,10 @@ class Disc(db.Model):
     precio_oferta = db.Column(db.Float, nullable=True, default=None)
     # Mostrar en el catalogo aunque este agotado/vendido (con sello "Agotado")
     mostrar_agotado = db.Column(db.Boolean, nullable=False, default=False)
+    # Badge de recomendacion del curador (etiqueta editable en Ajustes, default "Tip").
+    es_tip = db.Column(db.Boolean, nullable=False, default=False)
+    # Resena de una linea, visible en la card del catalogo (estilo Hard Wax).
+    resena_corta = db.Column(db.String(160), nullable=True)
     # Mostrar en el carrusel "Pre-order" del inicio (toggle manual, como destacado).
     # Solo tiene efecto si ademas el estado es "Pre-order".
     es_preorder = db.Column(db.Boolean, nullable=False, default=False)
@@ -473,6 +477,8 @@ class Track(db.Model):
     youtube_start = db.Column(db.Integer, nullable=True)     # segundos (para arrancar en el drop)
 
     fecha_ingreso = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # Contador total de reproducciones del sample (para charts de escuchados).
+    play_count = db.Column(db.Integer, nullable=False, default=0)
 
     disc = db.relationship("Disc", backref=db.backref(
         "tracks",
@@ -603,6 +609,21 @@ def parse_tracklist_text(text: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 # Modelo: Reserva
 # ---------------------------------------------------------------------------
+
+class PlayEvent(db.Model):
+    """Registro de cada reproduccion de un sample, con fecha.
+
+    Permite armar el chart de "lo mas escuchado del mes" con ventana real
+    de 30 dias (el play_count del Track es el total historico).
+    """
+
+    __tablename__ = "play_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    track_id = db.Column(db.Integer, db.ForeignKey("tracks.id", ondelete="CASCADE"), nullable=False, index=True)
+    disc_id = db.Column(db.Integer, db.ForeignKey("discs.id", ondelete="CASCADE"), nullable=False, index=True)
+    fecha = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+
 
 class Cliente(db.Model):
     """Cuenta de cliente de la tienda publica.
@@ -1121,6 +1142,29 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE pedidos ADD COLUMN costo_uyu_manual FLOAT"))
                     conn.commit()
                 print("Migracion: columna costo_uyu_manual agregada a pedidos")
+
+        # Columnas es_tip y resena_corta en discs (curaduria visible)
+        if inspector.has_table("discs"):
+            dcols = [c["name"] for c in inspector.get_columns("discs")]
+            if "es_tip" not in dcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN es_tip BOOLEAN DEFAULT 0"))
+                    conn.commit()
+                print("Migracion: columna es_tip agregada a discs")
+            if "resena_corta" not in dcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN resena_corta VARCHAR(160)"))
+                    conn.commit()
+                print("Migracion: columna resena_corta agregada a discs")
+
+        # Columna play_count en tracks (contador de escuchas)
+        if inspector.has_table("tracks"):
+            tcols = [c["name"] for c in inspector.get_columns("tracks")]
+            if "play_count" not in tcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE tracks ADD COLUMN play_count INTEGER DEFAULT 0"))
+                    conn.commit()
+                print("Migracion: columna play_count agregada a tracks")
 
         # Columna cliente_id en reservas (para cuentas de cliente)
         if inspector.has_table("reservas"):

@@ -19,6 +19,28 @@
     var fpArtist = document.getElementById('fp-artist');
     var fpAudio = document.getElementById('fp-audio');
     var fpYtSlot = document.getElementById('fp-youtube-slot');
+
+    // ---- Contador de escuchas (fire & forget) ----
+    function registrarPlay(trackId) {
+        if (!trackId) return;
+        try {
+            fetch('/api/track/' + trackId + '/play', { method: 'POST', keepalive: true });
+        } catch (e) {}
+    }
+
+    // ---- Modo "Escuchar todo" ----
+    var modoEscucharTodo = false;
+    var autoNextTimer = null;
+    function limpiarAutoNext() {
+        if (autoNextTimer) { clearTimeout(autoNextTimer); autoNextTimer = null; }
+    }
+    function sincronizarBotonListenAll() {
+        var b = document.getElementById('listen-all-btn');
+        if (!b) return;
+        b.querySelector('.listen-all-play').hidden = modoEscucharTodo;
+        b.querySelector('.listen-all-stop').hidden = !modoEscucharTodo;
+        b.classList.toggle('activo', modoEscucharTodo);
+    }
     var fpClose = document.getElementById('fp-close');
     var fpNav = document.getElementById('fp-nav');
     var fpPrev = document.getElementById('fp-prev');
@@ -99,6 +121,9 @@
         if (fpPos) fpPos.hidden = true;
         player.classList.remove('visible');
         setTimeout(function () { player.hidden = true; }, 250);
+        modoEscucharTodo = false;
+        limpiarAutoNext();
+        sincronizarBotonListenAll();
     }
 
     fpClose.addEventListener('click', closePlayer);
@@ -111,6 +136,7 @@
         }
         stopAll();
         showPlayer(btn.dataset.coverUrl, btn.dataset.trackTitle, btn.dataset.trackArtist);
+        registrarPlay(btn.dataset.trackId);
         fpAudio.hidden = false;
         fpYtSlot.hidden = true;
         fpAudio.src = btn.dataset.audioUrl;
@@ -128,6 +154,7 @@
         }
         stopAll();
         showPlayer(btn.dataset.coverUrl, btn.dataset.trackTitle, btn.dataset.trackArtist);
+        registrarPlay(btn.dataset.trackId);
         fpAudio.hidden = true;
         fpYtSlot.hidden = false;
 
@@ -167,6 +194,7 @@
         }
         stopAll();
         showPlayer(btn.dataset.coverUrl, btn.dataset.trackTitle, btn.dataset.trackArtist);
+        registrarPlay(btn.dataset.trackId);
         fpAudio.hidden = true;
         fpYtSlot.hidden = false;
 
@@ -213,8 +241,17 @@
         var t = playlist[playIndex];
         if (!t) return;
         stopAudioYt();
-        showPlayer(playCover, t.title, t.artist);
+        showPlayer(t.cover || playCover, t.title, t.artist);
         actualizarNav();
+        registrarPlay(t.id);
+        // En modo escuchar-todo, los samples de YouTube/SoundCloud no avisan
+        // cuando terminan (iframe), asi que avanzamos solos a los 60s.
+        if (modoEscucharTodo && t.kind !== 'local') {
+            autoNextTimer = setTimeout(function () {
+                if (playIndex < playlist.length - 1) { playIndex++; reproducirTrackActual(); }
+                else { closePlayer(); }
+            }, 60000);
+        }
 
         if (t.kind === 'local') {
             fpAudio.hidden = false;
@@ -224,6 +261,7 @@
             fpAudio.play().catch(function (e) { console.error('Play failed', e); });
             fpAudio.onended = function () {
                 if (playIndex < playlist.length - 1) { playIndex++; reproducirTrackActual(); }
+                else if (modoEscucharTodo) { closePlayer(); }
             };
         } else if (t.kind === 'youtube') {
             montarYouTube(t.youtubeId, t.youtubeStart);
@@ -235,6 +273,7 @@
     }
 
     function stopAudioYt() {
+        limpiarAutoNext();
         try { fpAudio.pause(); fpAudio.removeAttribute('src'); fpAudio.onended = null; fpAudio.load(); } catch (e) {}
         fpAudio.hidden = true;
         fpYtSlot.innerHTML = '';
@@ -370,4 +409,37 @@
         else if (kind === 'youtube') playYouTube(btn);
         else if (kind === 'soundcloud') playSoundCloud(btn);
     });
+
+    // ---- Boton "Escuchar todo": recorre los samples del catalogo en secuencia ----
+    (function initEscucharTodo() {
+        var boton = document.getElementById('listen-all-btn');
+        if (!boton) return;
+        var cardBtns = document.querySelectorAll('.card-play-btn[data-tracks]');
+        if (!cardBtns.length) return;
+        boton.hidden = false;
+
+        boton.addEventListener('click', function () {
+            if (modoEscucharTodo) {
+                closePlayer();
+                return;
+            }
+            // Armar la super-playlist con todos los tracks de la pagina, en orden
+            var lista = [];
+            cardBtns.forEach(function (b) {
+                var ts;
+                try { ts = JSON.parse(b.dataset.tracks || '[]'); } catch (e) { ts = []; }
+                ts.forEach(function (t) {
+                    t.cover = b.dataset.coverUrl || '';
+                    lista.push(t);
+                });
+            });
+            if (!lista.length) return;
+            modoEscucharTodo = true;
+            playlist = lista;
+            playIndex = 0;
+            playCover = lista[0].cover || '';
+            sincronizarBotonListenAll();
+            reproducirTrackActual();
+        });
+    })();
 })();

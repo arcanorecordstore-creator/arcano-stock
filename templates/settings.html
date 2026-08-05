@@ -266,6 +266,11 @@
             </div>
 
             <div class="form-field" style="margin-top: 14px;">
+                <label for="tip_label">Etiqueta de recomendacion <span class="form-field-hint">(el badge de los discos que marcas como tip; ej: "Tip", "Tip de Lapente", "Recomendado")</span></label>
+                <input type="text" id="tip_label" name="tip_label" value="{{ tip_label or 'Tip' }}" maxlength="30" style="max-width: 260px;">
+            </div>
+
+            <div class="form-field" style="margin-top: 14px;">
                 <label for="analytics_snippet">Codigo de Analytics <span class="form-field-hint">(pega aca el snippet completo de Google Analytics u otro; se inserta en todas las paginas de la tienda)</span></label>
                 <textarea id="analytics_snippet" name="analytics_snippet" rows="4" placeholder="&lt;script async src=&quot;https://www.googletagmanager.com/gtag/js?id=G-XXXX&quot;&gt;&lt;/script&gt;..." style="font-family: monospace; font-size: 12px;">{{ analytics_snippet or '' }}</textarea>
             </div>

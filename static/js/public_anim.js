@@ -433,3 +433,97 @@
         if (!input.contains(e.target) && !box.contains(e.target)) cerrar();
     });
 })();
+
+/* ============================================================
+   v2.69 - Fluidez: skeleton de covers, prefetch, fly-to-cart
+   ============================================================ */
+(function () {
+    'use strict';
+
+    // --- Skeleton: fade-in de covers cuando terminan de cargar ---
+    function prepararImagen(img) {
+        if (img.complete && img.naturalWidth > 0) {
+            img.classList.add('img-loaded');
+            return;
+        }
+        img.classList.add('img-pending');
+        img.addEventListener('load', function () {
+            img.classList.remove('img-pending');
+            img.classList.add('img-loaded');
+        }, { once: true });
+        img.addEventListener('error', function () {
+            img.classList.remove('img-pending');
+            img.classList.add('img-loaded'); // mostrar igual (alt/vacio)
+        }, { once: true });
+    }
+    document.querySelectorAll('.public-card-cover img, .carrusel-cover img').forEach(prepararImagen);
+
+    // --- Prefetch on hover: precargar fichas al pasar el mouse ---
+    var prefetched = {};
+    function prefetch(url) {
+        if (prefetched[url]) return;
+        prefetched[url] = true;
+        var link = document.createElement('link');
+        link.rel = 'prefetch';
+        link.href = url;
+        document.head.appendChild(link);
+    }
+    document.addEventListener('mouseover', function (e) {
+        var a = e.target.closest('a[href^="/disco/"]');
+        if (a) prefetch(a.getAttribute('href'));
+    });
+    document.addEventListener('touchstart', function (e) {
+        var a = e.target.closest('a[href^="/disco/"]');
+        if (a) prefetch(a.getAttribute('href'));
+    }, { passive: true });
+
+    // --- Fly to cart + bounce del contador ---
+    function carritoDestino() {
+        // El icono visible: topbar en desktop, bottom-nav en mobile
+        var top = document.querySelector('.public-topbar-cart');
+        var bottom = document.querySelector('.bottom-nav-item .cart-count');
+        if (bottom && bottom.closest('.bottom-nav') &&
+            getComputedStyle(bottom.closest('.bottom-nav')).display !== 'none') {
+            return bottom.closest('.bottom-nav-item');
+        }
+        return top;
+    }
+    function volarAlCarrito(desdeImg) {
+        var destino = carritoDestino();
+        if (!destino || !desdeImg) return;
+        var o = desdeImg.getBoundingClientRect();
+        var d = destino.getBoundingClientRect();
+        var clone = desdeImg.cloneNode(true);
+        clone.className = 'fly-to-cart-clone';
+        var size = Math.min(o.width, 90);
+        clone.style.width = size + 'px';
+        clone.style.height = size + 'px';
+        clone.style.left = (o.left + o.width / 2 - size / 2) + 'px';
+        clone.style.top = (o.top + o.height / 2 - size / 2) + 'px';
+        document.body.appendChild(clone);
+        var dx = (d.left + d.width / 2) - (o.left + o.width / 2);
+        var dy = (d.top + d.height / 2) - (o.top + o.height / 2);
+        requestAnimationFrame(function () {
+            clone.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(0.12) rotate(12deg)';
+            clone.style.opacity = '0.25';
+        });
+        setTimeout(function () {
+            clone.remove();
+            document.querySelectorAll('.cart-count').forEach(function (c) {
+                c.classList.remove('bounce');
+                void c.offsetWidth; // reiniciar la animacion
+                c.classList.add('bounce');
+            });
+        }, 660);
+    }
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest('.cart-btn');
+        if (!btn) return;
+        // Solo animar cuando AGREGA (no cuando ya estaba en el carrito)
+        if (btn.classList.contains('in-cart')) return;
+        var card = btn.closest('.public-card') || btn.closest('.public-disc-layout') || document;
+        var img = card.querySelector('.public-card-cover img') ||
+                  card.querySelector('.public-disc-cover img');
+        volarAlCarrito(img);
+    });
+})();

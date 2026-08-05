@@ -433,6 +433,22 @@
             </div>
 
             <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label class="checkbox-field">
+                        <input type="checkbox" name="es_tip" value="1" {% if disc.es_tip %}checked{% endif %}>
+                        <span>Marcar como Tip <span class="form-field-hint">(badge de recomendacion en la card + aparece en el carrusel de tips; el texto del badge se edita en Ajustes)</span></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-row">
+                <div class="form-field form-field-full">
+                    <label for="resena_corta">Resena de una linea <span class="form-field-hint">(tu frase sobre el disco, visible en la card del catalogo; max 160 caracteres)</span></label>
+                    <input type="text" id="resena_corta" name="resena_corta" maxlength="160" value="{{ disc.resena_corta or '' }}" placeholder="ej: Warm-up infalible, la cara B es la joya">
+                </div>
+            </div>
+
+            <div class="form-row">
                 <div class="form-field">
                     <label for="cartel_nuevo">Cartel "Nuevo"</label>
                     <select id="cartel_nuevo" name="cartel_nuevo">

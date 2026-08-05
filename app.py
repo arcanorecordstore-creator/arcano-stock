@@ -2,7 +2,7 @@
 import csv
 import io
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from flask import (
     Flask,
@@ -44,6 +44,39 @@ import mailer
 # Registro en memoria de intentos de login fallidos por IP (rate limiting).
 # Se reinicia con cada deploy; suficiente para frenar fuerza bruta.
 _login_attempts: dict = {}
+
+
+def convertir_cover_a_webp(path_original: str) -> str:
+    """Convierte una imagen recien guardada a WebP (calidad 85).
+
+    Devuelve el nombre del archivo .webp resultante. Si algo falla,
+    devuelve el nombre original (la imagen queda como estaba).
+    Solo aplica a archivos NUEVOS: las covers existentes no se tocan.
+    """
+    import os as _os
+    try:
+        from PIL import Image
+        base, ext = _os.path.splitext(path_original)
+        if ext.lower() == ".webp":
+            return _os.path.basename(path_original)
+        img = Image.open(path_original)
+        # WebP no soporta todos los modos; normalizar
+        if img.mode in ("RGBA", "LA", "P"):
+            img = img.convert("RGBA") if "A" in img.mode or img.mode == "P" else img.convert("RGB")
+            if img.mode == "RGBA":
+                # aplanar transparencia sobre negro (covers de discos)
+                from PIL import Image as _Img
+                fondo = _Img.new("RGB", img.size, (10, 10, 10))
+                fondo.paste(img, mask=img.split()[-1])
+                img = fondo
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+        webp_path = base + ".webp"
+        img.save(webp_path, "WEBP", quality=85, method=4)
+        _os.remove(path_original)
+        return _os.path.basename(webp_path)
+    except Exception:
+        return _os.path.basename(path_original)
 
 
 def create_app() -> Flask:
@@ -407,6 +440,8 @@ def populate_disc_from_form(disc: Disc, form) -> list[str]:
     disc.tags = _str_or_none(form.get("tags"))
     disc.destacado = form.get("destacado") == "1"
     disc.en_nuevos = form.get("en_nuevos") == "1"
+    disc.es_tip = form.get("es_tip") == "1"
+    disc.resena_corta = _str_or_none(form.get("resena_corta"))
     disc.cartel_ultima = form.get("cartel_ultima") == "1"
     disc.mostrar_agotado = form.get("mostrar_agotado") == "1"
     disc.es_preorder = form.get("es_preorder") == "1"
@@ -828,6 +863,8 @@ def register_routes(app: Flask) -> None:
         if result.data.get("cover_url"):
             covers_dir = app.config["COVERS_DIR"]
             cover_local = scraper.download_cover(result.data["cover_url"], covers_dir)
+            if cover_local:
+                cover_local = convertir_cover_a_webp(os.path.join(covers_dir, cover_local))
 
         prefill = dict(result.data)
         if cover_local:
@@ -1219,6 +1256,9 @@ def register_routes(app: Flask) -> None:
         except Exception as e:
             return _err(f"Error al guardar archivo: {e}", status=500)
 
+        # Convertir a WebP (menos peso, misma calidad visual)
+        filename = convertir_cover_a_webp(dest_path)
+
         disc.cover_local = filename
         db.session.commit()
 
@@ -1279,7 +1319,9 @@ def register_routes(app: Flask) -> None:
             ext = ext_map[media_type]
             filename = f"img_{_uuid.uuid4().hex[:12]}{ext}"
             try:
-                file.save(os.path.join(covers_dir, filename))
+                _dest = os.path.join(covers_dir, filename)
+                file.save(_dest)
+                filename = convertir_cover_a_webp(_dest)
             except Exception:
                 continue
             img = DiscImage(disc_id=disc.id, posicion=pos, filename=filename)
@@ -1374,6 +1416,7 @@ def register_routes(app: Flask) -> None:
 
         try:
             file.save(dest_path)
+            filename = convertir_cover_a_webp(dest_path)
         except Exception as e:
             return jsonify({"ok": False, "error": str(e)}), 500
 
@@ -1442,7 +1485,7 @@ def register_routes(app: Flask) -> None:
             # Cambio masivo de un parametro booleano o el cartel Nuevo
             campo = (request.form.get("campo") or "").strip()
             valor = (request.form.get("valor") or "").strip()
-            campos_bool = ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado", "es_preorder")
+            campos_bool = ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado", "es_preorder", "es_tip")
             cambios = 0
             if campo in campos_bool:
                 nuevo_val = valor in ("1", "true", "on", "si")
@@ -1451,7 +1494,7 @@ def register_routes(app: Flask) -> None:
                     cambios += 1
                 db.session.commit()
                 etiquetas = {
-                    "destacado": "Destacado", "en_nuevos": "Nuevos ingresos",
+                    "destacado": "Destacado", "en_nuevos": "Nuevos ingresos", "es_tip": "Tip",
                     "cartel_ultima": "Ultima copia", "mostrar_agotado": "Agotado visible",
                     "es_preorder": "Carrusel Pre-order",
                 }
@@ -1975,7 +2018,7 @@ def register_routes(app: Flask) -> None:
             db.session.commit()
             return jsonify({"ok": True, "campo": campo, "valor": disc.pedido_id or ""})
 
-        elif campo in ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado", "es_preorder"):
+        elif campo in ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado", "es_preorder", "es_tip"):
             # valor viene como "1"/"0" o true/false
             nuevo = str(valor) in ("1", "true", "True", "on")
             setattr(disc, campo, nuevo)
@@ -2716,6 +2759,7 @@ def register_routes(app: Flask) -> None:
             public_instagram=Setting.get("public_instagram", ""),
             public_whatsapp=Setting.get("public_whatsapp", ""),
             analytics_snippet=Setting.get("analytics_snippet", ""),
+            tip_label=Setting.get("tip_label", "Tip"),
             public_banner_url=Setting.get("public_banner_url", ""),
             public_hero_title=Setting.get("public_hero_title", ""),
             public_hero_subtitle=Setting.get("public_hero_subtitle", ""),
@@ -2951,6 +2995,7 @@ def register_routes(app: Flask) -> None:
             "instagram": Setting.get("public_instagram", ""),
             "whatsapp": Setting.get("public_whatsapp", ""),
             "analytics_snippet": Setting.get("analytics_snippet", ""),
+            "tip_label": Setting.get("tip_label", "Tip"),
             "banner_url": _banner_url_si_existe(),
             "anuncio_texto": Setting.get("public_anuncio_texto", ""),
             "hero_title": Setting.get("public_hero_title", ""),
@@ -3203,12 +3248,45 @@ def register_routes(app: Flask) -> None:
             # Discos en estado Pre-order con el toggle de carrusel prendido
             preorders_carrusel = [d for d in all_disponibles if d.en_carrusel_preorder][:12]
 
+        # --- TIPS DEL CURADOR ---
+        # Discos marcados como tip, disponibles. Se muestra siempre que haya.
+        tips_carrusel = []
+        if pagina == 1 and filtros_activos == 0 and not q and orden == "nuevos":
+            tips_carrusel = [
+                d for d in all_disponibles
+                if d.es_tip and (not d.esta_agotado or d.mostrar_preorder)
+            ][:12]
+
+        # --- LO MAS ESCUCHADO (ultimos 30 dias) ---
+        mas_escuchados = []
+        if pagina == 1 and filtros_activos == 0 and not q and orden == "nuevos":
+            from models import PlayEvent
+            from sqlalchemy import func as _func
+            hace_30 = datetime.utcnow() - timedelta(days=30)
+            plays_por_disco = dict(
+                db.session.query(PlayEvent.disc_id, _func.count(PlayEvent.id))
+                .filter(PlayEvent.fecha >= hace_30)
+                .group_by(PlayEvent.disc_id)
+                .all()
+            )
+            if plays_por_disco:
+                con_plays = [
+                    (d, plays_por_disco.get(d.id, 0))
+                    for d in all_disponibles
+                    if plays_por_disco.get(d.id, 0) > 0
+                    and (not d.esta_agotado or d.mostrar_preorder)
+                ]
+                con_plays.sort(key=lambda x: x[1], reverse=True)
+                mas_escuchados = [d for d, n in con_plays[:6]]
+
         return render_template(
             "public/home.html",
             discs=discs_pagina,
             destacados=destacados,
             nuevos_ingresos=nuevos_ingresos,
             preorders_carrusel=preorders_carrusel,
+            tips_carrusel=tips_carrusel,
+            mas_escuchados=mas_escuchados,
             total_resultados=total_resultados,
             pagina=pagina,
             total_paginas=total_paginas,
@@ -3235,6 +3313,22 @@ def register_routes(app: Flask) -> None:
             filtros_activos=filtros_activos,
             **_public_context(),
         )
+
+    @app.route("/api/track/<int:track_id>/play", methods=["POST"])
+    def api_track_play(track_id: int):
+        """Registra una reproduccion de sample (la llama el player al dar play).
+
+        Incrementa el contador total del track y guarda el evento con fecha
+        para el chart de 'lo mas escuchado del mes'. Publica, sin auth.
+        """
+        from models import Track, PlayEvent
+        track = Track.query.get(track_id)
+        if not track:
+            return jsonify({"ok": False}), 404
+        track.play_count = (track.play_count or 0) + 1
+        db.session.add(PlayEvent(track_id=track.id, disc_id=track.disc_id))
+        db.session.commit()
+        return jsonify({"ok": True, "plays": track.play_count})
 
     @app.route("/disco/<int:disc_id>")
     def public_disc(disc_id: int):
@@ -3811,6 +3905,7 @@ def register_routes(app: Flask) -> None:
             "public_carrusel_velocidad",
             "public_card_tamano",
             "analytics_snippet",
+            "tip_label",
         ]
         for key in keys:
             value = (request.form.get(key) or "").strip()

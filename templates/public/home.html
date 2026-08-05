@@ -76,6 +76,14 @@
 {{ carrusel(preorders_carrusel, 'Pre-order', 'preorder') }}
 {% endif %}
 
+{% if tips_carrusel %}
+{{ carrusel(tips_carrusel, tip_label or 'Tip', 'tips') }}
+{% endif %}
+
+{% if mas_escuchados %}
+{{ carrusel(mas_escuchados, 'Lo mas escuchado del mes', 'escuchados') }}
+{% endif %}
+
 {% if destacados %}
 {{ carrusel(destacados, 'Discos destacados', 'destacados') }}
 {% endif %}
@@ -221,10 +229,16 @@
 
 
 {% if discs %}
-<p class="public-results-count">
-    {{ total_resultados }} disco{{ 's' if total_resultados != 1 else '' }} disponible{{ 's' if total_resultados != 1 else '' }}
-    {% if total_paginas > 1 %}<span class="public-results-page">&middot; pagina {{ pagina }} de {{ total_paginas }}</span>{% endif %}
-</p>
+<div class="public-results-head">
+    <p class="public-results-count">
+        {{ total_resultados }} disco{{ 's' if total_resultados != 1 else '' }} disponible{{ 's' if total_resultados != 1 else '' }}
+        {% if total_paginas > 1 %}<span class="public-results-page">&middot; pagina {{ pagina }} de {{ total_paginas }}</span>{% endif %}
+    </p>
+    <button type="button" id="listen-all-btn" class="listen-all-btn" hidden>
+        <span class="listen-all-play">&#9654; Escuchar todo</span>
+        <span class="listen-all-stop" hidden>&#9724; Detener</span>
+    </button>
+</div>
 
 <div class="public-grid public-grid-{{ card_tamano or 'mediano' }}" data-mobile-cols="{{ grid_mobile or '1' }}"{% if grid_columnas and grid_columnas != 'auto' %} style="grid-template-columns: repeat({{ grid_columnas }}, 1fr);"{% endif %}>
     {% for d in discs %}
@@ -251,6 +265,9 @@
                 {% if d.mostrar_cartel_ultima and not d.esta_agotado %}
                 <span class="public-card-badge public-card-badge-last">Ultima copia</span>
                 {% endif %}
+                {% if d.es_tip and not d.esta_agotado %}
+                <span class="public-card-badge public-card-badge-tip">&#9733; {{ tip_label or 'Tip' }}</span>
+                {% endif %}
             </div>
             {% set ps = d.primer_track_sample %}
             {% if ps %}
@@ -258,6 +275,7 @@
             {% set tracks_data = [] %}
             {% for t in d.tracks_con_sample %}
                 {% set _ = tracks_data.append({
+                    'id': t.id,
                     'kind': t.sample_kind,
                     'audioUrl': url_for('static', filename='samples/' + t.sample_local) if t.sample_kind == 'local' else '',
                     'youtubeId': t.youtube_video_id or '',
@@ -268,6 +286,7 @@
                 }) %}
             {% endfor %}
             <button type="button" class="card-play-btn" data-play="{{ ps.sample_kind }}"
+                    data-track-id="{{ ps.id }}"
                     data-tracks="{{ tracks_data|tojson|forceescape }}"
                     data-cover-url="{{ card_cover }}"
                     {% if ps.sample_kind == 'local' %}data-audio-url="{{ url_for('static', filename='samples/' + ps.sample_local) }}"{% endif %}
@@ -293,6 +312,7 @@
             <div class="public-card-artist">{{ d.artista }}</div>
             <div class="public-card-title">{{ d.titulo }}</div>
             {% if d.sello %}<div class="public-card-label">{{ d.sello }}{% if d.anio %} &middot; {{ d.anio }}{% endif %}</div>{% endif %}
+            {% if d.resena_corta %}<div class="public-card-resena">&ldquo;{{ d.resena_corta }}&rdquo;</div>{% endif %}
             {% if d.tags_list %}
             <div class="public-card-tags">
                 {% for tag in d.tags_list[:2] %}
