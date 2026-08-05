@@ -12,6 +12,12 @@
         <h1 class="page-title">Pedidos</h1>
         <p class="page-sub">Tus compras de stock. Vincula discos a cada pedido para ver si ya se pago solo.</p>
     </div>
+    {% if pedidos %}
+    <div class="ped-export-btns">
+        <a href="{{ url_for('pedidos_exportar_excel') }}" class="conta-export-btn">&#8595; Excel</a>
+        <a href="{{ url_for('pedidos_exportar_pdf') }}" class="conta-export-btn">&#8595; PDF</a>
+    </div>
+    {% endif %}
 </section>
 
 <!-- Resumen de pedidos -->

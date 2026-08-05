@@ -2169,6 +2169,175 @@ def register_routes(app: Flask) -> None:
         flash("Pedido eliminado (los discos quedaron sin pedido).", "success")
         return redirect(url_for("pedidos"))
 
+    @app.route("/admin/pedidos/exportar/excel")
+    @auth.admin_required
+    def pedidos_exportar_excel():
+        """Exporta todos los pedidos a Excel: resumen + detalle de discos."""
+        from models import Pedido
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        import io
+
+        pedidos = Pedido.query.order_by(Pedido.fecha.desc()).all()
+        wb = openpyxl.Workbook()
+
+        # --- Hoja 1: Resumen ---
+        ws = wb.active
+        ws.title = "Resumen"
+        headers = ["Pedido", "Fecha", "Proveedor", "Costo EUR", "Costo USD", "Costo total UYU",
+                   "Discos declarados", "Discos asignados", "Vendidos", "Recaudado UYU",
+                   "Resultado UYU", "Estado"]
+        header_font = Font(bold=True, color="FFFFFF", name="Arial")
+        header_fill = PatternFill(start_color="1A1A1A", end_color="1A1A1A", fill_type="solid")
+        for col, h in enumerate(headers, 1):
+            c = ws.cell(row=1, column=col, value=h)
+            c.font = header_font
+            c.fill = header_fill
+            c.alignment = Alignment(horizontal="center")
+        row = 2
+        for p in pedidos:
+            ws.cell(row=row, column=1, value=p.numero or f"#{p.id}")
+            ws.cell(row=row, column=2, value=p.fecha.strftime("%d/%m/%Y") if p.fecha else "")
+            ws.cell(row=row, column=3, value=p.proveedor)
+            ws.cell(row=row, column=4, value=round(p.costo_eur, 2))
+            ws.cell(row=row, column=5, value=round(p.costo_usd, 2))
+            ws.cell(row=row, column=6, value=round(p.costo_total_uyu, 2))
+            ws.cell(row=row, column=7, value=p.cant_discos)
+            ws.cell(row=row, column=8, value=p.discos_asignados)
+            ws.cell(row=row, column=9, value=p.discos_vendidos)
+            ws.cell(row=row, column=10, value=round(p.recaudado_uyu, 2))
+            ws.cell(row=row, column=11, value=round(p.resultado_uyu, 2))
+            ws.cell(row=row, column=12, value="Recuperado" if p.recuperado else "En perdida")
+            row += 1
+        for col in range(1, len(headers) + 1):
+            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 16
+
+        # --- Hoja 2: Detalle de discos ---
+        ws2 = wb.create_sheet("Detalle discos")
+        headers2 = ["Pedido", "Artista", "Titulo", "Sello", "Formato", "Precio UYU", "Costo UYU", "Estado", "Copias vendidas"]
+        for col, h in enumerate(headers2, 1):
+            c = ws2.cell(row=1, column=col, value=h)
+            c.font = header_font
+            c.fill = header_fill
+            c.alignment = Alignment(horizontal="center")
+        row = 2
+        for p in pedidos:
+            for d in p.discos:
+                ws2.cell(row=row, column=1, value=p.numero or f"#{p.id}")
+                ws2.cell(row=row, column=2, value=d.artista)
+                ws2.cell(row=row, column=3, value=d.titulo)
+                ws2.cell(row=row, column=4, value=d.sello or "")
+                ws2.cell(row=row, column=5, value=d.formato or "")
+                ws2.cell(row=row, column=6, value=round(d.precio_mostrar or d.precio_uyu or 0))
+                ws2.cell(row=row, column=7, value=round(d.costo_final_uyu or 0))
+                ws2.cell(row=row, column=8, value=d.estado)
+                ws2.cell(row=row, column=9, value=d.copias_facturadas)
+                row += 1
+        for col in range(1, len(headers2) + 1):
+            ws2.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 16
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        from flask import send_file
+        return send_file(
+            output,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            as_attachment=True,
+            download_name="arcano_pedidos.xlsx",
+        )
+
+    @app.route("/admin/pedidos/exportar/pdf")
+    @auth.admin_required
+    def pedidos_exportar_pdf():
+        """Exporta todos los pedidos a PDF: resumen + detalle de discos."""
+        from models import Pedido
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.lib.units import cm
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        import io
+
+        pedidos = Pedido.query.order_by(Pedido.fecha.desc()).all()
+        output = io.BytesIO()
+        doc = SimpleDocTemplate(output, pagesize=landscape(A4),
+                                leftMargin=1*cm, rightMargin=1*cm, topMargin=1.2*cm, bottomMargin=1*cm)
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle("titulo", parent=styles["Title"], fontSize=18, textColor=colors.HexColor("#1a1a1a"))
+        sub_style = ParagraphStyle("sub", parent=styles["Normal"], fontSize=9, textColor=colors.grey)
+        h2_style = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=13)
+        elems = []
+
+        elems.append(Paragraph("Arcano Record Store &mdash; Pedidos", title_style))
+        from datetime import datetime as _dt
+        elems.append(Paragraph(f"Generado el {_dt.now().strftime('%d/%m/%Y')}", sub_style))
+        elems.append(Spacer(1, 0.5*cm))
+
+        # Tabla resumen
+        elems.append(Paragraph("Resumen de pedidos", h2_style))
+        elems.append(Spacer(1, 0.2*cm))
+        data = [["Pedido", "Fecha", "Proveedor", "Costo UYU", "Discos", "Vendidos", "Recaudado", "Resultado", "Estado"]]
+        for p in pedidos:
+            data.append([
+                p.numero or f"#{p.id}",
+                p.fecha.strftime("%d/%m/%y") if p.fecha else "",
+                p.proveedor,
+                f"{p.costo_total_uyu:,.0f}".replace(",", "."),
+                f"{p.discos_asignados}/{p.cant_discos}",
+                str(p.discos_vendidos),
+                f"{p.recaudado_uyu:,.0f}".replace(",", "."),
+                f"{p.resultado_uyu:+,.0f}".replace(",", "."),
+                "Recuperado" if p.recuperado else "En perdida",
+            ])
+        t = Table(data, repeatRows=1)
+        t.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a1a1a")),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#dddddd")),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f5f5")]),
+            ("ALIGN", (3, 0), (-1, -1), "RIGHT"),
+            ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+        ]))
+        elems.append(t)
+        elems.append(Spacer(1, 0.8*cm))
+
+        # Detalle por pedido
+        elems.append(Paragraph("Detalle de discos por pedido", h2_style))
+        elems.append(Spacer(1, 0.2*cm))
+        for p in pedidos:
+            if not p.discos:
+                continue
+            elems.append(Spacer(1, 0.3*cm))
+            elems.append(Paragraph(f"<b>Pedido {p.numero or p.id}</b> &mdash; {p.proveedor} &mdash; {p.discos_asignados} discos", sub_style))
+            ddata = [["Artista", "Titulo", "Sello", "Precio", "Estado"]]
+            for d in p.discos:
+                ddata.append([
+                    d.artista or "", d.titulo or "", d.sello or "",
+                    f"{(d.precio_mostrar or d.precio_uyu or 0):,.0f}".replace(",", "."),
+                    d.estado,
+                ])
+            dt = Table(ddata, repeatRows=1, colWidths=[5*cm, 6*cm, 4*cm, 3*cm, 3*cm])
+            dt.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#444444")),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTSIZE", (0, 0), (-1, -1), 7),
+                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#eeeeee")),
+                ("ALIGN", (3, 0), (3, -1), "RIGHT"),
+            ]))
+            elems.append(dt)
+
+        doc.build(elems)
+        output.seek(0)
+        from flask import send_file
+        return send_file(
+            output, mimetype="application/pdf",
+            as_attachment=True, download_name="arcano_pedidos.pdf",
+        )
+
     # ----------------------------------------------------------------------
     # Settings
     @app.route("/admin/diag-banner")

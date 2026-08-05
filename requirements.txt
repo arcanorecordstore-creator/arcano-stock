@@ -8,5 +8,7 @@ anthropic
 cloudscraper
 pypdfium2
 Pillow
+openpyxl
+reportlab
 yt-dlp
 gunicorn

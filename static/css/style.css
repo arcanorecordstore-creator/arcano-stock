@@ -7377,3 +7377,7 @@ td.num,
 .ped-disco-estado.vendido { background: #1a1a1a; color: #fff; }
 .ped-disco-estado.disponible { background: rgba(16,185,129,0.15); color: #10b981; }
 .ped-sin-discos { font-size: 13px; color: var(--text-3, #888); font-style: italic; margin: 8px 0 12px; }
+
+/* Botones de exportar en pedidos */
+.ped-export-btns { display: flex; gap: 8px; }
+.page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
