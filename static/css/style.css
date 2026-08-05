@@ -2813,6 +2813,31 @@ body.app { display: block; padding: 0; }
     border: 1px solid var(--border-1);
     border-radius: 8px;
     overflow: hidden;
+    position: relative;
+}
+
+/* Overlay grande VENDIDO / Agotado sobre la portada */
+.public-disc-cover-overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(1px);
+}
+.public-disc-cover-overlay span {
+    background: #1a1a1a;
+    color: #fff;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    padding: 14px 36px;
+    border-radius: 8px;
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    transform: rotate(-8deg);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.5);
 }
 
 .public-disc-cover img {
@@ -7285,3 +7310,18 @@ td.num,
 .ped-progress-fill.full { background: #10b981; }
 .ped-notas { font-size: 13px; color: var(--text-2, #aaa); margin-bottom: 12px; font-style: italic; }
 .ped-card-foot { display: flex; justify-content: flex-end; }
+
+/* Selector de pedido en el dashboard */
+.pedido-select {
+    font-size: 12px;
+    padding: 4px 6px;
+    border-radius: 5px;
+    border: 1px solid var(--border-2, #333);
+    background: var(--bg-1, #1a1a1a);
+    color: var(--text-1, #eee);
+    max-width: 90px;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+}
+.pedido-select.saved { border-color: #10b981; }
+.col-pedido { white-space: nowrap; }

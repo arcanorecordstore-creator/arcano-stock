@@ -1842,6 +1842,21 @@ def register_routes(app: Flask) -> None:
             db.session.commit()
             return jsonify({"ok": True, "campo": campo, "valor": disc.origen})
 
+        elif campo == "pedido_id":
+            raw = (str(valor) if valor is not None else "").strip()
+            if raw == "" or raw == "0":
+                disc.pedido_id = None
+            elif raw.isdigit():
+                from models import Pedido
+                if Pedido.query.get(int(raw)):
+                    disc.pedido_id = int(raw)
+                else:
+                    return jsonify({"ok": False, "error": "Pedido inexistente"}), 400
+            else:
+                return jsonify({"ok": False, "error": "Pedido invalido"}), 400
+            db.session.commit()
+            return jsonify({"ok": True, "campo": campo, "valor": disc.pedido_id or ""})
+
         elif campo in ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado", "es_preorder"):
             # valor viene como "1"/"0" o true/false
             nuevo = str(valor) in ("1", "true", "True", "on")

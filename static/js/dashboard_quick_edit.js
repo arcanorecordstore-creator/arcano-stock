@@ -275,4 +275,26 @@
             });
         });
     });
+
+    // Selector de pedido en el dashboard
+    document.querySelectorAll('.pedido-select').forEach(function (sel) {
+        sel.addEventListener('change', function () {
+            var discId = sel.dataset.discId;
+            var original = sel.dataset.original || '';
+            fetch('/admin/discs/' + discId + '/quick-update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({ campo: 'pedido_id', valor: sel.value })
+            }).then(function (r) { return r.json(); }).then(function (d) {
+                if (d.ok) {
+                    sel.dataset.original = sel.value;
+                    // Feedback visual breve
+                    sel.classList.add('saved');
+                    setTimeout(function () { sel.classList.remove('saved'); }, 800);
+                } else {
+                    sel.value = original; // revertir si fallo
+                }
+            }).catch(function () { sel.value = original; });
+        });
+    });
 })();

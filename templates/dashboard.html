@@ -144,8 +144,9 @@
                 {{ th_sort('margen_pct', 'Margen', 'col-num') }}
                 {{ th_sort('estado', 'Estado', 'col-status') }}
                 {{ th_sort('origen', 'Origen', 'col-origen') }}
-                <th class="col-home" title="Marcar para las secciones de la home">Home</th>
+                <th class="col-pedido">Pedido</th>
                 {{ th_sort('stock', 'Stock', 'col-stock') }}
+                <th class="col-home" title="Marcar para las secciones de la home">Home</th>
                 <th class="col-fecha">Fechas</th>
                 <th class="col-actions">Acciones</th>
             </tr>
@@ -196,6 +197,14 @@
                     {% else %}
                     <span class="badge badge-arcano">Arcano</span>
                     {% endif %}
+                </td>
+                <td class="col-pedido">
+                    <select class="pedido-select" data-disc-id="{{ d.id }}" data-original="{{ d.pedido_id or '' }}" title="Asignar a un pedido">
+                        <option value="">—</option>
+                        {% for p in todos_los_pedidos %}
+                        <option value="{{ p.id }}" {% if d.pedido_id == p.id %}selected{% endif %}>{{ p.numero or ('#' ~ p.id) }}</option>
+                        {% endfor %}
+                    </select>
                 </td>
                 <td class="col-stock col-editable" data-edit="stock" data-disc-id="{{ d.id }}" data-raw="{{ d.stock }}" title="Click para editar el stock">{{ d.stock }}</td>
                 <td class="col-home">
@@ -255,8 +264,9 @@
                 <td class="col-num">—</td>
                 <td class="col-status">—</td>
                 <td class="col-origen">—</td>
-                <td class="col-home">—</td>
+                <td class="col-pedido">—</td>
                 <td class="col-stock">{{ totals.stock_total }}</td>
+                <td class="col-home">—</td>
                 <td class="col-fecha">—</td>
                 <td class="col-actions">—</td>
             </tr>

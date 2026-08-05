@@ -67,6 +67,11 @@
             {% else %}
                 <div class="public-disc-cover-empty">&#9834;</div>
             {% endif %}
+            {% if disc.estado == "Vendido" %}
+                <div class="public-disc-cover-overlay"><span>Vendido</span></div>
+            {% elif disc.esta_agotado and not disc.mostrar_preorder %}
+                <div class="public-disc-cover-overlay"><span>Agotado</span></div>
+            {% endif %}
         </div>
 
         {% if disc.imagenes %}
@@ -192,7 +197,6 @@
                 <div class="public-disc-status public-disc-status-reservado">Reservado</div>
                 <p class="public-disc-status-hint">Este disco ya esta reservado por otro cliente. Si la reserva no se concreta, vuelve a estar disponible.</p>
             {% elif disc.estado == "Vendido" %}
-                <div class="public-disc-status public-disc-status-vendido">Vendido</div>
                 <p class="public-disc-status-hint">Este disco ya no esta disponible.</p>
             {% endif %}
         </div>
