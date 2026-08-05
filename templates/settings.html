@@ -118,6 +118,18 @@
 
     <section class="settings-card">
         <header class="settings-card-head">
+            <h2 class="settings-card-title">Backup</h2>
+            <p class="settings-card-sub">Descarga una copia completa de tus datos. Recomendado: todos los viernes.</p>
+        </header>
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; padding: 4px 0 8px;">
+            <a href="{{ url_for('backup_db') }}" class="btn btn-primary">&#8595; Descargar base de datos</a>
+            <a href="{{ url_for('backup_covers') }}" class="btn btn-ghost">&#8595; Descargar portadas (ZIP)</a>
+        </div>
+        <p class="settings-card-sub" style="margin-top: 6px;">La base incluye discos, ventas, reservas, clientes, egresos y pedidos. Guarda el archivo en tu compu o Drive.</p>
+    </section>
+
+    <section class="settings-card">
+        <header class="settings-card-head">
             <h2 class="settings-card-title">Resumen de inventario</h2>
             <p class="settings-card-sub">Distribucion actual de discos por estado.</p>
         </header>
@@ -251,6 +263,11 @@
                     <label for="public_whatsapp">WhatsApp <span class="form-field-hint">(con codigo pais, sin + ni espacios)</span></label>
                     <input type="text" id="public_whatsapp" name="public_whatsapp" value="{{ public_whatsapp or '' }}" placeholder="59899123456">
                 </div>
+            </div>
+
+            <div class="form-field" style="margin-top: 14px;">
+                <label for="analytics_snippet">Codigo de Analytics <span class="form-field-hint">(pega aca el snippet completo de Google Analytics u otro; se inserta en todas las paginas de la tienda)</span></label>
+                <textarea id="analytics_snippet" name="analytics_snippet" rows="4" placeholder="&lt;script async src=&quot;https://www.googletagmanager.com/gtag/js?id=G-XXXX&quot;&gt;&lt;/script&gt;..." style="font-family: monospace; font-size: 12px;">{{ analytics_snippet or '' }}</textarea>
             </div>
 
             <div class="form-footer">

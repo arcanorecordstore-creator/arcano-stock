@@ -41,6 +41,11 @@ import auth
 import mailer
 
 
+# Registro en memoria de intentos de login fallidos por IP (rate limiting).
+# Se reinicia con cada deploy; suficiente para frenar fuerza bruta.
+_login_attempts: dict = {}
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
 
@@ -58,6 +63,44 @@ def create_app() -> Flask:
         "SECRET_KEY", "arcano-local-dev-key-change-me"
     )
     app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB
+
+    # --- Seguridad de cookies de sesion ---
+    # HTTPONLY: el JS no puede leer la cookie (previene robo por XSS).
+    # SAMESITE Lax: la cookie no viaja en requests cross-site (mitiga CSRF).
+    # SECURE solo en produccion (Render tiene HTTPS; en local http fallaria).
+    app.config["SESSION_COOKIE_HTTPONLY"] = True
+    app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+    if os.environ.get("RENDER"):
+        app.config["SESSION_COOKIE_SECURE"] = True
+
+    # --- Compresion gzip (reduce ~80% el peso de HTML/CSS/JS) ---
+    try:
+        from flask_compress import Compress
+        Compress(app)
+    except ImportError:
+        pass  # en local sin la lib instalada, la app funciona igual
+
+    # --- Headers de seguridad en todas las respuestas ---
+    @app.after_request
+    def security_headers(resp):
+        resp.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        resp.headers.setdefault("X-Content-Type-Options", "nosniff")
+        resp.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        return resp
+
+    # --- Proteccion CSRF liviana para el admin: verificar el origen de los POST ---
+    # Si un POST a /admin viene desde otro sitio (Origin/Referer ajeno), se rechaza.
+    # No requiere tokens en los formularios y no afecta a la tienda publica.
+    @app.before_request
+    def csrf_origin_check():
+        if request.method in ("POST", "PUT", "DELETE") and request.path.startswith("/admin"):
+            origin = request.headers.get("Origin") or request.headers.get("Referer") or ""
+            if origin:
+                from urllib.parse import urlparse
+                origin_host = urlparse(origin).netloc.split(":")[0]
+                request_host = (request.host or "").split(":")[0]
+                if origin_host and request_host and origin_host != request_host:
+                    return "Origen invalido", 403
 
     # Carpeta de portadas. En produccion (Render) se define COVERS_PATH apuntando
     # al disco persistente; en local usa static/covers como siempre.
@@ -525,9 +568,32 @@ def register_routes(app: Flask) -> None:
     def dashboard():
         _res = query_discs(request.args)
         discs = _res if isinstance(_res, list) else _res.all()
-        totals = compute_totals(discs)
+        totals = compute_totals(discs)  # totales sobre TODO lo filtrado
         sellos = get_sellos_unicos()
         tc = Setting.get_tc()
+
+        # --- Paginacion: la tabla renderiza de a 50 (configurable) ---
+        # Los totales siguen siendo del conjunto completo filtrado.
+        try:
+            por_pagina = int(request.args.get("por_pagina", 50))
+        except (ValueError, TypeError):
+            por_pagina = 50
+        if por_pagina not in (50, 100, 0):  # 0 = todos
+            por_pagina = 50
+        try:
+            pagina_actual = max(1, int(request.args.get("pagina", 1)))
+        except (ValueError, TypeError):
+            pagina_actual = 1
+        total_discos_filtrados = len(discs)
+        if por_pagina > 0:
+            import math as _math
+            total_paginas = max(1, _math.ceil(total_discos_filtrados / por_pagina))
+            pagina_actual = min(pagina_actual, total_paginas)
+            inicio_idx = (pagina_actual - 1) * por_pagina
+            discs = discs[inicio_idx:inicio_idx + por_pagina]
+        else:
+            total_paginas = 1
+            pagina_actual = 1
 
         filtros = {
             "q": request.args.get("q", ""),
@@ -549,6 +615,10 @@ def register_routes(app: Flask) -> None:
             estados=ESTADOS_DISCO,
             filtros=filtros,
             tc=tc,
+            pagina_actual=pagina_actual,
+            total_paginas=total_paginas,
+            por_pagina=por_pagina,
+            total_discos_filtrados=total_discos_filtrados,
         )
 
     @app.route("/admin/discs/new", methods=["GET", "POST"])
@@ -2168,7 +2238,13 @@ def register_routes(app: Flask) -> None:
     @auth.admin_required
     def pedidos():
         from models import Pedido, PROVEEDORES_PEDIDO
-        lista = Pedido.query.order_by(Pedido.fecha.desc()).all()
+        from sqlalchemy.orm import selectinload as _selectinload
+        lista = (
+            Pedido.query
+            .options(_selectinload(Pedido.discos))
+            .order_by(Pedido.fecha.desc())
+            .all()
+        )
         # Para comparacion: mejor y peor por margen (solo los que tienen ventas)
         con_ventas = [p for p in lista if p.discos_vendidos > 0 and p.costo_total_uyu > 0]
         mejor_pedido = max(con_ventas, key=lambda p: p.margen_pct) if con_ventas else None
@@ -2549,6 +2625,51 @@ def register_routes(app: Flask) -> None:
         info.append(f"_banner_url_si_existe() devuelve: {_banner_url_si_existe()!r}")
         return "<pre>" + "\n".join(info) + "</pre>"
 
+    @app.route("/admin/backup/db")
+    @auth.admin_required
+    def backup_db():
+        """Descarga la base de datos SQLite completa (discos, ventas, reservas,
+        clientes, egresos, pedidos, todo). Para el backup semanal."""
+        from flask import send_file
+        db_uri = app.config["SQLALCHEMY_DATABASE_URI"]
+        db_file = db_uri.replace("sqlite:///", "")
+        if not os.path.isabs(db_file):
+            db_file = os.path.join(app.instance_path, db_file)
+        if not os.path.exists(db_file):
+            flash("No se encontro el archivo de la base de datos.", "error")
+            return redirect(url_for("settings_page"))
+        fecha = datetime.utcnow().strftime("%Y%m%d")
+        return send_file(
+            db_file, as_attachment=True,
+            download_name=f"arcano_backup_{fecha}.db",
+            mimetype="application/octet-stream",
+        )
+
+    @app.route("/admin/backup/covers")
+    @auth.admin_required
+    def backup_covers():
+        """Descarga todas las portadas en un ZIP."""
+        import zipfile
+        import io as _io
+        covers_dir = app.config.get("COVERS_DIR")
+        if not covers_dir or not os.path.isdir(covers_dir):
+            flash("No se encontro la carpeta de portadas.", "error")
+            return redirect(url_for("settings_page"))
+        buf = _io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+            for fname in os.listdir(covers_dir):
+                fpath = os.path.join(covers_dir, fname)
+                if os.path.isfile(fpath):
+                    zf.write(fpath, arcname=fname)
+        buf.seek(0)
+        from flask import send_file
+        fecha = datetime.utcnow().strftime("%Y%m%d")
+        return send_file(
+            buf, as_attachment=True,
+            download_name=f"arcano_covers_{fecha}.zip",
+            mimetype="application/zip",
+        )
+
     @app.route("/admin/settings")
     @auth.admin_required
     def settings_page():
@@ -2594,6 +2715,7 @@ def register_routes(app: Flask) -> None:
             public_envios=Setting.get("public_envios", ""),
             public_instagram=Setting.get("public_instagram", ""),
             public_whatsapp=Setting.get("public_whatsapp", ""),
+            analytics_snippet=Setting.get("analytics_snippet", ""),
             public_banner_url=Setting.get("public_banner_url", ""),
             public_hero_title=Setting.get("public_hero_title", ""),
             public_hero_subtitle=Setting.get("public_hero_subtitle", ""),
@@ -2828,6 +2950,7 @@ def register_routes(app: Flask) -> None:
             "envios": Setting.get("public_envios", ""),
             "instagram": Setting.get("public_instagram", ""),
             "whatsapp": Setting.get("public_whatsapp", ""),
+            "analytics_snippet": Setting.get("analytics_snippet", ""),
             "banner_url": _banner_url_si_existe(),
             "anuncio_texto": Setting.get("public_anuncio_texto", ""),
             "hero_title": Setting.get("public_hero_title", ""),
@@ -2890,8 +3013,10 @@ def register_routes(app: Flask) -> None:
     def home():
         """Catalogo publico de discos disponibles."""
         from sqlalchemy import or_ as _or
+        from sqlalchemy.orm import selectinload as _selectinload
         all_disponibles = (
             Disc.query
+            .options(_selectinload(Disc.tracks))
             .filter(
                 _or(
                     # Disponibles con stock
@@ -3685,6 +3810,7 @@ def register_routes(app: Flask) -> None:
             "public_discos_por_pagina",
             "public_carrusel_velocidad",
             "public_card_tamano",
+            "analytics_snippet",
         ]
         for key in keys:
             value = (request.form.get(key) or "").strip()
@@ -3782,9 +3908,19 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("dashboard"))
 
         if request.method == "POST":
+            # --- Rate limiting: frena fuerza bruta por IP ---
+            ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+            info = _login_attempts.get(ip, {"count": 0, "until": 0})
+            import time as _time
+            if _time.time() < info["until"]:
+                restante = int(info["until"] - _time.time())
+                flash(f"Demasiados intentos. Espera {restante} segundos.", "error")
+                return render_template("admin_login.html", next_url=request.form.get("next", "")), 429
+
             user = request.form.get("user", "").strip()
             password = request.form.get("password", "")
             if auth.check_credentials(user, password):
+                _login_attempts.pop(ip, None)  # limpiar al loguear bien
                 auth.login(user)
                 flash("Bienvenido.", "success")
                 next_url = request.args.get("next") or request.form.get("next")
@@ -3792,6 +3928,12 @@ def register_routes(app: Flask) -> None:
                     return redirect(next_url)
                 return redirect(url_for("dashboard"))
             else:
+                # Registrar intento fallido; tras 5, bloquear 60s (y creciendo)
+                info["count"] += 1
+                if info["count"] >= 5:
+                    info["until"] = _time.time() + min(60 * (info["count"] - 4), 600)
+                _login_attempts[ip] = info
+                _time.sleep(1)  # frenar bots aun antes del bloqueo
                 flash("Usuario o contrasenia incorrectos.", "error")
 
         next_url = request.args.get("next", "")

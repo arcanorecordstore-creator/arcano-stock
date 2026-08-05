@@ -277,6 +277,33 @@
     </table>
 </div>
 
+{% if total_paginas > 1 or por_pagina == 0 %}
+<nav class="dash-paginacion">
+    <div class="dash-pag-info">
+        Mostrando {{ discs|length }} de {{ total_discos_filtrados }} discos
+        &middot; Pagina {{ pagina_actual }} de {{ total_paginas }}
+    </div>
+    <div class="dash-pag-controles">
+        {% if pagina_actual > 1 %}
+        <a href="{{ url_pagina(pagina_actual - 1) }}" class="btn btn-ghost btn-sm">&larr; Anterior</a>
+        {% endif %}
+        {% if pagina_actual < total_paginas %}
+        <a href="{{ url_pagina(pagina_actual + 1) }}" class="btn btn-ghost btn-sm">Siguiente &rarr;</a>
+        {% endif %}
+        <form method="get" class="dash-pag-porpagina">
+            {% for k, v in request.args.items() %}
+                {% if k not in ('por_pagina', 'pagina') %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}
+            {% endfor %}
+            <select name="por_pagina" onchange="this.form.submit()">
+                <option value="50" {% if por_pagina == 50 %}selected{% endif %}>50 por pagina</option>
+                <option value="100" {% if por_pagina == 100 %}selected{% endif %}>100 por pagina</option>
+                <option value="0" {% if por_pagina == 0 %}selected{% endif %}>Todos</option>
+            </select>
+        </form>
+    </div>
+</nav>
+{% endif %}
+
 <section class="summary-cards">
     <div class="summary-card">
         <span class="summary-label">Recuento</span>

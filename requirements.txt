@@ -1,4 +1,5 @@
 Flask
+flask-compress
 SQLAlchemy
 Flask-SQLAlchemy
 python-dotenv

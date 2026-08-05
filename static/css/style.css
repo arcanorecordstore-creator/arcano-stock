@@ -7543,3 +7543,25 @@ td.num,
 }
 .conta-row-aporte .conta-row-label { color: #3b82f6; font-weight: 500; }
 .conta-row-aporte .conta-row-value { color: #3b82f6; }
+
+/* Paginacion del dashboard */
+.dash-paginacion {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 14px 0 20px;
+}
+.dash-pag-info { font-size: 13px; color: var(--text-3, #888); }
+.dash-pag-controles { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.dash-pag-controles .btn-sm { padding: 6px 12px; font-size: 13px; }
+.dash-pag-porpagina select {
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-2, #333);
+    background: var(--bg-1, #1a1a1a);
+    color: var(--text-1, #eee);
+    font-size: 13px;
+    cursor: pointer;
+}

@@ -294,6 +294,24 @@ class Setting(db.Model):
 
     @classmethod
     def get(cls, key: str, default: str | None = None) -> str | None:
+        # Cache por request: evita leer la misma setting varias veces en un
+        # mismo render (el home leia settings 21 veces). Fuera de un request
+        # (scripts, shell) va directo a la DB.
+        try:
+            from flask import g, has_request_context
+            if has_request_context():
+                cache = getattr(g, "_settings_cache", None)
+                if cache is None:
+                    cache = {}
+                    g._settings_cache = cache
+                if key in cache:
+                    val = cache[key]
+                    return val if val is not None else default
+                row = cls.query.filter_by(key=key).first()
+                cache[key] = row.value if row else None
+                return row.value if row else default
+        except Exception:
+            pass
         row = cls.query.filter_by(key=key).first()
         return row.value if row else default
 
@@ -306,6 +324,15 @@ class Setting(db.Model):
             row = cls(key=key, value=value)
             db.session.add(row)
         db.session.commit()
+        # Invalidar el cache del request si existe
+        try:
+            from flask import g, has_request_context
+            if has_request_context():
+                cache = getattr(g, "_settings_cache", None)
+                if cache is not None:
+                    cache[key] = value
+        except Exception:
+            pass
 
     @classmethod
     def get_tc(cls) -> float:
