@@ -69,8 +69,42 @@
                     {% if p.resultado_uyu >= 0 %}+{% endif %}{{ fmt_uyu(p.resultado_uyu) }} UYU
                 </span>
                 <span class="ped-stat-detail">
-                    {% if p.resultado_uyu >= 0 %}ganancia hasta ahora{% else %}todavia en perdida{% endif %}
+                    {% if p.margen_pct >= 0 %}+{% endif %}{{ p.margen_pct }}% sobre lo invertido
                 </span>
+            </div>
+        </div>
+
+        <!-- Fila de metricas extra -->
+        <div class="ped-stats ped-stats-extra">
+            <div class="ped-stat">
+                <span class="ped-stat-label">Rotacion</span>
+                <span class="ped-stat-value">
+                    <span class="ped-semaforo ped-semaforo-{{ p.rotacion_semaforo }}"></span>
+                    {{ p.rotacion_pct|int }}%
+                </span>
+                <span class="ped-stat-detail">{{ p.discos_vendidos }} de {{ p.discos_asignados }} vendidos</span>
+            </div>
+            <div class="ped-stat">
+                <span class="ped-stat-label">Proyeccion</span>
+                <span class="ped-stat-value {% if p.resultado_potencial_uyu >= 0 %}ped-verde{% else %}ped-rojo{% endif %}">
+                    {% if p.resultado_potencial_uyu >= 0 %}+{% endif %}{{ fmt_uyu(p.resultado_potencial_uyu) }}
+                </span>
+                <span class="ped-stat-detail">si vendes todo el stock ({{ p.margen_potencial_pct }}%)</span>
+            </div>
+            <div class="ped-stat">
+                <span class="ped-stat-label">Costo x disco</span>
+                <span class="ped-stat-value">{{ fmt_uyu(p.costo_por_disco_uyu) }}</span>
+                <span class="ped-stat-detail">promedio del pedido</span>
+            </div>
+            <div class="ped-stat">
+                <span class="ped-stat-label">Recuperacion</span>
+                {% if p.dias_recuperacion is not none %}
+                <span class="ped-stat-value ped-verde">{{ p.dias_recuperacion }} dias</span>
+                <span class="ped-stat-detail">en pagarse solo</span>
+                {% else %}
+                <span class="ped-stat-value">—</span>
+                <span class="ped-stat-detail">todavia sin recuperar</span>
+                {% endif %}
             </div>
         </div>
 
@@ -134,6 +168,67 @@
 </section>
 {% else %}
 <p class="conta-empty">No hay pedidos cargados todavia. Agrega el primero abajo.</p>
+{% endif %}
+
+{% if pedidos and pedidos|length > 1 %}
+<!-- Comparacion: mejor y peor pedido + totales -->
+<section class="conta-block">
+    <h2 class="conta-block-title">Comparativa</h2>
+    <div class="ped-compare-grid">
+        <div class="ped-compare-card ped-compare-total">
+            <span class="ped-compare-label">Total invertido</span>
+            <span class="ped-compare-value">{{ fmt_uyu(total_invertido) }} UYU</span>
+        </div>
+        <div class="ped-compare-card ped-compare-total">
+            <span class="ped-compare-label">Total recaudado</span>
+            <span class="ped-compare-value">{{ fmt_uyu(total_recaudado) }} UYU</span>
+        </div>
+        <div class="ped-compare-card ped-compare-total">
+            <span class="ped-compare-label">Resultado global</span>
+            <span class="ped-compare-value {% if (total_recaudado - total_invertido) >= 0 %}ped-verde{% else %}ped-rojo{% endif %}">
+                {% if (total_recaudado - total_invertido) >= 0 %}+{% endif %}{{ fmt_uyu(total_recaudado - total_invertido) }} UYU
+            </span>
+        </div>
+        {% if mejor_pedido %}
+        <div class="ped-compare-card ped-compare-mejor">
+            <span class="ped-compare-label">&#9650; Mejor pedido</span>
+            <span class="ped-compare-value">Pedido {{ mejor_pedido.numero or mejor_pedido.id }}</span>
+            <span class="ped-compare-detail">{{ mejor_pedido.margen_pct }}% de margen</span>
+        </div>
+        {% endif %}
+        {% if peor_pedido and peor_pedido.id != mejor_pedido.id %}
+        <div class="ped-compare-card ped-compare-peor">
+            <span class="ped-compare-label">&#9660; Peor pedido</span>
+            <span class="ped-compare-value">Pedido {{ peor_pedido.numero or peor_pedido.id }}</span>
+            <span class="ped-compare-detail">{{ peor_pedido.margen_pct }}% de margen</span>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+<!-- Grafico de recuperacion: barras de margen por pedido -->
+<section class="conta-block">
+    <h2 class="conta-block-title">Rendimiento por pedido</h2>
+    <p class="conta-block-sub">Margen % de cada pedido (verde = ganancia, rojo = perdida hasta ahora).</p>
+    {% set ns = namespace(max=10) %}
+    {% for p in pedidos %}
+        {% if p.margen_pct|abs > ns.max %}{% set ns.max = p.margen_pct|abs %}{% endif %}
+    {% endfor %}
+    <div class="ped-chart">
+        {% for p in pedidos %}
+        <div class="ped-chart-row">
+            <span class="ped-chart-label">{{ p.numero or ('#' ~ p.id) }}</span>
+            <div class="ped-chart-track">
+                {% set ancho = (p.margen_pct|abs / ns.max * 100) if ns.max > 0 else 0 %}
+                <div class="ped-chart-bar {% if p.margen_pct >= 0 %}pos{% else %}neg{% endif %}" style="width: {{ ancho }}%;"></div>
+            </div>
+            <span class="ped-chart-val {% if p.margen_pct >= 0 %}ped-verde{% else %}ped-rojo{% endif %}">
+                {% if p.margen_pct >= 0 %}+{% endif %}{{ p.margen_pct }}%
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+</section>
 {% endif %}
 
 <!-- Agregar pedido -->

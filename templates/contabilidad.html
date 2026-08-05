@@ -23,7 +23,20 @@
     <a href="{{ url_for('contabilidad', periodo=val) }}"
        class="conta-periodo-btn {% if periodo == val %}active{% endif %}">{{ label }}</a>
     {% endfor %}
-    <a href="{{ url_for('contabilidad_exportar', periodo=periodo) }}" class="conta-export-btn">&#8595; Exportar CSV</a>
+    <a href="{{ url_for('contabilidad_exportar', periodo=periodo, desde=desde, hasta=hasta) }}" class="conta-export-btn">&#8595; Exportar CSV</a>
+</section>
+
+<!-- Filtro por fechas personalizado -->
+<section class="conta-custom-range">
+    <form method="get" action="{{ url_for('contabilidad') }}" class="conta-range-form">
+        <input type="hidden" name="periodo" value="custom">
+        <label>Desde <input type="date" name="desde" value="{{ desde }}" required></label>
+        <label>Hasta <input type="date" name="hasta" value="{{ hasta }}" required></label>
+        <button type="submit" class="btn btn-ghost">Filtrar</button>
+        {% if periodo == 'custom' and desde and hasta %}
+        <span class="conta-range-active">Mostrando {{ desde }} a {{ hasta }}</span>
+        {% endif %}
+    </form>
 </section>
 
 <!-- ============================================================

@@ -892,6 +892,67 @@ class Pedido(db.Model):
                 potencial += (d.precio_mostrar or d.precio_uyu or 0) * (d.stock or 0)
         return round(potencial - self.costo_total_uyu, 2)
 
+    @property
+    def margen_pct(self) -> float:
+        """Margen porcentual sobre lo invertido (resultado / costo * 100).
+        Positivo = ganancia, negativo = perdida hasta ahora."""
+        if self.costo_total_uyu <= 0:
+            return 0.0
+        return round(self.resultado_uyu / self.costo_total_uyu * 100, 1)
+
+    @property
+    def margen_potencial_pct(self) -> float:
+        """Margen porcentual proyectado si se vende todo el stock."""
+        if self.costo_total_uyu <= 0:
+            return 0.0
+        return round(self.resultado_potencial_uyu / self.costo_total_uyu * 100, 1)
+
+    @property
+    def dias_recuperacion(self):
+        """Dias desde la fecha del pedido hasta que se recupero (o None si no)."""
+        if not self.recuperado or not self.fecha:
+            return None
+        # Fecha de la ultima venta que completo la recuperacion
+        vendidos = sorted(
+            [d for d in self.discos if d.estado == "Vendido" and d.fecha_venta],
+            key=lambda d: d.fecha_venta,
+        )
+        if not vendidos:
+            return None
+        # Acumular hasta cubrir el costo
+        acum = 0.0
+        for d in vendidos:
+            acum += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+            if acum >= self.costo_total_uyu:
+                delta = d.fecha_venta.date() - self.fecha
+                return max(0, delta.days)
+        return None
+
+    @property
+    def rotacion_pct(self) -> float:
+        """Porcentaje de discos vendidos sobre los asignados."""
+        if self.discos_asignados <= 0:
+            return 0.0
+        return round(self.discos_vendidos / self.discos_asignados * 100, 0)
+
+    @property
+    def rotacion_semaforo(self) -> str:
+        """'verde' si vendio >=70%, 'amarillo' 30-70%, 'rojo' <30%."""
+        r = self.rotacion_pct
+        if r >= 70:
+            return "verde"
+        elif r >= 30:
+            return "amarillo"
+        return "rojo"
+
+    @property
+    def costo_por_disco_uyu(self) -> float:
+        """Costo promedio por disco del pedido."""
+        n = self.cant_discos or self.discos_asignados
+        if n <= 0:
+            return 0.0
+        return round(self.costo_total_uyu / n, 2)
+
     def __repr__(self):
         return f"<Pedido {self.numero} {self.cant_discos} discos>"
 

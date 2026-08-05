@@ -1898,10 +1898,12 @@ def register_routes(app: Flask) -> None:
     def contabilidad():
         from models import Egreso, EgresoRecurrente
         periodo = request.args.get("periodo", "mes_actual")
+        desde = request.args.get("desde")
+        hasta = request.args.get("hasta")
         data = metrics.get_all_metrics()
-        conta = metrics.contabilidad(periodo)
+        conta = metrics.contabilidad(periodo, desde, hasta)
         # Lista de egresos del periodo para mostrar
-        inicio, fin = metrics._rango_periodo(periodo)
+        inicio, fin = metrics._rango_periodo(periodo, desde, hasta)
         egresos = (
             Egreso.query
             .filter(Egreso.fecha >= inicio, Egreso.fecha < fin)
@@ -1919,6 +1921,8 @@ def register_routes(app: Flask) -> None:
             tc_usd=Setting.get_tc_usd(),
             conta=conta,
             periodo=periodo,
+            desde=desde or "",
+            hasta=hasta or "",
             egresos=egresos,
             recurrentes=recurrentes,
             categorias=Setting.get_categorias_egreso(),
@@ -2063,7 +2067,9 @@ def register_routes(app: Flask) -> None:
         import csv
         import io
         periodo = request.args.get("periodo", "mes_actual")
-        inicio, fin = metrics._rango_periodo(periodo)
+        desde = request.args.get("desde")
+        hasta = request.args.get("hasta")
+        inicio, fin = metrics._rango_periodo(periodo, desde, hasta)
         egresos = (
             Egreso.query
             .filter(Egreso.fecha >= inicio, Egreso.fecha < fin)
@@ -2115,12 +2121,23 @@ def register_routes(app: Flask) -> None:
     def pedidos():
         from models import Pedido, PROVEEDORES_PEDIDO
         lista = Pedido.query.order_by(Pedido.fecha.desc()).all()
+        # Para comparacion: mejor y peor por margen (solo los que tienen ventas)
+        con_ventas = [p for p in lista if p.discos_vendidos > 0 and p.costo_total_uyu > 0]
+        mejor_pedido = max(con_ventas, key=lambda p: p.margen_pct) if con_ventas else None
+        peor_pedido = min(con_ventas, key=lambda p: p.margen_pct) if con_ventas else None
+        # Totales globales
+        total_invertido = sum(p.costo_total_uyu for p in lista)
+        total_recaudado = sum(p.recaudado_uyu for p in lista)
         return render_template(
             "pedidos.html",
             pedidos=lista,
             proveedores=PROVEEDORES_PEDIDO,
             tc=Setting.get_tc(),
             tc_usd=Setting.get_tc_usd(),
+            mejor_pedido=mejor_pedido,
+            peor_pedido=peor_pedido,
+            total_invertido=total_invertido,
+            total_recaudado=total_recaudado,
         )
 
     @app.route("/admin/pedidos/agregar", methods=["POST"])

@@ -247,11 +247,20 @@ def get_all_metrics() -> dict:
 # Contabilidad: egresos y ganancia real
 # ---------------------------------------------------------------------------
 
-def _rango_periodo(periodo: str):
+def _rango_periodo(periodo: str, desde: str = None, hasta: str = None):
     """Devuelve (inicio, fin) como date segun el periodo pedido.
-    periodo: 'mes_actual', 'mes_pasado', 'anio', 'todo'."""
-    from datetime import date
+    periodo: 'mes_actual', 'mes_pasado', 'anio', 'todo', 'custom'.
+    Para 'custom' se usan desde/hasta (formato YYYY-MM-DD)."""
+    from datetime import date, datetime as _dt, timedelta
     hoy = date.today()
+    if periodo == "custom" and desde and hasta:
+        try:
+            inicio = _dt.strptime(desde, "%Y-%m-%d").date()
+            # fin es exclusivo, sumamos 1 dia para incluir el dia 'hasta'
+            fin = _dt.strptime(hasta, "%Y-%m-%d").date() + timedelta(days=1)
+            return inicio, fin
+        except (ValueError, TypeError):
+            pass  # si falla, cae al default de abajo
     if periodo == "mes_actual":
         inicio = date(hoy.year, hoy.month, 1)
         fin = date(hoy.year + 1, 1, 1) if hoy.month == 12 else date(hoy.year, hoy.month + 1, 1)
@@ -271,10 +280,10 @@ def _rango_periodo(periodo: str):
     return inicio, fin
 
 
-def contabilidad(periodo: str = "mes_actual") -> dict:
+def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = None) -> dict:
     """Resumen contable de un periodo: ingresos, egresos y ganancia real."""
     from datetime import datetime as _dt
-    inicio, fin = _rango_periodo(periodo)
+    inicio, fin = _rango_periodo(periodo, desde, hasta)
     inicio_dt = _dt(inicio.year, inicio.month, inicio.day)
     fin_dt = _dt(fin.year, fin.month, fin.day)
 

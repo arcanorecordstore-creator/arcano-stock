@@ -7381,3 +7381,107 @@ td.num,
 /* Botones de exportar en pedidos */
 .ped-export-btns { display: flex; gap: 8px; }
 .page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+
+/* Filtro de fechas personalizado en contabilidad */
+.conta-custom-range { margin-bottom: 24px; }
+.conta-range-form {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+.conta-range-form label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-3, #888);
+}
+.conta-range-form input[type="date"] {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border-2, #333);
+    background: var(--bg-1, #1a1a1a);
+    color: var(--text-1, #eee);
+    font-size: 14px;
+}
+.conta-range-active {
+    font-size: 13px;
+    color: var(--accent, #10b981);
+    align-self: center;
+}
+
+/* Features de pedidos: semaforo, stats extra, comparacion, grafico */
+.ped-stats-extra {
+    border-top: 1px solid var(--border-1, #2a2a2a);
+    padding-top: 14px;
+    margin-top: 4px;
+}
+.ped-semaforo {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+}
+.ped-semaforo-verde { background: #10b981; }
+.ped-semaforo-amarillo { background: #eab308; }
+.ped-semaforo-rojo { background: #ef4444; }
+
+/* Comparativa */
+.ped-compare-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-top: 8px;
+}
+.ped-compare-card {
+    background: var(--bg-1, #151515);
+    border: 1px solid var(--border-1, #2a2a2a);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.ped-compare-label { font-size: 12px; color: var(--text-3, #888); text-transform: uppercase; letter-spacing: 0.5px; }
+.ped-compare-value { font-size: 18px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.ped-compare-detail { font-size: 12px; color: var(--text-3, #888); }
+.ped-compare-mejor { border-color: rgba(16,185,129,0.4); }
+.ped-compare-mejor .ped-compare-label { color: #10b981; }
+.ped-compare-peor { border-color: rgba(239,68,68,0.4); }
+.ped-compare-peor .ped-compare-label { color: #ef4444; }
+
+/* Grafico de rendimiento por pedido */
+.ped-chart { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.ped-chart-row { display: flex; align-items: center; gap: 12px; }
+.ped-chart-label {
+    min-width: 60px;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: right;
+    color: var(--text-2, #aaa);
+}
+.ped-chart-track {
+    flex: 1;
+    height: 22px;
+    background: var(--bg-0, #0a0a0a);
+    border-radius: 4px;
+    overflow: hidden;
+    position: relative;
+}
+.ped-chart-bar {
+    height: 100%;
+    border-radius: 4px;
+    min-width: 2px;
+    transition: width 0.4s ease;
+}
+.ped-chart-bar.pos { background: #10b981; }
+.ped-chart-bar.neg { background: #ef4444; }
+.ped-chart-val {
+    min-width: 60px;
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
