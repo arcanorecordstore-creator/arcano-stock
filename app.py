@@ -613,7 +613,7 @@ def register_routes(app: Flask) -> None:
             por_pagina = int(request.args.get("por_pagina", 50))
         except (ValueError, TypeError):
             por_pagina = 50
-        if por_pagina not in (50, 100, 0):  # 0 = todos
+        if por_pagina not in (25, 50, 100, 0):  # 0 = todos
             por_pagina = 50
         try:
             pagina_actual = max(1, int(request.args.get("pagina", 1)))

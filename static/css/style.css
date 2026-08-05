@@ -6809,15 +6809,21 @@ td.num,
     }
     .stock-table td.col-main .main-artist { font-size: 15px; font-weight: 600; }
     .stock-table td.col-main .main-title { font-size: 14px; }
-    /* Ocultar columnas secundarias en mobile (costo, envio, ganancia, margen, origen, fechas) */
+    /* Ocultar columnas de analisis en mobile: costos, margen, pedido, origen,
+       fechas y formato. En el celu se gestiona: precio, ganancia, estado, stock. */
     .stock-table td.col-fmt,
     .stock-table td.col-num.col-costofinal,
-    .stock-table td.col-ganancia,
     .stock-table td.col-margen,
     .stock-table td.col-origen,
+    .stock-table td.col-pedido,
+    .stock-table td.col-editable[data-edit="costo_eur"],
+    .stock-table td.col-editable[data-edit="envio_eur"],
     .stock-table td.col-fecha {
         display: none;
     }
+    /* Totales del pie: en mobile se rompen como card; los mismos numeros
+       ya estan en las tarjetas de resumen de abajo. */
+    .stock-table tfoot { display: none; }
     /* El checkbox de seleccion arriba a la derecha */
     .stock-table td.col-check {
         position: absolute;
@@ -7686,4 +7692,68 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     @view-transition { navigation: none; }
     .public-card, .public-card-cover img, .listen-all-btn { transition: none; }
     .public-card-cover, .carrusel-cover { animation: none; }
+}
+
+/* ============================================================
+   v2.70 - Dashboard mobile pulido
+   ============================================================ */
+@media (max-width: 768px) {
+    /* Card de cada disco mas compacta */
+    .stock-table tr {
+        padding: 10px 12px;
+        margin-bottom: 12px;
+    }
+    /* Precio y ganancia como linea compacta con etiqueta */
+    .stock-table td.col-num::before {
+        min-width: 88px;
+        font-size: 11px;
+    }
+    .stock-table td.col-editable[data-edit="precio_uyu"] {
+        font-size: 16px;
+        font-weight: 700;
+    }
+    .stock-table td.col-ganancia { font-weight: 600; }
+    /* Estado y stock en la misma linea visual */
+    .stock-table td.col-status,
+    .stock-table td.col-stock {
+        display: inline-block;
+        width: auto;
+        margin-right: 14px;
+        vertical-align: middle;
+    }
+    /* Acciones: botones parejos, altura tactil */
+    .stock-table td.col-actions .btn,
+    .stock-table td.col-actions .action-btn {
+        min-height: 42px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+    /* Paginacion comoda con el dedo */
+    .dash-paginacion {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    .dash-pag-info { text-align: center; }
+    .dash-pag-controles {
+        justify-content: center;
+    }
+    .dash-pag-controles .btn-sm {
+        min-height: 44px;
+        padding: 10px 18px;
+        flex: 1 1 auto;
+        max-width: 46%;
+        text-align: center;
+    }
+    .dash-pag-porpagina { width: 100%; }
+    .dash-pag-porpagina select {
+        width: 100%;
+        min-height: 44px;
+    }
+    /* Las tarjetas de resumen del pie, en columna de a 2 */
+    .summary-cards {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px;
+    }
 }

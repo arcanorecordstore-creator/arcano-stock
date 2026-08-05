@@ -178,7 +178,7 @@
                 <td class="col-num col-editable" data-label="Envio EUR" data-edit="envio_eur" data-disc-id="{{ d.id }}" data-raw="{{ '%.2f'|format(d.envio_eur or 0) }}" title="Click para editar el envio">{{ '%.2f'|format(d.envio_eur or 0) }}</td>
                 <td class="col-num col-costofinal">{{ '{:,.0f}'.format(d.costo_final_uyu or 0).replace(',', '.') }}</td>
                 <td class="col-num col-editable" data-label="Precio UYU" data-edit="precio_uyu" data-disc-id="{{ d.id }}" data-raw="{{ d.precio_uyu or 0 }}" title="Click para editar el precio">{{ '{:,.0f}'.format(d.precio_uyu or 0).replace(',', '.') }}</td>
-                <td class="col-num col-ganancia {% if (d.ganancia_uyu or 0) >= 0 %}gain{% else %}loss{% endif %}">{{ '{:,.0f}'.format(d.ganancia_uyu or 0).replace(',', '.') }}</td>
+                <td class="col-num col-ganancia {% if (d.ganancia_uyu or 0) >= 0 %}gain{% else %}loss{% endif %}" data-label="Ganancia">{{ '{:,.0f}'.format(d.ganancia_uyu or 0).replace(',', '.') }}</td>
                 <td class="col-num col-margen {% if (d.margen_pct or 0) >= 0 %}{% else %}loss{% endif %}">{{ '%.1f'|format(d.margen_pct or 0) }}%</td>
                 <td class="col-status col-editable-estado" data-disc-id="{{ d.id }}" data-estado="{{ d.estado }}" title="Click para cambiar el estado">
                     {% set estado_class = {
@@ -295,6 +295,7 @@
                 {% if k not in ('por_pagina', 'pagina') %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}
             {% endfor %}
             <select name="por_pagina" onchange="this.form.submit()">
+                <option value="25" {% if por_pagina == 25 %}selected{% endif %}>25 por pagina</option>
                 <option value="50" {% if por_pagina == 50 %}selected{% endif %}>50 por pagina</option>
                 <option value="100" {% if por_pagina == 100 %}selected{% endif %}>100 por pagina</option>
                 <option value="0" {% if por_pagina == 0 %}selected{% endif %}>Todos</option>
