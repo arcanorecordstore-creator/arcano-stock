@@ -126,7 +126,25 @@ def create_app() -> Flask:
                 "Strict-Transport-Security",
                 "max-age=31536000; includeSubDomains",
             )
+        # El HTML no se cachea: asi los cambios de la web llegan siempre en la
+        # proxima carga (evita el clasico "no me aparecen los cambios").
+        ctype = resp.headers.get("Content-Type", "")
+        if ctype.startswith("text/html"):
+            resp.headers["Cache-Control"] = "no-cache, must-revalidate"
         return resp
+
+    # --- Cache-busting de estaticos ---
+    # Agrega ?v=<fecha de modificacion> a cada CSS/JS/imagen servido por
+    # url_for('static', ...). Cuando cambia un archivo su URL cambia, y el
+    # navegador baja la version nueva si o si (mata el cache viejo del navegador).
+    @app.url_defaults
+    def _static_cache_bust(endpoint, values):
+        if endpoint == "static" and "filename" in values:
+            try:
+                fpath = os.path.join(app.static_folder, values["filename"])
+                values["v"] = int(os.stat(fpath).st_mtime)
+            except OSError:
+                pass
 
     # --- Proteccion CSRF liviana para el admin: verificar el origen de los POST ---
     # Si un POST a /admin viene desde otro sitio (Origin/Referer ajeno), se rechaza.
