@@ -2261,23 +2261,64 @@ def register_routes(app: Flask) -> None:
     @app.route("/admin/pedidos/exportar/excel")
     @auth.admin_required
     def pedidos_exportar_excel():
-        """Exporta todos los pedidos a Excel: resumen + detalle de discos."""
+        """Exporta todos los pedidos a Excel: KPIs globales + resumen completo + detalle."""
         from models import Pedido
         import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+        from openpyxl.styles import Font, PatternFill, Alignment
         import io
 
         pedidos = Pedido.query.order_by(Pedido.fecha.desc()).all()
         wb = openpyxl.Workbook()
 
-        # --- Hoja 1: Resumen ---
-        ws = wb.active
-        ws.title = "Resumen"
-        headers = ["Pedido", "Fecha", "Proveedor", "Costo EUR", "Costo USD", "Costo total UYU",
-                   "Discos declarados", "Discos asignados", "Vendidos", "Recaudado UYU",
-                   "Resultado UYU", "Estado"]
         header_font = Font(bold=True, color="FFFFFF", name="Arial")
         header_fill = PatternFill(start_color="1A1A1A", end_color="1A1A1A", fill_type="solid")
+        titulo_font = Font(bold=True, size=14, name="Arial")
+        label_font = Font(bold=True, name="Arial", color="666666")
+
+        # Totales globales
+        total_invertido = sum(p.costo_total_uyu for p in pedidos)
+        total_recaudado = sum(p.recaudado_uyu for p in pedidos)
+        total_discos = sum(p.discos_asignados for p in pedidos)
+        total_vendidos = sum(p.discos_vendidos for p in pedidos)
+        con_ventas = [p for p in pedidos if p.discos_vendidos > 0 and p.costo_total_uyu > 0]
+        mejor = max(con_ventas, key=lambda p: p.margen_pct) if con_ventas else None
+        peor = min(con_ventas, key=lambda p: p.margen_pct) if con_ventas else None
+        recuperados = sum(1 for p in pedidos if p.recuperado)
+
+        # --- Hoja 1: Panorama (KPIs globales) ---
+        ws0 = wb.active
+        ws0.title = "Panorama"
+        ws0["A1"] = "Arcano Record Store - Informe de pedidos"
+        ws0["A1"].font = titulo_font
+        from datetime import datetime as _dt
+        ws0["A2"] = f"Generado el {_dt.now().strftime('%d/%m/%Y')}"
+        ws0["A2"].font = Font(italic=True, color="888888", name="Arial")
+
+        kpis = [
+            ("Total de pedidos", len(pedidos)),
+            ("Total invertido (UYU)", round(total_invertido)),
+            ("Total recaudado (UYU)", round(total_recaudado)),
+            ("Resultado global (UYU)", round(total_recaudado - total_invertido)),
+            ("Discos asignados", total_discos),
+            ("Discos vendidos", total_vendidos),
+            ("Pedidos recuperados", f"{recuperados} de {len(pedidos)}"),
+            ("Mejor pedido", f"{mejor.numero or mejor.id} ({mejor.margen_pct}%)" if mejor else "-"),
+            ("Peor pedido", f"{peor.numero or peor.id} ({peor.margen_pct}%)" if peor else "-"),
+        ]
+        r = 4
+        for label, val in kpis:
+            ws0.cell(row=r, column=1, value=label).font = label_font
+            ws0.cell(row=r, column=2, value=val)
+            r += 1
+        ws0.column_dimensions["A"].width = 26
+        ws0.column_dimensions["B"].width = 22
+
+        # --- Hoja 2: Resumen de pedidos (con todas las metricas) ---
+        ws = wb.create_sheet("Pedidos")
+        headers = ["Pedido", "Fecha", "Proveedor", "Costo EUR", "Costo USD", "Costo total UYU",
+                   "Discos declarados", "Discos asignados", "Vendidos", "Rotacion %",
+                   "Recaudado UYU", "Resultado UYU", "Margen %", "Proyeccion UYU",
+                   "Margen potencial %", "Costo x disco UYU", "Dias recuperacion", "Estado"]
         for col, h in enumerate(headers, 1):
             c = ws.cell(row=1, column=col, value=h)
             c.font = header_font
@@ -2294,14 +2335,20 @@ def register_routes(app: Flask) -> None:
             ws.cell(row=row, column=7, value=p.cant_discos)
             ws.cell(row=row, column=8, value=p.discos_asignados)
             ws.cell(row=row, column=9, value=p.discos_vendidos)
-            ws.cell(row=row, column=10, value=round(p.recaudado_uyu, 2))
-            ws.cell(row=row, column=11, value=round(p.resultado_uyu, 2))
-            ws.cell(row=row, column=12, value="Recuperado" if p.recuperado else "En perdida")
+            ws.cell(row=row, column=10, value=int(p.rotacion_pct))
+            ws.cell(row=row, column=11, value=round(p.recaudado_uyu, 2))
+            ws.cell(row=row, column=12, value=round(p.resultado_uyu, 2))
+            ws.cell(row=row, column=13, value=p.margen_pct)
+            ws.cell(row=row, column=14, value=round(p.resultado_potencial_uyu, 2))
+            ws.cell(row=row, column=15, value=p.margen_potencial_pct)
+            ws.cell(row=row, column=16, value=round(p.costo_por_disco_uyu, 2))
+            ws.cell(row=row, column=17, value=p.dias_recuperacion if p.dias_recuperacion is not None else "-")
+            ws.cell(row=row, column=18, value="Recuperado" if p.recuperado else "En perdida")
             row += 1
         for col in range(1, len(headers) + 1):
-            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 16
+            ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = 15
 
-        # --- Hoja 2: Detalle de discos ---
+        # --- Hoja 3: Detalle de discos ---
         ws2 = wb.create_sheet("Detalle discos")
         headers2 = ["Pedido", "Artista", "Titulo", "Sello", "Formato", "Precio UYU", "Costo UYU", "Estado", "Copias vendidas"]
         for col, h in enumerate(headers2, 1):
@@ -2363,49 +2410,97 @@ def register_routes(app: Flask) -> None:
         elems.append(Paragraph(f"Generado el {_dt.now().strftime('%d/%m/%Y')}", sub_style))
         elems.append(Spacer(1, 0.5*cm))
 
-        # Tabla resumen
-        elems.append(Paragraph("Resumen de pedidos", h2_style))
+        # --- RESUMEN EJECUTIVO (KPIs globales) ---
+        total_invertido = sum(p.costo_total_uyu for p in pedidos)
+        total_recaudado = sum(p.recaudado_uyu for p in pedidos)
+        total_discos = sum(p.discos_asignados for p in pedidos)
+        total_vendidos = sum(p.discos_vendidos for p in pedidos)
+        con_ventas = [p for p in pedidos if p.discos_vendidos > 0 and p.costo_total_uyu > 0]
+        mejor = max(con_ventas, key=lambda p: p.margen_pct) if con_ventas else None
+        peor = min(con_ventas, key=lambda p: p.margen_pct) if con_ventas else None
+        recuperados = sum(1 for p in pedidos if p.recuperado)
+        resultado_global = total_recaudado - total_invertido
+
+        elems.append(Paragraph("Resumen ejecutivo", h2_style))
         elems.append(Spacer(1, 0.2*cm))
-        data = [["Pedido", "Fecha", "Proveedor", "Costo UYU", "Discos", "Vendidos", "Recaudado", "Resultado", "Estado"]]
+
+        def fmt(n):
+            return f"{n:,.0f}".replace(",", ".")
+
+        kpi_data = [
+            ["Total pedidos", str(len(pedidos)), "Total invertido", f"{fmt(total_invertido)} UYU"],
+            ["Total recaudado", f"{fmt(total_recaudado)} UYU", "Resultado global", f"{'+' if resultado_global >= 0 else ''}{fmt(resultado_global)} UYU"],
+            ["Discos asignados", str(total_discos), "Discos vendidos", str(total_vendidos)],
+            ["Pedidos recuperados", f"{recuperados} de {len(pedidos)}",
+             "Mejor / Peor pedido",
+             (f"{mejor.numero or mejor.id} ({mejor.margen_pct}%) / {peor.numero or peor.id} ({peor.margen_pct}%)" if mejor and peor else "-")],
+        ]
+        kpi_table = Table(kpi_data, colWidths=[4.5*cm, 5*cm, 4.5*cm, 6*cm])
+        kpi_table.setStyle(TableStyle([
+            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+            ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
+            ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#666666")),
+            ("TEXTCOLOR", (2, 0), (2, -1), colors.HexColor("#666666")),
+            ("FONTSIZE", (0, 0), (-1, -1), 9),
+            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f5f5f5")),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.white),
+            ("TOPPADDING", (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ]))
+        elems.append(kpi_table)
+        elems.append(Spacer(1, 0.7*cm))
+
+        # --- Tabla resumen (con metricas) ---
+        elems.append(Paragraph("Detalle por pedido", h2_style))
+        elems.append(Spacer(1, 0.2*cm))
+        data = [["Pedido", "Fecha", "Costo UYU", "Discos", "Vend.", "Rotac.", "Recaudado",
+                 "Resultado", "Margen", "Proyec.", "Recup.", "Estado"]]
         for p in pedidos:
             data.append([
                 p.numero or f"#{p.id}",
                 p.fecha.strftime("%d/%m/%y") if p.fecha else "",
-                p.proveedor,
-                f"{p.costo_total_uyu:,.0f}".replace(",", "."),
+                fmt(p.costo_total_uyu),
                 f"{p.discos_asignados}/{p.cant_discos}",
                 str(p.discos_vendidos),
-                f"{p.recaudado_uyu:,.0f}".replace(",", "."),
-                f"{p.resultado_uyu:+,.0f}".replace(",", "."),
-                "Recuperado" if p.recuperado else "En perdida",
+                f"{int(p.rotacion_pct)}%",
+                fmt(p.recaudado_uyu),
+                f"{'+' if p.resultado_uyu >= 0 else ''}{fmt(p.resultado_uyu)}",
+                f"{p.margen_pct}%",
+                f"{'+' if p.resultado_potencial_uyu >= 0 else ''}{fmt(p.resultado_potencial_uyu)}",
+                f"{p.dias_recuperacion}d" if p.dias_recuperacion is not None else "-",
+                "OK" if p.recuperado else "Pdte",
             ])
         t = Table(data, repeatRows=1)
         t.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a1a1a")),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-            ("FONTSIZE", (0, 0), (-1, -1), 8),
+            ("FONTSIZE", (0, 0), (-1, -1), 7),
             ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#dddddd")),
             ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f5f5")]),
-            ("ALIGN", (3, 0), (-1, -1), "RIGHT"),
+            ("ALIGN", (2, 0), (-1, -1), "RIGHT"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ]))
         elems.append(t)
         elems.append(Spacer(1, 0.8*cm))
 
-        # Detalle por pedido
-        elems.append(Paragraph("Detalle de discos por pedido", h2_style))
+        # --- Detalle de discos por pedido ---
+        elems.append(Paragraph("Discos por pedido", h2_style))
         elems.append(Spacer(1, 0.2*cm))
         for p in pedidos:
             if not p.discos:
                 continue
             elems.append(Spacer(1, 0.3*cm))
-            elems.append(Paragraph(f"<b>Pedido {p.numero or p.id}</b> &mdash; {p.proveedor} &mdash; {p.discos_asignados} discos", sub_style))
+            costo_extra = " (costo manual)" if p.usa_costo_manual else ""
+            elems.append(Paragraph(
+                f"<b>Pedido {p.numero or p.id}</b> &mdash; {p.proveedor} &mdash; "
+                f"{p.discos_asignados} discos &mdash; {fmt(p.costo_total_uyu)} UYU{costo_extra} &mdash; "
+                f"margen {p.margen_pct}%", sub_style))
             ddata = [["Artista", "Titulo", "Sello", "Precio", "Estado"]]
             for d in p.discos:
                 ddata.append([
                     d.artista or "", d.titulo or "", d.sello or "",
-                    f"{(d.precio_mostrar or d.precio_uyu or 0):,.0f}".replace(",", "."),
+                    fmt(d.precio_mostrar or d.precio_uyu or 0),
                     d.estado,
                 ])
             dt = Table(ddata, repeatRows=1, colWidths=[5*cm, 6*cm, 4*cm, 3*cm, 3*cm])
