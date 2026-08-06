@@ -43,7 +43,7 @@
                 <input type="radio" name="metodo" value="transferencia" checked>
                 <span class="pago-metodo-body">
                     <strong>Transferencia bancaria</strong>
-                    <small>Transfer&iacute;s por tu cuenta y sub&iacute;s el comprobante. Dejamos el pedido en revisi&oacute;n.</small>
+                    <small>Transfer&iacute;s por tu cuenta y sub&iacute;s el comprobante. Despu&eacute;s coordinamos la entrega.</small>
                 </span>
             </label>
             {% endif %}
@@ -78,7 +78,14 @@
         </div>
         {% endif %}
 
-        <div class="pago-pickup">&#128230; Retiro (<strong>pick up</strong>) en <strong>Pocitos</strong> disponible &middot; lo coordinamos por mensaje.</div>
+        <div class="checkout-pasos">
+            <div class="checkout-pasos-title">C&oacute;mo sigue tu compra</div>
+            <ol class="checkout-pasos-list">
+                <li><strong>Confirm&aacute;s</strong> tu pedido ac&aacute;.</li>
+                <li>Te <strong>contactamos por WhatsApp</strong> para coordinar la entrega (y el pago, si eleg&iacute;s coordinar por mensaje).</li>
+                <li><strong>Env&iacute;o a todo Uruguay</strong> o <strong>retiro (pick up) en Pocitos</strong>, como te quede mejor.</li>
+            </ol>
+        </div>
 
         <button type="submit" class="btn btn-primary public-reserve-submit" id="checkout-submit">Confirmar pedido</button>
     </form>

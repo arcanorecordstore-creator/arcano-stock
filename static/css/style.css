@@ -8164,3 +8164,9 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .cart-drawer-rowprice { font-size: 13px; color: var(--text-2); margin-top: 2px; }
 .cart-drawer-total { font-size: 14px; font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
 .cart-drawer-empty { font-size: 13px; color: var(--text-3); }
+
+/* v2.94 - Paso a paso "Como sigue tu compra" en el checkout */
+.checkout-pasos { margin: 18px 0; padding: 16px 18px; background: var(--bg-1); border: 1px solid var(--border-2, #333); border-radius: 10px; }
+.checkout-pasos-title { font-size: 14px; font-weight: 700; color: var(--text-1); margin-bottom: 10px; }
+.checkout-pasos-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 7px; }
+.checkout-pasos-list li { font-size: 13px; color: var(--text-2); line-height: 1.45; }
