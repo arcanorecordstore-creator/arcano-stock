@@ -253,7 +253,8 @@
             var id = fpCart.dataset.discId;
             if (!id || !window.ArcanoCart || !window.ArcanoCart.add) return;
             window.ArcanoCart.add(id); actualizarCarrito(id, true);
-            if (window.arcanoToast) window.arcanoToast('✓ Agregado al carrito');
+            if (window.ArcanoCartDrawer && window.ArcanoCartDrawer.open) window.ArcanoCartDrawer.open();
+            else if (window.arcanoToast) window.arcanoToast('✓ Agregado al carrito');
         });
     }
 
@@ -264,7 +265,8 @@
     }
     function trackDeBtn(btn) {
         var kind = btn.dataset.play;
-        var t = { id: btn.dataset.trackId, kind: kind, btn: btn, cover: btn.dataset.coverUrl, title: btn.dataset.trackTitle, artist: btn.dataset.trackArtist };
+        var t = { id: btn.dataset.trackId, kind: kind, btn: btn, cover: btn.dataset.coverUrl, title: btn.dataset.trackTitle, artist: btn.dataset.trackArtist,
+                  discId: btn.dataset.discId, disponible: (btn.dataset.disponible === '1') };
         if (kind === 'local') t.audioUrl = btn.dataset.audioUrl;
         else if (kind === 'youtube') { t.youtubeId = btn.dataset.youtubeId; t.youtubeStart = btn.dataset.youtubeStart; }
         else if (kind === 'soundcloud') t.soundcloudUrl = btn.dataset.soundcloudUrl;

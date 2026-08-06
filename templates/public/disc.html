@@ -236,6 +236,8 @@
                         {% if t.sample_kind == 'local' %}
                             <button type="button" class="public-track-play-btn" data-play="local"
                                     data-track-id="{{ t.id }}"
+                                    data-disc-id="{{ disc.id }}"
+                                    data-disponible="{{ '1' if not disc.esta_agotado else '0' }}"
                                     data-audio-url="{{ url_for('serve_sample', filename=t.sample_local) }}"
                                     data-cover-url="{% if disc.cover_local %}{{ url_for('serve_cover', filename=disc.cover_local) }}{% elif disc.cover_url %}{{ disc.cover_url }}{% endif %}"
                                     data-track-title="{{ t.titulo }}"
@@ -247,6 +249,8 @@
                         {% elif t.sample_kind == 'youtube' and t.youtube_video_id %}
                             <button type="button" class="public-track-play-btn" data-play="youtube"
                                     data-track-id="{{ t.id }}"
+                                    data-disc-id="{{ disc.id }}"
+                                    data-disponible="{{ '1' if not disc.esta_agotado else '0' }}"
                                     data-youtube-id="{{ t.youtube_video_id }}"
                                     data-youtube-start="{{ t.youtube_start or 0 }}"
                                     data-cover-url="{% if disc.cover_local %}{{ url_for('serve_cover', filename=disc.cover_local) }}{% elif disc.cover_url %}{{ disc.cover_url }}{% endif %}"
@@ -259,6 +263,8 @@
                         {% elif t.sample_kind == 'soundcloud' %}
                             <button type="button" class="public-track-play-btn" data-play="soundcloud"
                                     data-track-id="{{ t.id }}"
+                                    data-disc-id="{{ disc.id }}"
+                                    data-disponible="{{ '1' if not disc.esta_agotado else '0' }}"
                                     data-soundcloud-url="{{ t.youtube_url }}"
                                     data-cover-url="{% if disc.cover_local %}{{ url_for('serve_cover', filename=disc.cover_local) }}{% elif disc.cover_url %}{{ disc.cover_url }}{% endif %}"
                                     data-track-title="{{ t.titulo }}"

@@ -285,7 +285,7 @@
                     'title': t.titulo,
                     'artist': t.artista or d.artista,
                     'discId': d.id,
-                    'disponible': (d.estado == 'Disponible')
+                    'disponible': (not d.esta_agotado)
                 }) %}
             {% endfor %}
             <button type="button" class="card-play-btn" data-play="{{ ps.sample_kind }}"
