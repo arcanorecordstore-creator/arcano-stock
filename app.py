@@ -3691,12 +3691,21 @@ def register_routes(app: Flask) -> None:
     @app.route("/cuenta")
     @auth.cliente_required
     def cliente_cuenta():
+        from models import ClienteFavorito
         cliente = Cliente.query.get_or_404(auth.cliente_actual_id())
         reservas = Reserva.query.filter_by(cliente_id=cliente.id).order_by(Reserva.fecha.desc()).all()
+        fav_ids = [
+            f.disc_id for f in ClienteFavorito.query
+            .filter_by(cliente_id=cliente.id)
+            .order_by(ClienteFavorito.fecha.desc()).all()
+        ]
+        fav_by_id = {d.id: d for d in Disc.query.filter(Disc.id.in_(fav_ids)).all()} if fav_ids else {}
+        favoritos = [fav_by_id[i] for i in fav_ids if i in fav_by_id]
         return render_template(
             "public/cliente_cuenta.html",
             cliente=cliente,
             reservas=reservas,
+            favoritos=favoritos,
             **_public_context(),
         )
 
@@ -3705,6 +3714,49 @@ def register_routes(app: Flask) -> None:
         """Pagina de favoritos. Los IDs viven en localStorage del cliente;
         el JS pide los discos al endpoint /api/discos-por-id."""
         return render_template("public/favoritos.html", **_public_context())
+
+    @app.route("/cuenta/api/favoritos/sync", methods=["POST"])
+    def cliente_favoritos_sync():
+        """Fusiona los favoritos de localStorage con los guardados en la cuenta y
+        devuelve la lista unificada. Se llama al cargar la pagina si hay sesion de
+        cliente, para que los favoritos viajen entre dispositivos."""
+        from models import ClienteFavorito
+        cid = auth.cliente_actual_id()
+        if not cid:
+            return jsonify({"ok": False, "logged_in": False, "ids": []})
+        data = request.get_json(silent=True) or {}
+        ids_local = {int(x) for x in (data.get("ids") or []) if str(x).isdigit()}
+        existentes = {f.disc_id for f in ClienteFavorito.query.filter_by(cliente_id=cid).all()}
+        nuevos = ids_local - existentes
+        for i in nuevos:
+            db.session.add(ClienteFavorito(cliente_id=cid, disc_id=i))
+        if nuevos:
+            db.session.commit()
+        todos = sorted(existentes | ids_local)
+        return jsonify({"ok": True, "logged_in": True, "ids": [str(i) for i in todos]})
+
+    @app.route("/cuenta/api/favoritos/toggle", methods=["POST"])
+    def cliente_favoritos_toggle():
+        """Agrega o saca un favorito de la cuenta (cuando un cliente logueado
+        toca el corazon). fav=true agrega, fav=false saca."""
+        from models import ClienteFavorito
+        cid = auth.cliente_actual_id()
+        if not cid:
+            return jsonify({"ok": False, "logged_in": False})
+        data = request.get_json(silent=True) or {}
+        try:
+            disc_id = int(data.get("id"))
+        except (TypeError, ValueError):
+            return jsonify({"ok": False}), 400
+        fav = bool(data.get("fav", True))
+        existente = ClienteFavorito.query.filter_by(cliente_id=cid, disc_id=disc_id).first()
+        if fav and not existente:
+            db.session.add(ClienteFavorito(cliente_id=cid, disc_id=disc_id))
+            db.session.commit()
+        elif not fav and existente:
+            db.session.delete(existente)
+            db.session.commit()
+        return jsonify({"ok": True, "fav": fav})
 
     @app.route("/api/discos-por-id")
     def api_discos_por_id():

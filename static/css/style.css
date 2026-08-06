@@ -8059,3 +8059,17 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .ra-interes { font-weight: 700; color: var(--gain, #10b981); }
 .radar-table tbody tr:first-child .ra-interes { font-size: 15px; }
 .radar-empty { color: var(--text-4); font-style: italic; font-size: 14px; }
+
+/* v2.85 - Favoritos guardados en la cuenta del cliente (entre dispositivos) */
+.cuenta-favs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-top: 8px; }
+.cuenta-fav { display: flex; flex-direction: column; text-decoration: none; color: inherit; background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 10px; overflow: hidden; transition: border-color 0.15s ease, transform 0.15s ease; }
+.cuenta-fav:hover { border-color: var(--text-3); transform: translateY(-2px); }
+.cuenta-fav-cover { aspect-ratio: 1 / 1; background: var(--bg-2); }
+.cuenta-fav-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cuenta-fav-noimg { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 30px; color: var(--text-4); }
+.cuenta-fav-info { padding: 8px 10px; }
+.cuenta-fav-artist { font-weight: 700; font-size: 13px; }
+.cuenta-fav-title { font-size: 12px; color: var(--text-3); }
+.cuenta-fav-meta { font-size: 13px; margin-top: 4px; }
+.cuenta-fav-sold { color: var(--text-4); }
+.public-empty-inline { color: var(--text-3); font-size: 14px; margin-top: 8px; }

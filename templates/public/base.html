@@ -44,7 +44,7 @@
     })();
     </script>
 </head>
-<body class="public-body">
+<body class="public-body" data-logged-in="{% if cliente_actual %}1{% else %}0{% endif %}">
 
 {% if anuncio_texto %}
 <div class="public-anuncio-bar">{{ anuncio_texto }}</div>
@@ -205,7 +205,7 @@
     </div>
     <div class="public-footer-bottom">
         <span>&copy; {{ now.year }} Arcano Record Store &middot; Montevideo, Uruguay</span>
-        <span class="public-footer-ver">v2.81</span>
+        <span class="public-footer-ver">v2.85</span>
     </div>
 </footer>
 

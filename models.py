@@ -655,6 +655,28 @@ class Cliente(db.Model):
         return f"<Cliente {self.id}: {self.email}>"
 
 
+class ClienteFavorito(db.Model):
+    """Favoritos de un cliente guardados del lado del servidor, para que
+    persistan entre dispositivos (ademas del localStorage del navegador)."""
+
+    __tablename__ = "cliente_favoritos"
+
+    id = db.Column(db.Integer, primary_key=True)
+    cliente_id = db.Column(
+        db.Integer, db.ForeignKey("clientes.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    disc_id = db.Column(
+        db.Integer, db.ForeignKey("discs.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    fecha = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint("cliente_id", "disc_id", name="uq_cliente_disc_fav"),
+    )
+
+
 ESTADOS_RESERVA = [
     "Pendiente",      # cliente reservo, vos todavia no confirmaste
     "Confirmada",     # vos confirmaste que se la guardas

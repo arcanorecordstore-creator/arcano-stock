@@ -103,6 +103,13 @@
                 var added = toggle(id);
                 btn.classList.toggle('is-fav', added);
                 updateCount();
+                // Si hay sesion de cliente, guardar el favorito en la cuenta
+                if (document.body.dataset.loggedIn === '1') {
+                    fetch('/cuenta/api/favoritos/toggle', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: id, fav: added })
+                    }).catch(function () {});
+                }
                 // Feedback visual
                 btn.classList.remove('fav-pop');
                 void btn.offsetWidth;
@@ -122,6 +129,25 @@
     });
     // Por si el DOM ya cargo
     bind(); paintButtons(); updateCount();
+
+    // Sync con la cuenta si el cliente esta logueado: fusiona los favoritos de
+    // este navegador con los de la cuenta, para que viajen entre dispositivos.
+    if (document.body && document.body.dataset.loggedIn === '1') {
+        try {
+            fetch('/cuenta/api/favoritos/sync', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: getFavs() })
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data && data.ok && Array.isArray(data.ids)) {
+                    setFavs(data.ids);
+                    paintButtons();
+                    updateCount();
+                }
+            }).catch(function () {});
+        } catch (e) {}
+    }
 })();
 
 /* Toggle del panel de filtros avanzados */
