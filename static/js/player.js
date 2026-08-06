@@ -259,6 +259,7 @@
             var id = fpCart.dataset.discId;
             if (!id || !window.ArcanoCart || !window.ArcanoCart.add) return;
             window.ArcanoCart.add(id); actualizarCarrito(id, true);
+            if (window.arcanoGA) window.arcanoGA('add_to_cart', { currency: 'UYU', items: [{ item_id: String(id) }] });
             if (window.ArcanoCartDrawer && window.ArcanoCartDrawer.open) window.ArcanoCartDrawer.open();
             else if (window.arcanoToast) window.arcanoToast('✓ Agregado al carrito');
         });

@@ -11,6 +11,14 @@ window.Arcano = window.Arcano || {};
     window.Arcano.runContent = function () { fns.forEach(function (fn) { try { fn(); } catch (e) {} }); };
 })();
 
+/* Evento a Google Analytics (embudo de conversion). No hace nada si GA no esta
+   cargado, asi que es seguro en local y en el sandbox. */
+window.arcanoGA = function (name, params) {
+    if (typeof window.gtag === 'function') {
+        try { window.gtag('event', name, params || {}); } catch (e) {}
+    }
+};
+
 /* Animaciones sutiles para la tienda publica.
    Usa IntersectionObserver para revelar elementos al scroll.
 */
@@ -231,6 +239,7 @@ window.Arcano = window.Arcano || {};
                     var card = btn.closest('.public-card') || btn.closest('.public-disc-layout') || document;
                     var tit = ((card.querySelector('.public-card-title') || card.querySelector('.public-disc-title') || {}).textContent || '').trim();
                     var art = ((card.querySelector('.public-card-artist') || card.querySelector('.public-disc-artist') || {}).textContent || '').trim();
+                    if (window.arcanoGA) window.arcanoGA('add_to_cart', { currency: 'UYU', items: [{ item_id: String(id), item_name: (art ? art + ' - ' : '') + tit }] });
                     if (window.ArcanoCartDrawer) window.ArcanoCartDrawer.open((art ? art + ' - ' : '') + tit);
                     else if (window.arcanoToast) window.arcanoToast('\u2713 Agregado al carrito');
                 } else if (window.arcanoToast) {

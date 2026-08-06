@@ -61,4 +61,17 @@
     <a href="{{ url_for('home') }}" class="public-reserve-ok-back">Volver al catalogo</a>
 </section>
 
+<script>
+(function () {
+    // Conversion del embudo: reserva confirmada (Google Analytics)
+    if (window.arcanoGA) {
+        window.arcanoGA('purchase', {
+            transaction_id: 'reserva-{{ reserva.id }}',
+            value: {{ reserva.total_uyu or 0 }},
+            currency: 'UYU'
+        });
+    }
+})();
+</script>
+
 {% endblock %}
