@@ -5,6 +5,8 @@ MP_ACCESS_TOKEN cargada. Si falta cualquiera de las dos, la tienda funciona
 como siempre (reserva sin pago online). Las credenciales son secretos: viven
 en variables de entorno (Render), nunca en la base ni en el codigo.
 """
+import hashlib
+import hmac
 import os
 import requests
 
@@ -99,6 +101,37 @@ def obtener_pago(payment_id) -> dict | None:
         return resp.json()
     except Exception:
         return None
+
+
+def webhook_secret() -> str:
+    """Clave secreta del webhook (se saca del panel de MP). Vacia = no se valida."""
+    return (os.environ.get("MP_WEBHOOK_SECRET") or "").strip()
+
+
+def firma_webhook_valida(x_signature, x_request_id, data_id):
+    """Valida la firma 'x-signature' del webhook de Mercado Pago.
+
+    Devuelve True/False si se pudo verificar, o None si no hay MP_WEBHOOK_SECRET
+    configurado (ahi el caller decide si sigue igual, para no romper si todavia
+    no se cargo el secreto)."""
+    secret = webhook_secret()
+    if not secret:
+        return None
+    if not x_signature:
+        return False
+    partes = {}
+    for parte in str(x_signature).split(","):
+        if "=" in parte:
+            k, v = parte.split("=", 1)
+            partes[k.strip()] = v.strip()
+    ts = partes.get("ts")
+    v1 = partes.get("v1")
+    if not ts or not v1:
+        return False
+    did = str(data_id or "").lower()
+    manifest = f"id:{did};request-id:{x_request_id or ''};ts:{ts};"
+    calc = hmac.new(secret.encode("utf-8"), manifest.encode("utf-8"), hashlib.sha256).hexdigest()
+    return hmac.compare_digest(calc, v1)
 
 
 def url_checkout(pref: dict) -> str:

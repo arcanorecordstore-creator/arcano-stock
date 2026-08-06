@@ -3288,9 +3288,25 @@ def register_routes(app: Flask) -> None:
 
     def _mp_completar_reserva(reserva, payment_id=None, status="approved"):
         """Marca la reserva como pagada/completada y sus discos como Vendido.
-        Idempotente: si ya estaba pagada, no vuelve a procesar."""
-        if reserva.pagado:
-            return
+        A prueba de carreras: un UPDATE condicional atomico 'reclama' la reserva.
+        Si otra llamada (webhook + retorno, o dos webhooks) ya la reclamo, corta
+        aca para no vender dos veces ni mandar dos mails."""
+        reclamada = (
+            db.session.query(Reserva)
+            .filter(Reserva.id == reserva.id, Reserva.pagado == False)  # noqa: E712
+            .update(
+                {
+                    "pagado": True,
+                    "estado": "Completada",
+                    "mp_status": status,
+                    "mp_payment_id": str(payment_id) if payment_id else reserva.mp_payment_id,
+                },
+                synchronize_session=False,
+            )
+        )
+        db.session.commit()
+        if not reclamada:
+            return  # otra llamada ya completo esta reserva
         ahora = datetime.utcnow()
         for item in reserva.items_efectivos:
             d = Disc.query.get(item.disc_id) if getattr(item, "disc_id", None) else None
@@ -3301,11 +3317,6 @@ def register_routes(app: Flask) -> None:
                 if not getattr(d, "copias_vendidas", 0):
                     d.copias_vendidas = 1
                 d.stock = max(0, (d.stock or 1) - 1)
-        reserva.pagado = True
-        reserva.estado = "Completada"
-        if payment_id:
-            reserva.mp_payment_id = str(payment_id)
-        reserva.mp_status = status
         db.session.commit()
         # Email de confirmacion (best-effort)
         if reserva.email and mailer.can_send():
@@ -3326,6 +3337,15 @@ def register_routes(app: Flask) -> None:
             payment_id = str((data.get("data") or {}).get("id") or data.get("id") or "")
         if not payment_id:
             return "", 200  # nada que procesar
+        # Validar la firma del webhook (si hay MP_WEBHOOK_SECRET configurado).
+        # None = no hay secreto -> se sigue igual (no rompe si aun no se cargo).
+        firma = mp.firma_webhook_valida(
+            request.headers.get("x-signature"),
+            request.headers.get("x-request-id"),
+            request.args.get("data.id") or payment_id,
+        )
+        if firma is False:
+            return "firma invalida", 403
         pago = mp.obtener_pago(payment_id)
         if not pago:
             return "", 200
