@@ -170,6 +170,14 @@
                     <div class="main-meta">
                         {% if d.anio %}<span class="main-anio">{{ d.anio }}</span> &middot; {% endif %}<span class="main-genero col-editable-text" data-edit="genero" data-disc-id="{{ d.id }}" data-raw="{{ d.genero or '' }}" title="Click para editar el genero">{{ d.genero or '+ genero' }}</span>
                     </div>
+                    {% set _tot = d.tracks|length %}{% set _aud = d.tracks_con_sample|length %}
+                    <div class="main-audio">
+                        {% if _tot > 0 %}
+                        <span class="audio-ind {% if _aud == _tot %}audio-full{% elif _aud > 0 %}audio-part{% else %}audio-none{% endif %}" title="{{ _aud }} de {{ _tot }} tracks con audio para escuchar">&#9834; {{ _aud }}/{{ _tot }} audio</span>
+                        {% else %}
+                        <span class="audio-ind audio-notracks" title="Este disco no tiene tracks cargados">sin tracks</span>
+                        {% endif %}
+                    </div>
                     <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="main-ver-ficha" title="Abrir ficha completa">ver ficha &rarr;</a>
                 </td>
                 <td class="col-label col-editable-text" data-edit="sello" data-disc-id="{{ d.id }}" data-raw="{{ d.sello or '' }}" title="Click para editar el sello">{{ d.sello or '—' }}</td>

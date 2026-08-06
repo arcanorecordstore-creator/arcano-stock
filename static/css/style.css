@@ -8001,3 +8001,19 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     background: #f43f5e !important;
     color: #fff !important;
 }
+
+/* v2.82 - Indicador de audio de tracks en el dashboard (verde/amarillo/rojo).
+   Muestra cuantos tracks del disco tienen sample escuchable cargado. */
+.main-audio { margin-top: 3px; }
+.audio-ind {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 6px;
+    letter-spacing: 0.2px;
+}
+.audio-full { background: #10b981; color: #fff; }   /* todos los tracks con audio */
+.audio-part { background: #f59e0b; color: #fff; }   /* algunos */
+.audio-none { background: #ef4444; color: #fff; }   /* ninguno */
+.audio-notracks { background: var(--bg-2, #1a1a1a); color: var(--text-4, #777); border: 1px solid var(--border-2, #333); }
