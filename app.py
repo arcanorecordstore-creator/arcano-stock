@@ -2079,6 +2079,44 @@ def register_routes(app: Flask) -> None:
         # Redirect de la URL vieja a la nueva
         return redirect(url_for("contabilidad"))
 
+    @app.route("/admin/radar")
+    @auth.admin_required
+    def radar_demanda():
+        """Radar de demanda: rankea discos por interes relativo
+        (reproducciones / dias disponible), cruzado con el estado. Separa los
+        disponibles (accionables) de los vendidos (validacion del ojo)."""
+        ahora = datetime.utcnow()
+        filas = []
+        for d in Disc.query.filter(Disc.estado != "Descartado").all():
+            plays = sum((t.play_count or 0) for t in d.tracks)
+            if d.fecha_ingreso:
+                fin = d.fecha_venta if (d.estado == "Vendido" and d.fecha_venta) else ahora
+                dias = max((fin - d.fecha_ingreso).days, 1)
+            else:
+                dias = 1
+            filas.append({
+                "disc": d, "plays": plays, "dias": dias,
+                "interes": round(plays / dias, 2),
+            })
+        con_escuchas = [f for f in filas if f["plays"] > 0]
+        disponibles = sorted(
+            [f for f in con_escuchas if f["disc"].estado in
+             ("Disponible", "Pre-order", "Reservado", "Apartado para mi")],
+            key=lambda f: f["interes"], reverse=True,
+        )
+        vendidos = sorted(
+            [f for f in con_escuchas if f["disc"].estado == "Vendido"],
+            key=lambda f: f["interes"], reverse=True,
+        )
+        return render_template(
+            "radar.html",
+            disponibles=disponibles,
+            vendidos=vendidos,
+            con_escuchas=len(con_escuchas),
+            sin_escuchas=len(filas) - len(con_escuchas),
+            total_discos=len(filas),
+        )
+
     @app.route("/admin/contabilidad")
     @auth.admin_required
     def contabilidad():

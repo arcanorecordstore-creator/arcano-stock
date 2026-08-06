@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+
+{% block title %}Radar de demanda &middot; Arcano{% endblock %}
+
+{% block content %}
+<div class="radar-page">
+    <div class="radar-head">
+        <h1>Radar de demanda</h1>
+        <p class="radar-sub">
+            Qué está despertando ganas, medido por <strong>escuchas por día disponible</strong>
+            (no solo escuchas totales). Así un disco nuevo con pocas escuchas pero mucha intensidad
+            aparece arriba, y no queda tapado por uno viejo que juntó escuchas de a poco.
+            <br>{{ con_escuchas }} discos con escuchas · {{ sin_escuchas }} todavía sin escuchas · {{ total_discos }} en total.
+        </p>
+    </div>
+
+    {% set estado_class = {
+        'Disponible': 'badge-disponible', 'Pre-order': 'badge-preorder',
+        'Reservado': 'badge-reservado', 'Vendido': 'badge-vendido',
+        'Apartado para mi': 'badge-apartado', 'Descartado': 'badge-descartado'} %}
+
+    {% macro tabla_radar(filas, vacio) %}
+        {% if filas %}
+        <div class="radar-table-wrap">
+        <table class="radar-table">
+            <thead>
+                <tr>
+                    <th class="ra-rank">#</th>
+                    <th>Disco</th>
+                    <th>Estado</th>
+                    <th class="ra-num">Escuchas</th>
+                    <th class="ra-num">Días</th>
+                    <th class="ra-num">Interés <span>/día</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for f in filas %}
+                <tr>
+                    <td class="ra-rank">{{ loop.index }}</td>
+                    <td class="ra-disco">
+                        <a href="{{ url_for('disc_detail', disc_id=f.disc.id) }}">{{ f.disc.artista }} &mdash; {{ f.disc.titulo }}</a>
+                        {% if f.disc.sello %}<span class="ra-sello">{{ f.disc.sello }}</span>{% endif %}
+                    </td>
+                    <td><span class="badge {{ estado_class.get(f.disc.estado, 'badge-default') }}">{{ f.disc.estado }}</span></td>
+                    <td class="ra-num">{{ f.plays }}</td>
+                    <td class="ra-num">{{ f.dias }}</td>
+                    <td class="ra-num ra-interes">{{ '%.2f'|format(f.interes) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <p class="radar-empty">{{ vacio }}</p>
+        {% endif %}
+    {% endmacro %}
+
+    <section class="radar-section">
+        <h2>&#128293; Calientes y disponibles</h2>
+        <p class="radar-hint">Los que más ganas despiertan por día <strong>y todavía tenés</strong>. Candidatos para subir a la primera fila de la home, destacar, o hacerles una story hoy.</p>
+        {{ tabla_radar(disponibles, 'Todavía no hay discos disponibles con escuchas. Cuando la gente empiece a escuchar samples, aparecen acá ordenados por interés.') }}
+    </section>
+
+    <section class="radar-section">
+        <h2>&#10003; Tu oído convierte (escuchado y vendido)</h2>
+        <p class="radar-hint">Discos que se escucharon fuerte y se vendieron: validación de que el sonido que elegís mueve. Si el interés/día es alto, ese es tu tipo de disco ganador.</p>
+        {{ tabla_radar(vendidos, 'Todavía no hay ventas de discos con escuchas registradas.') }}
+    </section>
+</div>
+{% endblock %}

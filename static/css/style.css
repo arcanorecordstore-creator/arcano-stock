@@ -8038,3 +8038,24 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 }
 .fp-cart-btn:hover { filter: brightness(1.08); }
 .fp-cart-btn.is-in-cart { background: var(--bg-3, #2a2a2a); color: var(--text-2, #ccc); }
+
+/* v2.84 - Radar de demanda (admin) */
+.radar-page { max-width: 1000px; margin: 0 auto; }
+.radar-head h1 { margin-bottom: 4px; }
+.radar-sub { color: var(--text-3); font-size: 14px; line-height: 1.5; margin-bottom: 26px; }
+.radar-section { margin-bottom: 34px; }
+.radar-section h2 { font-size: 18px; margin-bottom: 4px; }
+.radar-hint { color: var(--text-3); font-size: 13px; line-height: 1.45; margin-bottom: 12px; }
+.radar-table-wrap { overflow-x: auto; }
+.radar-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.radar-table th, .radar-table td { padding: 8px 10px; border-bottom: 1px solid var(--border-2, #333); text-align: left; vertical-align: middle; }
+.radar-table th { color: var(--text-3); font-size: 12px; font-weight: 600; white-space: nowrap; }
+.radar-table th.ra-num, .radar-table td.ra-num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.radar-table th.ra-num span { font-weight: 400; opacity: 0.7; }
+.ra-rank { color: var(--text-4); width: 30px; text-align: right; }
+.ra-disco a { color: var(--text-1); text-decoration: none; font-weight: 600; }
+.ra-disco a:hover { text-decoration: underline; }
+.ra-sello { display: block; color: var(--text-4); font-size: 12px; margin-top: 1px; }
+.ra-interes { font-weight: 700; color: var(--gain, #10b981); }
+.radar-table tbody tr:first-child .ra-interes { font-size: 15px; }
+.radar-empty { color: var(--text-4); font-style: italic; font-size: 14px; }
