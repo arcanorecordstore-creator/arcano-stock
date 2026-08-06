@@ -121,8 +121,11 @@ def probar_credencial():
     if resp.status_code == 200:
         data = resp.json()
         nick = data.get("nickname") or data.get("email") or str(data.get("id") or "cuenta")
-        modo = "PRUEBA (sandbox)" if es_sandbox() else "PRODUCCION"
-        return True, f"Conexion OK — cuenta '{nick}', modo {modo}."
+        if es_sandbox():
+            modo = "es un token de PRUEBA (empieza con TEST-)."
+        else:
+            modo = "recorda: prueba o produccion segun de que seccion lo copiaste en MP (MP ya no lo marca con TEST-)."
+        return True, f"Conexion OK — cuenta '{nick}'. {modo}"
     if resp.status_code in (401, 403):
         return False, "El token no es valido o esta vencido (MP respondio 401/403)."
     return False, f"Mercado Pago respondio {resp.status_code}."
