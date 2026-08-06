@@ -99,14 +99,14 @@
                     '<label class="track-sample-label">Empieza en (seg)</label>' +
                     '<input type="number" class="track-input track-input-start" data-field="youtube_start" placeholder="0" value="' + (t.youtube_start !== null && t.youtube_start !== undefined ? t.youtube_start : '') + '" min="0" style="width:80px;">' +
                     '<button type="button" class="btn btn-ghost btn-sm" data-action="search-track" title="Buscar en YouTube y SoundCloud">&#128269; Buscar</button>' +
-                    '<button type="button" class="btn btn-ghost btn-sm" data-action="upload-mp3">Subir MP3</button>' +
-                    (t.sample_local ? '<button type="button" class="btn btn-ghost btn-sm danger" data-action="clear-mp3">Borrar MP3</button>' : '') +
+                    '<button type="button" class="btn btn-ghost btn-sm" data-action="upload-mp3" title="Subi un MP3, o un video (mp4/mov) de los que subis a Instagram: suena igual">Subir audio/video</button>' +
+                    (t.sample_local ? '<button type="button" class="btn btn-ghost btn-sm danger" data-action="clear-mp3">Borrar archivo</button>' : '') +
                     '<span class="track-sample-status"></span>' +
-                    '<input type="file" hidden data-file-input accept="audio/mpeg,audio/mp3,audio/wav,audio/ogg,audio/webm">' +
+                    '<input type="file" hidden data-file-input accept="audio/*,video/mp4,video/quicktime,video/webm">' +
                 '</div>' +
                 '<div class="track-search-results" data-search-results hidden></div>' +
                 ((t.youtube_url && !t.sample_local && String(t.youtube_url).toLowerCase().indexOf('soundcloud.com') === -1)
-                    ? '<div class="track-yt-warn">&#9432; Algunos videos de YouTube (sobre todo de sellos) no se pueden reproducir dentro de la web. Para asegurar la escucha, subi un MP3 propio o usa SoundCloud.</div>'
+                    ? '<div class="track-yt-warn">&#9432; Algunos videos de YouTube (sobre todo de sellos) no se pueden reproducir dentro de la web. Para asegurar la escucha, subi un audio o video propio, o usa SoundCloud.</div>'
                     : '') +
             '</div>'
         );
@@ -170,7 +170,7 @@
                     .then(function (r) { return r.json(); })
                     .then(function (data) {
                         if (data.ok) {
-                            statusEl.textContent = 'MP3 subido!';
+                            statusEl.textContent = 'Subido!';
                             statusEl.style.color = 'var(--gain)';
                             setTimeout(loadTracks, 400);
                         } else {

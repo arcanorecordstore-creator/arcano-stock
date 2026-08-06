@@ -277,7 +277,7 @@
                 {% set _ = tracks_data.append({
                     'id': t.id,
                     'kind': t.sample_kind,
-                    'audioUrl': url_for('static', filename='samples/' + t.sample_local) if t.sample_kind == 'local' else '',
+                    'audioUrl': url_for('serve_sample', filename=t.sample_local) if t.sample_kind == 'local' else '',
                     'youtubeId': t.youtube_video_id or '',
                     'youtubeStart': t.youtube_start or 0,
                     'soundcloudUrl': t.youtube_url if t.sample_kind == 'soundcloud' else '',
@@ -291,7 +291,7 @@
                     data-track-id="{{ ps.id }}"
                     data-tracks="{{ tracks_data|tojson|forceescape }}"
                     data-cover-url="{{ card_cover }}"
-                    {% if ps.sample_kind == 'local' %}data-audio-url="{{ url_for('static', filename='samples/' + ps.sample_local) }}"{% endif %}
+                    {% if ps.sample_kind == 'local' %}data-audio-url="{{ url_for('serve_sample', filename=ps.sample_local) }}"{% endif %}
                     {% if ps.sample_kind == 'youtube' %}data-youtube-id="{{ ps.youtube_video_id }}" data-youtube-start="{{ ps.youtube_start or 0 }}"{% endif %}
                     {% if ps.sample_kind == 'soundcloud' %}data-soundcloud-url="{{ ps.youtube_url }}"{% endif %}
                     data-track-title="{{ ps.titulo }}"

@@ -95,7 +95,7 @@ def create_app() -> Flask:
     app.config["SECRET_KEY"] = os.environ.get(
         "SECRET_KEY", "arcano-local-dev-key-change-me"
     )
-    app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB
+    app.config["MAX_CONTENT_LENGTH"] = 35 * 1024 * 1024  # 35 MB (permite samples de video)
 
     # --- Seguridad de cookies de sesion ---
     # HTTPONLY: el JS no puede leer la cookie (previene robo por XSS).
@@ -176,6 +176,25 @@ def create_app() -> Flask:
     @app.route("/covers/<path:filename>")
     def serve_cover(filename):
         return send_from_directory(app.config["COVERS_DIR"], filename)
+
+    # Carpeta de samples de audio/video subidos a mano. En produccion (Render)
+    # se define SAMPLES_PATH apuntando al disco persistente; en local usa
+    # static/samples. Sin esto, los archivos subidos se borrarian en cada deploy.
+    samples_path = os.environ.get("SAMPLES_PATH", "").strip()
+    if samples_path:
+        os.makedirs(samples_path, exist_ok=True)
+        app.config["SAMPLES_DIR"] = samples_path
+    else:
+        app.config["SAMPLES_DIR"] = os.path.join(app.static_folder, "samples")
+
+    @app.route("/sample/<path:filename>")
+    def serve_sample(filename):
+        # Los nuevos uploads viven en SAMPLES_DIR (disco persistente); los viejos
+        # que hayan quedado en static/samples se sirven como fallback.
+        d = app.config["SAMPLES_DIR"]
+        if os.path.exists(os.path.join(d, filename)):
+            return send_from_directory(d, filename)
+        return send_from_directory(os.path.join(app.static_folder, "samples"), filename)
 
     init_db(app)
     register_routes(app)
@@ -1740,10 +1759,6 @@ def register_routes(app: Flask) -> None:
             return jsonify({"ok": False, "error": "No se selecciono archivo"}), 400
 
         media_type = (file.mimetype or "").lower()
-        allowed = {"audio/mpeg", "audio/mp3", "audio/wav", "audio/x-wav", "audio/ogg", "audio/webm"}
-        if media_type not in allowed:
-            return jsonify({"ok": False, "error": f"Tipo no soportado: {media_type}. Usar MP3/WAV/OGG."}), 400
-
         ext_map = {
             "audio/mpeg": ".mp3",
             "audio/mp3": ".mp3",
@@ -1751,11 +1766,21 @@ def register_routes(app: Flask) -> None:
             "audio/x-wav": ".wav",
             "audio/ogg": ".ogg",
             "audio/webm": ".webm",
+            # Video: se guarda el archivo tal cual; el player reproduce el audio
+            # del video con <audio> (suena aunque no muestre imagen).
+            "video/mp4": ".mp4",
+            "audio/mp4": ".m4a",
+            "audio/x-m4a": ".m4a",
+            "video/quicktime": ".mov",
+            "video/webm": ".webm",
+            "video/x-m4v": ".m4v",
         }
+        if media_type not in ext_map:
+            return jsonify({"ok": False, "error": f"Tipo no soportado: {media_type}. Usar MP3, WAV, M4A o video MP4/MOV."}), 400
         ext = ext_map.get(media_type, ".mp3")
 
         # Borrar sample anterior si habia
-        samples_dir = os.path.join(app.static_folder, "samples")
+        samples_dir = app.config["SAMPLES_DIR"]
         os.makedirs(samples_dir, exist_ok=True)
         if t.sample_local:
             old_path = os.path.join(samples_dir, t.sample_local)
@@ -1769,13 +1794,13 @@ def register_routes(app: Flask) -> None:
         filename = f"sample_{_uuid.uuid4().hex[:12]}{ext}"
         dest_path = os.path.join(samples_dir, filename)
 
-        # Limitar tamano a 8 MB
-        MAX_BYTES = 8 * 1024 * 1024
+        # Limitar tamano a 30 MB (los videos pesan mas que un mp3)
+        MAX_BYTES = 30 * 1024 * 1024
         content = file.read()
         if len(content) > MAX_BYTES:
             return jsonify({
                 "ok": False,
-                "error": f"Archivo demasiado grande ({len(content)//1024} KB). Maximo: 8 MB.",
+                "error": f"Archivo demasiado grande ({len(content)//1024//1024} MB). Maximo: 30 MB.",
             }), 400
 
         try:
@@ -1789,7 +1814,7 @@ def register_routes(app: Flask) -> None:
         return jsonify({
             "ok": True,
             "track": t.to_dict(),
-            "url": url_for("static", filename=f"samples/{filename}"),
+            "url": url_for("serve_sample", filename=filename),
         })
 
     @app.route("/admin/tracks/<int:track_id>/clear-sample", methods=["POST"])
@@ -1798,7 +1823,7 @@ def register_routes(app: Flask) -> None:
         """Borra el sample MP3 local del track."""
         t = Track.query.get_or_404(track_id)
         if t.sample_local:
-            samples_dir = os.path.join(app.static_folder, "samples")
+            samples_dir = app.config["SAMPLES_DIR"]
             old_path = os.path.join(samples_dir, t.sample_local)
             if os.path.exists(old_path):
                 try:

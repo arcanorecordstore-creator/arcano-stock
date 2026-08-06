@@ -234,7 +234,7 @@
                         {% if t.sample_kind == 'local' %}
                             <button type="button" class="public-track-play-btn" data-play="local"
                                     data-track-id="{{ t.id }}"
-                                    data-audio-url="{{ url_for('static', filename='samples/' + t.sample_local) }}"
+                                    data-audio-url="{{ url_for('serve_sample', filename=t.sample_local) }}"
                                     data-cover-url="{% if disc.cover_local %}{{ url_for('serve_cover', filename=disc.cover_local) }}{% elif disc.cover_url %}{{ disc.cover_url }}{% endif %}"
                                     data-track-title="{{ t.titulo }}"
                                     data-track-artist="{{ t.artista or disc.artista }}"
