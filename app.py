@@ -46,6 +46,23 @@ import mp
 # Se reinicia con cada deploy; suficiente para frenar fuerza bruta.
 _login_attempts: dict = {}
 _cliente_login_attempts: dict = {}  # idem para el login de clientes de la tienda
+_reserva_attempts: dict = {}  # ip -> [timestamps] para limitar reservas (anti-spam / mail-bombing)
+
+
+def _reserva_supera_limite(ip, limite=12, ventana=3600):
+    """True si esta IP ya hizo demasiadas reservas en la ventana (segundos).
+    Frena bots que inunden la casilla del admin o usen el SMTP para spamear."""
+    import time as _t
+    ahora = _t.time()
+    marcas = [t for t in _reserva_attempts.get(ip, []) if ahora - t < ventana]
+    _reserva_attempts[ip] = marcas
+    return len(marcas) >= limite
+
+
+def _reserva_registrar(ip):
+    """Registra una reserva concretada desde esta IP (para el rate-limit)."""
+    import time as _t
+    _reserva_attempts.setdefault(ip, []).append(_t.time())
 
 
 def convertir_cover_a_webp(path_original: str) -> str:
@@ -3753,6 +3770,12 @@ def register_routes(app: Flask) -> None:
             ), 400
 
         if request.method == "POST":
+            # Anti-spam: mismo limite por IP que el checkout
+            ip_reserva = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+            if _reserva_supera_limite(ip_reserva):
+                flash("Recibimos muchas reservas desde tu conexion en poco tiempo. Espera un rato o escribinos por Instagram/WhatsApp.", "error")
+                return render_template("public/reservar.html", disc=disc, form={}, **_public_context()), 429
+
             nombre = (request.form.get("nombre") or "").strip()[:120]
             whatsapp = (request.form.get("whatsapp") or "").strip()[:40]
             email = ((request.form.get("email") or "").strip()[:200]) or None
@@ -3799,6 +3822,7 @@ def register_routes(app: Flask) -> None:
             )
             db.session.add(item)
             db.session.commit()
+            _reserva_registrar(ip_reserva)
 
             # Mandar email al admin (opcional, si SMTP esta configurado)
             if mailer.is_configured():
@@ -4079,6 +4103,13 @@ def register_routes(app: Flask) -> None:
             ids_raw = (request.form.get("ids") or "").strip()
             ids = [int(x) for x in ids_raw.split(",") if x.strip().isdigit()]
             ids = list(dict.fromkeys(ids))[:100]   # deduplicar preservando orden
+
+            # Anti-spam: frenar avalanchas de reservas desde una misma IP
+            ip_reserva = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+            if _reserva_supera_limite(ip_reserva):
+                flash("Recibimos muchas reservas desde tu conexion en poco tiempo. Espera un rato o escribinos por Instagram/WhatsApp.", "error")
+                return render_template("public/checkout.html", ids=ids_raw, form={}, **_public_context()), 429
+
             nombre = (request.form.get("nombre") or "").strip()[:120]
             whatsapp = (request.form.get("whatsapp") or "").strip()[:40]
             email = ((request.form.get("email") or "").strip()[:200]) or None
@@ -4159,6 +4190,7 @@ def register_routes(app: Flask) -> None:
                 db.session.add(item)
 
             db.session.commit()
+            _reserva_registrar(ip_reserva)
 
             # Metodo de pago elegido en el checkout
             metodo = request.form.get("metodo", "coordinar")

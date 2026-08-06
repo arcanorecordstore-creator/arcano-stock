@@ -13,6 +13,7 @@ Si alguna falta, las funciones devuelven False sin error (modo silencioso).
 import os
 import mimetypes
 import smtplib
+from html import escape as _e
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
@@ -118,7 +119,7 @@ def send_reserva_notification(reserva, disc, comprobante_path=None) -> tuple[boo
             for it in items
         )
         discos_html = "".join(
-            f'<p style="margin:4px 0;"><strong>{it.artista_snap or "(disco)"}</strong> - {it.titulo_snap or ""} '
+            f'<p style="margin:4px 0;"><strong>{_e(it.artista_snap or "(disco)")}</strong> - {_e(it.titulo_snap or "")} '
             f'<span style="color:#10b981;">$ {(it.precio_uyu_snap or 0):,.0f} UYU</span></p>'
             for it in items
         )
@@ -127,7 +128,7 @@ def send_reserva_notification(reserva, disc, comprobante_path=None) -> tuple[boo
     else:
         precio = (disc.precio_mostrar or 0)
         discos_txt = f"  - {disc.artista} - {disc.titulo} ($ {precio:,.0f} UYU)"
-        discos_html = (f'<p style="margin:4px 0;"><strong>{disc.artista}</strong> - {disc.titulo} '
+        discos_html = (f'<p style="margin:4px 0;"><strong>{_e(disc.artista or "")}</strong> - {_e(disc.titulo or "")} '
                        f'<span style="color:#10b981;">$ {precio:,.0f} UYU</span></p>')
         total_uyu = precio
         n = 1
@@ -181,15 +182,15 @@ Gestionar en: /admin/reservas/{reserva.id}
 <p style="margin-top:8px;"><strong>Total: $ {total_uyu:,.0f} UYU</strong></p>
 
 <h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 2px;">Cliente</h3>
-<p><strong>{reserva.nombre}</strong><br>
-WhatsApp: {reserva.whatsapp}<br>
-Email: {reserva.email or '—'}</p>
+<p><strong>{_e(reserva.nombre or '')}</strong><br>
+WhatsApp: {_e(reserva.whatsapp or '')}<br>
+Email: {_e(reserva.email or '—')}</p>
 
 <h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 2px;">Pago</h3>
 <p>Metodo: <strong>{metodo_label}</strong></p>
 {comp_html}
 
-{f'<h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 2px;">Nota</h3><p>{reserva.nota}</p>' if reserva.nota else ''}
+{f'<h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 2px;">Nota</h3><p>{_e(reserva.nota)}</p>' if reserva.nota else ''}
 
 <hr style="border: none; border-top: 1px solid #333; margin: 30px 0;">
 <p style="font-size: 11px; color: #666;">Reserva #{reserva.id}</p>
@@ -230,15 +231,15 @@ Montevideo, Uruguay
 <h1 style="letter-spacing: 4px; font-weight: 300;">ARCANO</h1>
 <h2 style="color: #10b981; font-size: 16px;">Confirmamos tu reserva</h2>
 
-<p>Hola <strong>{reserva.nombre}</strong>, recibimos tu reserva. Estos son los detalles:</p>
+<p>Hola <strong>{_e(reserva.nombre or '')}</strong>, recibimos tu reserva. Estos son los detalles:</p>
 
 <h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 2px;">Disco</h3>
-<p><strong>{disc.artista}</strong><br>
-{disc.titulo}<br>
-<span style="color: #888;">{disc.sello or '—'}</span><br>
+<p><strong>{_e(disc.artista or '')}</strong><br>
+{_e(disc.titulo or '')}<br>
+<span style="color: #888;">{_e(disc.sello or '—')}</span><br>
 <span style="color: #10b981;">$ {precio_uyu:,.0f} UYU</span></p>
 
-<p>Nos vamos a contactar con vos por WhatsApp (<strong>{reserva.whatsapp}</strong>) para coordinar el pago y la entrega o retiro.</p>
+<p>Nos vamos a contactar con vos por WhatsApp (<strong>{_e(reserva.whatsapp or '')}</strong>) para coordinar el pago y la entrega o retiro.</p>
 
 <p style="margin-top: 24px;">Gracias por elegir Arcano.</p>
 
@@ -278,17 +279,17 @@ Montevideo, Uruguay
 """
 
     filas_html = "".join(
-        f'<p style="margin:4px 0;"><strong>{d.artista}</strong> - {d.titulo} '
+        f'<p style="margin:4px 0;"><strong>{_e(d.artista or "")}</strong> - {_e(d.titulo or "")} '
         f'<span style="color:#10b981;">$ {(d.precio_mostrar or 0):,.0f} UYU</span></p>'
         for d in discs
     )
     body_html = f"""<html><body style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; background: #0a0a0a; color: #fff;">
 <h1 style="letter-spacing: 4px; font-weight: 300;">ARCANO</h1>
 <h2 style="color: #10b981; font-size: 16px;">Confirmamos tu reserva</h2>
-<p>Hola <strong>{reserva.nombre}</strong>, recibimos tu reserva de estos discos:</p>
+<p>Hola <strong>{_e(reserva.nombre or '')}</strong>, recibimos tu reserva de estos discos:</p>
 {filas_html}
 <p style="margin-top:12px;"><strong>Total: $ {total:,.0f} UYU</strong></p>
-<p>Nos vamos a contactar con vos por WhatsApp (<strong>{reserva.whatsapp}</strong>) para coordinar el pago y la entrega o retiro.</p>
+<p>Nos vamos a contactar con vos por WhatsApp (<strong>{_e(reserva.whatsapp or '')}</strong>) para coordinar el pago y la entrega o retiro.</p>
 <p style="margin-top: 24px;">Gracias por elegir Arcano.</p>
 <hr style="border: none; border-top: 1px solid #333; margin: 30px 0;">
 <p style="font-size: 11px; color: #666;">Arcano Record Store &middot; Montevideo, Uruguay<br>Reserva #{reserva.id}</p>
