@@ -125,7 +125,7 @@ def send_reserva_notification(reserva, disc, comprobante_path=None) -> tuple[boo
         total_uyu = sum((it.precio_uyu_snap or 0) for it in items)
         n = len(items)
     else:
-        precio = (disc.precio_uyu or 0)
+        precio = (disc.precio_mostrar or 0)
         discos_txt = f"  - {disc.artista} - {disc.titulo} ($ {precio:,.0f} UYU)"
         discos_html = (f'<p style="margin:4px 0;"><strong>{disc.artista}</strong> - {disc.titulo} '
                        f'<span style="color:#10b981;">$ {precio:,.0f} UYU</span></p>')
@@ -206,7 +206,7 @@ def send_reserva_confirmacion_cliente(reserva, disc) -> tuple[bool, str]:
 
     subject = f"Confirmamos tu reserva - {disc.artista} - {disc.titulo}"
 
-    precio_uyu = (disc.precio_uyu or 0)
+    precio_uyu = (disc.precio_mostrar or 0)
     body_text = f"""Hola {reserva.nombre},
 
 Recibimos tu reserva en Arcano Record Store. Estos son los detalles:
@@ -254,9 +254,9 @@ def send_reserva_confirmacion_cliente_multi(reserva, discs) -> tuple[bool, str]:
     if not reserva.email:
         return False, "El cliente no dejo email"
 
-    total = sum((d.precio_uyu or 0) for d in discs)
+    total = sum((d.precio_mostrar or 0) for d in discs)
     lineas = "\n".join(
-        f"  - {d.artista} - {d.titulo} ($ {(d.precio_uyu or 0):,.0f} UYU)"
+        f"  - {d.artista} - {d.titulo} ($ {(d.precio_mostrar or 0):,.0f} UYU)"
         for d in discs
     )
     subject = f"Confirmamos tu reserva - {len(discs)} disco(s)"
@@ -279,7 +279,7 @@ Montevideo, Uruguay
 
     filas_html = "".join(
         f'<p style="margin:4px 0;"><strong>{d.artista}</strong> - {d.titulo} '
-        f'<span style="color:#10b981;">$ {(d.precio_uyu or 0):,.0f} UYU</span></p>'
+        f'<span style="color:#10b981;">$ {(d.precio_mostrar or 0):,.0f} UYU</span></p>'
         for d in discs
     )
     body_html = f"""<html><body style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; background: #0a0a0a; color: #fff;">

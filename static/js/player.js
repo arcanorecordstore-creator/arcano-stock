@@ -313,19 +313,25 @@
         if (p) p.hidden = modoEscucharTodo; if (s) s.hidden = !modoEscucharTodo;
         b.classList.toggle('activo', modoEscucharTodo);
     }
-    (function initListenAll() {
+    // Re-enganchable: el boton vive dentro de <main>, asi que tras cada pjax hay
+    // que volver a mostrarlo y bindearlo (lo llama window.ArcanoPlayer.rebind).
+    function hookListenAll() {
         var boton = document.getElementById('listen-all-btn'); if (!boton) return;
-        var cardBtns = document.querySelectorAll('.card-play-btn[data-tracks]'); if (!cardBtns.length) return;
+        if (!document.querySelector('.card-play-btn[data-tracks]')) { boton.hidden = true; return; }
         boton.hidden = false;
+        if (boton._laBound) return;
+        boton._laBound = true;
         boton.addEventListener('click', function () {
             if (modoEscucharTodo) { cerrar(); return; }
             var lista = [];
-            cardBtns.forEach(function (b) {
+            document.querySelectorAll('.card-play-btn[data-tracks]').forEach(function (b) {
                 var ts; try { ts = JSON.parse(b.dataset.tracks || '[]'); } catch (e) { ts = []; }
                 ts.forEach(function (t) { t.cover = b.dataset.coverUrl || ''; lista.push(t); });
             });
             if (!lista.length) return;
             activeBtn = null; iniciarLista(lista, lista[0].cover, true);
         });
-    })();
+    }
+    hookListenAll();
+    window.ArcanoPlayer.rebind = hookListenAll;
 })();

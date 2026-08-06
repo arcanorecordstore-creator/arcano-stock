@@ -3336,9 +3336,12 @@ def register_routes(app: Flask) -> None:
         estado_mp = request.args.get("status") or request.args.get("collection_status")
         payment_id = request.args.get("payment_id") or request.args.get("collection_id")
         # Respaldo idempotente: si volvio aprobado, confirmamos aca tambien.
+        # Verificamos que el pago corresponda a ESTA reserva (external_reference),
+        # para que nadie confirme una reserva ajena pasando un payment_id cualquiera.
         if reserva and estado_mp == "approved" and payment_id and not reserva.pagado:
             pago = mp.obtener_pago(payment_id)
-            if pago and pago.get("status") == "approved":
+            if (pago and pago.get("status") == "approved"
+                    and str(pago.get("external_reference")) == str(reserva.id)):
                 _mp_completar_reserva(reserva, payment_id=payment_id, status="approved")
         if not estado_mp and reserva:
             estado_mp = reserva.mp_status
@@ -3742,7 +3745,7 @@ def register_routes(app: Flask) -> None:
         # Los pre-orders se pueden reservar aunque no tengan stock todavia.
         if disc.estado == "Pre-order":
             pass  # permitido
-        elif disc.estado != "Disponible" or disc.stock <= 0:
+        elif disc.estado != "Disponible" or (disc.stock or 0) <= 0:
             return render_template(
                 "public/not_available.html",
                 disc=disc,
@@ -3792,7 +3795,7 @@ def register_routes(app: Flask) -> None:
                 disc_id=disc.id,
                 artista_snap=disc.artista,
                 titulo_snap=disc.titulo,
-                precio_uyu_snap=disc.precio_uyu,
+                precio_uyu_snap=disc.precio_mostrar,
             )
             db.session.add(item)
             db.session.commit()
@@ -3932,7 +3935,10 @@ def register_routes(app: Flask) -> None:
             auth.cliente_login(cliente.id)
             flash(f"Hola de nuevo, {cliente.nombre}!", "success")
             next_url = request.args.get("next")
-            if next_url and next_url.startswith("/"):
+            # Solo rutas internas: evitar open redirect con "//sitio.com" o "/\sitio"
+            if (next_url and next_url.startswith("/")
+                    and not next_url.startswith("//")
+                    and "\\" not in next_url):
                 return redirect(next_url)
             return redirect(url_for("cliente_cuenta"))
 
@@ -4034,6 +4040,9 @@ def register_routes(app: Flask) -> None:
             d = by_id.get(i)
             if not d:
                 continue
+            # No exponer discos privados (coleccion personal / descartados)
+            if d.estado in ("Apartado para mi", "Descartado") and not d.mostrar_agotado:
+                continue
             cover = None
             if d.cover_local:
                 cover = url_for("serve_cover", filename=d.cover_local)
@@ -4045,7 +4054,7 @@ def register_routes(app: Flask) -> None:
                 "titulo": d.titulo,
                 "sello": d.sello,
                 "anio": d.anio,
-                "precio_uyu": d.precio_uyu or 0,
+                "precio_uyu": d.precio_mostrar or 0,
                 "cover": cover,
                 "estado": d.estado,
                 "disponible": not d.esta_agotado,
@@ -4068,7 +4077,8 @@ def register_routes(app: Flask) -> None:
         """
         if request.method == "POST":
             ids_raw = (request.form.get("ids") or "").strip()
-            ids = [int(x) for x in ids_raw.split(",") if x.strip().isdigit()][:100]
+            ids = [int(x) for x in ids_raw.split(",") if x.strip().isdigit()]
+            ids = list(dict.fromkeys(ids))[:100]   # deduplicar preservando orden
             nombre = (request.form.get("nombre") or "").strip()[:120]
             whatsapp = (request.form.get("whatsapp") or "").strip()[:40]
             email = ((request.form.get("email") or "").strip()[:200]) or None
@@ -4095,6 +4105,12 @@ def register_routes(app: Flask) -> None:
                 elif (comp.mimetype or "").lower() not in (
                         "image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"):
                     errores.append("El comprobante debe ser una imagen o un PDF (max 12 MB).")
+                else:
+                    comp.stream.seek(0, os.SEEK_END)
+                    _comp_size = comp.stream.tell()
+                    comp.stream.seek(0)
+                    if _comp_size > 12 * 1024 * 1024:
+                        errores.append("El comprobante es muy grande (max 12 MB). Saca una foto mas liviana o mandalo en PDF.")
 
             # Traer discos y validar disponibilidad
             discs = Disc.query.filter(Disc.id.in_(ids)).all() if ids else []
@@ -4115,6 +4131,11 @@ def register_routes(app: Flask) -> None:
                     **_public_context(),
                 )
 
+            # Aviso si algun disco se agoto entre "agregar" y "confirmar"
+            n_descartados = sum(1 for i in ids if i in by_id and by_id[i].esta_agotado)
+            if n_descartados:
+                flash(f"{n_descartados} disco(s) del carrito ya no estaban disponibles y se quitaron del pedido.", "info")
+
             # Crear la reserva (los discos NO cambian de estado hasta confirmar)
             reserva = Reserva(
                 nombre=nombre,
@@ -4133,7 +4154,7 @@ def register_routes(app: Flask) -> None:
                     disc_id=d.id,
                     artista_snap=d.artista,
                     titulo_snap=d.titulo,
-                    precio_uyu_snap=d.precio_uyu,
+                    precio_uyu_snap=d.precio_mostrar,
                 )
                 db.session.add(item)
 

@@ -410,11 +410,12 @@ window.Arcano = window.Arcano || {};
         function iniciarAuto() {
             if (cards.length <= calcPorSlide()) return;
             timer = setInterval(function () { irASlide(slideActual + 1); }, velocidadMs);
+            carrusel._timer = timer;   // pjax lo limpia al salir de la pagina
         }
         function reiniciarAuto() { if (timer) clearInterval(timer); iniciarAuto(); }
         carrusel.addEventListener('mouseenter', function () { if (timer) clearInterval(timer); });
         carrusel.addEventListener('mouseleave', iniciarAuto);
-        window.addEventListener('resize', function () { irASlide(0); });
+        window.addEventListener('resize', function () { if (!carrusel.isConnected) return; irASlide(0); });
 
         actualizarProgreso();
         iniciarAuto();

@@ -55,7 +55,22 @@
     function reengancharJS() {
         try { if (window.ArcanoCart && window.ArcanoCart.rebind) window.ArcanoCart.rebind(); } catch (e) {}
         try { if (window.ArcanoFavs && window.ArcanoFavs.rebind) window.ArcanoFavs.rebind(); } catch (e) {}
+        try { if (window.ArcanoPlayer && window.ArcanoPlayer.rebind) window.ArcanoPlayer.rebind(); } catch (e) {}
         try { if (window.Arcano && window.Arcano.runContent) window.Arcano.runContent(); } catch (e) {}
+    }
+
+    // Cerrar overlays que quedarian tapando la pagina nueva (menu hamburguesa,
+    // cajon del carrito) y liberar el scroll del body.
+    function cerrarOverlays() {
+        ['public-drawer', 'cart-drawer'].forEach(function (id) {
+            var d = document.getElementById(id);
+            if (d) { d.classList.remove('open'); d.setAttribute('aria-hidden', 'true'); }
+        });
+        ['public-drawer-overlay', 'cart-drawer-overlay'].forEach(function (id) {
+            var o = document.getElementById(id);
+            if (o) { o.classList.remove('visible'); o.hidden = true; }
+        });
+        document.body.style.overflow = '';
     }
 
     function swap(html, url, push) {
@@ -65,14 +80,26 @@
         var actual = document.querySelector('.public-main');
         if (!nuevoMain || !actual) { location.href = url; return; }   // no es pagina de tienda
 
+        // Frenar los autoplay de los carruseles salientes (si no, siguen corriendo
+        // sobre nodos ya sacados del DOM = fuga de timers).
+        actual.querySelectorAll('.public-carrusel').forEach(function (c) {
+            if (c._timer) { clearInterval(c._timer); c._timer = null; }
+        });
+
         actual.parentNode.replaceChild(nuevoMain, actual);
+        cerrarOverlays();
         if (doc.title) document.title = doc.title;
         var canNuevo = doc.querySelector('link[rel="canonical"]');
         var canActual = document.querySelector('link[rel="canonical"]');
         if (canNuevo && canActual) canActual.setAttribute('href', canNuevo.getAttribute('href'));
 
         if (push) history.pushState({ pjax: true }, '', url);
-        window.scrollTo(0, 0);
+
+        // Scroll: si la URL trae #ancla, bajar a esa seccion; si no, arriba de todo.
+        var hash = '';
+        try { hash = new URL(url, location.href).hash; } catch (e) {}
+        var anchor = hash && hash.length > 1 ? document.getElementById(hash.slice(1)) : null;
+        if (anchor) anchor.scrollIntoView(); else window.scrollTo(0, 0);
 
         // El checkout ("finalizar compra") en adelante no lleva reproductor
         if (nuevoMain.querySelector('[data-no-player]') || nuevoMain.hasAttribute('data-no-player')) {
