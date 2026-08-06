@@ -201,6 +201,15 @@
     window.ArcanoCart = {
         rebind: function () { bind(); paintButtons(); updateCount(); },
         get: getCart,
+        has: inCart,
+        add: function (id) {
+            id = String(id);
+            var cart = getCart();
+            if (cart.indexOf(id) === -1) { cart.push(id); setCart(cart); }
+            updateCount();
+            paintButtons();
+            return true;
+        },
         clear: function () { setCart([]); updateCount(); }
     };
 

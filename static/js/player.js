@@ -96,6 +96,7 @@
         }
         fpTitle.textContent = title || '';
         fpArtist.textContent = artist || '';
+        if (typeof fpCart !== 'undefined' && fpCart) fpCart.hidden = true;
         player.hidden = false;
         setTimeout(function () { player.classList.add('visible'); }, 10);
     }
@@ -127,6 +128,30 @@
     }
 
     fpClose.addEventListener('click', closePlayer);
+
+    // ---- Boton "Al carrito" dentro del player (solo si el disco esta Disponible) ----
+    var fpCart = document.getElementById('fp-cart');
+    function actualizarBotonCarrito(discId, disponible) {
+        if (!fpCart) return;
+        if (!discId || !disponible) { fpCart.hidden = true; return; }
+        fpCart.hidden = false;
+        fpCart.dataset.discId = String(discId);
+        var yaEsta = !!(window.ArcanoCart && window.ArcanoCart.has && window.ArcanoCart.has(discId));
+        var add = fpCart.querySelector('.fp-cart-add');
+        var inc = fpCart.querySelector('.fp-cart-in');
+        if (add) add.hidden = yaEsta;
+        if (inc) inc.hidden = !yaEsta;
+        fpCart.classList.toggle('is-in-cart', yaEsta);
+    }
+    if (fpCart) {
+        fpCart.addEventListener('click', function () {
+            var id = fpCart.dataset.discId;
+            if (!id || !window.ArcanoCart || !window.ArcanoCart.add) return;
+            window.ArcanoCart.add(id);
+            actualizarBotonCarrito(id, true);
+            if (window.arcanoToast) window.arcanoToast('✓ Agregado al carrito');
+        });
+    }
 
     function playLocal(btn) {
         if (activeBtn === btn && !fpAudio.paused) {
@@ -244,6 +269,7 @@
         if (t.btn) markPlaying(t.btn);
         stopAudioYt();
         showPlayer(t.cover || playCover, t.title, t.artist);
+        actualizarBotonCarrito(t.discId, t.disponible);
         actualizarNav();
         registrarPlay(t.id);
         // En modo escuchar-todo, los samples de YouTube/SoundCloud no avisan

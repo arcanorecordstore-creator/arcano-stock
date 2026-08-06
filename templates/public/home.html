@@ -282,7 +282,9 @@
                     'youtubeStart': t.youtube_start or 0,
                     'soundcloudUrl': t.youtube_url if t.sample_kind == 'soundcloud' else '',
                     'title': t.titulo,
-                    'artist': t.artista or d.artista
+                    'artist': t.artista or d.artista,
+                    'discId': d.id,
+                    'disponible': (d.estado == 'Disponible')
                 }) %}
             {% endfor %}
             <button type="button" class="card-play-btn" data-play="{{ ps.sample_kind }}"

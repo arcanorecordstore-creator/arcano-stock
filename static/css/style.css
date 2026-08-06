@@ -8017,3 +8017,24 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .audio-part { background: #f59e0b; color: #fff; }   /* algunos */
 .audio-none { background: #ef4444; color: #fff; }   /* ninguno */
 .audio-notracks { background: var(--bg-2, #1a1a1a); color: var(--text-4, #777); border: 1px solid var(--border-2, #333); }
+
+/* v2.83 - Boton "Al carrito" dentro del reproductor flotante.
+   Aparece solo cuando suena un disco DISPONIBLE, para reservar en el momento. */
+.fp-cart-btn {
+    margin-top: 5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #10b981;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 13px;
+    cursor: pointer;
+    line-height: 1.3;
+    transition: filter 0.15s ease;
+}
+.fp-cart-btn:hover { filter: brightness(1.08); }
+.fp-cart-btn.is-in-cart { background: var(--bg-3, #2a2a2a); color: var(--text-2, #ccc); }
