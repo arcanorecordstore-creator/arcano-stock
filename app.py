@@ -4012,7 +4012,7 @@ def register_routes(app: Flask) -> None:
                 "precio_uyu": d.precio_uyu or 0,
                 "cover": cover,
                 "estado": d.estado,
-                "disponible": d.estado == "Disponible" and (d.stock or 0) > 0,
+                "disponible": not d.esta_agotado,
                 "url": url_for("public_disc", disc_id=d.id),
                 "tags": d.tags_list,
             })
@@ -4064,7 +4064,7 @@ def register_routes(app: Flask) -> None:
             discs = Disc.query.filter(Disc.id.in_(ids)).all() if ids else []
             by_id = {d.id: d for d in discs}
             disponibles = [by_id[i] for i in ids if i in by_id
-                           and by_id[i].estado == "Disponible" and (by_id[i].stock or 0) > 0]
+                           and not by_id[i].esta_agotado]
 
             if ids and not disponibles:
                 errores.append("Ninguno de los discos del carrito esta disponible.")

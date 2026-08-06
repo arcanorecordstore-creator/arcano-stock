@@ -305,7 +305,7 @@
                 <span class="fav-icon-off">&#9825;</span>
                 <span class="fav-icon-on">&#9829;</span>
             </button>
-            {% if d.estado == 'Disponible' and (d.stock or 0) > 0 %}
+            {% if not d.esta_agotado %}
             <button type="button" class="cart-btn cart-btn-card" data-cart-id="{{ d.id }}" aria-label="Agregar al carrito" title="Agregar al carrito">
                 <span class="cart-icon-off">&#43;</span>
                 <span class="cart-icon-on">&#10003;</span>
