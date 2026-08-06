@@ -8096,3 +8096,45 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .pago-transfer-label { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--text-4); margin-bottom: 4px; }
 .pago-transfer-cuenta { font-family: monospace; font-size: 14px; color: var(--text-1); white-space: pre-wrap; word-break: break-word; margin: 0 0 8px; }
 .pago-pickup { margin-top: 14px; font-size: 13px; color: var(--text-2); background: var(--bg-1); border: 1px dashed var(--border-2); border-radius: 8px; padding: 10px 12px; }
+
+/* ============================================================
+   v2.90 - Reproductor unificado (YouTube/SoundCloud/MP3 con una sola UI)
+   ============================================================ */
+.floating-player { display: block; padding: 0; }
+.fp-progress-row { display: flex; align-items: center; gap: 10px; padding: 9px 16px 3px; }
+.fp-time { font-size: 11px; color: var(--text-3); font-variant-numeric: tabular-nums; min-width: 34px; }
+.fp-time#fp-time-total { text-align: right; }
+.fp-progress { flex: 1; height: 6px; background: var(--border-2, #333); border-radius: 3px; position: relative; cursor: pointer; }
+.fp-progress-fill { position: absolute; left: 0; top: 0; height: 100%; width: 0; background: var(--text-1); border-radius: 3px; }
+.fp-progress-knob { position: absolute; top: 50%; width: 12px; height: 12px; border-radius: 50%; background: var(--text-1); transform: translate(-50%, -50%); left: 0; pointer-events: none; box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.fp-main { display: flex; align-items: center; gap: 12px; padding: 4px 16px 12px; }
+.fp-controls { display: flex; align-items: center; gap: 5px; flex-shrink: 0; }
+.fp-ctrl { display: inline-flex; align-items: center; justify-content: center; width: 36px; height: 36px; border-radius: 50%; background: none; border: 1px solid var(--border-2, #333); color: var(--text-1); cursor: pointer; transition: background .15s ease, border-color .15s ease; padding: 0; }
+.fp-ctrl:hover { border-color: var(--text-3); }
+.fp-ctrl:disabled { opacity: .3; cursor: default; }
+.fp-ctrl-play { width: 44px; height: 44px; background: var(--text-1); border-color: var(--text-1); color: var(--bg-0); }
+.fp-ctrl-play:hover { filter: brightness(.9); }
+.fp-ctrl-sm { width: 34px; height: 34px; border: none; color: var(--text-3); }
+.fp-ctrl-sm:hover { color: var(--text-1); border: none; }
+.fp-cover { width: 44px; height: 44px; border-radius: 6px; overflow: hidden; flex-shrink: 0; background: var(--bg-2); }
+.fp-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.fp-info { flex: 1; min-width: 0; }
+.fp-title { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-sub { font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.fp-engine-slot, .fp-engine-slot iframe, #fp-audio { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; left: 0; bottom: 0; overflow: hidden; border: 0; }
+.fp-fallback-link { display: block; font-size: 11px; color: var(--text-4); text-align: center; padding: 0 16px 8px; }
+.fp-queue-panel { max-height: 220px; overflow-y: auto; border-top: 1px solid var(--border-2, #333); }
+.fp-queue-item { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 16px; background: none; border: 0; border-bottom: 1px solid var(--border-2, #333); color: var(--text-2); cursor: pointer; text-align: left; font-size: 13px; }
+.fp-queue-item:hover { background: rgba(127,127,127,.07); }
+.fp-queue-item.actual { color: var(--text-1); font-weight: 600; }
+.fp-queue-num { color: var(--text-4); font-size: 11px; min-width: 18px; }
+.fp-queue-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 700px) {
+    .fp-progress-row { padding: 7px 12px 2px; }
+    .fp-main { padding: 2px 12px 10px; gap: 8px; }
+    .fp-ctrl { width: 34px; height: 34px; }
+    .fp-ctrl-play { width: 40px; height: 40px; }
+    .fp-cover { width: 40px; height: 40px; }
+    .fp-controls { gap: 3px; }
+}
