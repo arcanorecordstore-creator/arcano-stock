@@ -36,6 +36,16 @@
         <div class="reserva-card-head">
             <span class="reserva-card-num">#{{ r.id }}</span>
             <span class="badge badge-{{ 'reservado' if r.estado == 'Pendiente' else 'disponible' if r.estado == 'Confirmada' else 'vendido' if r.estado == 'Completada' else 'descartado' }}">{{ r.estado }}</span>
+            {% if r.metodo_pago %}
+            <span class="reserva-metodo-chip">
+                {%- if r.metodo_pago == 'transferencia' %}Transferencia
+                {%- elif r.metodo_pago == 'mercadopago' %}Mercado Pago{% if r.pagado %} &middot; PAGADO{% endif %}
+                {%- else %}Coordinar{% endif %}
+            </span>
+            {% endif %}
+            {% if r.comprobante_file %}
+            <span class="reserva-comprobante-chip">&#128206; Comprobante</span>
+            {% endif %}
             <span class="reserva-card-date">{{ r.fecha.strftime('%d/%m/%Y %H:%M') }} UTC</span>
         </div>
         <div class="reserva-card-body">

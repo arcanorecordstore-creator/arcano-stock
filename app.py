@@ -4120,10 +4120,13 @@ def register_routes(app: Flask) -> None:
                 reserva.metodo_pago = "coordinar"
                 db.session.commit()
 
-            # Email al admin (best-effort, no rompe si falla)
+            # Email al admin (best-effort, no rompe si falla) — con el comprobante adjunto si lo hay
             if mailer.is_configured():
+                comp_path = None
+                if reserva.comprobante_file:
+                    comp_path = os.path.join(app.config["COMPROBANTES_DIR"], reserva.comprobante_file)
                 try:
-                    mailer.send_reserva_notification(reserva, disponibles[0])
+                    mailer.send_reserva_notification(reserva, disponibles[0], comprobante_path=comp_path)
                 except Exception:
                     pass
 
