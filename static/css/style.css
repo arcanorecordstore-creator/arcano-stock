@@ -8138,3 +8138,17 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     .fp-cover { width: 40px; height: 40px; }
     .fp-controls { gap: 3px; }
 }
+
+/* v2.91 - Menu lateral al agregar al carrito + comprobante obligatorio */
+.cart-drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 300; opacity: 0; transition: opacity .25s ease; }
+.cart-drawer-overlay.visible { opacity: 1; }
+.cart-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 340px; max-width: 88vw; background: var(--bg-1); border-left: 1px solid var(--border-2, #333); z-index: 301; transform: translateX(100%); transition: transform .28s ease; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.3); }
+.cart-drawer.open { transform: translateX(0); }
+.cart-drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border-2, #333); }
+.cart-drawer-title { font-size: 15px; font-weight: 700; color: var(--gain, #10b981); }
+.cart-drawer-close { background: none; border: none; color: var(--text-3); font-size: 26px; line-height: 1; cursor: pointer; padding: 0 4px; }
+.cart-drawer-body { flex: 1; padding: 20px; }
+.cart-drawer-item { font-size: 15px; font-weight: 600; color: var(--text-1); margin: 0 0 8px; }
+.cart-drawer-count { font-size: 13px; color: var(--text-3); margin: 0; }
+.cart-drawer-foot { padding: 16px 20px; border-top: 1px solid var(--border-2, #333); display: flex; flex-direction: column; gap: 10px; }
+.cart-drawer-foot .btn { width: 100%; text-align: center; }

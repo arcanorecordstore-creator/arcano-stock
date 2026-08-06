@@ -148,6 +148,23 @@
     </div>
 </aside>
 
+<!-- Menu lateral que aparece al agregar un disco al carrito -->
+<div class="cart-drawer-overlay" id="cart-drawer-overlay" hidden></div>
+<aside class="cart-drawer" id="cart-drawer" aria-hidden="true">
+    <div class="cart-drawer-head">
+        <span class="cart-drawer-title">&#10003; Agregado al carrito</span>
+        <button type="button" class="cart-drawer-close" id="cart-drawer-close" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="cart-drawer-body">
+        <p class="cart-drawer-item" id="cart-drawer-item"></p>
+        <p class="cart-drawer-count" id="cart-drawer-count"></p>
+    </div>
+    <div class="cart-drawer-foot">
+        <a href="{{ url_for('public_carrito') }}" class="btn btn-primary cart-drawer-checkout">Finalizar compra</a>
+        <button type="button" class="btn btn-ghost" id="cart-drawer-continue">Seguir comprando</button>
+    </div>
+</aside>
+
 {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
     <div class="flash-stack public-flashes">
@@ -205,7 +222,7 @@
     </div>
     <div class="public-footer-bottom">
         <span>&copy; {{ now.year }} Arcano Record Store &middot; Montevideo, Uruguay</span>
-        <span class="public-footer-ver">v2.90</span>
+        <span class="public-footer-ver">v2.91</span>
     </div>
 </footer>
 

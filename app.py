@@ -4050,6 +4050,16 @@ def register_routes(app: Flask) -> None:
             elif "@" not in email:
                 errores.append("El email no parece valido.")
 
+            # Transferencia: el comprobante es obligatorio
+            if (request.form.get("metodo") == "transferencia"
+                    and Setting.get("transferencia_activa", "0") == "1"):
+                comp = request.files.get("comprobante")
+                if not comp or not comp.filename:
+                    errores.append("Adjunta el comprobante de la transferencia para confirmar.")
+                elif (comp.mimetype or "").lower() not in (
+                        "image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"):
+                    errores.append("El comprobante debe ser una imagen o un PDF (max 12 MB).")
+
             # Traer discos y validar disponibilidad
             discs = Disc.query.filter(Disc.id.in_(ids)).all() if ids else []
             by_id = {d.id: d for d in discs}

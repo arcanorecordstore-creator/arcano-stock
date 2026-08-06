@@ -213,13 +213,16 @@
                 btn.classList.remove('cart-pop');
                 void btn.offsetWidth;
                 btn.classList.add('cart-pop');
-                // Feedback visual (toast)
-                if (window.arcanoToast) {
-                    window.arcanoToast(added ? '\u2713 Agregado al carrito' : 'Quitado del carrito');
+                // Al agregar: abrir el menu lateral. Al quitar: solo un toast.
+                if (added) {
+                    var card = btn.closest('.public-card') || btn.closest('.public-disc-layout') || document;
+                    var tit = ((card.querySelector('.public-card-title') || card.querySelector('.public-disc-title') || {}).textContent || '').trim();
+                    var art = ((card.querySelector('.public-card-artist') || card.querySelector('.public-disc-artist') || {}).textContent || '').trim();
+                    if (window.ArcanoCartDrawer) window.ArcanoCartDrawer.open((art ? art + ' - ' : '') + tit);
+                    else if (window.arcanoToast) window.arcanoToast('\u2713 Agregado al carrito');
+                } else if (window.arcanoToast) {
+                    window.arcanoToast('Quitado del carrito');
                 }
-                // Actualizar label si el boton lo tiene
-                var lblAdd = btn.querySelector('.cart-label-add');
-                var lblIn = btn.querySelector('.cart-label-in');
             });
         });
     }
@@ -561,4 +564,37 @@
                   card.querySelector('.public-disc-cover img');
         volarAlCarrito(img);
     });
+})();
+
+/* Menu lateral que aparece al agregar un disco al carrito */
+(function () {
+    'use strict';
+    var drawer = document.getElementById('cart-drawer');
+    var overlay = document.getElementById('cart-drawer-overlay');
+    if (!drawer || !overlay) return;
+    var itemEl = document.getElementById('cart-drawer-item');
+    var countEl = document.getElementById('cart-drawer-count');
+    var closeBtn = document.getElementById('cart-drawer-close');
+    var continueBtn = document.getElementById('cart-drawer-continue');
+
+    function abrir(titulo) {
+        var n = (window.ArcanoCart && window.ArcanoCart.get) ? window.ArcanoCart.get().length : 0;
+        if (itemEl) itemEl.textContent = titulo && titulo.length > 1 ? titulo : 'Disco agregado a tu carrito.';
+        if (countEl) countEl.textContent = (n === 1) ? 'Tenés 1 disco en el carrito.' : ('Tenés ' + n + ' discos en el carrito.');
+        overlay.hidden = false;
+        setTimeout(function () { overlay.classList.add('visible'); drawer.classList.add('open'); }, 10);
+        drawer.setAttribute('aria-hidden', 'false');
+    }
+    function cerrar() {
+        drawer.classList.remove('open');
+        overlay.classList.remove('visible');
+        setTimeout(function () { overlay.hidden = true; }, 260);
+        drawer.setAttribute('aria-hidden', 'true');
+    }
+    overlay.addEventListener('click', cerrar);
+    if (closeBtn) closeBtn.addEventListener('click', cerrar);
+    if (continueBtn) continueBtn.addEventListener('click', cerrar);
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && drawer.classList.contains('open')) cerrar(); });
+
+    window.ArcanoCartDrawer = { open: abrir, close: cerrar };
 })();
