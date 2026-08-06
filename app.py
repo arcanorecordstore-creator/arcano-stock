@@ -210,6 +210,23 @@ def create_app() -> Flask:
             return send_from_directory(d, filename)
         return send_from_directory(os.path.join(app.static_folder, "samples"), filename)
 
+    # Carpeta de comprobantes de transferencia (PRIVADOS). En produccion caen al
+    # disco persistente (junto a covers/samples) de forma automatica; en local a
+    # static/comprobantes. Se sirven SOLO al admin (son datos financieros).
+    comprobantes_path = os.environ.get("COMPROBANTES_PATH", "").strip()
+    if not comprobantes_path and covers_path:
+        comprobantes_path = os.path.join(os.path.dirname(covers_path.rstrip("/\\")), "comprobantes")
+    if comprobantes_path:
+        os.makedirs(comprobantes_path, exist_ok=True)
+        app.config["COMPROBANTES_DIR"] = comprobantes_path
+    else:
+        app.config["COMPROBANTES_DIR"] = os.path.join(app.static_folder, "comprobantes")
+
+    @app.route("/admin/comprobante/<path:filename>")
+    @auth.admin_required
+    def serve_comprobante(filename):
+        return send_from_directory(app.config["COMPROBANTES_DIR"], filename)
+
     init_db(app)
     register_routes(app)
 
@@ -2902,6 +2919,8 @@ def register_routes(app: Flask) -> None:
             mp_recargo_pct=Setting.get("mp_recargo_pct", "7"),
             mp_credencial_ok=bool(mp.access_token()),
             mp_sandbox=mp.es_sandbox(),
+            transferencia_activa=Setting.get("transferencia_activa", "0") == "1",
+            transferencia_datos=Setting.get("transferencia_datos", ""),
             public_banner_url=Setting.get("public_banner_url", ""),
             public_hero_title=Setting.get("public_hero_title", ""),
             public_hero_subtitle=Setting.get("public_hero_subtitle", ""),
@@ -3153,7 +3172,34 @@ def register_routes(app: Flask) -> None:
             "card_tamano": Setting.get("public_card_tamano", "mediano"),
             "mp_activo": mp.activo(),
             "mp_recargo_pct": mp.recargo_pct(),
+            "transferencia_activa": Setting.get("transferencia_activa", "0") == "1",
+            "transferencia_datos": Setting.get("transferencia_datos", ""),
         }
+
+    def _guardar_comprobante(reserva, file):
+        """Guarda el comprobante de transferencia (imagen o PDF), si vino uno."""
+        if not file or not file.filename:
+            return
+        media = (file.mimetype or "").lower()
+        ext_map = {
+            "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp",
+            "image/gif": ".gif", "application/pdf": ".pdf",
+        }
+        if media not in ext_map:
+            return
+        content = file.read()
+        if len(content) > 12 * 1024 * 1024:  # 12 MB
+            return
+        import uuid as _uuid
+        fname = f"comp_{reserva.id}_{_uuid.uuid4().hex[:8]}{ext_map[media]}"
+        d = app.config["COMPROBANTES_DIR"]
+        os.makedirs(d, exist_ok=True)
+        try:
+            with open(os.path.join(d, fname), "wb") as fh:
+                fh.write(content)
+            reserva.comprobante_file = fname
+        except Exception:
+            pass
 
     def _mp_iniciar_pago(reserva, discos):
         """Crea la preferencia de Mercado Pago para una reserva y devuelve la URL
@@ -4047,13 +4093,22 @@ def register_routes(app: Flask) -> None:
 
             db.session.commit()
 
-            # Si Mercado Pago esta activo y el cliente eligio pagar online, lo
-            # mandamos a MP. Si falla la creacion del pago, cae a la reserva normal.
-            if mp.activo() and request.form.get("pagar_online") == "1":
+            # Metodo de pago elegido en el checkout
+            metodo = request.form.get("metodo", "coordinar")
+            if metodo == "transferencia" and Setting.get("transferencia_activa", "0") == "1":
+                reserva.metodo_pago = "transferencia"
+                _guardar_comprobante(reserva, request.files.get("comprobante"))
+                db.session.commit()
+            elif metodo == "mercadopago" and mp.activo():
+                reserva.metodo_pago = "mercadopago"
+                db.session.commit()
                 url_pago = _mp_iniciar_pago(reserva, disponibles)
                 if url_pago:
                     return redirect(url_pago)
                 flash("No pudimos iniciar el pago online. Te dejamos la reserva para coordinar por mensaje.", "error")
+            else:
+                reserva.metodo_pago = "coordinar"
+                db.session.commit()
 
             # Email al admin (best-effort, no rompe si falla)
             if mailer.is_configured():
@@ -4251,10 +4306,12 @@ def register_routes(app: Flask) -> None:
             "carrusel_nuevos",
             "mercadopago_activo",
             "mp_recargo_pct",
+            "transferencia_activa",
+            "transferencia_datos",
         ]
         carrusel_keys = ("carrusel_preorder", "carrusel_tips", "carrusel_escuchados",
                          "carrusel_destacados", "carrusel_nuevos")
-        checkbox_keys = carrusel_keys + ("mercadopago_activo",)
+        checkbox_keys = carrusel_keys + ("mercadopago_activo", "transferencia_activa")
         for key in keys:
             # Toggles/checkboxes: presente = "1", ausente = "0"
             if key in checkbox_keys:

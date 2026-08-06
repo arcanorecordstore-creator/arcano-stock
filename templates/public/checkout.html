@@ -13,7 +13,7 @@
         <div class="public-empty"><p>Cargando resumen...</p></div>
     </div>
 
-    <form method="post" action="{{ url_for('public_checkout') }}" class="public-reserve-form" id="checkout-form">
+    <form method="post" action="{{ url_for('public_checkout') }}" class="public-reserve-form" id="checkout-form" enctype="multipart/form-data">
         <input type="hidden" name="ids" id="checkout-ids" value="{{ ids }}">
 
         <div class="form-field">
@@ -36,18 +36,51 @@
             <textarea id="nota" name="nota" rows="3" placeholder="Algo que quieras aclarar...">{{ form.nota or '' }}</textarea>
         </div>
 
-        <div class="public-reserve-disclaimer">
-            <p>Al reservar, apartamos los discos disponibles de tu carrito.</p>
-            <p>Te contactamos por WhatsApp para coordinar pago y entrega.</p>
+        <h2 class="pago-titulo">&iquest;C&oacute;mo quer&eacute;s pagar?</h2>
+        <div class="pago-metodos">
+            {% if transferencia_activa %}
+            <label class="pago-metodo">
+                <input type="radio" name="metodo" value="transferencia" checked>
+                <span class="pago-metodo-body">
+                    <strong>Transferencia bancaria</strong>
+                    <small>Transfer&iacute;s por tu cuenta y sub&iacute;s el comprobante. Dejamos el pedido en revisi&oacute;n.</small>
+                </span>
+            </label>
+            {% endif %}
+            {% if mp_activo %}
+            <label class="pago-metodo">
+                <input type="radio" name="metodo" value="mercadopago" {% if not transferencia_activa %}checked{% endif %}>
+                <span class="pago-metodo-body">
+                    <strong>Mercado Pago</strong>
+                    <small>Te llevamos al checkout seguro para pagar al instante (total + {{ mp_recargo_pct|round|int }}%).</small>
+                </span>
+            </label>
+            {% endif %}
+            <label class="pago-metodo">
+                <input type="radio" name="metodo" value="coordinar" {% if not transferencia_activa and not mp_activo %}checked{% endif %}>
+                <span class="pago-metodo-body">
+                    <strong>Reservar y coordinar por mensaje</strong>
+                    <small>Apartamos los discos y te contactamos por WhatsApp para el pago y la entrega.</small>
+                </span>
+            </label>
         </div>
 
-        {% if mp_activo %}
-        <button type="submit" name="pagar_online" value="1" class="btn btn-primary public-reserve-submit mp-pay-btn">Pagar ahora con Mercado Pago</button>
-        <p class="mp-pay-note">Se cobra el total + {{ mp_recargo_pct|round|int }}% (comisi&oacute;n de Mercado Pago). El env&iacute;o se coordina aparte por mensaje.</p>
-        <button type="submit" class="btn btn-ghost public-reserve-submit">O reservar y coordinar por mensaje</button>
-        {% else %}
-        <button type="submit" class="btn btn-primary public-reserve-submit">Confirmar reserva</button>
+        {% if transferencia_activa %}
+        <div class="pago-transfer" id="pago-transfer">
+            <div class="pago-transfer-label">Cuenta para transferir</div>
+            <pre class="pago-transfer-cuenta" id="transfer-cuenta">{{ transferencia_datos }}</pre>
+            <button type="button" class="btn btn-ghost btn-sm" id="copiar-cuenta">&#128203; Copiar cuenta</button>
+            <p class="form-field-hint" style="margin-top:8px;">Transfer&iacute; el total exacto y despu&eacute;s adjunt&aacute; el comprobante.</p>
+            <div class="form-field" style="margin-top:12px;">
+                <label for="comprobante">Comprobante <span class="form-field-hint">(imagen o PDF, hasta 12 MB &middot; opcional, tambi&eacute;n pod&eacute;s enviarlo despu&eacute;s)</span></label>
+                <input type="file" id="comprobante" name="comprobante" accept="image/*,application/pdf">
+            </div>
+        </div>
         {% endif %}
+
+        <div class="pago-pickup">&#128230; Retiro (<strong>pick up</strong>) en <strong>Pocitos</strong> disponible &middot; lo coordinamos por mensaje.</div>
+
+        <button type="submit" class="btn btn-primary public-reserve-submit" id="checkout-submit">Confirmar pedido</button>
     </form>
 </section>
 
@@ -104,6 +137,37 @@
     document.getElementById('checkout-form').addEventListener('submit', function () {
         try { localStorage.removeItem('arcano-cart'); } catch (e) {}
     });
+})();
+</script>
+
+<script>
+(function () {
+    var radios = document.querySelectorAll('input[name="metodo"]');
+    var panel = document.getElementById('pago-transfer');
+    var submit = document.getElementById('checkout-submit');
+    function actualizar() {
+        var sel = document.querySelector('input[name="metodo"]:checked');
+        var val = sel ? sel.value : '';
+        if (panel) panel.hidden = (val !== 'transferencia');
+        if (submit) {
+            submit.textContent = (val === 'mercadopago') ? 'Ir a pagar con Mercado Pago'
+                : (val === 'transferencia') ? 'Confirmar transferencia'
+                : 'Confirmar reserva';
+        }
+    }
+    radios.forEach(function (r) { r.addEventListener('change', actualizar); });
+    actualizar();
+
+    var copiarBtn = document.getElementById('copiar-cuenta');
+    var cuenta = document.getElementById('transfer-cuenta');
+    if (copiarBtn && cuenta && navigator.clipboard) {
+        copiarBtn.addEventListener('click', function () {
+            navigator.clipboard.writeText(cuenta.textContent.trim()).then(function () {
+                copiarBtn.textContent = '✓ Copiado';
+                setTimeout(function () { copiarBtn.innerHTML = '📋 Copiar cuenta'; }, 1500);
+            }).catch(function () {});
+        });
+    }
 })();
 </script>
 

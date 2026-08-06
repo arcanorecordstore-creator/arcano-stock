@@ -307,6 +307,20 @@
                 </div>
             </div>
 
+            <div class="form-field" style="margin-top: 22px; border-top: 1px solid var(--border-2, #333); padding-top: 18px;">
+                <label class="carrusel-toggle" style="font-size: 15px;">
+                    <input type="checkbox" name="transferencia_activa" value="1" {% if transferencia_activa %}checked{% endif %}>
+                    <span><strong>Cobro por transferencia bancaria</strong></span>
+                </label>
+                <p class="form-field-hint" style="margin-top: 6px;">
+                    Prendido: en el checkout el cliente puede elegir "Transferencia bancaria", ve tus datos y sube el comprobante (el pedido queda en revisi&oacute;n para que lo confirmes). No tiene comisi&oacute;n.
+                </p>
+                <div style="margin-top: 10px;">
+                    <label for="transferencia_datos">Datos de tu cuenta <span class="form-field-hint">(lo que ve el cliente para transferir: banco, n&uacute;mero de cuenta, titular, alias)</span></label>
+                    <textarea id="transferencia_datos" name="transferencia_datos" rows="3" placeholder="Ej: ITAU 2198209133776 &middot; Titular: Facundo Perez &middot; Alias: arcano.record">{{ transferencia_datos or '' }}</textarea>
+                </div>
+            </div>
+
             <div class="form-footer">
                 <button type="submit" class="btn btn-primary">Guardar textos publicos</button>
                 <a href="{{ url_for('home') }}" target="_blank" class="btn btn-ghost">Ver tienda &nearr;</a>

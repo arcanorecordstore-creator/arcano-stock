@@ -727,6 +727,10 @@ class Reserva(db.Model):
         onupdate=datetime.utcnow,
     )
 
+    # Metodo de pago elegido y comprobante (para transferencia manual)
+    metodo_pago = db.Column(db.String(20), nullable=True)  # coordinar / transferencia / mercadopago
+    comprobante_file = db.Column(db.String(200), nullable=True)  # archivo del comprobante subido
+
     # Pago online con Mercado Pago (solo si el cliente eligio pagar por la web)
     pagado = db.Column(db.Boolean, nullable=False, default=False)
     mp_preference_id = db.Column(db.String(120), nullable=True)
@@ -1076,6 +1080,8 @@ def _migrate_schema(app):
                 "mp_payment_id": "VARCHAR(120)",
                 "mp_status": "VARCHAR(30)",
                 "total_cobrado_uyu": "FLOAT",
+                "metodo_pago": "VARCHAR(20)",
+                "comprobante_file": "VARCHAR(200)",
             }
             for _col, _ddl in _radds.items():
                 if _col not in _rcols:

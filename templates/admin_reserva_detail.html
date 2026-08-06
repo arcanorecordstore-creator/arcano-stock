@@ -44,6 +44,22 @@
                 <p class="detail-notas">{{ reserva.nota }}</p>
             </div>
             {% endif %}
+
+            {% if reserva.metodo_pago %}
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-1);">
+                <span class="detail-meta-label">Metodo de pago</span>
+                <p class="detail-meta-value" style="margin-top: 4px;">
+                    {% if reserva.metodo_pago == 'transferencia' %}Transferencia bancaria
+                    {% elif reserva.metodo_pago == 'mercadopago' %}Mercado Pago{% if reserva.pagado %} &middot; <strong style="color: var(--gain);">PAGADO</strong>{% elif reserva.mp_status %} &middot; {{ reserva.mp_status }}{% endif %}
+                    {% else %}Coordinar por mensaje{% endif %}
+                </p>
+                {% if reserva.comprobante_file %}
+                <a href="{{ url_for('serve_comprobante', filename=reserva.comprobante_file) }}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top: 8px;">&#128206; Ver comprobante</a>
+                {% elif reserva.metodo_pago == 'transferencia' %}
+                <p class="form-field-hint" style="margin-top: 6px;">El cliente todav&iacute;a no adjunt&oacute; comprobante.</p>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
 
         <div class="detail-actions">
