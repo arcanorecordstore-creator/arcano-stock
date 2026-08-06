@@ -156,10 +156,10 @@
         <button type="button" class="cart-drawer-close" id="cart-drawer-close" aria-label="Cerrar">&times;</button>
     </div>
     <div class="cart-drawer-body">
-        <p class="cart-drawer-item" id="cart-drawer-item"></p>
-        <p class="cart-drawer-count" id="cart-drawer-count"></p>
+        <div class="cart-drawer-list" id="cart-drawer-list"></div>
     </div>
     <div class="cart-drawer-foot">
+        <div class="cart-drawer-total" id="cart-drawer-total"></div>
         <a href="{{ url_for('public_carrito') }}" class="btn btn-primary cart-drawer-checkout">Finalizar compra</a>
         <button type="button" class="btn btn-ghost" id="cart-drawer-continue">Seguir comprando</button>
     </div>
@@ -222,7 +222,7 @@
     </div>
     <div class="public-footer-bottom">
         <span>&copy; {{ now.year }} Arcano Record Store &middot; Montevideo, Uruguay</span>
-        <span class="public-footer-ver">v2.91</span>
+        <span class="public-footer-ver">v2.92</span>
     </div>
 </footer>
 

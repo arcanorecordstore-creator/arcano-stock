@@ -8152,3 +8152,15 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .cart-drawer-count { font-size: 13px; color: var(--text-3); margin: 0; }
 .cart-drawer-foot { padding: 16px 20px; border-top: 1px solid var(--border-2, #333); display: flex; flex-direction: column; gap: 10px; }
 .cart-drawer-foot .btn { width: 100%; text-align: center; }
+
+/* v2.92 - Drawer del carrito: lista con foto y precio + no cartear agotados */
+.cart-drawer-list { display: flex; flex-direction: column; gap: 12px; }
+.cart-drawer-row { display: flex; gap: 10px; align-items: center; }
+.cart-drawer-cover { width: 48px; height: 48px; border-radius: 6px; overflow: hidden; flex-shrink: 0; background: var(--bg-2); }
+.cart-drawer-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.cart-drawer-noimg { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; color: var(--text-4); font-size: 20px; }
+.cart-drawer-rowinfo { min-width: 0; flex: 1; }
+.cart-drawer-rowtitle { font-size: 13px; font-weight: 600; color: var(--text-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cart-drawer-rowprice { font-size: 13px; color: var(--text-2); margin-top: 2px; }
+.cart-drawer-total { font-size: 14px; font-weight: 700; color: var(--text-1); margin-bottom: 4px; }
+.cart-drawer-empty { font-size: 13px; color: var(--text-3); }

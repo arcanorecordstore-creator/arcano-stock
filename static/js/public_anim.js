@@ -366,7 +366,10 @@
             if (n < 0) n = slides - 1;
             if (n >= slides) n = 0;
             slideActual = n;
-            track.style.transform = 'translateX(-' + (n * 100) + '%)';
+            // Compensar el gap entre cards: sin esto cada slide se corre y se
+            // asoma un pedazo del disco anterior.
+            var gap = parseFloat(getComputedStyle(track).gap) || 0;
+            track.style.transform = 'translateX(calc(-' + (n * 100) + '% - ' + (n * gap) + 'px))';
             actualizarProgreso();
         }
 
@@ -572,18 +575,44 @@
     var drawer = document.getElementById('cart-drawer');
     var overlay = document.getElementById('cart-drawer-overlay');
     if (!drawer || !overlay) return;
-    var itemEl = document.getElementById('cart-drawer-item');
-    var countEl = document.getElementById('cart-drawer-count');
+    var listEl = document.getElementById('cart-drawer-list');
+    var totalEl = document.getElementById('cart-drawer-total');
     var closeBtn = document.getElementById('cart-drawer-close');
     var continueBtn = document.getElementById('cart-drawer-continue');
 
-    function abrir(titulo) {
-        var n = (window.ArcanoCart && window.ArcanoCart.get) ? window.ArcanoCart.get().length : 0;
-        if (itemEl) itemEl.textContent = titulo && titulo.length > 1 ? titulo : 'Disco agregado a tu carrito.';
-        if (countEl) countEl.textContent = (n === 1) ? 'Tenés 1 disco en el carrito.' : ('Tenés ' + n + ' discos en el carrito.');
+    function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+
+    function renderList() {
+        var ids = (window.ArcanoCart && window.ArcanoCart.get) ? window.ArcanoCart.get() : [];
+        if (!ids.length) { listEl.innerHTML = '<p class="cart-drawer-empty">Tu carrito está vacío.</p>'; totalEl.textContent = ''; return; }
+        listEl.innerHTML = '<p class="cart-drawer-empty">Cargando...</p>';
+        fetch('/api/discos-por-id?ids=' + ids.join(','))
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                var discos = (data && data.discos) || [];
+                if (!discos.length) { listEl.innerHTML = '<p class="cart-drawer-empty">Tu carrito está vacío.</p>'; totalEl.textContent = ''; return; }
+                var total = 0, html = '';
+                discos.forEach(function (d) {
+                    if (d.disponible && d.precio_uyu) total += d.precio_uyu;
+                    var cover = d.cover ? '<img src="' + d.cover + '" alt="">' : '<div class="cart-drawer-noimg">&#9834;</div>';
+                    var precio = d.precio_uyu ? ('$ ' + d.precio_uyu.toLocaleString('es-UY')) : (d.disponible ? 'A consultar' : 'No disponible');
+                    html += '<div class="cart-drawer-row">' +
+                        '<div class="cart-drawer-cover">' + cover + '</div>' +
+                        '<div class="cart-drawer-rowinfo">' +
+                        '<div class="cart-drawer-rowtitle">' + esc(d.artista) + ' - ' + esc(d.titulo) + '</div>' +
+                        '<div class="cart-drawer-rowprice">' + precio + '</div></div></div>';
+                });
+                listEl.innerHTML = html;
+                totalEl.textContent = 'Total estimado: $ ' + total.toLocaleString('es-UY');
+            })
+            .catch(function () { listEl.innerHTML = '<p class="cart-drawer-empty">No se pudo cargar el carrito.</p>'; });
+    }
+
+    function abrir() {
         overlay.hidden = false;
         setTimeout(function () { overlay.classList.add('visible'); drawer.classList.add('open'); }, 10);
         drawer.setAttribute('aria-hidden', 'false');
+        renderList();
     }
     function cerrar() {
         drawer.classList.remove('open');
