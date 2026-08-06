@@ -106,6 +106,10 @@ class Disc(db.Model):
     # Pedido/compra al que pertenece este disco (para trackear inversion)
     pedido_id = db.Column(db.Integer, db.ForeignKey("pedidos.id"), nullable=True)
 
+    # Orden manual para la tienda (drag-and-drop en el dashboard).
+    # Mayor = aparece primero. Los discos nuevos reciben el mayor (arriba de todo).
+    orden = db.Column(db.Integer, nullable=True, index=True)
+
     # Timestamps
     fecha_ingreso = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     fecha_reserva = db.Column(db.DateTime, nullable=True)
@@ -1060,6 +1064,22 @@ class Pedido(db.Model):
 # Inicializacion
 # ---------------------------------------------------------------------------
 
+from sqlalchemy import event as _sa_event
+
+
+@_sa_event.listens_for(Disc, "before_insert")
+def _disc_asignar_orden(mapper, connection, target):
+    """Disco nuevo -> arriba de todo en la tienda: orden = max(orden) actual + 1."""
+    if getattr(target, "orden", None) is not None:
+        return
+    try:
+        from sqlalchemy import text as _text
+        maxo = connection.execute(_text("SELECT COALESCE(MAX(orden), 0) FROM discs")).scalar()
+        target.orden = (maxo or 0) + 1
+    except Exception:
+        pass
+
+
 def _migrate_schema(app):
     """Aplicar migraciones idempotentes a la DB existente.
     
@@ -1208,6 +1228,18 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN resena_corta VARCHAR(160)"))
                     conn.commit()
                 print("Migracion: columna resena_corta agregada a discs")
+            if "orden" not in dcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN orden INTEGER"))
+                    conn.commit()
+                print("Migracion: columna orden agregada a discs")
+            # Backfill del orden manual: los que no tienen orden toman su id
+            # (los de id mas alto = mas nuevos = quedan arriba). Idempotente.
+            with db.engine.connect() as conn:
+                res = conn.execute(text("UPDATE discs SET orden = id WHERE orden IS NULL"))
+                conn.commit()
+                if res.rowcount:
+                    print(f"Migracion: orden inicial asignado a {res.rowcount} discos")
 
         # Columna play_count en tracks (contador de escuchas)
         if inspector.has_table("tracks"):

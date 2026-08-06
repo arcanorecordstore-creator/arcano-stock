@@ -8211,3 +8211,61 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     font-weight: 600;
     white-space: nowrap;
 }
+
+/* v2.98 - Reordenar discos por drag-and-drop en el dashboard */
+.col-drag { width: 22px; text-align: center; padding: 0 !important; }
+.disc-drag-handle {
+    display: inline-block;
+    cursor: grab;
+    color: var(--text-5);
+    font-size: 14px;
+    line-height: 1;
+    letter-spacing: -3px;
+    user-select: none;
+    padding: 6px 2px;
+}
+.disc-drag-handle:hover { color: var(--text-1); }
+.disc-drag-handle:active { cursor: grabbing; }
+/* Si se ordena por columna, la manija queda inactiva (tabla data-reorder="0") */
+.stock-table[data-reorder="0"] .disc-drag-handle { opacity: 0.25; cursor: default; }
+.stock-table[data-reorder="0"] .disc-drag-handle:hover { color: var(--text-5); }
+
+.disc-row-ghost { opacity: 0.4; background: var(--bg-3); }
+.disc-row-chosen { background: var(--bg-2); }
+.disc-row-drag { box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+
+.reorder-hint {
+    font-size: 12px;
+    color: var(--text-3);
+    background: var(--bg-1);
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+}
+.reorder-hint a { color: var(--text-1); text-decoration: underline; }
+
+.reorder-toast {
+    position: fixed;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%) translateY(12px);
+    background: var(--text-1);
+    color: var(--bg-0);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 10px 18px;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    opacity: 0;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    z-index: 400;
+    pointer-events: none;
+}
+.reorder-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+.reorder-toast-err { background: #f43f5e; color: #fff; }
+
+/* v2.98 - Hover de las cards: en modo oscuro la sombra es blanca (en claro, negra) */
+:root:not([data-theme="light"]) .public-card:hover {
+    box-shadow: 0 12px 28px rgba(255, 255, 255, 0.25);
+}

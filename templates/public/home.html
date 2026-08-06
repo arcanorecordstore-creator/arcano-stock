@@ -99,7 +99,8 @@
             <div class="public-search-suggestions" id="search-suggestions" hidden></div>
         </div>
         <select name="orden" class="public-filter-select">
-            <option value="nuevos" {% if filtro_orden == 'nuevos' %}selected{% endif %}>Mas nuevos primero</option>
+            <option value="nuevos" {% if filtro_orden == 'nuevos' %}selected{% endif %}>Orden de la tienda</option>
+            <option value="fecha" {% if filtro_orden == 'fecha' %}selected{% endif %}>Mas nuevos primero</option>
             <option value="precio_asc" {% if filtro_orden == 'precio_asc' %}selected{% endif %}>Precio: menor a mayor</option>
             <option value="precio_desc" {% if filtro_orden == 'precio_desc' %}selected{% endif %}>Precio: mayor a menor</option>
             <option value="artista" {% if filtro_orden == 'artista' %}selected{% endif %}>Por artista (A-Z)</option>

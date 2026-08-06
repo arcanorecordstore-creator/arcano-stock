@@ -286,6 +286,7 @@ def create_app() -> Flask:
 # ---------------------------------------------------------------------------
 
 ORDER_FIELDS = {
+    "orden": Disc.orden,
     "fecha_ingreso": Disc.fecha_ingreso,
     "artista": Disc.artista,
     "sello": Disc.sello,
@@ -345,7 +346,7 @@ def query_discs(args):
         except ValueError:
             pass
 
-    order_by = (args.get("order") or "fecha_ingreso").strip()
+    order_by = (args.get("order") or "orden").strip()
     direction = (args.get("dir") or "desc").strip()
 
     # Campos calculados (propiedades, no columnas): se ordenan en Python
@@ -710,7 +711,7 @@ def register_routes(app: Flask) -> None:
             "estado": request.args.get("estado", "todos"),
             "sello": request.args.get("sello", "todos"),
             "origen": request.args.get("origen", "todos"),
-            "order": request.args.get("order", "fecha_ingreso"),
+            "order": request.args.get("order", "orden"),
             "dir": request.args.get("dir", "desc"),
             "tipo_fecha": request.args.get("tipo_fecha", "ingreso"),
             "fecha_desde": request.args.get("fecha_desde", ""),
@@ -730,6 +731,37 @@ def register_routes(app: Flask) -> None:
             por_pagina=por_pagina,
             total_discos_filtrados=total_discos_filtrados,
         )
+
+    @app.route("/admin/discs/reorder", methods=["POST"])
+    @auth.admin_required
+    def discs_reorder():
+        """Recibe una lista de IDs en el orden nuevo (de arriba hacia abajo) y
+        reasigna el campo `orden` DENTRO del conjunto mostrado: los valores de
+        orden que ya tenian esos discos se reparten segun el nuevo orden. Asi,
+        reordenar dentro de una pagina no altera el resto del catalogo."""
+        ids_raw = request.form.get("ids", "") or (request.get_json(silent=True) or {}).get("ids", "")
+        if isinstance(ids_raw, list):
+            ids = [int(x) for x in ids_raw if str(x).isdigit()]
+        else:
+            ids = [int(x) for x in str(ids_raw).split(",") if x.strip().isdigit()]
+        if not ids:
+            return jsonify({"ok": False, "error": "Sin ids"}), 400
+
+        discs = Disc.query.filter(Disc.id.in_(ids)).all()
+        by_id = {d.id: d for d in discs}
+        ids_validos = [i for i in ids if i in by_id]
+        if not ids_validos:
+            return jsonify({"ok": False, "error": "IDs invalidos"}), 400
+
+        # Valores de orden actuales del conjunto, de mayor a menor (arriba = mayor)
+        valores = sorted(
+            [(by_id[i].orden if by_id[i].orden is not None else 0) for i in ids_validos],
+            reverse=True,
+        )
+        for pos, did in enumerate(ids_validos):
+            by_id[did].orden = valores[pos]
+        db.session.commit()
+        return jsonify({"ok": True, "count": len(ids_validos)})
 
     @app.route("/admin/discs/new", methods=["GET", "POST"])
     @auth.admin_required
@@ -3442,8 +3474,12 @@ def register_routes(app: Flask) -> None:
             discs.sort(key=lambda d: d.precio_uyu or 0, reverse=True)
         elif orden == "artista":
             discs.sort(key=lambda d: (d.artista or "").lower())
-        else:
+        elif orden == "fecha":
             discs.sort(key=lambda d: d.fecha_ingreso or datetime.min, reverse=True)
+        else:
+            # Por defecto: el orden manual que el admin arma arrastrando en el
+            # dashboard (mayor = primero). Los discos nuevos entran arriba.
+            discs.sort(key=lambda d: (d.orden if d.orden is not None else 0), reverse=True)
 
         # Paginacion (sobre la lista ya filtrada y ordenada)
         # Configurable desde Ajustes (public_discos_por_pagina), con tope de 48.

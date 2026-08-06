@@ -112,8 +112,15 @@
 </form>
 
 {% if discs %}
+<div class="reorder-hint">
+    {% if filtros.order == 'orden' %}
+    &#8942;&#8942; Arrastr&aacute; los discos desde la manija para fijar el orden en que aparecen en la tienda. Para mover uno a otra p&aacute;gina, eleg&iacute; "Todos" en el selector de abajo.
+    {% else %}
+    Est&aacute;s ordenando por una columna. <a href="{{ sort_url('orden', 'desc') }}">Volv&eacute; al orden manual</a> para poder arrastrar y fijar el orden de la tienda.
+    {% endif %}
+</div>
 <div class="table-wrap">
-    <table class="stock-table" data-estados="{{ estados|join('|') }}">
+    <table class="stock-table" data-estados="{{ estados|join('|') }}" data-reorder="{{ '1' if filtros.order == 'orden' else '0' }}">
         <thead>
             {% macro th_sort(campo, label, extra_class='') %}
                 {% set is_active = filtros.order == campo %}
@@ -123,14 +130,15 @@
                 {% elif filtros.dir == 'asc' %}
                     {% set next_order = campo %}{% set next_dir = 'desc' %}{% set arrow = ' &#9650;' %}
                 {% else %}
-                    {# estaba desc -> volver al orden inicial (fecha_ingreso desc) #}
-                    {% set next_order = 'fecha_ingreso' %}{% set next_dir = 'desc' %}{% set arrow = ' &#9660;' %}
+                    {# estaba desc -> volver al orden manual (default) #}
+                    {% set next_order = 'orden' %}{% set next_dir = 'desc' %}{% set arrow = ' &#9660;' %}
                 {% endif %}
                 <th class="{{ extra_class }} th-sortable {% if is_active %}th-sorted{% endif %}">
                     <a href="{{ sort_url(next_order, next_dir) }}" class="th-sort-link">{{ label|safe }}{{ arrow|safe }}</a>
                 </th>
             {% endmacro %}
             <tr>
+                <th class="col-drag" title="Arrastra para ordenar la tienda"></th>
                 <th class="col-check"><input type="checkbox" id="select-all" title="Seleccionar todo"></th>
                 <th class="col-cover"></th>
                 {{ th_sort('artista', 'Artista &mdash; Titulo', 'col-main') }}
@@ -154,6 +162,7 @@
         <tbody>
             {% for d in discs %}
             <tr data-disc-id="{{ d.id }}">
+                <td class="col-drag"><span class="disc-drag-handle" title="Arrastra para reordenar en la tienda">&#8942;&#8942;</span></td>
                 <td class="col-check"><input type="checkbox" class="row-check" name="ids[]" value="{{ d.id }}"></td>
                 <td class="col-cover">
                     <a href="{{ url_for('disc_detail', disc_id=d.id) }}">
@@ -266,7 +275,7 @@
         </tbody>
         <tfoot>
             <tr class="totals-row">
-                <td colspan="5" class="totals-label">Totales</td>
+                <td colspan="6" class="totals-label">Totales</td>
                 <td class="col-num">{{ '%.2f'|format(totals.suma_costo_eur) }}</td>
                 <td class="col-num">{{ '%.2f'|format(totals.suma_envio_eur) }}</td>
                 <td class="col-num">{{ '{:,.0f}'.format(totals.suma_costo_final_uyu).replace(',', '.') }}</td>
@@ -410,4 +419,6 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_quick_edit.js') }}"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="{{ url_for('static', filename='js/dashboard_reorder.js') }}"></script>
 {% endblock %}
