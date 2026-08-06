@@ -727,6 +727,13 @@ class Reserva(db.Model):
         onupdate=datetime.utcnow,
     )
 
+    # Pago online con Mercado Pago (solo si el cliente eligio pagar por la web)
+    pagado = db.Column(db.Boolean, nullable=False, default=False)
+    mp_preference_id = db.Column(db.String(120), nullable=True)
+    mp_payment_id = db.Column(db.String(120), nullable=True)
+    mp_status = db.Column(db.String(30), nullable=True)  # approved / pending / rejected
+    total_cobrado_uyu = db.Column(db.Float, nullable=True)  # total + recargo cobrado
+
     # Relacion (puede ser null si el disco se borro)
     disc = db.relationship("Disc", backref="reservas", foreign_keys=[disc_id])
     cliente = db.relationship("Cliente", backref=db.backref("reservas", order_by="Reserva.fecha.desc()"), foreign_keys=[cliente_id])
@@ -1059,7 +1066,24 @@ def _migrate_schema(app):
     
     with app.app_context():
         inspector = inspect(db.engine)
-        
+
+        # Campos de pago Mercado Pago en la tabla reservas
+        if inspector.has_table("reservas"):
+            _rcols = [c["name"] for c in inspector.get_columns("reservas")]
+            _radds = {
+                "pagado": "BOOLEAN DEFAULT 0",
+                "mp_preference_id": "VARCHAR(120)",
+                "mp_payment_id": "VARCHAR(120)",
+                "mp_status": "VARCHAR(30)",
+                "total_cobrado_uyu": "FLOAT",
+            }
+            for _col, _ddl in _radds.items():
+                if _col not in _rcols:
+                    with db.engine.connect() as conn:
+                        conn.execute(text(f"ALTER TABLE reservas ADD COLUMN {_col} {_ddl}"))
+                        conn.commit()
+                    print(f"Migracion: columna {_col} agregada a reservas")
+
         # Verificar columna descripcion_publica en discs
         if inspector.has_table("discs"):
             cols = [c["name"] for c in inspector.get_columns("discs")]

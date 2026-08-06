@@ -39,6 +39,7 @@ import scraper
 import metrics
 import auth
 import mailer
+import mp
 
 
 # Registro en memoria de intentos de login fallidos por IP (rate limiting).
@@ -2884,6 +2885,10 @@ def register_routes(app: Flask) -> None:
             carrusel_escuchados=Setting.get("carrusel_escuchados", "1") == "1",
             carrusel_destacados=Setting.get("carrusel_destacados", "1") == "1",
             carrusel_nuevos=Setting.get("carrusel_nuevos", "1") == "1",
+            mercadopago_activo=Setting.get("mercadopago_activo", "0") == "1",
+            mp_recargo_pct=Setting.get("mp_recargo_pct", "7"),
+            mp_credencial_ok=bool(mp.access_token()),
+            mp_sandbox=mp.es_sandbox(),
             public_banner_url=Setting.get("public_banner_url", ""),
             public_hero_title=Setting.get("public_hero_title", ""),
             public_hero_subtitle=Setting.get("public_hero_subtitle", ""),
@@ -3133,7 +3138,125 @@ def register_routes(app: Flask) -> None:
             "grid_mobile": Setting.get("public_grid_mobile", "1"),
             "carrusel_velocidad": Setting.get("public_carrusel_velocidad", "7"),
             "card_tamano": Setting.get("public_card_tamano", "mediano"),
+            "mp_activo": mp.activo(),
+            "mp_recargo_pct": mp.recargo_pct(),
         }
+
+    def _mp_iniciar_pago(reserva, discos):
+        """Crea la preferencia de Mercado Pago para una reserva y devuelve la URL
+        de pago (o None si algo falla; el caller cae al flujo normal de reserva)."""
+        subtotal = sum((d.precio_uyu or 0) for d in discos)
+        if subtotal <= 0:
+            return None
+        recargo = mp.calcular_recargo(subtotal)
+        items = [
+            {"title": f"{d.artista} - {d.titulo}", "quantity": 1,
+             "unit_price": float(d.precio_uyu or 0)}
+            for d in discos
+        ]
+        if recargo > 0:
+            items.append({
+                "title": f"Recargo pago online ({mp.recargo_pct():.0f}%)",
+                "quantity": 1, "unit_price": float(recargo),
+            })
+        base = request.url_root.rstrip("/")
+        back = f"{base}/mp/retorno?reserva={reserva.id}"
+        try:
+            pref = mp.crear_preferencia(
+                items,
+                back_urls={"success": back, "failure": back, "pending": back},
+                notification_url=f"{base}/mp/webhook",
+                external_reference=reserva.id,
+                payer_email=reserva.email,
+            )
+        except Exception as ex:
+            app.logger.warning(f"MP: no se pudo crear la preferencia: {ex}")
+            return None
+        reserva.mp_preference_id = str(pref.get("id") or "")
+        reserva.total_cobrado_uyu = subtotal + recargo
+        reserva.mp_status = "pending"
+        db.session.commit()
+        return mp.url_checkout(pref)
+
+    def _mp_completar_reserva(reserva, payment_id=None, status="approved"):
+        """Marca la reserva como pagada/completada y sus discos como Vendido.
+        Idempotente: si ya estaba pagada, no vuelve a procesar."""
+        if reserva.pagado:
+            return
+        ahora = datetime.utcnow()
+        for item in reserva.items_efectivos:
+            d = Disc.query.get(item.disc_id) if getattr(item, "disc_id", None) else None
+            if d and d.estado != "Vendido":
+                d.estado = "Vendido"
+                if not d.fecha_venta:
+                    d.fecha_venta = ahora
+                if not getattr(d, "copias_vendidas", 0):
+                    d.copias_vendidas = 1
+                d.stock = max(0, (d.stock or 1) - 1)
+        reserva.pagado = True
+        reserva.estado = "Completada"
+        if payment_id:
+            reserva.mp_payment_id = str(payment_id)
+        reserva.mp_status = status
+        db.session.commit()
+        # Email de confirmacion (best-effort)
+        if reserva.email and mailer.can_send():
+            try:
+                discos = [Disc.query.get(i.disc_id) for i in reserva.items_efectivos]
+                mailer.send_reserva_confirmacion_cliente_multi(
+                    reserva, [d for d in discos if d])
+            except Exception:
+                pass
+
+    @app.route("/mp/webhook", methods=["POST", "GET"])
+    def mp_webhook():
+        """Mercado Pago avisa aca cuando cambia el estado de un pago. Confirmamos
+        contra la API de MP y, si esta aprobado, completamos la reserva."""
+        payment_id = (request.args.get("data.id") or request.args.get("id") or "")
+        if not payment_id:
+            data = request.get_json(silent=True) or {}
+            payment_id = str((data.get("data") or {}).get("id") or data.get("id") or "")
+        if not payment_id:
+            return "", 200  # nada que procesar
+        pago = mp.obtener_pago(payment_id)
+        if not pago:
+            return "", 200
+        estado = pago.get("status")  # approved / pending / rejected
+        ref = pago.get("external_reference")
+        reserva = Reserva.query.get(int(ref)) if ref and str(ref).isdigit() else None
+        if reserva:
+            if estado == "approved":
+                _mp_completar_reserva(reserva, payment_id=payment_id, status=estado)
+            else:
+                reserva.mp_status = estado
+                reserva.mp_payment_id = str(payment_id)
+                db.session.commit()
+        return "", 200
+
+    @app.route("/mp/retorno")
+    def mp_retorno():
+        """Pagina a la que vuelve el cliente despues de pagar en MP. La confirmacion
+        principal la hace el webhook; aca confirmamos tambien como respaldo por si
+        el webhook se demora o no llega."""
+        reserva = None
+        rid = request.args.get("reserva") or request.args.get("external_reference")
+        if rid and str(rid).isdigit():
+            reserva = Reserva.query.get(int(rid))
+        estado_mp = request.args.get("status") or request.args.get("collection_status")
+        payment_id = request.args.get("payment_id") or request.args.get("collection_id")
+        # Respaldo idempotente: si volvio aprobado, confirmamos aca tambien.
+        if reserva and estado_mp == "approved" and payment_id and not reserva.pagado:
+            pago = mp.obtener_pago(payment_id)
+            if pago and pago.get("status") == "approved":
+                _mp_completar_reserva(reserva, payment_id=payment_id, status="approved")
+        if not estado_mp and reserva:
+            estado_mp = reserva.mp_status
+        return render_template(
+            "public/mp_retorno.html",
+            reserva=reserva,
+            estado_mp=estado_mp,
+            **_public_context(),
+        )
 
     @app.route("/api/buscar-sugerencias")
     def buscar_sugerencias():
@@ -3898,6 +4021,14 @@ def register_routes(app: Flask) -> None:
 
             db.session.commit()
 
+            # Si Mercado Pago esta activo y el cliente eligio pagar online, lo
+            # mandamos a MP. Si falla la creacion del pago, cae a la reserva normal.
+            if mp.activo() and request.form.get("pagar_online") == "1":
+                url_pago = _mp_iniciar_pago(reserva, disponibles)
+                if url_pago:
+                    return redirect(url_pago)
+                flash("No pudimos iniciar el pago online. Te dejamos la reserva para coordinar por mensaje.", "error")
+
             # Email al admin (best-effort, no rompe si falla)
             if mailer.is_configured():
                 try:
@@ -4092,17 +4223,26 @@ def register_routes(app: Flask) -> None:
             "carrusel_escuchados",
             "carrusel_destacados",
             "carrusel_nuevos",
+            "mercadopago_activo",
+            "mp_recargo_pct",
         ]
         carrusel_keys = ("carrusel_preorder", "carrusel_tips", "carrusel_escuchados",
                          "carrusel_destacados", "carrusel_nuevos")
+        checkbox_keys = carrusel_keys + ("mercadopago_activo",)
         for key in keys:
-            # Los toggles de carrusel son checkboxes: presente = "1", ausente = "0"
-            if key in carrusel_keys:
+            # Toggles/checkboxes: presente = "1", ausente = "0"
+            if key in checkbox_keys:
                 Setting.set(key, "1" if request.form.get(key) else "0")
                 continue
             value = (request.form.get(key) or "").strip()
+            # Recargo de Mercado Pago: entre 0 y 20 %
+            if key == "mp_recargo_pct":
+                try:
+                    value = str(max(0.0, min(float(value or 7), 20.0)))
+                except (ValueError, TypeError):
+                    value = "7"
             # Validar discos por pagina: entre 4 y 48
-            if key == "public_discos_por_pagina":
+            elif key == "public_discos_por_pagina":
                 try:
                     n = int(value or 24)
                     value = str(max(4, min(n, 48)))

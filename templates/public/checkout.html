@@ -41,7 +41,13 @@
             <p>Te contactamos por WhatsApp para coordinar pago y entrega.</p>
         </div>
 
+        {% if mp_activo %}
+        <button type="submit" name="pagar_online" value="1" class="btn btn-primary public-reserve-submit mp-pay-btn">Pagar ahora con Mercado Pago</button>
+        <p class="mp-pay-note">Se cobra el total + {{ mp_recargo_pct|round|int }}% (comisi&oacute;n de Mercado Pago). El env&iacute;o se coordina aparte por mensaje.</p>
+        <button type="submit" class="btn btn-ghost public-reserve-submit">O reservar y coordinar por mensaje</button>
+        {% else %}
         <button type="submit" class="btn btn-primary public-reserve-submit">Confirmar reserva</button>
+        {% endif %}
     </form>
 </section>
 

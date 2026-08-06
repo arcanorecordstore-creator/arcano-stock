@@ -8073,3 +8073,11 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .cuenta-fav-meta { font-size: 13px; margin-top: 4px; }
 .cuenta-fav-sold { color: var(--text-4); }
 .public-empty-inline { color: var(--text-3); font-size: 14px; margin-top: 8px; }
+
+/* v2.87 - Mercado Pago (checkout + ajustes + retorno de pago) */
+.mp-warn { color: #f59e0b; font-size: 13px; margin-top: 8px; }
+.mp-info { color: var(--text-3); font-size: 13px; margin-top: 8px; }
+.mp-info-ok { color: #10b981; font-size: 13px; margin-top: 8px; }
+.mp-pay-note { color: var(--text-3); font-size: 12px; text-align: center; margin: 6px 0 10px; }
+.mp-retorno { max-width: 640px; margin: 0 auto; text-align: center; }
+.mp-retorno-text { color: var(--text-2); font-size: 15px; line-height: 1.55; margin: 10px 0 18px; }
