@@ -1,0 +1,26 @@
+venv/
+__pycache__/
+*.pyc
+.env
+*.db
+arcano_stock.db
+instance/
+
+# Config local de Claude Code
+.claude/
+
+# Covers: viven en el disco persistente de Render, no en el repo
+static/covers/*
+!static/covers/.gitkeep
+static/covers.zip
+
+# Samples de audio/video: viven en el disco persistente de Render
+static/samples/*
+!static/samples/.gitkeep
+
+# Comprobantes de pago de clientes: documentos privados, NUNCA al repo
+static/comprobantes/*
+!static/comprobantes/.gitkeep
+
+# Backups de la base (contienen datos de clientes): NUNCA al repo
+backups/
