@@ -239,6 +239,15 @@
             paintButtons();
             return true;
         },
+        remove: function (id) {
+            id = String(id);
+            var cart = getCart();
+            var i = cart.indexOf(id);
+            if (i !== -1) { cart.splice(i, 1); setCart(cart); }
+            updateCount();
+            paintButtons();
+            return true;
+        },
         clear: function () { setCart([]); updateCount(); }
     };
 
@@ -600,9 +609,17 @@
                         '<div class="cart-drawer-cover">' + cover + '</div>' +
                         '<div class="cart-drawer-rowinfo">' +
                         '<div class="cart-drawer-rowtitle">' + esc(d.artista) + ' - ' + esc(d.titulo) + '</div>' +
-                        '<div class="cart-drawer-rowprice">' + precio + '</div></div></div>';
+                        '<div class="cart-drawer-rowprice">' + precio + '</div></div>' +
+                        '<button type="button" class="cart-drawer-remove" data-remove-id="' + d.id + '" aria-label="Quitar del carrito" title="Quitar">&times;</button>' +
+                        '</div>';
                 });
                 listEl.innerHTML = html;
+                listEl.querySelectorAll('.cart-drawer-remove').forEach(function (btn) {
+                    btn.addEventListener('click', function () {
+                        if (window.ArcanoCart && window.ArcanoCart.remove) window.ArcanoCart.remove(btn.dataset.removeId);
+                        renderList();
+                    });
+                });
                 totalEl.textContent = 'Total estimado: $ ' + total.toLocaleString('es-UY');
             })
             .catch(function () { listEl.innerHTML = '<p class="cart-drawer-empty">No se pudo cargar el carrito.</p>'; });

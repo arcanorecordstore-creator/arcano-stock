@@ -8170,3 +8170,24 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .checkout-pasos-title { font-size: 14px; font-weight: 700; color: var(--text-1); margin-bottom: 10px; }
 .checkout-pasos-list { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 7px; }
 .checkout-pasos-list li { font-size: 13px; color: var(--text-2); line-height: 1.45; }
+
+/* v2.96 - Quitar disco desde el cajon + boton "Agregar al carrito" mas grande en la ficha */
+.cart-drawer-remove {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    color: var(--text-3);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+.cart-drawer-remove:hover { background: var(--bg-2); color: var(--text-1); }
+/* La ficha usa "Agregar al carrito" como CTA principal: un poco mas grande */
+.cart-btn-full.btn-primary { padding: 13px 18px; font-size: 15px; font-weight: 700; }
