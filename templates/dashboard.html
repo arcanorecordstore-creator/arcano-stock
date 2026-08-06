@@ -114,7 +114,7 @@
 {% if discs %}
 <div class="reorder-hint">
     {% if filtros.order == 'orden' %}
-    &#8942;&#8942; Arrastr&aacute; los discos desde la manija para fijar el orden en que aparecen en la tienda. Para mover uno a otra p&aacute;gina, eleg&iacute; "Todos" en el selector de abajo.
+    &#8942;&#8942; Arrastr&aacute; los discos desde la manija para fijar el orden en que aparecen en la tienda. <strong>Para mover varios juntos:</strong> tild&aacute; los discos con el casillero y arrastr&aacute; uno de los tildados. Para mover algo a otra p&aacute;gina, eleg&iacute; "Todos" en el selector de abajo.
     {% else %}
     Est&aacute;s ordenando por una columna. <a href="{{ sort_url('orden', 'desc') }}">Volv&eacute; al orden manual</a> para poder arrastrar y fijar el orden de la tienda.
     {% endif %}

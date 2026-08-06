@@ -8233,6 +8233,9 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .disc-row-ghost { opacity: 0.4; background: var(--bg-3); }
 .disc-row-chosen { background: var(--bg-2); }
 .disc-row-drag { box-shadow: 0 8px 24px rgba(0,0,0,0.4); }
+/* Filas tildadas: se resaltan porque se mueven juntas al arrastrar una */
+.stock-table[data-reorder="1"] tbody tr:has(.row-check:checked) td { background: var(--bg-2); }
+.stock-table[data-reorder="1"] tbody tr:has(.row-check:checked) .disc-drag-handle { color: var(--text-1); }
 
 .reorder-hint {
     font-size: 12px;
