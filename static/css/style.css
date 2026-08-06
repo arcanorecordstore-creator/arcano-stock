@@ -8132,11 +8132,13 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .fp-queue-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media (max-width: 700px) {
     .fp-progress-row { padding: 7px 12px 2px; }
-    .fp-main { padding: 2px 12px 10px; gap: 8px; }
+    .fp-main { padding: 2px 12px 10px; gap: 8px; flex-wrap: wrap; }
     .fp-ctrl { width: 34px; height: 34px; }
     .fp-ctrl-play { width: 40px; height: 40px; }
     .fp-cover { width: 40px; height: 40px; }
     .fp-controls { gap: 3px; }
+    /* El boton "Agregar al carrito" pasa a su propia fila para que no tape la X de cerrar */
+    #fp-cart { order: 99; flex-basis: 100%; justify-content: center; margin-top: 8px; }
 }
 
 /* v2.91 - Menu lateral al agregar al carrito + comprobante obligatorio */

@@ -222,7 +222,7 @@
     </div>
     <div class="public-footer-bottom">
         <span>&copy; {{ now.year }} Arcano Record Store &middot; Montevideo, Uruguay</span>
-        <span class="public-footer-ver">v3.00</span>
+        <span class="public-footer-ver">v3.01</span>
     </div>
 </footer>
 
@@ -254,11 +254,11 @@
             <div class="fp-title" id="fp-title">-</div>
             <div class="fp-sub" id="fp-sub"></div>
         </div>
+        <button type="button" class="fp-cart-btn" id="fp-cart" hidden aria-label="Agregar al carrito">
+            <span class="fp-cart-add">&#43; Agregar al carrito</span>
+            <span class="fp-cart-in" hidden>&#10003; En el carrito</span>
+        </button>
         <div class="fp-actions">
-            <button type="button" class="fp-cart-btn" id="fp-cart" hidden aria-label="Agregar al carrito">
-                <span class="fp-cart-add">&#43; Agregar al carrito</span>
-                <span class="fp-cart-in" hidden>&#10003; En el carrito</span>
-            </button>
             <button type="button" class="fp-ctrl fp-ctrl-sm" id="fp-queue" aria-label="Ver la lista" title="Ver la lista">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><circle cx="4" cy="6" r="1"></circle><circle cx="4" cy="12" r="1"></circle><circle cx="4" cy="18" r="1"></circle></svg>
             </button>
