@@ -3367,23 +3367,18 @@ body.app { display: block; padding: 0; }
     letter-spacing: 1px;
 }
 
-/* v2.77 - Cartel de version IMPOSIBLE de no ver (diagnostico de cache).
-   Colgado del borde superior, brillante, en todas las paginas y sin scrollear.
-   Es temporal: se saca cuando confirmemos que los cambios llegan bien. */
+/* Numero de version discreto en el pie de la tienda publica.
+   Sirve para chequear de un vistazo que version se esta viendo (util para
+   detectar cache viejo), sin molestar visualmente. */
 .public-footer-ver {
-    position: fixed;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 99999;
-    background: #e11d48;
-    color: #fff;
-    padding: 4px 14px;
-    border-radius: 0 0 10px 10px;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+    display: inline-block;
+    margin-left: 10px;
+    padding: 1px 8px;
+    border: 1px solid var(--border-2);
+    border-radius: 999px;
+    font-size: 11px;
+    color: var(--text-4);
+    opacity: 0.7;
 }
 
 .public-admin-link {
