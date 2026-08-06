@@ -8274,3 +8274,18 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 :root:not([data-theme="light"]) .public-card:hover {
     box-shadow: 0 12px 28px rgba(255, 255, 255, 0.25);
 }
+
+/* v3.02 - Navegacion sin recargar (pjax): barra de progreso arriba */
+.pjax-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 3px;
+    width: 0;
+    background: #10b981;
+    z-index: 9999;
+    pointer-events: none;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+.pjax-bar.run { width: 92%; transition: width 8s cubic-bezier(0.1, 0.7, 0.1, 1); }
+.pjax-bar.done { width: 100%; opacity: 0; transition: width 0.2s ease, opacity 0.3s ease 0.1s; }

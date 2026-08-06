@@ -1,3 +1,16 @@
+/* Registro de inicializadores de contenido.
+   Cada modulo que engancha elementos DENTRO de <main> registra su init aca; se
+   corre al cargar y de nuevo despues de cada navegacion pjax (cambio de pagina
+   sin recargar, con el reproductor sonando). Los listeners a nivel document/
+   window se registran una sola vez, aparte. */
+window.Arcano = window.Arcano || {};
+(function () {
+    'use strict';
+    var fns = [];
+    window.Arcano.onContent = function (fn) { fns.push(fn); try { fn(); } catch (e) {} };
+    window.Arcano.runContent = function () { fns.forEach(function (fn) { try { fn(); } catch (e) {} }); };
+})();
+
 /* Animaciones sutiles para la tienda publica.
    Usa IntersectionObserver para revelar elementos al scroll.
 */
@@ -328,25 +341,32 @@
 /* Toggle del sidebar de filtros en movil */
 (function () {
     'use strict';
-    var toggle = document.getElementById('sidebar-toggle');
-    var sidebar = document.getElementById('public-sidebar');
-    if (!toggle || !sidebar) return;
-    toggle.addEventListener('click', function () {
-        sidebar.classList.toggle('open');
-    });
-    // Cerrar al tocar afuera en movil
+    // Cerrar al tocar afuera (una sola vez; busca los elementos actuales)
     document.addEventListener('click', function (e) {
         if (window.innerWidth > 860) return;
+        var sidebar = document.getElementById('public-sidebar');
+        var toggle = document.getElementById('sidebar-toggle');
+        if (!sidebar || !toggle) return;
         if (!sidebar.classList.contains('open')) return;
         if (sidebar.contains(e.target) || toggle.contains(e.target)) return;
         sidebar.classList.remove('open');
+    });
+    Arcano.onContent(function () {
+        var toggle = document.getElementById('sidebar-toggle');
+        var sidebar = document.getElementById('public-sidebar');
+        if (!toggle || !sidebar || toggle._sbBound) return;
+        toggle._sbBound = true;
+        toggle.addEventListener('click', function () { sidebar.classList.toggle('open'); });
     });
 })();
 
 /* Carruseles de la home (Destacados / Nuevos ingresos) — 2 tapas por slide */
 (function () {
     'use strict';
+    Arcano.onContent(function () {
     document.querySelectorAll('.public-carrusel').forEach(function (carrusel) {
+        if (carrusel._carInit) return;
+        carrusel._carInit = true;
         var track = carrusel.querySelector('.public-carrusel-track');
         var cards = carrusel.querySelectorAll('.carrusel-card');
         var prev = carrusel.querySelector('.carrusel-prev');
@@ -399,9 +419,11 @@
         actualizarProgreso();
         iniciarAuto();
     });
+    });
 })();
 
-/* Fade-in de portadas al cargar (quita el shimmer) */
+/* Fade-in de portadas al cargar (quita el shimmer). Se re-corre tras cada pjax
+   porque las tapas arrancan en opacity:0 hasta que se les pone .loaded. */
 (function () {
     'use strict';
     function marcarCargada(img) {
@@ -409,16 +431,20 @@
         var cover = img.closest('.public-card-cover, .carrusel-cover');
         if (cover) cover.classList.add('img-loaded');
     }
-    document.querySelectorAll('.public-card-cover img, .carrusel-cover img').forEach(function (img) {
-        if (img.complete && img.naturalWidth > 0) {
-            marcarCargada(img);
-        } else {
-            img.addEventListener('load', function () { marcarCargada(img); });
-            img.addEventListener('error', function () {
-                var cover = img.closest('.public-card-cover, .carrusel-cover');
-                if (cover) cover.classList.add('img-loaded');
-            });
-        }
+    Arcano.onContent(function () {
+        document.querySelectorAll('.public-card-cover img, .carrusel-cover img').forEach(function (img) {
+            if (img._fadeBound) return;
+            img._fadeBound = true;
+            if (img.complete && img.naturalWidth > 0) {
+                marcarCargada(img);
+            } else {
+                img.addEventListener('load', function () { marcarCargada(img); });
+                img.addEventListener('error', function () {
+                    var cover = img.closest('.public-card-cover, .carrusel-cover');
+                    if (cover) cover.classList.add('img-loaded');
+                });
+            }
+        });
     });
 })();
 
@@ -441,19 +467,18 @@
 /* Buscador con sugerencias (autocompletado) */
 (function () {
     'use strict';
-    var input = document.getElementById('public-search-input');
-    var box = document.getElementById('search-suggestions');
-    if (!input || !box) return;
-
     var timer = null;
     var tipoLabel = { artista: 'Artista', sello: 'Sello', disco: 'Disco' };
 
-    function cerrar() { box.hidden = true; box.innerHTML = ''; }
+    function boxEl() { return document.getElementById('search-suggestions'); }
+    function cerrar() { var box = boxEl(); if (box) { box.hidden = true; box.innerHTML = ''; } }
 
     function buscar(q) {
         fetch('/api/buscar-sugerencias?q=' + encodeURIComponent(q))
             .then(function (r) { return r.json(); })
             .then(function (items) {
+                var box = boxEl();
+                if (!box) return;
                 if (!items.length) { cerrar(); return; }
                 box.innerHTML = '';
                 items.forEach(function (item) {
@@ -472,15 +497,25 @@
             }).catch(cerrar);
     }
 
-    input.addEventListener('input', function () {
-        var q = input.value.trim();
-        if (timer) clearTimeout(timer);
-        if (q.length < 2) { cerrar(); return; }
-        timer = setTimeout(function () { buscar(q); }, 250);
-    });
-    input.addEventListener('blur', function () { setTimeout(cerrar, 200); });
+    // Cerrar al tocar afuera (una sola vez)
     document.addEventListener('click', function (e) {
+        var input = document.getElementById('public-search-input');
+        var box = boxEl();
+        if (!input || !box) return;
         if (!input.contains(e.target) && !box.contains(e.target)) cerrar();
+    });
+
+    Arcano.onContent(function () {
+        var input = document.getElementById('public-search-input');
+        if (!input || input._searchBound) return;
+        input._searchBound = true;
+        input.addEventListener('input', function () {
+            var q = input.value.trim();
+            if (timer) clearTimeout(timer);
+            if (q.length < 2) { cerrar(); return; }
+            timer = setTimeout(function () { buscar(q); }, 250);
+        });
+        input.addEventListener('blur', function () { setTimeout(cerrar, 200); });
     });
 })();
 

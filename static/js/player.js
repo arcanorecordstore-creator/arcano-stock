@@ -211,6 +211,12 @@
         setTimeout(function () { player.hidden = true; }, 250);
     }
 
+    // Expuesto para el pjax: cerrar el reproductor al entrar al checkout ("finalizar compra")
+    window.ArcanoPlayer = {
+        cerrar: cerrar,
+        estaAbierto: function () { return !player.hidden; }
+    };
+
     // ---- Navegacion / cola ----
     function actualizarNav() {
         var multi = playlist.length > 1;

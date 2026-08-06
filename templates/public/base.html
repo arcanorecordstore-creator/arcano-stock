@@ -222,7 +222,7 @@
     </div>
     <div class="public-footer-bottom">
         <span>&copy; {{ now.year }} Arcano Record Store &middot; Montevideo, Uruguay</span>
-        <span class="public-footer-ver">v3.01</span>
+        <span class="public-footer-ver">v3.02</span>
     </div>
 </footer>
 
@@ -280,6 +280,7 @@
 <script src="https://www.youtube.com/iframe_api"></script>
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
 <script src="{{ url_for('static', filename='js/public_anim.js') }}"></script>
+<script src="{{ url_for('static', filename='js/pjax.js') }}"></script>
 {% block scripts %}{% endblock %}
 
 </body>
