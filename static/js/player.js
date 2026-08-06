@@ -240,6 +240,8 @@
     function reproducirTrackActual() {
         var t = playlist[playIndex];
         if (!t) return;
+        // En la ficha de disco, resaltar el boton del track que suena ahora
+        if (t.btn) markPlaying(t.btn);
         stopAudioYt();
         showPlayer(t.cover || playCover, t.title, t.artist);
         actualizarNav();
@@ -392,6 +394,30 @@
         return true;
     }
 
+    // Ficha de disco: los botones de cada track (.public-track-play-btn) forman
+    // una playlist, para que las flechas prev/siguiente recorran los tracks.
+    function trackDesdeBtnTrack(btn) {
+        var kind = btn.dataset.play;
+        var t = {
+            id: btn.dataset.trackId, kind: kind, btn: btn,
+            cover: btn.dataset.coverUrl, title: btn.dataset.trackTitle, artist: btn.dataset.trackArtist
+        };
+        if (kind === 'local') t.audioUrl = btn.dataset.audioUrl;
+        else if (kind === 'youtube') { t.youtubeId = btn.dataset.youtubeId; t.youtubeStart = btn.dataset.youtubeStart; }
+        else if (kind === 'soundcloud') t.soundcloudUrl = btn.dataset.soundcloudUrl;
+        return t;
+    }
+    function iniciarTracklist(btn) {
+        var btns = Array.prototype.slice.call(document.querySelectorAll('.public-track-play-btn'));
+        if (btns.length <= 1) return false;   // un solo track: comportamiento clasico
+        if (activeBtn === btn) { closePlayer(); return true; }
+        playlist = btns.map(trackDesdeBtnTrack);
+        playIndex = btns.indexOf(btn);
+        playCover = btn.dataset.coverUrl || '';
+        reproducirTrackActual();
+        return true;
+    }
+
     // Delegacion: captura clicks en cualquier [data-play], presente o futuro
     document.addEventListener('click', function (e) {
         var btn = e.target.closest('[data-play]');
@@ -403,7 +429,11 @@
             iniciarPlaylist(btn);
             return;
         }
-        // Sino, comportamiento clasico (un solo track, ej: ficha de disco)
+        // Ficha de disco: recorrer los tracks del disco con prev/siguiente
+        if (btn.classList.contains('public-track-play-btn') && iniciarTracklist(btn)) {
+            return;
+        }
+        // Sino, comportamiento clasico (un solo track)
         var kind = btn.dataset.play;
         if (kind === 'local') playLocal(btn);
         else if (kind === 'youtube') playYouTube(btn);

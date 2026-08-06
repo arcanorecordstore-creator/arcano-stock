@@ -7958,27 +7958,29 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 }
 
 /* =========================================================================
-   v2.74 - Boton cerrar (X) del reproductor comodo y siempre alcanzable en MOVIL
-   Antes quedaba chico y podia enterrarse detras del iframe. Ahora se fija
-   arriba a la derecha del player, con buen tamano de toque y por encima de todo.
+   v2.74/v2.81 - Reproductor en MOVIL: boton cerrar (X) comodo y sin pisar nada.
+   La X va al FINAL de la primera fila (empujada a la derecha), separada de los
+   botones prev/siguiente, y el iframe de SoundCloud/YouTube pasa a su propia
+   fila abajo. Asi la X no se superpone con "siguiente" ni con el iframe, y
+   sigue siendo un objetivo de toque comodo.
    ========================================================================= */
 @media (max-width: 700px) {
     .floating-player {
-        position: fixed;         /* ya lo es; asegura contexto para la X absoluta */
-        padding-right: 52px;     /* reservar el espacio de la X arriba a la derecha */
+        padding-right: 10px;
     }
     .floating-player-close {
-        position: absolute;
-        top: 6px;
-        right: 8px;
+        order: 1;
+        margin-left: auto;
         width: 40px;
         height: 40px;
         font-size: 22px;
         background: var(--bg-1);
         border-color: var(--border-2);
         color: var(--text-1);
-        z-index: 6;              /* por encima del iframe de SoundCloud/YouTube */
     }
+    /* El iframe/controles a fila completa abajo; el volumen (oculto) al final */
+    .floating-player-controls { order: 2; flex-basis: 100%; }
+    .floating-player-volume { order: 3; }
 }
 
 /* =========================================================================

@@ -107,12 +107,12 @@
     </a>
     {% if cliente_actual %}
     <a href="{{ url_for('cliente_cuenta') }}" class="bottom-nav-item {% if request.endpoint == 'cliente_cuenta' %}active{% endif %}">
-        <span class="bottom-nav-icon">&#9679;</span>
+        <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path></svg>
         <span class="bottom-nav-label">Cuenta</span>
     </a>
     {% else %}
     <a href="{{ url_for('cliente_login_page') }}" class="bottom-nav-item {% if request.endpoint in ['cliente_login_page', 'cliente_registro'] %}active{% endif %}">
-        <span class="bottom-nav-icon">&#9679;</span>
+        <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"></circle><path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path></svg>
         <span class="bottom-nav-label">Ingresar</span>
     </a>
     {% endif %}
@@ -205,7 +205,7 @@
     </div>
     <div class="public-footer-bottom">
         <span>&copy; {{ now.year }} Arcano Record Store &middot; Montevideo, Uruguay</span>
-        <span class="public-footer-ver">v2.80</span>
+        <span class="public-footer-ver">v2.81</span>
     </div>
 </footer>
 
