@@ -7980,3 +7980,22 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
         z-index: 6;              /* por encima del iframe de SoundCloud/YouTube */
     }
 }
+
+/* =========================================================================
+   v2.80 - FIX de contraste en MODO OSCURO
+   Estos elementos usaban  background: var(--accent) + color: #fff;  y como
+   --accent es BLANCO en modo oscuro, quedaban blanco-sobre-blanco (el numero
+   del contador y el texto del banner de envios eran invisibles).
+   ========================================================================= */
+/* Banner de anuncios/envios: el texto ahora contrasta siempre con el fondo
+   --accent (oscuro sobre claro en modo dark / claro sobre oscuro en modo light). */
+.public-anuncio-bar {
+    color: var(--bg-0);
+}
+/* Contadores de carrito y favoritos: rosa con numero blanco, legibles en ambos
+   temas (unifica con el badge de favoritos que ya era rosa). */
+.cart-count,
+.bottom-nav-badge {
+    background: #f43f5e !important;
+    color: #fff !important;
+}
