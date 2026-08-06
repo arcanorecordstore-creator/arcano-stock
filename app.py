@@ -2987,6 +2987,13 @@ def register_routes(app: Flask) -> None:
             smtp_configured=mailer.is_configured(),
         )
 
+    @app.route("/admin/mp/test", methods=["POST"])
+    @auth.admin_required
+    def mp_test_conexion():
+        """Prueba que el token de Mercado Pago sea valido (sin cobrar nada)."""
+        ok, mensaje = mp.probar_credencial()
+        return jsonify({"ok": ok, "mensaje": mensaje})
+
     @app.route("/admin/settings/tc", methods=["POST"])
     @auth.admin_required
     def settings_update_tc():

@@ -302,9 +302,33 @@
                 <p class="mp-info-ok">&#10003; Credencial de producci&oacute;n cargada.</p>
                 {% endif %}
                 <div style="margin-top: 10px;">
+                    <button type="button" class="btn btn-ghost btn-sm" id="mp-test-btn">Probar conexi&oacute;n con Mercado Pago</button>
+                    <span id="mp-test-result" style="margin-left: 8px; font-size: 13px;"></span>
+                    <p class="form-field-hint" style="margin-top: 6px;">Carg&aacute; el token en Render, toc&aacute; este bot&oacute;n para confirmar que qued&oacute; bien, y reci&eacute;n cuando quieras arrancar prend&eacute; el toggle de arriba. No cobra nada.</p>
+                </div>
+                <div style="margin-top: 10px;">
                     <label for="mp_recargo_pct">Recargo que paga el cliente (%) <span class="form-field-hint">(la comisi&oacute;n de MP; ej: 7)</span></label><br>
                     <input type="number" id="mp_recargo_pct" name="mp_recargo_pct" value="{{ mp_recargo_pct }}" min="0" max="20" step="0.5" style="max-width: 100px;">
                 </div>
+                <script>
+                (function () {
+                    var btn = document.getElementById('mp-test-btn');
+                    var out = document.getElementById('mp-test-result');
+                    if (!btn) return;
+                    btn.addEventListener('click', function () {
+                        out.textContent = 'Probando...'; out.style.color = '';
+                        btn.disabled = true;
+                        fetch('{{ url_for("mp_test_conexion") }}', { method: 'POST', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+                            .then(function (r) { return r.json(); })
+                            .then(function (d) {
+                                out.textContent = (d.ok ? '✓ ' : '✗ ') + (d.mensaje || '');
+                                out.style.color = d.ok ? '#10b981' : '#f43f5e';
+                            })
+                            .catch(function () { out.textContent = 'No se pudo probar (error de red).'; out.style.color = '#f43f5e'; })
+                            .then(function () { btn.disabled = false; });
+                    });
+                })();
+                </script>
             </div>
 
             <div class="form-field" style="margin-top: 22px; border-top: 1px solid var(--border-2, #333); padding-top: 18px;">

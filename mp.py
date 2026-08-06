@@ -103,6 +103,31 @@ def obtener_pago(payment_id) -> dict | None:
         return None
 
 
+def probar_credencial():
+    """Verifica que el MP_ACCESS_TOKEN sea valido, consultando la cuenta en MP.
+    Devuelve (True, descripcion) si anda, (False, motivo) si no. No cobra ni
+    crea nada: solo lee los datos de la cuenta."""
+    token = access_token()
+    if not token:
+        return False, "No hay MP_ACCESS_TOKEN cargado en Render todavia."
+    try:
+        resp = requests.get(
+            f"{MP_API}/users/me",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=15,
+        )
+    except Exception as e:
+        return False, f"No se pudo conectar con Mercado Pago: {e}"
+    if resp.status_code == 200:
+        data = resp.json()
+        nick = data.get("nickname") or data.get("email") or str(data.get("id") or "cuenta")
+        modo = "PRUEBA (sandbox)" if es_sandbox() else "PRODUCCION"
+        return True, f"Conexion OK — cuenta '{nick}', modo {modo}."
+    if resp.status_code in (401, 403):
+        return False, "El token no es valido o esta vencido (MP respondio 401/403)."
+    return False, f"Mercado Pago respondio {resp.status_code}."
+
+
 def webhook_secret() -> str:
     """Clave secreta del webhook (se saca del panel de MP). Vacia = no se valida."""
     return (os.environ.get("MP_WEBHOOK_SECRET") or "").strip()
