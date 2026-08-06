@@ -45,6 +45,7 @@ import mp
 # Registro en memoria de intentos de login fallidos por IP (rate limiting).
 # Se reinicia con cada deploy; suficiente para frenar fuerza bruta.
 _login_attempts: dict = {}
+_cliente_login_attempts: dict = {}  # idem para el login de clientes de la tienda
 
 
 def convertir_cover_a_webp(path_original: str) -> str:
@@ -93,9 +94,20 @@ def create_app() -> Flask:
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
     # SECRET_KEY: en produccion viene de entorno (secreta). En local usa la de dev.
-    app.config["SECRET_KEY"] = os.environ.get(
-        "SECRET_KEY", "arcano-local-dev-key-change-me"
-    )
+    _DEV_SECRET_KEY = "arcano-local-dev-key-change-me"
+    app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", _DEV_SECRET_KEY)
+    # En produccion (Render) es preferible FALLAR FUERTE a correr inseguro por un
+    # olvido de configuracion: sin SECRET_KEY propia se podrian falsificar sesiones,
+    # y sin credenciales de admin el panel quedaria abierto.
+    if os.environ.get("RENDER"):
+        if app.config["SECRET_KEY"] == _DEV_SECRET_KEY:
+            raise RuntimeError(
+                "SECRET_KEY no configurada en produccion. Cargala como variable de entorno en Render."
+            )
+        if not auth.auth_enabled():
+            raise RuntimeError(
+                "ADMIN_USER/ADMIN_PASS no configurados en produccion: el admin quedaria abierto."
+            )
     app.config["MAX_CONTENT_LENGTH"] = 35 * 1024 * 1024  # 35 MB (permite samples de video)
 
     # --- Seguridad de cookies de sesion ---
@@ -149,10 +161,11 @@ def create_app() -> Flask:
 
     # --- Proteccion CSRF liviana para el admin: verificar el origen de los POST ---
     # Si un POST a /admin viene desde otro sitio (Origin/Referer ajeno), se rechaza.
-    # No requiere tokens en los formularios y no afecta a la tienda publica.
+    # No requiere tokens. Cubre admin Y tienda publica (reservas, checkout, cuenta);
+    # excluye el webhook de Mercado Pago, que lo llama MP desde otro servidor.
     @app.before_request
     def csrf_origin_check():
-        if request.method in ("POST", "PUT", "DELETE") and request.path.startswith("/admin"):
+        if request.method in ("POST", "PUT", "DELETE") and not request.path.startswith("/mp/webhook"):
             origin = request.headers.get("Origin") or request.headers.get("Referer") or ""
             if origin:
                 from urllib.parse import urlparse
@@ -3655,10 +3668,10 @@ def register_routes(app: Flask) -> None:
             ), 400
 
         if request.method == "POST":
-            nombre = (request.form.get("nombre") or "").strip()
-            whatsapp = (request.form.get("whatsapp") or "").strip()
-            email = (request.form.get("email") or "").strip() or None
-            nota = (request.form.get("nota") or "").strip() or None
+            nombre = (request.form.get("nombre") or "").strip()[:120]
+            whatsapp = (request.form.get("whatsapp") or "").strip()[:40]
+            email = ((request.form.get("email") or "").strip()[:200]) or None
+            nota = ((request.form.get("nota") or "").strip()[:1000]) or None
 
             errores = []
             if len(nombre) < 2:
@@ -3760,9 +3773,9 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("cliente_cuenta"))
 
         if request.method == "POST":
-            nombre = (request.form.get("nombre") or "").strip()
-            email = (request.form.get("email") or "").strip().lower()
-            whatsapp = (request.form.get("whatsapp") or "").strip() or None
+            nombre = (request.form.get("nombre") or "").strip()[:120]
+            email = (request.form.get("email") or "").strip().lower()[:200]
+            whatsapp = ((request.form.get("whatsapp") or "").strip()[:40]) or None
             password = request.form.get("password") or ""
             password2 = request.form.get("password2") or ""
 
@@ -3814,13 +3827,26 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("cliente_cuenta"))
 
         if request.method == "POST":
+            ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+            import time as _time
+            info = _cliente_login_attempts.get(ip, {"count": 0, "until": 0})
+            if _time.time() < info["until"]:
+                restante = int(info["until"] - _time.time())
+                flash(f"Demasiados intentos. Espera {restante} segundos.", "error")
+                return render_template("public/cliente_login.html", form={}, **_public_context()), 429
             email = (request.form.get("email") or "").strip().lower()
             password = request.form.get("password") or ""
             cliente = Cliente.query.filter_by(email=email).first()
             if not cliente or not cliente.check_password(password):
+                info["count"] += 1
+                if info["count"] >= 5:
+                    info["until"] = _time.time() + min(60 * (info["count"] - 4), 600)
+                _cliente_login_attempts[ip] = info
+                _time.sleep(1)
                 flash("Email o contrasena incorrectos.", "error")
                 return render_template("public/cliente_login.html", form={"email": email}, **_public_context())
 
+            _cliente_login_attempts.pop(ip, None)
             auth.cliente_login(cliente.id)
             flash(f"Hola de nuevo, {cliente.nombre}!", "success")
             next_url = request.args.get("next")
@@ -3961,10 +3987,10 @@ def register_routes(app: Flask) -> None:
         if request.method == "POST":
             ids_raw = (request.form.get("ids") or "").strip()
             ids = [int(x) for x in ids_raw.split(",") if x.strip().isdigit()][:100]
-            nombre = (request.form.get("nombre") or "").strip()
-            whatsapp = (request.form.get("whatsapp") or "").strip()
-            email = (request.form.get("email") or "").strip() or None
-            nota = (request.form.get("nota") or "").strip() or None
+            nombre = (request.form.get("nombre") or "").strip()[:120]
+            whatsapp = (request.form.get("whatsapp") or "").strip()[:40]
+            email = ((request.form.get("email") or "").strip()[:200]) or None
+            nota = ((request.form.get("nota") or "").strip()[:1000]) or None
 
             errores = []
             if not ids:
