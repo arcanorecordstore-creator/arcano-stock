@@ -2785,13 +2785,15 @@ body.app { display: block; padding: 0; }
 /* v3.17 - fila precio + boton "Agregar al carrito" (reemplaza el "+" sobre la tapa) */
 .public-card-buy {
     display: flex;
-    align-items: center;
+    flex-direction: column;
     gap: 8px;
     margin-top: 10px;
 }
-.public-card-buy .public-card-price { margin-top: 0; flex: 1 1 auto; min-width: 0; }
+.public-card-buy .public-card-price { margin-top: 0; }
 .cart-btn-inline {
     flex: 0 0 auto;
+    align-self: center;        /* v3.23 - boton "Agregar al carrito" centrado en la card */
+    max-width: 100%;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -2815,9 +2817,8 @@ body.app { display: block; padding: 0; }
 .cart-btn-inline.is-in-cart { background: var(--gain); color: #fff; }
 .cart-btn-inline.is-in-cart .cart-label-in { display: inline; }
 .cart-btn-inline.is-in-cart .cart-label-add { display: none; }
-/* En grilla de 2 columnas en celular el boton va a lo ancho, debajo del precio */
-.public-grid[data-mobile-cols="2"] .public-card-buy { flex-wrap: wrap; }
-.public-grid[data-mobile-cols="2"] .cart-btn-inline { flex: 1 1 100%; }
+/* v3.23 - el boton "Agregar al carrito" va centrado (ancho segun su texto), no a
+   todo el ancho, en todas las grillas (1 o 2 columnas). */
 
 .public-empty {
     text-align: center;
@@ -2858,9 +2859,10 @@ body.app { display: block; padding: 0; }
        ancho de la pantalla" (ademas en iPhone el desenfoque puede sangrar del borde).
        La tapa queda como un cuadrado contenido, con sus margenes normales. */
     .public-disc-backdrop { display: none; }
-    /* v3.22 - En celular la tapa mas chica y centrada: antes ocupaba casi toda la
-       pantalla y se sentia que "se salia". Con max-width no puede pasarse del ancho. */
-    .public-disc-cover { max-width: 300px; margin-left: auto; margin-right: auto; }
+    /* v3.23 - Tapa con tamano medio y centrada en celular. A todo el ancho (v3.21) se
+       veia "muy grande / se salia"; 300px (v3.22) quedaba muy chica y descentrada del
+       resto. 420px es el punto medio; en celulares angostos igual entra a ancho completo. */
+    .public-disc-cover { max-width: 420px; margin-left: auto; margin-right: auto; }
 }
 
 .public-disc-left {
