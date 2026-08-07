@@ -178,10 +178,7 @@
                     Consult&aacute; el precio por Instagram
                 </a>
                 {% else %}
-                <button type="button" class="btn btn-primary cart-btn cart-btn-full" data-cart-id="{{ disc.id }}">
-                    <span class="cart-label-add">&#43; Agregar al carrito (pre-order)</span>
-                    <span class="cart-label-in">&#10003; En el carrito</span>
-                </button>
+                <p class="public-disc-status-hint">Escribinos para consultar el precio y reservarlo.</p>
                 {% endif %}
                 <button type="button" class="btn btn-ghost public-share-btn" data-share-url="{{ url_for('public_disc', disc_id=disc.id, _external=True) }}" data-share-title="{{ disc.artista }} - {{ disc.titulo }}">Compartir</button>
                 <button type="button" class="btn btn-ghost fav-btn fav-btn-full" data-fav-id="{{ disc.id }}">
@@ -226,10 +223,7 @@
                     Consult&aacute; el precio por Instagram
                 </a>
                 {% else %}
-                <button type="button" class="btn btn-primary cart-btn cart-btn-full" data-cart-id="{{ disc.id }}">
-                    <span class="cart-label-add">&#43; Agregar al carrito</span>
-                    <span class="cart-label-in">&#10003; En el carrito</span>
-                </button>
+                <p class="public-disc-status-hint">Escribinos para consultar el precio y reservarlo.</p>
                 {% endif %}
                 <button type="button" class="btn btn-ghost public-share-btn" data-share-url="{{ url_for('public_disc', disc_id=disc.id, _external=True) }}" data-share-title="{{ disc.artista }} - {{ disc.titulo }}">Compartir</button>
                 <button type="button" class="btn btn-ghost fav-btn fav-btn-full" data-fav-id="{{ disc.id }}">

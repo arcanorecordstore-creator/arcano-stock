@@ -387,6 +387,10 @@ window.arcanoGA = function (name, params) {
         form.addEventListener('change', function (e) {
             var el = e.target;
             if (!el || !el.name || el.name === 'q') return;
+            // En celular NO auto-aplicar los filtros del panel lateral: al re-renderizar
+            // (pjax) el panel se cerraria y la pagina saltaria arriba. Ahi se usa el boton
+            // "Aplicar filtros". El selector "Orden" (fuera del panel) si auto-aplica.
+            if (window.innerWidth <= 860 && el.closest('.public-sidebar')) return;
             if (t) clearTimeout(t);
             t = setTimeout(function () {
                 if (typeof form.requestSubmit === 'function') form.requestSubmit();

@@ -99,6 +99,9 @@
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
+/* v3.25 - El atributo [hidden] debe ganarle a cualquier "display" (ej: .cart-layout
+   es display:grid y mostraba el resumen aunque estuviera hidden -> carrito vacio duplicado). */
+[hidden] { display: none !important; }
 
 body {
     font-family: 'Space Grotesk', -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -2808,15 +2811,16 @@ body.app { display: block; padding: 0; }
     font-family: inherit;
     font-size: 12px;
     font-weight: 600;
-    line-height: 1;
+    line-height: 1.2;
     cursor: pointer;
-    white-space: nowrap;
+    white-space: normal;       /* v3.25 - deja que el texto envuelva en cards angostas (2 col) en vez de cortarse */
+    text-align: center;
     transition: transform 0.12s, opacity 0.15s, background 0.15s;
 }
 .cart-btn-inline:hover { transform: translateY(-1px); opacity: 0.9; }
 .cart-btn-inline .cart-label-in { display: none; }
 .cart-btn-inline .cart-label-add { display: inline; }
-.cart-btn-inline.is-in-cart { background: var(--gain); color: #fff; }
+.cart-btn-inline.is-in-cart { background: #047857; color: #fff; }  /* v3.25 - verde mas oscuro: contraste AA con el texto blanco */
 .cart-btn-inline.is-in-cart .cart-label-in { display: inline; }
 .cart-btn-inline.is-in-cart .cart-label-add { display: none; }
 /* v3.23 - el boton "Agregar al carrito" va centrado (ancho segun su texto), no a
@@ -2861,10 +2865,10 @@ body.app { display: block; padding: 0; }
        ancho de la pantalla" (ademas en iPhone el desenfoque puede sangrar del borde).
        La tapa queda como un cuadrado contenido, con sus margenes normales. */
     .public-disc-backdrop { display: none; }
-    /* v3.23 - Tapa con tamano medio y centrada en celular. A todo el ancho (v3.21) se
-       veia "muy grande / se salia"; 300px (v3.22) quedaba muy chica y descentrada del
-       resto. 420px es el punto medio; en celulares angostos igual entra a ancho completo. */
-    .public-disc-cover { max-width: 420px; margin-left: auto; margin-right: auto; }
+    /* v3.23/v3.25 - Columna de la tapa (tapa + miniaturas + sample) a tamano medio y
+       centrada en celular. A todo el ancho se veia muy grande; capamos la COLUMNA entera
+       (no solo la tapa) para que miniaturas y sample queden alineados con la tapa. */
+    .public-disc-left { max-width: 420px; margin-left: auto; margin-right: auto; }
 }
 
 .public-disc-left {

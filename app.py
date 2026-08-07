@@ -3260,14 +3260,17 @@ def register_routes(app: Flask) -> None:
     def _mp_iniciar_pago(reserva, discos):
         """Crea la preferencia de Mercado Pago para una reserva y devuelve la URL
         de pago (o None si algo falla; el caller cae al flujo normal de reserva)."""
-        subtotal = sum((d.precio_uyu or 0) for d in discos)
+        # Usar precio_mostrar (con oferta) para cobrar lo mismo que ve el cliente en
+        # el checkout/mail, y descartar los sin precio (un unit_price 0 rompe la preferencia).
+        discos_cobrables = [d for d in discos if (d.precio_mostrar or d.precio_uyu or 0) > 0]
+        subtotal = sum((d.precio_mostrar or d.precio_uyu or 0) for d in discos_cobrables)
         if subtotal <= 0:
             return None
         recargo = mp.calcular_recargo(subtotal)
         items = [
             {"title": f"{d.artista} - {d.titulo}", "quantity": 1,
-             "unit_price": float(d.precio_uyu or 0)}
-            for d in discos
+             "unit_price": float(d.precio_mostrar or d.precio_uyu or 0)}
+            for d in discos_cobrables
         ]
         if recargo > 0:
             items.append({
@@ -4318,14 +4321,6 @@ def register_routes(app: Flask) -> None:
             form={},
             **_public_context(),
         )
-        content = (
-            "User-agent: *\n"
-            "Allow: /\n"
-            "Disallow: /admin\n"
-            "Disallow: /admin/\n"
-            f"Sitemap: {url_for('sitemap_xml', _external=True)}\n"
-        )
-        return content, 200, {"Content-Type": "text/plain; charset=utf-8"}
 
     @app.route("/sitemap.xml")
     def sitemap_xml():
