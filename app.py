@@ -3325,12 +3325,12 @@ def register_routes(app: Flask) -> None:
                     d.copias_vendidas = 1
                 d.stock = max(0, (d.stock or 1) - 1)
         db.session.commit()
-        # Email de confirmacion (best-effort)
+        # Email de confirmacion (best-effort): pago por Mercado Pago -> "gracias por tu compra"
         if reserva.email and mailer.can_send():
             try:
                 discos = [Disc.query.get(i.disc_id) for i in reserva.items_efectivos]
-                mailer.send_reserva_confirmacion_cliente_multi(
-                    reserva, [d for d in discos if d])
+                mailer.send_compra_confirmacion_cliente(
+                    reserva, [d for d in discos if d], metodo="mercadopago")
             except Exception:
                 pass
 
@@ -4246,10 +4246,14 @@ def register_routes(app: Flask) -> None:
                 except Exception:
                     pass
 
-            # Confirmacion al cliente (si dejo email)
+            # Confirmacion al cliente (si dejo email). Transferencia = ya pago ->
+            # "gracias por tu compra". Coordinar = reserva a coordinar el pago.
             if reserva.email and mailer.can_send():
                 try:
-                    mailer.send_reserva_confirmacion_cliente_multi(reserva, disponibles)
+                    if reserva.metodo_pago == "transferencia":
+                        mailer.send_compra_confirmacion_cliente(reserva, disponibles, metodo="transferencia")
+                    else:
+                        mailer.send_reserva_confirmacion_cliente_multi(reserva, disponibles)
                 except Exception:
                     pass
 

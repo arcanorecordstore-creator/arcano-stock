@@ -7,10 +7,17 @@
 
 <section class="public-reserve-ok">
     <div class="public-reserve-ok-icon">&#10003;</div>
+    {% if reserva.metodo_pago == 'transferencia' %}
+    <h1 class="public-reserve-ok-title">&iexcl;Gracias por tu compra!</h1>
+    <p class="public-reserve-ok-text">
+        Gracias <strong>{{ reserva.nombre }}</strong>. Recibimos tu comprobante de transferencia; en cuanto lo verifiquemos te contactamos por WhatsApp para coordinar la entrega.
+    </p>
+    {% else %}
     <h1 class="public-reserve-ok-title">Reserva enviada</h1>
     <p class="public-reserve-ok-text">
         Gracias <strong>{{ reserva.nombre }}</strong>. Te vamos a contactar por WhatsApp a la brevedad para coordinar el pago y la entrega.
     </p>
+    {% endif %}
 
     <div class="public-reserve-ok-summary">
         {% if multi %}
