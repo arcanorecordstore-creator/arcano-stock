@@ -8,100 +8,100 @@
 <a href="{{ url_for('public_carrito') }}" class="public-back">&larr; Volver al carrito</a>
 
 <section class="public-reserve public-reserve-checkout">
-    <h1 class="public-reserve-title" style="font-size: 24px; letter-spacing: 0; text-transform: none; color: var(--text-1); margin-bottom: 20px;">Finalizar compra</h1>
+    <h1 class="public-reserve-title" style="font-size: 22px; letter-spacing: 0; text-transform: none; color: var(--text-1); margin-bottom: 12px;">Finalizar compra</h1>
 
-    <div class="checkout-grid">
-    <div class="checkout-main">
-    <form method="post" action="{{ url_for('public_checkout') }}" class="public-reserve-form" id="checkout-form" enctype="multipart/form-data">
+    <form method="post" action="{{ url_for('public_checkout') }}" class="checkout-form-grid" id="checkout-form" enctype="multipart/form-data">
         <input type="hidden" name="ids" id="checkout-ids" value="{{ ids }}">
 
-        {% if cliente_actual %}
-        <p class="checkout-logged-note">&#10003; Completamos tus datos porque iniciaste sesi&oacute;n como <strong>{{ cliente_actual.nombre }}</strong>. Revisalos y confirm&aacute;.</p>
-        {% endif %}
-
-        <div class="form-field">
-            <label for="nombre">Tu nombre</label>
-            <input type="text" id="nombre" name="nombre" required value="{{ form.nombre or (cliente_actual.nombre if cliente_actual else '') }}" {% if not cliente_actual %}autofocus{% endif %} placeholder="Como te llamas">
-        </div>
-
-        <div class="form-field">
-            <label for="whatsapp">Celular</label>
-            <input type="tel" id="whatsapp" name="whatsapp" required value="{{ form.whatsapp or (cliente_actual.whatsapp if cliente_actual else '') }}" placeholder="+598 99 123 456">
-        </div>
-
-        <div class="form-field">
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" required value="{{ form.email or (cliente_actual.email if cliente_actual else '') }}" placeholder="tu@email.com">
-        </div>
-
-        <div class="form-field">
-            <label for="nota">Mensaje <span class="form-field-hint">(opcional)</span></label>
-            <textarea id="nota" name="nota" rows="3" placeholder="Algo que quieras aclarar...">{{ form.nota or '' }}</textarea>
-        </div>
-
-        <h2 class="pago-titulo">&iquest;C&oacute;mo quer&eacute;s pagar?</h2>
-        <div class="pago-metodos">
-            {% if transferencia_activa %}
-            <label class="pago-metodo">
-                <input type="radio" name="metodo" value="transferencia" checked>
-                <span class="pago-metodo-body">
-                    <strong>Transferencia bancaria</strong>
-                    <small>Transfer&iacute;s por tu cuenta y sub&iacute;s el comprobante. Despu&eacute;s coordinamos la entrega.</small>
-                </span>
-            </label>
+        <div class="ck-datos">
+            {% if cliente_actual %}
+            <p class="checkout-logged-note">&#10003; Completamos tus datos porque iniciaste sesi&oacute;n como <strong>{{ cliente_actual.nombre }}</strong>. Revisalos y confirm&aacute;.</p>
             {% endif %}
-            {% if mp_activo %}
-            <label class="pago-metodo">
-                <input type="radio" name="metodo" value="mercadopago" {% if not transferencia_activa %}checked{% endif %}>
-                <span class="pago-metodo-body">
-                    <strong>Mercado Pago</strong>
-                    <small>Te llevamos al checkout seguro para pagar al instante (total + {{ mp_recargo_pct|round|int }}%).</small>
-                </span>
-            </label>
-            {% endif %}
-            <label class="pago-metodo">
-                <input type="radio" name="metodo" value="coordinar" {% if not transferencia_activa and not mp_activo %}checked{% endif %}>
-                <span class="pago-metodo-body">
-                    <strong>Reservar y coordinar por mensaje</strong>
-                    <small>Apartamos los discos y te contactamos por WhatsApp para el pago y la entrega.</small>
-                </span>
-            </label>
-        </div>
 
-        <div id="checkout-desglose" class="checkout-desglose"></div>
+            <div class="checkout-row">
+                <div class="form-field">
+                    <label for="nombre">Tu nombre</label>
+                    <input type="text" id="nombre" name="nombre" required value="{{ form.nombre or (cliente_actual.nombre if cliente_actual else '') }}" {% if not cliente_actual %}autofocus{% endif %} placeholder="Como te llamas">
+                </div>
+                <div class="form-field">
+                    <label for="whatsapp">Celular</label>
+                    <input type="tel" id="whatsapp" name="whatsapp" required value="{{ form.whatsapp or (cliente_actual.whatsapp if cliente_actual else '') }}" placeholder="+598 99 123 456">
+                </div>
+            </div>
 
-        {% if transferencia_activa %}
-        <div class="pago-transfer" id="pago-transfer">
-            <div class="pago-transfer-label">Cuenta para transferir</div>
-            <pre class="pago-transfer-cuenta" id="transfer-cuenta">{{ transferencia_datos }}</pre>
-            <button type="button" class="btn btn-ghost btn-sm" id="copiar-cuenta">&#128203; Copiar cuenta</button>
-            <p class="form-field-hint" style="margin-top:8px;">Transfer&iacute; el total exacto y despu&eacute;s adjunt&aacute; el comprobante.</p>
-            <div class="form-field" style="margin-top:12px;">
-                <label for="comprobante">Comprobante <span class="form-field-hint">(imagen o PDF, hasta 12 MB &middot; obligatorio)</span></label>
-                <input type="file" id="comprobante" name="comprobante" accept="image/*,application/pdf">
+            <div class="form-field">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required value="{{ form.email or (cliente_actual.email if cliente_actual else '') }}" placeholder="tu@email.com">
+            </div>
+
+            <div class="form-field">
+                <label for="nota">Mensaje <span class="form-field-hint">(opcional)</span></label>
+                <textarea id="nota" name="nota" rows="2" placeholder="Algo que quieras aclarar...">{{ form.nota or '' }}</textarea>
             </div>
         </div>
-        {% endif %}
 
-        <div class="checkout-pasos">
-            <div class="checkout-pasos-title">C&oacute;mo sigue tu compra</div>
-            <ol class="checkout-pasos-list">
-                <li><strong>Confirm&aacute;s</strong> tu pedido ac&aacute;.</li>
-                <li>Te <strong>contactamos por WhatsApp</strong> para coordinar la entrega (y el pago, si eleg&iacute;s coordinar por mensaje).</li>
-                <li><strong>Env&iacute;o a todo Uruguay</strong> o <strong>retiro (pick up) en Pocitos</strong>, como te quede mejor.</li>
-            </ol>
+        <div class="ck-pago">
+            <h2 class="pago-titulo">&iquest;C&oacute;mo quer&eacute;s pagar?</h2>
+            <div class="pago-metodos">
+                {% if transferencia_activa %}
+                <label class="pago-metodo">
+                    <input type="radio" name="metodo" value="transferencia" checked>
+                    <span class="pago-metodo-body">
+                        <strong>Transferencia bancaria</strong>
+                        <small>Transfer&iacute;s por tu cuenta y sub&iacute;s el comprobante. Despu&eacute;s coordinamos la entrega.</small>
+                    </span>
+                </label>
+                {% endif %}
+                {% if mp_activo %}
+                <label class="pago-metodo">
+                    <input type="radio" name="metodo" value="mercadopago" {% if not transferencia_activa %}checked{% endif %}>
+                    <span class="pago-metodo-body">
+                        <strong>Mercado Pago</strong>
+                        <small>Te llevamos al checkout seguro para pagar al instante (total + {{ mp_recargo_pct|round|int }}%).</small>
+                    </span>
+                </label>
+                {% endif %}
+                <label class="pago-metodo">
+                    <input type="radio" name="metodo" value="coordinar" {% if not transferencia_activa and not mp_activo %}checked{% endif %}>
+                    <span class="pago-metodo-body">
+                        <strong>Reservar y coordinar por mensaje</strong>
+                        <small>Apartamos los discos y te contactamos por WhatsApp para el pago y la entrega.</small>
+                    </span>
+                </label>
+            </div>
+
+            {% if transferencia_activa %}
+            <div class="pago-transfer" id="pago-transfer">
+                <div class="pago-transfer-label">Cuenta para transferir</div>
+                <pre class="pago-transfer-cuenta" id="transfer-cuenta">{{ transferencia_datos }}</pre>
+                <button type="button" class="btn btn-ghost btn-sm" id="copiar-cuenta">&#128203; Copiar cuenta</button>
+                <p class="form-field-hint" style="margin-top:8px;">Transfer&iacute; el total exacto y despu&eacute;s adjunt&aacute; el comprobante.</p>
+                <div class="form-field" style="margin-top:12px;">
+                    <label for="comprobante">Comprobante <span class="form-field-hint">(imagen o PDF, hasta 12 MB &middot; obligatorio)</span></label>
+                    <input type="file" id="comprobante" name="comprobante" accept="image/*,application/pdf">
+                </div>
+            </div>
+            {% endif %}
         </div>
 
-        <button type="submit" class="btn btn-primary public-reserve-submit" id="checkout-submit">Confirmar pedido</button>
+        <aside class="ck-pedido">
+            <div class="checkout-aside-title">Tu pedido</div>
+            <div class="checkout-resumen" id="checkout-resumen">
+                <div class="public-empty"><p>Cargando resumen...</p></div>
+            </div>
+            <div id="checkout-desglose" class="checkout-desglose"></div>
+            <div class="checkout-pasos">
+                <div class="checkout-pasos-title">C&oacute;mo sigue tu compra</div>
+                <ol class="checkout-pasos-list">
+                    <li><strong>Confirm&aacute;s</strong> tu pedido ac&aacute;.</li>
+                    <li>Te <strong>contactamos por WhatsApp</strong> para coordinar la entrega.</li>
+                    <li><strong>Env&iacute;o a todo Uruguay</strong> o <strong>retiro en Pocitos</strong>.</li>
+                </ol>
+            </div>
+        </aside>
+
+        <button type="submit" class="btn btn-primary public-reserve-submit ck-submit" id="checkout-submit">Confirmar pedido</button>
     </form>
-    </div>
-
-    <aside class="checkout-aside">
-        <div class="checkout-resumen" id="checkout-resumen">
-            <div class="public-empty"><p>Cargando resumen...</p></div>
-        </div>
-    </aside>
-    </div>
 </section>
 
 <script>
