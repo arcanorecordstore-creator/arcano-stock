@@ -2796,7 +2796,9 @@ body.app { display: block; padding: 0; }
     align-items: center;
     justify-content: center;
     gap: 5px;
-    padding: 8px 13px;
+    min-height: 44px;          /* v3.20 - area tactil comoda (antes ~28px) */
+    padding: 9px 15px;
+    box-sizing: border-box;
     border: none;
     border-radius: 8px;
     background: var(--text-1);
