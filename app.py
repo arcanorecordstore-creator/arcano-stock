@@ -3820,8 +3820,8 @@ def register_routes(app: Flask) -> None:
             errores = []
             if len(nombre) < 2:
                 errores.append("Ingresa tu nombre.")
-            if len(whatsapp) < 7:
-                errores.append("Ingresa un WhatsApp valido (con codigo de pais).")
+            if sum(c.isdigit() for c in whatsapp) < 7:
+                errores.append("Ingresa un celular valido (ej: 099 123 456).")
             if not email:
                 errores.append("Ingresa tu email para enviarte la confirmacion.")
             elif "@" not in email:
@@ -4157,8 +4157,8 @@ def register_routes(app: Flask) -> None:
                 errores.append("El carrito esta vacio.")
             if len(nombre) < 2:
                 errores.append("Ingresa tu nombre.")
-            if len(whatsapp) < 7:
-                errores.append("Ingresa un WhatsApp valido (con codigo de pais).")
+            if sum(c.isdigit() for c in whatsapp) < 7:
+                errores.append("Ingresa un celular valido (ej: 099 123 456).")
             if not email:
                 errores.append("Ingresa tu email para enviarte la confirmacion.")
             elif "@" not in email:

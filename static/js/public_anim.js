@@ -369,65 +369,49 @@ window.arcanoGA = function (name, params) {
     });
 })();
 
-/* Carruseles de la home (Destacados / Nuevos ingresos) — 2 tapas por slide */
+/* Carruseles de la home — scroll nativo deslizable con el dedo (swipe en mobile),
+   flechas en desktop. SIN autoplay: la gente desliza y no se mueve solo (feedback UX
+   de Mica: el auto-movimiento mareaba y no era responsive al tacto). */
 (function () {
     'use strict';
     Arcano.onContent(function () {
     document.querySelectorAll('.public-carrusel').forEach(function (carrusel) {
         if (carrusel._carInit) return;
         carrusel._carInit = true;
-        var track = carrusel.querySelector('.public-carrusel-track');
+        var viewport = carrusel.querySelector('.public-carrusel-viewport');
         var cards = carrusel.querySelectorAll('.carrusel-card');
         var prev = carrusel.querySelector('.carrusel-prev');
         var next = carrusel.querySelector('.carrusel-next');
         var progressBar = carrusel.querySelector('.public-carrusel-progress-bar');
-        if (!track || cards.length === 0) return;
+        if (!viewport || cards.length === 0) return;
 
-        // Velocidad configurable (segundos entre slides), viene del admin
-        var velocidadSeg = parseFloat(carrusel.dataset.velocidad || '7');
-        if (isNaN(velocidadSeg) || velocidadSeg < 2) velocidadSeg = 7;
-        var velocidadMs = velocidadSeg * 1000;
-
-        function calcPorSlide() { return window.innerWidth <= 720 ? 1 : 2; }
-        function totalSlides() { return Math.ceil(cards.length / calcPorSlide()); }
-        var slideActual = 0;
+        // Un "paso" de flecha = casi todo el ancho visible (una tanda de tapas)
+        function paso() { return Math.max(viewport.clientWidth * 0.9, 200); }
 
         function actualizarProgreso() {
             if (!progressBar) return;
-            var slides = totalSlides();
-            var pct = slides <= 1 ? 100 : ((slideActual + 1) / slides) * 100;
-            progressBar.style.width = pct + '%';
+            var max = viewport.scrollWidth - viewport.clientWidth;
+            var pct = max <= 1 ? 100 : Math.min(100, (viewport.scrollLeft / max) * 100);
+            progressBar.style.width = Math.max(pct, 8) + '%';
         }
 
-        function irASlide(n) {
-            var slides = totalSlides();
-            if (n < 0) n = slides - 1;
-            if (n >= slides) n = 0;
-            slideActual = n;
-            // Compensar el gap entre cards: sin esto cada slide se corre y se
-            // asoma un pedazo del disco anterior.
-            var gap = parseFloat(getComputedStyle(track).gap) || 0;
-            track.style.transform = 'translateX(calc(-' + (n * 100) + '% - ' + (n * gap) + 'px))';
-            actualizarProgreso();
-        }
+        if (next) next.addEventListener('click', function () {
+            viewport.scrollBy({ left: paso(), behavior: 'smooth' });
+        });
+        if (prev) prev.addEventListener('click', function () {
+            viewport.scrollBy({ left: -paso(), behavior: 'smooth' });
+        });
 
-        if (next) next.addEventListener('click', function () { irASlide(slideActual + 1); reiniciarAuto(); });
-        if (prev) prev.addEventListener('click', function () { irASlide(slideActual - 1); reiniciarAuto(); });
-
-        // Autoplay con la velocidad configurada (se pausa al pasar el mouse)
-        var timer = null;
-        function iniciarAuto() {
-            if (cards.length <= calcPorSlide()) return;
-            timer = setInterval(function () { irASlide(slideActual + 1); }, velocidadMs);
-            carrusel._timer = timer;   // pjax lo limpia al salir de la pagina
-        }
-        function reiniciarAuto() { if (timer) clearInterval(timer); iniciarAuto(); }
-        carrusel.addEventListener('mouseenter', function () { if (timer) clearInterval(timer); });
-        carrusel.addEventListener('mouseleave', iniciarAuto);
-        window.addEventListener('resize', function () { if (!carrusel.isConnected) return; irASlide(0); });
+        // La barra de progreso sigue la posicion real del scroll (throttle con rAF)
+        viewport.addEventListener('scroll', function () {
+            if (carrusel._raf) return;
+            carrusel._raf = requestAnimationFrame(function () {
+                carrusel._raf = null;
+                actualizarProgreso();
+            });
+        }, { passive: true });
 
         actualizarProgreso();
-        iniciarAuto();
     });
     });
 })();

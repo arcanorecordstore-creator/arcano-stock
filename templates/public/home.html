@@ -72,26 +72,6 @@
 </section>
 {% endmacro %}
 
-{% if preorders_carrusel and car_preorder %}
-{{ carrusel(preorders_carrusel, 'Pre-order', 'preorder') }}
-{% endif %}
-
-{% if tips_carrusel and car_tips %}
-{{ carrusel(tips_carrusel, tip_label or 'Tip', 'tips') }}
-{% endif %}
-
-{% if mas_escuchados and car_escuchados %}
-{{ carrusel(mas_escuchados, 'Lo mas escuchado del mes', 'escuchados') }}
-{% endif %}
-
-{% if destacados and car_destacados %}
-{{ carrusel(destacados, 'Discos destacados', 'destacados') }}
-{% endif %}
-
-{% if nuevos_ingresos and car_nuevos %}
-{{ carrusel(nuevos_ingresos, 'Nuevos ingresos', 'nuevos') }}
-{% endif %}
-
 <form method="get" action="{{ url_for('home') }}" class="public-search-bar" id="public-filters">
     <div class="public-filters-top">
         <div class="public-search-wrap">
@@ -110,6 +90,26 @@
             Filtros{% if filtros_activos > 0 %} <span class="filters-badge">{{ filtros_activos }}</span>{% endif %}
         </button>
     </div>
+
+    {% if preorders_carrusel and car_preorder %}
+    {{ carrusel(preorders_carrusel, 'Pre-order', 'preorder') }}
+    {% endif %}
+
+    {% if tips_carrusel and car_tips %}
+    {{ carrusel(tips_carrusel, tip_label or 'Tip', 'tips') }}
+    {% endif %}
+
+    {% if mas_escuchados and car_escuchados %}
+    {{ carrusel(mas_escuchados, 'Lo mas escuchado del mes', 'escuchados') }}
+    {% endif %}
+
+    {% if destacados and car_destacados %}
+    {{ carrusel(destacados, 'Discos destacados', 'destacados') }}
+    {% endif %}
+
+    {% if nuevos_ingresos and car_nuevos %}
+    {{ carrusel(nuevos_ingresos, 'Nuevos ingresos', 'nuevos') }}
+    {% endif %}
 
     <div class="public-layout">
         <aside class="public-sidebar" id="public-sidebar">
@@ -306,12 +306,6 @@
                 <span class="fav-icon-off">&#9825;</span>
                 <span class="fav-icon-on">&#9829;</span>
             </button>
-            {% if not d.esta_agotado %}
-            <button type="button" class="cart-btn cart-btn-card" data-cart-id="{{ d.id }}" aria-label="Agregar al carrito" title="Agregar al carrito">
-                <span class="cart-icon-off">&#43;</span>
-                <span class="cart-icon-on">&#10003;</span>
-            </button>
-            {% endif %}
         </div>
         <div class="public-card-info">
             <div class="public-card-artist">{{ d.artista }}</div>
@@ -326,18 +320,26 @@
                 {% endfor %}
             </div>
             {% endif %}
-            {% if d.precio_uyu > 0 %}
-            {% if d.en_oferta %}
-            <div class="public-card-price public-card-price-oferta">
-                <span class="precio-tachado">$ {{ '{:,.0f}'.format(d.precio_uyu).replace(',', '.') }}</span>
-                <span class="precio-oferta">$ {{ '{:,.0f}'.format(d.precio_mostrar).replace(',', '.') }}</span>
+            <div class="public-card-buy">
+                {% if d.precio_uyu > 0 %}
+                {% if d.en_oferta %}
+                <div class="public-card-price public-card-price-oferta">
+                    <span class="precio-tachado">$ {{ '{:,.0f}'.format(d.precio_uyu).replace(',', '.') }}</span>
+                    <span class="precio-oferta">$ {{ '{:,.0f}'.format(d.precio_mostrar).replace(',', '.') }}</span>
+                </div>
+                {% else %}
+                <div class="public-card-price">$ {{ '{:,.0f}'.format(d.precio_uyu).replace(',', '.') }}</div>
+                {% endif %}
+                {% else %}
+                <div class="public-card-price public-card-price-tba">Precio a consultar</div>
+                {% endif %}
+                {% if not d.esta_agotado %}
+                <button type="button" class="cart-btn cart-btn-inline" data-cart-id="{{ d.id }}" aria-label="Agregar {{ d.artista }} - {{ d.titulo }} al carrito" title="Agregar al carrito">
+                    <span class="cart-label-add">Agregar al carrito</span>
+                    <span class="cart-label-in">&#10003; Agregado</span>
+                </button>
+                {% endif %}
             </div>
-            {% else %}
-            <div class="public-card-price">$ {{ '{:,.0f}'.format(d.precio_uyu).replace(',', '.') }}</div>
-            {% endif %}
-            {% else %}
-            <div class="public-card-price public-card-price-tba">Precio a consultar</div>
-            {% endif %}
         </div>
     </a>
     {% endfor %}

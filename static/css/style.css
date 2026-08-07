@@ -2768,6 +2768,43 @@ body.app { display: block; padding: 0; }
     letter-spacing: 0.5px;
 }
 
+/* v3.17 - fila precio + boton "Agregar al carrito" (reemplaza el "+" sobre la tapa) */
+.public-card-buy {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+}
+.public-card-buy .public-card-price { margin-top: 0; flex: 1 1 auto; min-width: 0; }
+.cart-btn-inline {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 8px 13px;
+    border: none;
+    border-radius: 8px;
+    background: var(--text-1);
+    color: var(--bg-0);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: transform 0.12s, opacity 0.15s, background 0.15s;
+}
+.cart-btn-inline:hover { transform: translateY(-1px); opacity: 0.9; }
+.cart-btn-inline .cart-label-in { display: none; }
+.cart-btn-inline .cart-label-add { display: inline; }
+.cart-btn-inline.is-in-cart { background: var(--gain); color: #fff; }
+.cart-btn-inline.is-in-cart .cart-label-in { display: inline; }
+.cart-btn-inline.is-in-cart .cart-label-add { display: none; }
+/* En grilla de 2 columnas en celular el boton va a lo ancho, debajo del precio */
+.public-grid[data-mobile-cols="2"] .public-card-buy { flex-wrap: wrap; }
+.public-grid[data-mobile-cols="2"] .cart-btn-inline { flex: 1 1 100%; }
+
 .public-empty {
     text-align: center;
     padding: 60px 20px;
@@ -3511,9 +3548,10 @@ body.app { display: block; padding: 0; }
     position: absolute;
     top: 8px;
     left: 8px;
-    right: 88px;
+    right: 8px;
     display: flex;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
     gap: 4px;
     justify-content: flex-start;
     pointer-events: none;
@@ -3527,6 +3565,8 @@ body.app { display: block; padding: 0; }
     padding: 3px 8px;
     border-radius: 4px;
     letter-spacing: 1px;
+    white-space: nowrap;
+    max-width: 100%;
 }
 
 .public-card-badge-new {
@@ -4737,7 +4777,7 @@ td.num,
 /* Corazon flotante sobre la card */
 .fav-btn-card {
     position: absolute;
-    top: 8px;
+    bottom: 8px;
     right: 8px;
     width: 34px;
     height: 34px;
@@ -6247,14 +6287,22 @@ td.num,
     color: #fff;
     border-color: var(--accent);
 }
-.public-carrusel-viewport { overflow: hidden; }
+.public-carrusel-viewport {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;          /* Firefox: sin barra */
+    scroll-behavior: smooth;        /* solo afecta el scroll de las flechas */
+}
+.public-carrusel-viewport::-webkit-scrollbar { display: none; }  /* Chrome/Safari */
 .public-carrusel-track {
     display: flex;
     gap: 24px;
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
-/* Cada card ocupa media pantalla (2 por slide) */
+/* Cada card ocupa media pantalla (2 por slide) y se desliza con el dedo */
 .carrusel-card {
+    scroll-snap-align: start;
     flex: 0 0 calc(50% - 12px);
     display: flex;
     gap: 18px;
