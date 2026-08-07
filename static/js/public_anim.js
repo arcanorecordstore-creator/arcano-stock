@@ -315,6 +315,8 @@ window.arcanoGA = function (name, params) {
         hamburger.setAttribute('aria-expanded', 'true');
         drawer.setAttribute('aria-hidden', 'false');
         document.body.style.overflow = 'hidden';
+        // Accesibilidad: al abrir, mandar el foco al boton de cerrar
+        if (closeBtn) setTimeout(function () { try { closeBtn.focus(); } catch (e) {} }, 60);
     }
     function cerrar() {
         drawer.classList.remove('open');
@@ -323,6 +325,8 @@ window.arcanoGA = function (name, params) {
         hamburger.setAttribute('aria-expanded', 'false');
         drawer.setAttribute('aria-hidden', 'true');
         document.body.style.overflow = '';
+        // Accesibilidad: devolver el foco a la hamburguesa que lo abrio
+        try { hamburger.focus(); } catch (e) {}
     }
     hamburger.addEventListener('click', abrir);
     overlay.addEventListener('click', cerrar);
@@ -366,6 +370,29 @@ window.arcanoGA = function (name, params) {
         if (!toggle || !sidebar || toggle._sbBound) return;
         toggle._sbBound = true;
         toggle.addEventListener('click', function () { sidebar.classList.toggle('open'); });
+    });
+})();
+
+/* v3.18 - Auto-aplicar filtros al cambiarlos (con un respiro para agrupar varios
+   toques seguidos). pjax intercepta el submit GET, asi que filtra suave sin cortar
+   el reproductor y sin recargar toda la pagina. El buscador de texto se excluye
+   (se envia con Enter o el boton Buscar). */
+(function () {
+    'use strict';
+    Arcano.onContent(function () {
+        var form = document.getElementById('public-filters');
+        if (!form || form._autoFilter) return;
+        form._autoFilter = true;
+        var t = null;
+        form.addEventListener('change', function (e) {
+            var el = e.target;
+            if (!el || !el.name || el.name === 'q') return;
+            if (t) clearTimeout(t);
+            t = setTimeout(function () {
+                if (typeof form.requestSubmit === 'function') form.requestSubmit();
+                else form.submit();
+            }, 600);
+        });
     });
 })();
 

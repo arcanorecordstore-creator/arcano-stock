@@ -163,10 +163,26 @@
                 {% else %}
                 <div class="public-disc-price public-disc-price-tba">Precio a consultar</div>
                 {% endif %}
+                {% if disc.precio_uyu > 0 %}
                 <button type="button" class="btn btn-primary cart-btn cart-btn-full" data-cart-id="{{ disc.id }}">
                     <span class="cart-label-add">&#43; Agregar al carrito (pre-order)</span>
                     <span class="cart-label-in">&#10003; En el carrito</span>
                 </button>
+                {% elif whatsapp %}
+                <a href="https://wa.me/{{ whatsapp }}?text={{ ('Hola! Queria consultar el precio del pre-order ' ~ disc.artista ~ ' - ' ~ disc.titulo ~ '.')|urlencode }}"
+                   target="_blank" rel="noopener" class="btn btn-primary public-wsp-btn">
+                    Consult&aacute; el precio por WhatsApp
+                </a>
+                {% elif instagram %}
+                <a href="https://instagram.com/{{ instagram }}" target="_blank" rel="noopener" class="btn btn-primary public-wsp-btn">
+                    Consult&aacute; el precio por Instagram
+                </a>
+                {% else %}
+                <button type="button" class="btn btn-primary cart-btn cart-btn-full" data-cart-id="{{ disc.id }}">
+                    <span class="cart-label-add">&#43; Agregar al carrito (pre-order)</span>
+                    <span class="cart-label-in">&#10003; En el carrito</span>
+                </button>
+                {% endif %}
                 <button type="button" class="btn btn-ghost public-share-btn" data-share-url="{{ url_for('public_disc', disc_id=disc.id, _external=True) }}" data-share-title="{{ disc.artista }} - {{ disc.titulo }}">Compartir</button>
                 <button type="button" class="btn btn-ghost fav-btn fav-btn-full" data-fav-id="{{ disc.id }}">
                     <span class="fav-icon-off">&#9825; Guardar en favoritos</span>
@@ -189,6 +205,7 @@
                 {% else %}
                 <div class="public-disc-price public-disc-price-tba">Precio a consultar</div>
                 {% endif %}
+                {% if disc.precio_uyu > 0 %}
                 <button type="button" class="btn btn-primary cart-btn cart-btn-full" data-cart-id="{{ disc.id }}">
                     <span class="cart-label-add">&#43; Agregar al carrito</span>
                     <span class="cart-label-in">&#10003; En el carrito</span>
@@ -199,6 +216,21 @@
                     Consultar por WhatsApp
                 </a>
                 {% endif %}
+                {% elif whatsapp %}
+                <a href="https://wa.me/{{ whatsapp }}?text={{ ('Hola! Queria consultar el precio y disponibilidad de ' ~ disc.artista ~ ' - ' ~ disc.titulo ~ '.')|urlencode }}"
+                   target="_blank" rel="noopener" class="btn btn-primary public-wsp-btn">
+                    Consult&aacute; el precio por WhatsApp
+                </a>
+                {% elif instagram %}
+                <a href="https://instagram.com/{{ instagram }}" target="_blank" rel="noopener" class="btn btn-primary public-wsp-btn">
+                    Consult&aacute; el precio por Instagram
+                </a>
+                {% else %}
+                <button type="button" class="btn btn-primary cart-btn cart-btn-full" data-cart-id="{{ disc.id }}">
+                    <span class="cart-label-add">&#43; Agregar al carrito</span>
+                    <span class="cart-label-in">&#10003; En el carrito</span>
+                </button>
+                {% endif %}
                 <button type="button" class="btn btn-ghost public-share-btn" data-share-url="{{ url_for('public_disc', disc_id=disc.id, _external=True) }}" data-share-title="{{ disc.artista }} - {{ disc.titulo }}">Compartir</button>
                 <button type="button" class="btn btn-ghost fav-btn fav-btn-full" data-fav-id="{{ disc.id }}">
                     <span class="fav-icon-off">&#9825; Guardar en favoritos</span>
@@ -207,8 +239,10 @@
             {% elif disc.estado == "Reservado" %}
                 <div class="public-disc-status public-disc-status-reservado">Reservado</div>
                 <p class="public-disc-status-hint">Este disco ya esta reservado por otro cliente. Si la reserva no se concreta, vuelve a estar disponible.</p>
+                <a href="{{ url_for('home') }}" class="btn btn-primary">Ver mas discos disponibles</a>
             {% elif disc.estado == "Vendido" %}
                 <p class="public-disc-status-hint">Este disco ya no esta disponible.</p>
+                <a href="{{ url_for('home') }}" class="btn btn-primary">Ver mas discos disponibles</a>
             {% endif %}
         </div>
 

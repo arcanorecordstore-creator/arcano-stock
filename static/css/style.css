@@ -374,7 +374,7 @@ body.app { display: block; padding: 0; }
     color: var(--bg-0);
 }
 
-.btn-primary:hover { background-color: #e5e5e5; }
+.btn-primary:hover { background-color: var(--text-2); }
 
 .btn-ghost {
     background-color: transparent;
@@ -781,6 +781,20 @@ body.app { display: block; padding: 0; }
 .form-field textarea:focus {
     outline: none;
     border-color: var(--border-3);
+}
+
+/* v3.18 - Foco de teclado visible y consistente (accesibilidad WCAG 2.4.7).
+   --accent contrasta en ambos temas por definicion. Solo con teclado (:focus-visible). */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+.form-field input:focus-visible,
+.form-field select:focus-visible,
+.form-field textarea:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+    border-color: var(--accent);
 }
 
 .form-field select { cursor: pointer; }
@@ -2812,7 +2826,7 @@ body.app { display: block; padding: 0; }
 }
 
 .public-empty-hint {
-    color: var(--text-5);
+    color: var(--text-3);
     font-size: 12px;
     margin-top: 12px;
 }
@@ -3428,6 +3442,9 @@ body.app { display: block; padding: 0; }
 }
 
 .public-flashes {
+    position: static;
+    top: auto;
+    right: auto;
     max-width: 1200px;
     margin: 16px auto 0;
     padding: 0 24px;
@@ -5404,7 +5421,7 @@ td.num,
     color: var(--text-3);
     font-size: 14px;
 }
-.public-auth-alt a { color: var(--text-1); }
+.public-auth-alt a { color: var(--text-1); text-decoration: underline; }
 
 /* Mi cuenta */
 .public-cuenta { max-width: 720px; margin: 20px auto 60px; }
@@ -5418,7 +5435,7 @@ td.num,
     border-bottom: 1px solid var(--border-1);
 }
 .public-cuenta-title { font-size: 24px; color: var(--text-1); }
-.public-cuenta-email { color: var(--text-4); font-size: 14px; margin-top: 4px; }
+.public-cuenta-email { color: var(--text-3); font-size: 14px; margin-top: 4px; }
 .public-cuenta-subtitle {
     font-size: 13px;
     text-transform: uppercase;
@@ -5436,11 +5453,12 @@ td.num,
 .cuenta-reserva-head {
     display: flex;
     align-items: center;
-    gap: 12px;
+    flex-wrap: wrap;
+    gap: 8px 12px;
     margin-bottom: 12px;
 }
 .cuenta-reserva-id { font-weight: 600; color: var(--text-1); font-variant-numeric: tabular-nums; }
-.cuenta-reserva-fecha { color: var(--text-4); font-size: 13px; margin-right: auto; }
+.cuenta-reserva-fecha { color: var(--text-3); font-size: 13px; margin-right: auto; }
 .cuenta-reserva-items { display: flex; flex-direction: column; gap: 6px; }
 .cuenta-reserva-item {
     display: flex;
@@ -6012,12 +6030,13 @@ td.num,
     border-right: 1px solid var(--border-2);
     z-index: 301;
     transform: translateX(-100%);
-    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    visibility: hidden;   /* v3.18 - cerrado no debe ser tabulable por teclado */
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.28s;
     display: flex;
     flex-direction: column;
     box-shadow: 4px 0 30px rgba(0,0,0,0.3);
 }
-.public-drawer.open { transform: translateX(0); }
+.public-drawer.open { transform: translateX(0); visibility: visible; }
 .public-drawer-head {
     display: flex;
     align-items: center;
@@ -6080,6 +6099,10 @@ td.num,
 /* En desktop: hamburguesa visible + nav horizontal. En movil: solo hamburguesa. */
 @media (max-width: 700px) {
     .public-nav-desktop { display: none; }
+}
+/* v3.18 - En desktop la nav horizontal ya muestra todo: la hamburguesa duplicaba el menu */
+@media (min-width: 701px) {
+    .public-hamburger { display: none; }
 }
 
 /* Navegacion de tracks en el reproductor flotante (flechas prev/next) */
@@ -6955,6 +6978,13 @@ td.num,
     }
     input, select, textarea {
         font-size: 16px; /* evita que iOS haga zoom al enfocar */
+    }
+    /* v3.18 - .form-field input tiene mas especificidad que "input" y ganaba con 13px;
+       forzamos 16px igual en celular para que iOS no haga zoom en el checkout. */
+    .form-field input,
+    .form-field select,
+    .form-field textarea {
+        font-size: 16px;
     }
     .btn {
         min-height: 44px; /* target tactil comodo */
@@ -8207,8 +8237,8 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 /* v2.91 - Menu lateral al agregar al carrito + comprobante obligatorio */
 .cart-drawer-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 300; opacity: 0; transition: opacity .25s ease; }
 .cart-drawer-overlay.visible { opacity: 1; }
-.cart-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 340px; max-width: 88vw; background: var(--bg-1); border-left: 1px solid var(--border-2, #333); z-index: 301; transform: translateX(100%); transition: transform .28s ease; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.3); }
-.cart-drawer.open { transform: translateX(0); }
+.cart-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 340px; max-width: 88vw; background: var(--bg-1); border-left: 1px solid var(--border-2, #333); z-index: 301; transform: translateX(100%); visibility: hidden; transition: transform .28s ease, visibility .28s ease; display: flex; flex-direction: column; box-shadow: -8px 0 24px rgba(0,0,0,.3); }
+.cart-drawer.open { transform: translateX(0); visibility: visible; }
 .cart-drawer-head { display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border-2, #333); }
 .cart-drawer-title { font-size: 15px; font-weight: 700; color: var(--gain, #10b981); }
 .cart-drawer-close { background: none; border: none; color: var(--text-3); font-size: 26px; line-height: 1; cursor: pointer; padding: 0 4px; }
@@ -8254,6 +8284,20 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     transition: background 0.15s ease, color 0.15s ease;
 }
 .cart-drawer-remove:hover { background: var(--bg-2); color: var(--text-1); }
+
+/* v3.18 - Areas tactiles mas comodas en celular (auditoria UX) */
+@media (hover: none) {
+    /* En tactil el carrusel se desliza con el dedo: las flechas sobran y quitan espacio */
+    .public-carrusel-nav { display: none; }
+}
+@media (max-width: 600px) {
+    .pagination-page { min-width: 44px; height: 44px; }
+    .pagination-btn { padding: 12px 16px; }
+    .fp-ctrl-sm { width: 40px; height: 40px; }
+    .fp-cart-btn { padding: 9px 15px; }
+    .cart-drawer-remove { width: 40px; height: 40px; }
+    .cart-drawer-close { padding: 6px 12px; }
+}
 /* La ficha usa "Agregar al carrito" como CTA principal: un poco mas grande */
 .cart-btn-full.btn-primary { padding: 13px 18px; font-size: 15px; font-weight: 700; }
 

@@ -4,6 +4,8 @@
 
 {% block content %}
 
+<a href="{{ url_for('home') }}" class="public-back">&larr; Seguir comprando</a>
+
 <section class="public-hero">
     <h1 class="public-hero-title">Tu carrito</h1>
     <p class="public-hero-tagline">Revisá los discos y reservá todos juntos en una sola operacion.</p>
@@ -29,10 +31,10 @@
             <span id="cart-summary-count">0</span>
         </div>
         <div class="cart-summary-row cart-summary-total">
-            <span>Total estimado</span>
+            <span>Total</span>
             <span id="cart-summary-total">$ 0</span>
         </div>
-        <p class="cart-summary-note">Al finalizar, te contactamos por WhatsApp para coordinar el pago y la entrega (env&iacute;o a todo Uruguay o retiro en Pocitos). El total es orientativo.</p>
+        <p class="cart-summary-note">Al finalizar eleg&iacute;s c&oacute;mo pagar: Mercado Pago, transferencia o coordinar por WhatsApp. Env&iacute;o a todo Uruguay o retiro en Pocitos.</p>
         <a href="#" id="cart-checkout-btn" class="btn btn-primary cart-checkout-btn">Finalizar compra</a>
         <button type="button" id="cart-clear" class="btn btn-ghost cart-clear-btn">Vaciar carrito</button>
     </aside>

@@ -6,7 +6,7 @@
 
 <section class="public-hero">
     <h1 class="public-hero-title">Tus favoritos</h1>
-    <p class="public-hero-tagline">Los discos que fuiste guardando. Se guardan en este dispositivo.</p>
+    <p class="public-hero-tagline">Los discos que fuiste guardando.{% if cliente_actual %} Se guardan en tu cuenta y te siguen en todos tus dispositivos.{% else %} Se guardan en este dispositivo &mdash; <a href="{{ url_for('cliente_login_page') }}">iniciá sesión</a> para que te sigan en todos lados.{% endif %}</p>
 </section>
 
 <div id="fav-empty" class="public-empty" hidden>

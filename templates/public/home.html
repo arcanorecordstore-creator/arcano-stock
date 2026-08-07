@@ -137,9 +137,9 @@
             <div class="filter-block">
                 <div class="filter-block-title">Precio (UYU)</div>
                 <div class="filter-price-row">
-                    <input type="number" name="precio_min" class="filter-price-input" placeholder="{{ precio_rango.min }}" value="{{ filtro_precio_min if filtro_precio_min is not none else '' }}" min="0" step="1" inputmode="numeric">
+                    <input type="number" name="precio_min" class="filter-price-input" placeholder="Desde" value="{{ filtro_precio_min if filtro_precio_min is not none else '' }}" min="0" step="1" inputmode="numeric">
                     <span class="filter-price-sep">&mdash;</span>
-                    <input type="number" name="precio_max" class="filter-price-input" placeholder="{{ precio_rango.max }}" value="{{ filtro_precio_max if filtro_precio_max is not none else '' }}" min="0" step="1" inputmode="numeric">
+                    <input type="number" name="precio_max" class="filter-price-input" placeholder="Hasta" value="{{ filtro_precio_max if filtro_precio_max is not none else '' }}" min="0" step="1" inputmode="numeric">
                 </div>
             </div>
 
@@ -333,7 +333,7 @@
                 {% else %}
                 <div class="public-card-price public-card-price-tba">Precio a consultar</div>
                 {% endif %}
-                {% if not d.esta_agotado %}
+                {% if not d.esta_agotado and d.precio_uyu > 0 %}
                 <button type="button" class="cart-btn cart-btn-inline" data-cart-id="{{ d.id }}" aria-label="Agregar {{ d.artista }} - {{ d.titulo }} al carrito" title="Agregar al carrito">
                     <span class="cart-label-add">Agregar al carrito</span>
                     <span class="cart-label-in">&#10003; Agregado</span>
