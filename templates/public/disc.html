@@ -246,6 +246,10 @@
             {% endif %}
         </div>
 
+        {% if disc.mostrar_preorder or (disc.estado == "Disponible" and disc.stock > 0) %}
+        <p class="public-disc-trust">&#128666; Env&iacute;o a todo Uruguay o retiro en Pocitos &middot; eleg&iacute;s c&oacute;mo pagar al finalizar la compra</p>
+        {% endif %}
+
         {% if disc.descripcion_publica %}
         <section class="public-disc-section">
             <h3 class="public-disc-section-title">Sobre este disco</h3>

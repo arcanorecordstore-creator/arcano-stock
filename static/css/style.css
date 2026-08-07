@@ -7115,6 +7115,15 @@ td.num,
     font-size: 14px;
     font-weight: 500;
 }
+/* v3.19 - Linea de confianza bajo el CTA de la ficha (formas de pago + envio) */
+.public-disc-trust {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-1);
+    font-size: 13px;
+    color: var(--text-3);
+    line-height: 1.5;
+}
 
 /* Encabezados de tabla ordenables */
 .th-sortable { cursor: pointer; }
