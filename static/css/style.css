@@ -2855,6 +2855,11 @@ body.app { display: block; padding: 0; }
 
 @media (max-width: 800px) {
     .public-disc { grid-template-columns: 1fr; }
+    /* v3.21 - En celular sacamos el fondo cinematografico (version borrosa de la tapa
+       a todo el ancho): en pantallas chicas se leia como si la tapa "ocupara mas que el
+       ancho de la pantalla" (ademas en iPhone el desenfoque puede sangrar del borde).
+       La tapa queda como un cuadrado contenido, con sus margenes normales. */
+    .public-disc-backdrop { display: none; }
 }
 
 .public-disc-left {
