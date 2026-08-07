@@ -3333,6 +3333,15 @@ def register_routes(app: Flask) -> None:
                     reserva, [d for d in discos if d], metodo="mercadopago")
             except Exception:
                 pass
+        # Aviso al admin (Facundo): entro un pago por Mercado Pago. Con MP el checkout
+        # redirige antes de llegar al aviso, asi que lo mandamos recien al confirmarse.
+        if mailer.is_configured() and reserva.items_efectivos:
+            try:
+                _disc0 = Disc.query.get(reserva.items_efectivos[0].disc_id)
+                if _disc0:
+                    mailer.send_reserva_notification(reserva, _disc0)
+            except Exception:
+                pass
 
     @app.route("/mp/webhook", methods=["POST", "GET"])
     def mp_webhook():

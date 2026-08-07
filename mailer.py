@@ -141,7 +141,10 @@ def send_reserva_notification(reserva, disc, comprobante_path=None) -> tuple[boo
         "coordinar": "Coordinar por mensaje",
     }.get(reserva.metodo_pago or "", "Coordinar por mensaje")
 
-    if reserva.comprobante_file:
+    if getattr(reserva, "pagado", False):
+        comp_txt = "Estado:   PAGADO (Mercado Pago)"
+        comp_html = '<p style="color:#10b981; font-weight:700;">&#10003; PAGADO por Mercado Pago</p>'
+    elif reserva.comprobante_file:
         comp_txt = "Comprobante:  ADJUNTO a este mail"
         comp_html = '<p style="color:#10b981; font-weight:600;">&#128206; Comprobante de transferencia adjunto a este mail</p>'
     elif (reserva.metodo_pago or "") == "transferencia":
