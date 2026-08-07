@@ -2641,14 +2641,16 @@ body.app { display: block; padding: 0; }
 
 .public-filter-search {
     flex: 1;
+    width: 100%;               /* v3.24 - llena el ancho del contenedor (antes quedaba una cajita chica) */
+    box-sizing: border-box;
     min-width: 200px;
     background-color: var(--bg-1);
     border: 1px solid var(--border-1);
     border-radius: 6px;
-    padding: 10px 14px;
+    padding: 13px 16px;
     color: var(--text-1);
     font-family: inherit;
-    font-size: 13px;
+    font-size: 15px;
 }
 
 .public-filter-select {
@@ -2869,7 +2871,11 @@ body.app { display: block; padding: 0; }
     display: flex;
     flex-direction: column;
     gap: 20px;
+    min-width: 0;   /* v3.24 - que la columna se achique al ancho disponible (no desborde por contenido largo) */
 }
+/* v3.24 - Sin esto, un titulo de track largo estira la columna mas alla de la
+   pantalla y se corta todo el lado derecho de la ficha (grid item con min-width:auto). */
+.public-disc-right { min-width: 0; }
 
 .public-disc-cover {
     aspect-ratio: 1 / 1;

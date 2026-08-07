@@ -4100,27 +4100,31 @@ def register_routes(app: Flask) -> None:
             d = by_id.get(i)
             if not d:
                 continue
-            # No exponer discos privados (coleccion personal / descartados)
-            if d.estado in ("Apartado para mi", "Descartado") and not d.mostrar_agotado:
+            try:
+                # No exponer discos privados (coleccion personal / descartados)
+                if d.estado in ("Apartado para mi", "Descartado") and not d.mostrar_agotado:
+                    continue
+                cover = None
+                if d.cover_local:
+                    cover = url_for("serve_cover", filename=d.cover_local)
+                elif d.cover_url:
+                    cover = d.cover_url
+                out.append({
+                    "id": d.id,
+                    "artista": d.artista,
+                    "titulo": d.titulo,
+                    "sello": d.sello,
+                    "anio": d.anio,
+                    "precio_uyu": d.precio_mostrar or 0,
+                    "cover": cover,
+                    "estado": d.estado,
+                    "disponible": not d.esta_agotado,
+                    "url": url_for("public_disc", disc_id=d.id),
+                    "tags": d.tags_list,
+                })
+            except Exception:
+                # Un disco con datos raros no debe romper todo el carrito
                 continue
-            cover = None
-            if d.cover_local:
-                cover = url_for("serve_cover", filename=d.cover_local)
-            elif d.cover_url:
-                cover = d.cover_url
-            out.append({
-                "id": d.id,
-                "artista": d.artista,
-                "titulo": d.titulo,
-                "sello": d.sello,
-                "anio": d.anio,
-                "precio_uyu": d.precio_mostrar or 0,
-                "cover": cover,
-                "estado": d.estado,
-                "disponible": not d.esta_agotado,
-                "url": url_for("public_disc", disc_id=d.id),
-                "tags": d.tags_list,
-            })
         return jsonify({"ok": True, "discos": out})
 
     @app.route("/carrito")
