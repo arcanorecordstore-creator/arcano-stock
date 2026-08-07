@@ -2796,9 +2796,7 @@ body.app { display: block; padding: 0; }
     align-items: center;
     justify-content: center;
     gap: 5px;
-    min-height: 44px;          /* v3.20 - area tactil comoda (antes ~28px) */
-    padding: 9px 15px;
-    box-sizing: border-box;
+    padding: 8px 13px;         /* v3.22 - vuelto al tamano de antes (v3.20 lo habia agrandado y quedo muy robusto) */
     border: none;
     border-radius: 8px;
     background: var(--text-1);
@@ -2860,6 +2858,9 @@ body.app { display: block; padding: 0; }
        ancho de la pantalla" (ademas en iPhone el desenfoque puede sangrar del borde).
        La tapa queda como un cuadrado contenido, con sus margenes normales. */
     .public-disc-backdrop { display: none; }
+    /* v3.22 - En celular la tapa mas chica y centrada: antes ocupaba casi toda la
+       pantalla y se sentia que "se salia". Con max-width no puede pasarse del ancho. */
+    .public-disc-cover { max-width: 300px; margin-left: auto; margin-right: auto; }
 }
 
 .public-disc-left {
