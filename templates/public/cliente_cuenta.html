@@ -15,16 +15,26 @@
         </form>
     </div>
 
-    <h2 class="public-cuenta-subtitle">Mis reservas</h2>
+    <h2 class="public-cuenta-subtitle">Mis pedidos</h2>
 
     {% if reservas %}
     <div class="public-cuenta-reservas">
         {% for r in reservas %}
         <div class="cuenta-reserva">
             <div class="cuenta-reserva-head">
-                <span class="cuenta-reserva-id">Reserva #{{ r.id }}</span>
+                <span class="cuenta-reserva-id">Pedido #{{ r.id }}</span>
                 <span class="cuenta-reserva-fecha">{{ r.fecha.strftime('%d/%m/%Y') if r.fecha else '' }}</span>
+                {% if r.metodo_pago %}
+                <span class="cuenta-reserva-metodo">{% if r.metodo_pago == 'transferencia' %}Transferencia{% elif r.metodo_pago == 'mercadopago' %}Mercado Pago{% else %}Coordinar{% endif %}</span>
+                {% endif %}
                 <span class="badge badge-{{ 'reservado' if r.estado == 'Pendiente' else 'disponible' if r.estado == 'Confirmada' else 'vendido' if r.estado == 'Completada' else 'descartado' }}">{{ r.estado }}</span>
+            </div>
+            <div class="cuenta-reserva-estado-hint">
+                {% if r.estado == 'Pendiente' %}Te contactamos por WhatsApp para coordinar.
+                {% elif r.estado == 'Confirmada' %}Confirmado &mdash; coordinamos la entrega.
+                {% elif r.estado == 'Completada' %}Completado. &iexcl;Gracias por tu compra!
+                {% elif r.estado == 'Cancelada' %}Cancelado.
+                {% endif %}
             </div>
             <div class="cuenta-reserva-items">
                 {% for item in r.items_efectivos %}
@@ -42,7 +52,7 @@
     </div>
     {% else %}
     <div class="public-empty">
-        <p>Todavia no tenes reservas.</p>
+        <p>Todavia no tenes pedidos.</p>
         <a href="{{ url_for('home') }}" class="btn btn-primary">Ver el catalogo</a>
     </div>
     {% endif %}

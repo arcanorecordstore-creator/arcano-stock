@@ -5,7 +5,13 @@
 {% block content %}
 
 <section class="public-auth">
-    <h1 class="public-auth-title">Iniciar sesion</h1>
+    <h1 class="public-auth-title">Ingres&aacute; a tu cuenta</h1>
+
+    <ul class="public-auth-benes">
+        <li><span class="bene-ico">&#9889;</span><span><strong>Comprás más rápido</strong> — tus datos se completan solos en cada compra.</span></li>
+        <li><span class="bene-ico">&#128230;</span><span><strong>Seguís tus pedidos</strong> — mirá tus reservas y compras y en qué estado están.</span></li>
+        <li><span class="bene-ico">&#9829;</span><span><strong>Tus favoritos en todos lados</strong> — te siguen en el celular y en la compu.</span></li>
+    </ul>
 
     <form method="post" action="{{ url_for('cliente_login_page') }}{% if request.args.get('next') %}?next={{ request.args.get('next')|urlencode }}{% endif %}" class="public-auth-form">
         <div class="form-field">

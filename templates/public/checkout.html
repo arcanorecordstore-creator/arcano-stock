@@ -17,19 +17,23 @@
     <form method="post" action="{{ url_for('public_checkout') }}" class="public-reserve-form" id="checkout-form" enctype="multipart/form-data">
         <input type="hidden" name="ids" id="checkout-ids" value="{{ ids }}">
 
+        {% if cliente_actual %}
+        <p class="checkout-logged-note">&#10003; Completamos tus datos porque iniciaste sesi&oacute;n como <strong>{{ cliente_actual.nombre }}</strong>. Revisalos y confirm&aacute;.</p>
+        {% endif %}
+
         <div class="form-field">
             <label for="nombre">Tu nombre</label>
-            <input type="text" id="nombre" name="nombre" required value="{{ form.nombre or '' }}" autofocus placeholder="Como te llamas">
+            <input type="text" id="nombre" name="nombre" required value="{{ form.nombre or (cliente_actual.nombre if cliente_actual else '') }}" {% if not cliente_actual %}autofocus{% endif %} placeholder="Como te llamas">
         </div>
 
         <div class="form-field">
             <label for="whatsapp">WhatsApp <span class="form-field-hint">(con codigo de pais)</span></label>
-            <input type="tel" id="whatsapp" name="whatsapp" required value="{{ form.whatsapp or '' }}" placeholder="+598 99 123 456">
+            <input type="tel" id="whatsapp" name="whatsapp" required value="{{ form.whatsapp or (cliente_actual.whatsapp if cliente_actual else '') }}" placeholder="+598 99 123 456">
         </div>
 
         <div class="form-field">
             <label for="email">Email</label>
-            <input type="email" id="email" name="email" required value="{{ form.email or '' }}" placeholder="tu@email.com">
+            <input type="email" id="email" name="email" required value="{{ form.email or (cliente_actual.email if cliente_actual else '') }}" placeholder="tu@email.com">
         </div>
 
         <div class="form-field">
