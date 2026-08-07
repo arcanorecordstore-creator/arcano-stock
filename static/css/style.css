@@ -8349,6 +8349,12 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     color: var(--text-3);
     margin: 2px 0 8px;
 }
+/* v3.16 - bloque opcional de crear cuenta en el checkout */
+.checkout-cuenta-opt {
+    margin-top: 4px;
+    padding-top: 14px;
+    border-top: 1px dashed var(--border-1);
+}
 
 /* v3.12/v3.13 - Checkout: form como grid (datos + pago a la izquierda ~3x, pedido a la derecha) */
 .public-reserve-checkout { max-width: 1160px; }

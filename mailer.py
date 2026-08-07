@@ -358,3 +358,50 @@ Montevideo, Uruguay
 </body></html>"""
 
     return send_email(subject, body_text, body_html, to=reserva.email)
+
+
+def send_reserva_estado_cliente(reserva, nuevo_estado, discs) -> tuple[bool, str]:
+    """Avisa al cliente que su pedido cambio de estado (confirmado / completado /
+    cancelado). Se dispara cuando Facundo cambia el estado desde el admin."""
+    if not reserva.email:
+        return False, "El cliente no dejo email"
+
+    mensajes = {
+        "Confirmada": ("Confirmamos tu pedido",
+                       "Confirmamos tu pedido. En breve coordinamos la entrega por WhatsApp."),
+        "Completada": ("Tu pedido esta completo",
+                       "Tu pedido se completo. Gracias por comprar en Arcano!"),
+        "Cancelada": ("Tu pedido fue cancelado",
+                      "Tu pedido fue cancelado. Si fue un error o queres retomarlo, escribinos por WhatsApp."),
+    }
+    if nuevo_estado not in mensajes:
+        return False, "Ese estado no manda aviso"
+    titulo, texto = mensajes[nuevo_estado]
+
+    lineas = "\n".join(f"  - {d.artista} - {d.titulo}" for d in discs)
+    subject = f"{titulo} - pedido #{reserva.id} - Arcano Record Store"
+    body_text = f"""Hola {reserva.nombre},
+
+{texto}
+
+Pedido #{reserva.id}:
+{lineas}
+
+Arcano Record Store
+Montevideo, Uruguay
+"""
+
+    filas_html = "".join(
+        f'<p style="margin:4px 0;"><strong>{_e(d.artista or "")}</strong> - {_e(d.titulo or "")}</p>'
+        for d in discs
+    )
+    body_html = f"""<html><body style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; background: #0a0a0a; color: #fff;">
+<h1 style="letter-spacing: 4px; font-weight: 300;">ARCANO</h1>
+<h2 style="color: #10b981; font-size: 16px;">{titulo}</h2>
+<p>Hola <strong>{_e(reserva.nombre or '')}</strong>, {texto}</p>
+{filas_html}
+<hr style="border: none; border-top: 1px solid #333; margin: 30px 0;">
+<p style="font-size: 11px; color: #666;">Arcano Record Store &middot; Montevideo, Uruguay<br>Pedido #{reserva.id}</p>
+</body></html>"""
+
+    return send_email(subject, body_text, body_html, to=reserva.email)

@@ -4150,6 +4150,7 @@ def register_routes(app: Flask) -> None:
             whatsapp = (request.form.get("whatsapp") or "").strip()[:40]
             email = ((request.form.get("email") or "").strip()[:200]) or None
             nota = ((request.form.get("nota") or "").strip()[:1000]) or None
+            password_cuenta = request.form.get("password") or ""
 
             errores = []
             if not ids:
@@ -4162,6 +4163,11 @@ def register_routes(app: Flask) -> None:
                 errores.append("Ingresa tu email para enviarte la confirmacion.")
             elif "@" not in email:
                 errores.append("El email no parece valido.")
+
+            # Cuenta opcional: si dejo una contrasena (y no esta logueado), validamos el largo
+            crear_cuenta = bool(password_cuenta) and not auth.cliente_actual_id()
+            if crear_cuenta and len(password_cuenta) < 6:
+                errores.append("La contrasena para crear tu cuenta debe tener al menos 6 caracteres, o dejala vacia.")
 
             # Transferencia: el comprobante es obligatorio
             if (request.form.get("metodo") == "transferencia"
@@ -4227,6 +4233,33 @@ def register_routes(app: Flask) -> None:
 
             db.session.commit()
             _reserva_registrar(ip_reserva)
+
+            # Auto-cuenta: si dejo una contrasena y el email esta libre, le creamos la cuenta
+            # (asi puede seguir sus pedidos sin registrarse aparte). Best-effort: nunca rompe la reserva.
+            if crear_cuenta and len(password_cuenta) >= 6 and email:
+                email_norm = email.strip().lower()
+                if Cliente.query.filter_by(email=email_norm).first():
+                    flash("Ya tenias una cuenta con ese email. Inicia sesion para ver tus pedidos.", "info")
+                else:
+                    try:
+                        nuevo_cliente = Cliente(nombre=nombre, email=email_norm, whatsapp=whatsapp or None)
+                        nuevo_cliente.set_password(password_cuenta)
+                        db.session.add(nuevo_cliente)
+                        db.session.flush()
+                        # Adoptar esta reserva + otras anonimas con el mismo WhatsApp
+                        reserva.cliente_id = nuevo_cliente.id
+                        if whatsapp:
+                            previas = Reserva.query.filter(
+                                Reserva.cliente_id.is_(None),
+                                Reserva.whatsapp == whatsapp,
+                            ).all()
+                            for r in previas:
+                                r.cliente_id = nuevo_cliente.id
+                        db.session.commit()
+                        auth.cliente_login(nuevo_cliente.id)
+                        flash(f"Te creamos una cuenta, {nuevo_cliente.nombre}. Vas a poder seguir tus pedidos.", "success")
+                    except Exception:
+                        db.session.rollback()
 
             # Metodo de pago elegido en el checkout
             metodo = request.form.get("metodo", "coordinar")
@@ -4380,6 +4413,14 @@ def register_routes(app: Flask) -> None:
                             db.session.commit()
 
                     flash(f"Reserva marcada como {nuevo}.", "success")
+
+                    # Avisar al cliente por mail del cambio de estado (best-effort)
+                    if reserva.email and mailer.can_send() and nuevo in ("Confirmada", "Completada", "Cancelada"):
+                        try:
+                            _discos = [i.disco for i in reserva.items_efectivos if i.disco]
+                            mailer.send_reserva_estado_cliente(reserva, nuevo, _discos)
+                        except Exception:
+                            pass
 
             elif accion == "delete":
                 # Si algun disco quedo Reservado por esta reserva, devolverlo a Disponible

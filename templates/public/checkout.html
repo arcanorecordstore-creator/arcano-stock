@@ -38,6 +38,14 @@
                 <label for="nota">Mensaje <span class="form-field-hint">(opcional)</span></label>
                 <textarea id="nota" name="nota" rows="2" placeholder="Algo que quieras aclarar...">{{ form.nota or '' }}</textarea>
             </div>
+
+            {% if not cliente_actual %}
+            <div class="form-field checkout-cuenta-opt">
+                <label for="password">Cre&aacute; tu cuenta <span class="form-field-hint">(opcional)</span></label>
+                <input type="password" id="password" name="password" minlength="6" autocomplete="new-password" placeholder="Eleg&iacute; una contrase&ntilde;a (m&iacute;n. 6 caracteres)">
+                <p class="form-field-hint">Si pon&eacute;s una contrase&ntilde;a te creamos una cuenta para seguir tus pedidos y comprar m&aacute;s r&aacute;pido la pr&oacute;xima vez. Dejala vac&iacute;a y tu compra sigue igual.</p>
+            </div>
+            {% endif %}
         </div>
 
         <div class="ck-pago">
