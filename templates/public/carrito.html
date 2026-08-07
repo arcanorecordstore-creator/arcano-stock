@@ -6,7 +6,7 @@
 
 <a href="{{ url_for('home') }}" class="public-back">&larr; Seguir comprando</a>
 
-<section class="public-hero">
+<section class="public-hero" id="cart-hero">
     <h1 class="public-hero-title">Tu carrito</h1>
     <p class="public-hero-tagline">Revisá los discos y reservá todos juntos en una sola operacion.</p>
 </section>
@@ -51,6 +51,15 @@
     var totalEl = document.getElementById('cart-summary-total');
     var checkoutBtn = document.getElementById('cart-checkout-btn');
     var clearBtn = document.getElementById('cart-clear');
+    var hero = document.getElementById('cart-hero');
+
+    // Cuando el carrito esta vacio ocultamos el encabezado para no repetir dos veces
+    // el mismo mensaje (encabezado "Tu carrito..." + bloque "Tu carrito esta vacio").
+    function mostrarVacio() {
+        loading.hidden = true;
+        empty.hidden = false;
+        if (hero) hero.hidden = true;
+    }
 
     function getCart() {
         try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
@@ -62,8 +71,7 @@
 
     var ids = getCart();
     if (!ids.length) {
-        loading.hidden = true;
-        empty.hidden = false;
+        mostrarVacio();
         return;
     }
 
@@ -73,15 +81,14 @@
             loading.hidden = true;
             var discos = (data && data.discos) || [];
             if (!discos.length) {
-                empty.hidden = false;
+                mostrarVacio();
                 return;
             }
             layout.hidden = false;
             render(discos);
         })
         .catch(function () {
-            loading.hidden = true;
-            empty.hidden = false;
+            mostrarVacio();
         });
 
     function render(discos) {
