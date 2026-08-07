@@ -4969,6 +4969,21 @@ td.num,
     font-variant-numeric: tabular-nums;
 }
 
+/* v3.10 - Desglose del pedido en el checkout (subtotal + comision MP + total) */
+.checkout-desglose {
+    background: var(--bg-2); padding: 6px 14px; margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+}
+.checkout-desglose-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 7px 0; font-size: 14px; color: var(--text-2);
+}
+.checkout-desglose-total {
+    border-top: 1px solid var(--border-2, #333); margin-top: 4px;
+    padding-top: 11px; font-size: 16px; color: var(--text-1);
+}
+.checkout-desglose-total strong { font-size: 17px; }
+
 /* Multi-disco en bandeja admin */
 .reserva-card-multi { color: var(--text-4); font-size: 12px; margin-left: 6px; }
 .reserva-card-total {

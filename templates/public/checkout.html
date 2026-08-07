@@ -96,6 +96,27 @@
 (function () {
     var idsField = document.getElementById('checkout-ids');
     var resumenEl = document.getElementById('checkout-resumen');
+    var recargoPct = {{ (mp_recargo_pct|float) if mp_recargo_pct else 7 }};
+    var subtotalActual = 0, nDiscos = 0;
+
+    function metodoSel() {
+        var s = document.querySelector('input[name="metodo"]:checked');
+        return s ? s.value : '';
+    }
+    function renderDesglose() {
+        var cont = document.getElementById('checkout-desglose');
+        if (!cont) return;
+        var esMp = metodoSel() === 'mercadopago';
+        var comision = esMp ? Math.round(subtotalActual * recargoPct / 100) : 0;
+        var total = subtotalActual + comision;
+        var h = '<div class="checkout-desglose-row"><span>Subtotal (' + nDiscos + ' disco' + (nDiscos !== 1 ? 's' : '') + ')</span><span>$ ' + subtotalActual.toLocaleString('es-UY') + '</span></div>';
+        if (esMp) {
+            h += '<div class="checkout-desglose-row"><span>Comisión de plataforma (' + recargoPct + '%)</span><span>$ ' + comision.toLocaleString('es-UY') + '</span></div>';
+        }
+        h += '<div class="checkout-desglose-row checkout-desglose-total"><span>Total</span><strong>$ ' + total.toLocaleString('es-UY') + '</strong></div>';
+        cont.innerHTML = h;
+    }
+
     var ids = (idsField.value || '').split(',').filter(Boolean);
 
     // Si no vinieron ids por la URL, tomar del carrito local
@@ -133,8 +154,14 @@
                     '</div>';
             });
             html += '</div>';
-            html += '<div class="checkout-total"><span>' + discos.length + ' disco' + (discos.length !== 1 ? 's' : '') + '</span><strong>$ ' + total.toLocaleString('es-UY') + '</strong></div>';
+            html += '<div id="checkout-desglose" class="checkout-desglose"></div>';
             resumenEl.innerHTML = html;
+            subtotalActual = total;
+            nDiscos = discos.length;
+            renderDesglose();
+            document.querySelectorAll('input[name="metodo"]').forEach(function (r) {
+                r.addEventListener('change', renderDesglose);
+            });
             if (window.arcanoGA) window.arcanoGA('begin_checkout', {
                 currency: 'UYU', value: total,
                 items: discos.map(function (d) { return { item_id: String(d.id), price: d.precio_uyu }; })
