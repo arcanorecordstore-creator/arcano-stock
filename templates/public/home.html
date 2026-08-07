@@ -137,9 +137,9 @@
             <div class="filter-block">
                 <div class="filter-block-title">Precio (UYU)</div>
                 <div class="filter-price-row">
-                    <input type="number" name="precio_min" class="filter-price-input" placeholder="{{ precio_rango.min }}" value="{{ filtro_precio_min if filtro_precio_min is not none else '' }}" min="0" step="100">
+                    <input type="number" name="precio_min" class="filter-price-input" placeholder="{{ precio_rango.min }}" value="{{ filtro_precio_min if filtro_precio_min is not none else '' }}" min="0" step="1" inputmode="numeric">
                     <span class="filter-price-sep">&mdash;</span>
-                    <input type="number" name="precio_max" class="filter-price-input" placeholder="{{ precio_rango.max }}" value="{{ filtro_precio_max if filtro_precio_max is not none else '' }}" min="0" step="100">
+                    <input type="number" name="precio_max" class="filter-price-input" placeholder="{{ precio_rango.max }}" value="{{ filtro_precio_max if filtro_precio_max is not none else '' }}" min="0" step="1" inputmode="numeric">
                 </div>
             </div>
 
