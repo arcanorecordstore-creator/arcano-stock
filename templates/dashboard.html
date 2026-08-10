@@ -74,6 +74,16 @@
         </select>
     </div>
     <div class="filter-group">
+        <label for="audio">Audio</label>
+        <select id="audio" name="audio">
+            <option value="todos" {% if filtros.audio == 'todos' %}selected{% endif %}>Todos</option>
+            {% for a in audio_estados %}
+                <option value="{{ a }}" {% if filtros.audio == a %}selected{% endif %}>{{ a }}</option>
+            {% endfor %}
+            <option value="sin_definir" {% if filtros.audio == 'sin_definir' %}selected{% endif %}>Sin definir</option>
+        </select>
+    </div>
+    <div class="filter-group">
         <label for="tipo_fecha">Filtrar por fecha</label>
         <select id="tipo_fecha" name="tipo_fecha">
             <option value="ingreso" {% if filtros.tipo_fecha == 'ingreso' %}selected{% endif %}>de compra</option>
@@ -144,7 +154,7 @@
                 {{ th_sort('artista', 'Artista &mdash; Titulo', 'col-main') }}
                 {{ th_sort('sello', 'Sello', 'col-label') }}
                 {{ th_sort('formato', 'Fmt', 'col-fmt') }}
-                <th class="col-audio" title="Estado de audio / digitalizacion (click en cada disco para cambiar)">Audio</th>
+                {{ th_sort('audio_estado', 'Audio', 'col-audio') }}
                 {{ th_sort('costo_eur', 'Costo &euro;', 'col-num') }}
                 {{ th_sort('envio_eur', 'Envio &euro;', 'col-num') }}
                 {{ th_sort('costo_final_uyu', 'Costo final UYU', 'col-num') }}

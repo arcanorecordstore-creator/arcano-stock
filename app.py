@@ -315,6 +315,7 @@ ORDER_FIELDS = {
     "precio_uyu": Disc.precio_uyu,
     "estado": Disc.estado,
     "origen": Disc.origen,
+    "audio_estado": Disc.audio_estado,
     "stock": Disc.stock,
 }
 
@@ -344,6 +345,13 @@ def query_discs(args):
     origen = (args.get("origen") or "").strip()
     if origen and origen != "todos":
         q = q.filter(Disc.origen == origen)
+
+    audio = (args.get("audio") or "").strip()
+    if audio and audio != "todos":
+        if audio == "sin_definir":
+            q = q.filter(or_(Disc.audio_estado.is_(None), Disc.audio_estado == ""))
+        else:
+            q = q.filter(Disc.audio_estado == audio)
 
     # Filtro por fechas (rango). tipo_fecha: 'ingreso' (compra) o 'venta'.
     from datetime import datetime as _dt, timedelta as _td
@@ -729,6 +737,7 @@ def register_routes(app: Flask) -> None:
             "estado": request.args.get("estado", "todos"),
             "sello": request.args.get("sello", "todos"),
             "origen": request.args.get("origen", "todos"),
+            "audio": request.args.get("audio", "todos"),
             "order": request.args.get("order", "orden"),
             "dir": request.args.get("dir", "desc"),
             "tipo_fecha": request.args.get("tipo_fecha", "ingreso"),
@@ -742,6 +751,7 @@ def register_routes(app: Flask) -> None:
             totals=totals,
             sellos=sellos,
             estados=ESTADOS_DISCO,
+            audio_estados=AUDIO_ESTADOS,
             filtros=filtros,
             tc=tc,
             pagina_actual=pagina_actual,
