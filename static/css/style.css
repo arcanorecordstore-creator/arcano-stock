@@ -499,6 +499,14 @@ body.app { display: block; padding: 0; }
 .badge-descartado { background-color: var(--status-descartado-bg); color: var(--status-descartado-fg); border-color: var(--status-descartado-border); }
 .badge-default    { background-color: var(--bg-3); color: var(--text-3); border-color: var(--border-2); }
 
+/* v3.28 - Columna "Audio" del dashboard (estado de digitalizacion, editable inline) */
+.badge-audio-digital    { background-color: #10b981; color: #fff; border-color: #10b981; }  /* En digital - verde */
+.badge-audio-grabado    { background-color: #3b82f6; color: #fff; border-color: #3b82f6; }  /* Grabado - azul */
+.badge-audio-paragrabar { background-color: #f97316; color: #fff; border-color: #f97316; }  /* Para grabar - naranja */
+.badge-audio-f          { background-color: #0a0a0a; color: #fff; border-color: #0a0a0a; }  /* F - negro */
+.audio-sindef           { color: var(--text-4); }
+.col-editable-audio     { cursor: pointer; }
+
 /* Row actions */
 .col-actions { text-align: right; white-space: nowrap; }
 

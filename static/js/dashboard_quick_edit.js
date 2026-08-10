@@ -162,6 +162,69 @@
         });
     });
 
+    // ---- Audio (estado de digitalizacion: select inline con badge de color) ----
+    var AUDIO_CLASES = {
+        'En digital': 'badge-audio-digital',
+        'Grabado': 'badge-audio-grabado',
+        'Para grabar': 'badge-audio-paragrabar',
+        'F': 'badge-audio-f'
+    };
+    var AUDIO_OPCIONES = ['', 'En digital', 'Grabado', 'Para grabar', 'F'];
+    function audioBadge(valor) {
+        if (!valor) return '<span class="audio-sindef">—</span>';
+        return '<span class="badge ' + (AUDIO_CLASES[valor] || 'badge-default') + '">' + valor + '</span>';
+    }
+    tabla.querySelectorAll('.col-editable-audio').forEach(function (td) {
+        td.addEventListener('click', function () {
+            if (td.querySelector('select')) return;
+            var discId = td.dataset.discId;
+            var actual = td.dataset.audio || '';
+            var badgeOriginal = td.innerHTML;
+
+            var select = document.createElement('select');
+            select.className = 'cell-edit-select';
+            AUDIO_OPCIONES.forEach(function (v) {
+                var opt = document.createElement('option');
+                opt.value = v; opt.textContent = v || '— (sin definir)';
+                if (v === actual) opt.selected = true;
+                select.appendChild(opt);
+            });
+            td.innerHTML = '';
+            td.appendChild(select);
+            select.focus();
+
+            var terminado = false;
+            function cerrar(guardar_) {
+                if (terminado) return;
+                terminado = true;
+                var nuevo = select.value;
+                if (!guardar_ || nuevo === actual) {
+                    td.innerHTML = badgeOriginal;
+                    return;
+                }
+                guardar(discId, 'audio_estado', nuevo).then(function (res) {
+                    if (res.ok && res.data.ok) {
+                        td.dataset.audio = res.data.valor;
+                        td.innerHTML = audioBadge(res.data.valor);
+                        flashCell(td, true);
+                    } else {
+                        td.innerHTML = badgeOriginal;
+                        flashCell(td, false);
+                    }
+                }).catch(function () {
+                    td.innerHTML = badgeOriginal;
+                    flashCell(td, false);
+                });
+            }
+
+            select.addEventListener('change', function () { cerrar(true); });
+            select.addEventListener('blur', function () { cerrar(false); });
+            select.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape') cerrar(false);
+            });
+        });
+    });
+
     // ---- Origen (toggle Arcano / Personal) ----
     tabla.querySelectorAll('.col-editable-origen').forEach(function (td) {
         td.addEventListener('click', function () {

@@ -18,6 +18,9 @@ ESTADOS_DISCO = [
     "Descartado",
 ]
 
+# Estado del audio/digitalizacion de cada disco (columna manual del dashboard).
+AUDIO_ESTADOS = ["En digital", "Grabado", "Para grabar", "F"]
+
 CONDICIONES_DISCO = [
     "Nuevo / Sellado",
     "Usado - Mint",
@@ -97,6 +100,8 @@ class Disc(db.Model):
     es_tip = db.Column(db.Boolean, nullable=False, default=False)
     # Resena de una linea, visible en la card del catalogo (estilo Hard Wax).
     resena_corta = db.Column(db.String(160), nullable=True)
+    # Estado de audio/digitalizacion (columna manual del dashboard): En digital / Grabado / Para grabar / F.
+    audio_estado = db.Column(db.String(20), nullable=True)
     # Mostrar en el carrusel "Pre-order" del inicio (toggle manual, como destacado).
     # Solo tiene efecto si ademas el estado es "Pre-order".
     es_preorder = db.Column(db.Boolean, nullable=False, default=False)
@@ -1228,6 +1233,11 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN resena_corta VARCHAR(160)"))
                     conn.commit()
                 print("Migracion: columna resena_corta agregada a discs")
+            if "audio_estado" not in dcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN audio_estado VARCHAR(20)"))
+                    conn.commit()
+                print("Migracion: columna audio_estado agregada a discs")
             if "orden" not in dcols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN orden INTEGER"))

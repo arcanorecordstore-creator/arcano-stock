@@ -31,6 +31,7 @@ from models import (
     Track,
     parse_tracklist_text,
     ESTADOS_DISCO,
+    AUDIO_ESTADOS,
     ESTADOS_RESERVA,
     CONDICIONES_DISCO,
 )
@@ -2163,7 +2164,7 @@ def register_routes(app: Flask) -> None:
             db.session.commit()
             return jsonify({"ok": True, "campo": campo, "valor": nuevo})
 
-        elif campo in ("sello", "artista", "titulo", "genero"):
+        elif campo in ("sello", "artista", "titulo", "genero", "formato"):
             nuevo = (valor or "").strip()
             # artista y titulo no pueden quedar vacios
             if campo in ("artista", "titulo") and not nuevo:
@@ -2171,6 +2172,14 @@ def register_routes(app: Flask) -> None:
             setattr(disc, campo, nuevo or None)
             db.session.commit()
             return jsonify({"ok": True, "campo": campo, "valor": getattr(disc, campo) or ""})
+
+        elif campo == "audio_estado":
+            nuevo = (valor or "").strip()
+            if nuevo and nuevo not in AUDIO_ESTADOS:
+                return jsonify({"ok": False, "error": "Estado de audio invalido"}), 400
+            disc.audio_estado = nuevo or None
+            db.session.commit()
+            return jsonify({"ok": True, "campo": campo, "valor": disc.audio_estado or ""})
 
         return jsonify({"ok": False, "error": "Campo no editable"}), 400
 
