@@ -14,17 +14,17 @@
 
     <section class="settings-card">
         <header class="settings-card-head">
-            <h2 class="settings-card-title">Tipo de cambio EUR &rarr; UYU</h2>
+            <h2 class="settings-card-title">Tipos de cambio EUR / USD &rarr; UYU</h2>
             <p class="settings-card-sub">
-                Se usa para calcular el costo final en UYU al momento de ingresar un disco nuevo.
-                Los discos ya cargados <strong>mantienen su costo final original</strong> aunque cambies este valor.
+                El del <strong>euro</strong> se usa para el costo final de un disco nuevo; el del <strong>dolar</strong> para el costo de los pedidos.
+                Los discos ya cargados <strong>mantienen su costo final original</strong> aunque cambies estos valores.
             </p>
         </header>
 
         <form method="post" action="{{ url_for('settings_update_tc') }}" class="settings-form">
             <div class="tc-current">
-                <span class="tc-label">Valor actual</span>
-                <span class="tc-value">{{ tc }}</span>
+                <span class="tc-label">Valores actuales</span>
+                <span class="tc-value">1 EUR = {{ tc }} UYU &nbsp;&middot;&nbsp; 1 USD = {{ tc_usd }} UYU</span>
                 {% if tc_updated_at %}
                     <span class="tc-meta">Ultima modificacion: {{ tc_updated_at.strftime('%d/%m/%Y %H:%M') }} UTC</span>
                 {% endif %}
@@ -32,14 +32,19 @@
 
             <div class="form-row">
                 <div class="form-field">
-                    <label for="tc_eur_uyu">Nuevo tipo de cambio</label>
+                    <label for="tc_eur_uyu">Nuevo TC del EURO <span class="form-field-hint">(1 EUR = ? UYU)</span></label>
                     <input type="number" id="tc_eur_uyu" name="tc_eur_uyu"
                            step="0.01" min="0.01" max="10000" value="{{ tc }}" required>
+                </div>
+                <div class="form-field">
+                    <label for="tc_usd_uyu">Nuevo TC del DOLAR <span class="form-field-hint">(1 USD = ? UYU)</span></label>
+                    <input type="number" id="tc_usd_uyu" name="tc_usd_uyu"
+                           step="0.01" min="0.01" max="10000" value="{{ tc_usd }}" required>
                 </div>
             </div>
 
             <div class="settings-actions">
-                <button type="submit" class="btn btn-primary">Guardar nuevo TC</button>
+                <button type="submit" class="btn btn-primary">Guardar tipos de cambio</button>
             </div>
         </form>
     </section>

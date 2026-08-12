@@ -53,6 +53,8 @@
                 </button>
                 <span class="meta-label">TC EUR&rarr;UYU</span>
                 <span class="meta-value">{{ tc }}</span>
+                <span class="meta-label">TC USD&rarr;UYU</span>
+                <span class="meta-value">{{ tc_usd }}</span>
                 {% if session.get('admin_user') %}
                 <span class="meta-user">
                     {{ session.get('admin_user') }}
@@ -80,7 +82,7 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v3.36 &middot; Pixel de Meta: campo en Ajustes para el ID; inyecta el pixel y mide conversiones (agregar al carrito, iniciar compra, compra) para la pauta</span>
+            <span class="footer-version">v3.37 &middot; Ajustes: campo para el TC del dolar (USD-&gt;UYU) ademas del euro; ambos se ven siempre en el header del admin</span>
         </footer>
     </div>
 

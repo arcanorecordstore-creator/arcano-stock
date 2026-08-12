@@ -294,6 +294,9 @@ def create_app() -> Flask:
             "sort_url": sort_url,
             "cliente_actual": cliente_actual,
             "todos_los_pedidos": _todos_los_pedidos(),
+            # TC EUR y USD disponibles en TODAS las paginas (el header del admin los muestra)
+            "tc": Setting.get_tc(),
+            "tc_usd": Setting.get_tc_usd(),
         }
 
     return app
@@ -3046,6 +3049,7 @@ def register_routes(app: Flask) -> None:
         return render_template(
             "settings.html",
             tc=tc,
+            tc_usd=Setting.get_tc_usd(),
             tc_updated_at=tc_row.updated_at if tc_row else None,
             discos_disponibles=discos_disponibles,
             total_discos=total_discos,
@@ -3104,17 +3108,21 @@ def register_routes(app: Flask) -> None:
     @auth.admin_required
     def settings_update_tc():
         nuevo_tc = _parse_float(request.form.get("tc_eur_uyu"), default=0.0)
-        if nuevo_tc <= 0:
-            flash("El tipo de cambio debe ser un numero mayor a 0.", "error")
+        if not (0 < nuevo_tc <= 10000):
+            flash("El tipo de cambio del euro debe ser un numero entre 0 y 10000.", "error")
             return redirect(url_for("settings_page"))
-        if nuevo_tc > 10000:
-            flash("El tipo de cambio parece demasiado alto. Verificalo.", "error")
+        nuevo_tc_usd = _parse_float(request.form.get("tc_usd_uyu"), default=0.0)
+        if not (0 < nuevo_tc_usd <= 10000):
+            flash("El tipo de cambio del dolar debe ser un numero entre 0 y 10000.", "error")
             return redirect(url_for("settings_page"))
 
         anterior = Setting.get_tc()
+        anterior_usd = Setting.get_tc_usd()
         Setting.set("tc_eur_uyu", str(nuevo_tc))
+        Setting.set("tc_usd_uyu", str(nuevo_tc_usd))
         flash(
-            f"Tipo de cambio actualizado: {anterior} -> {nuevo_tc}. "
+            f"Tipos de cambio actualizados. 1 EUR: {anterior} -> {nuevo_tc} UYU | "
+            f"1 USD: {anterior_usd} -> {nuevo_tc_usd} UYU. "
             f"Los discos existentes mantienen su costo final original.",
             "success",
         )
