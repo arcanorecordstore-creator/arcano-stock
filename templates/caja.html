@@ -148,19 +148,20 @@
                 {% for fila in resumen.filas %}
                 {% set m = fila.mov %}
                 <tr class="caja-row {{ 'is-ingreso' if m.tipo == 'ingreso' else 'is-egreso' }}">
-                    <td class="caja-td-fecha">{{ m.fecha.strftime('%d/%m/%y') if m.fecha else '—' }}</td>
-                    <td class="caja-td-concepto">{{ m.concepto or '—' }}</td>
+                    <td class="caja-td-fecha caja-cell-edit" title="Click para editar" data-mov="{{ m.id }}" data-campo="fecha" data-editor="date" data-raw="{{ m.fecha.strftime('%Y-%m-%d') if m.fecha else '' }}">{{ m.fecha.strftime('%d/%m/%y') if m.fecha else '—' }}</td>
+                    <td class="caja-td-concepto caja-cell-edit" title="Click para editar" data-mov="{{ m.id }}" data-campo="concepto" data-editor="text" data-raw="{{ m.concepto or '' }}">{{ m.concepto or '—' }}</td>
                     <td>
                         <span class="caja-origen-tag origen-{{ m.origen }}">{{ m.origen_label }}</span>
                     </td>
-                    <td class="caja-td-metodo">
-                        {% if m.tipo == 'ingreso' %}
-                            {{ m.metodo_label or '—' }}
-                        {% else %}
-                            {{ m.categoria or '—' }}
-                        {% endif %}
+                    <td class="caja-td-metodo caja-cell-edit" title="Click para editar"
+                        data-mov="{{ m.id }}"
+                        data-campo="{{ 'metodo' if m.tipo == 'ingreso' else 'categoria' }}"
+                        data-editor="{{ 'metodo' if m.tipo == 'ingreso' else 'categoria' }}"
+                        data-raw="{{ (m.metodo or '') if m.tipo == 'ingreso' else (m.categoria or '') }}">
+                        {% if m.tipo == 'ingreso' %}{{ m.metodo_label or '—' }}{% else %}{{ m.categoria or '—' }}{% endif %}
                     </td>
-                    <td class="col-num caja-monto {{ 'pos' if m.tipo == 'ingreso' else 'neg' }}">
+                    <td class="col-num caja-monto caja-cell-edit {{ 'pos' if m.tipo == 'ingreso' else 'neg' }}" title="Click para editar"
+                        data-mov="{{ m.id }}" data-campo="monto" data-editor="monto" data-raw="{{ '%.0f'|format(m.monto_uyu or 0) }}">
                         {{ '+' if m.tipo == 'ingreso' else '−' }} $ {{ fmt_uyu(m.monto_uyu) }}
                     </td>
                     <td class="col-num caja-saldo-col {% if fila.saldo < 0 %}neg{% endif %}">$ {{ fmt_uyu(fila.saldo) }}</td>
@@ -200,6 +201,7 @@
                                     </div>
                                     <div class="caja-editar-acciones">
                                         <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+                                        <button type="button" class="btn btn-ghost btn-sm caja-editar-cancelar" onclick="this.closest('details').removeAttribute('open')">Cancelar</button>
                                         {% if m.es_manual %}
                                         <button type="submit" formaction="{{ url_for('caja_movimiento_eliminar', mov_id=m.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este movimiento?')">Eliminar</button>
                                         {% else %}
@@ -235,6 +237,109 @@
         }
         tipo.addEventListener('change', sync);
         sync();
+    })();
+
+    // Cerrar el popover de edición al hacer click afuera o con Escape
+    (function () {
+        document.addEventListener('click', function (ev) {
+            document.querySelectorAll('details.caja-editar[open]').forEach(function (d) {
+                if (!d.contains(ev.target)) d.removeAttribute('open');
+            });
+        });
+        document.addEventListener('keydown', function (ev) {
+            if (ev.key === 'Escape') {
+                document.querySelectorAll('details.caja-editar[open]').forEach(function (d) {
+                    d.removeAttribute('open');
+                });
+            }
+        });
+    })();
+
+    // Edición inline: click en una celda de la tabla -> editar ahí mismo (AJAX)
+    (function () {
+        var editing = null;  // celda que se está editando
+
+        function restaurar(cell) {
+            if (cell.dataset.orig !== undefined) cell.innerHTML = cell.dataset.orig;
+            cell.classList.remove('editing');
+        }
+
+        function guardar(cell, valor) {
+            if (editing !== cell) return;  // ya se guardó o canceló
+            editing = null;
+            var mov = cell.dataset.mov, campo = cell.dataset.campo;
+            cell.classList.add('saving');
+            fetch('/admin/caja/movimiento/' + mov + '/quick-update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ campo: campo, valor: valor })
+            }).then(function (r) {
+                return r.json().then(function (j) { return { ok: r.ok, j: j }; });
+            }).then(function (res) {
+                if (res.ok && res.j && res.j.ok) {
+                    // Recargar: los saldos corrientes y el desglose se recalculan en el server
+                    window.location.reload();
+                } else {
+                    alert((res.j && res.j.error) || 'No se pudo guardar.');
+                    cell.classList.remove('saving');
+                    restaurar(cell);
+                }
+            }).catch(function () {
+                alert('Error de conexión, no se guardó.');
+                cell.classList.remove('saving');
+                restaurar(cell);
+            });
+        }
+
+        function cancelar(cell) {
+            editing = null;
+            restaurar(cell);
+        }
+
+        function editar(cell) {
+            if (editing) return;  // una celda a la vez
+            editing = cell;
+            cell.dataset.orig = cell.innerHTML;
+            cell.classList.add('editing');
+            var editor = cell.dataset.editor, raw = cell.dataset.raw || '';
+            var el;
+            if (editor === 'date') {
+                el = document.createElement('input'); el.type = 'date'; el.value = raw;
+            } else if (editor === 'metodo') {
+                el = document.createElement('select');
+                [['', 'Sin especificar'], ['mercadopago', 'Mercado Pago'], ['transferencia', 'Transferencia'], ['efectivo', 'Efectivo'], ['otro', 'Otro']].forEach(function (o) {
+                    var op = document.createElement('option'); op.value = o[0]; op.textContent = o[1];
+                    if (o[0] === raw) op.selected = true;
+                    el.appendChild(op);
+                });
+            } else { // text, categoria, monto
+                el = document.createElement('input'); el.type = 'text'; el.value = raw;
+                if (editor === 'monto') el.inputMode = 'decimal';
+            }
+            el.className = 'caja-inline-input';
+            cell.innerHTML = '';
+            cell.appendChild(el);
+            el.focus();
+            try { if (el.select) el.select(); } catch (e) {}
+
+            if (editor === 'metodo') {
+                el.addEventListener('change', function () { guardar(cell, el.value); });
+                el.addEventListener('blur', function () { if (editing === cell) cancelar(cell); });
+            } else {
+                el.addEventListener('keydown', function (ev) {
+                    if (ev.key === 'Enter') { ev.preventDefault(); guardar(cell, el.value); }
+                    else if (ev.key === 'Escape') { ev.preventDefault(); cancelar(cell); }
+                });
+                el.addEventListener('blur', function () { if (editing === cell) guardar(cell, el.value); });
+            }
+        }
+
+        document.querySelectorAll('.caja-cell-edit').forEach(function (cell) {
+            cell.addEventListener('click', function () {
+                if (cell.classList.contains('editing')) return;
+                editar(cell);
+            });
+        });
     })();
 </script>
 {% endblock %}

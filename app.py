@@ -2743,6 +2743,54 @@ def register_routes(app: Flask) -> None:
         flash("Movimiento actualizado.", "success")
         return redirect(url_for("caja"))
 
+    @app.route("/admin/caja/movimiento/<int:mov_id>/quick-update", methods=["POST"])
+    @auth.admin_required
+    def caja_movimiento_quick_update(mov_id):
+        """Edicion inline de un solo campo desde la tabla (AJAX). Devuelve JSON
+        con los totales recalculados para refrescar la vista."""
+        from models import MovimientoCaja
+        from datetime import datetime as _dt
+        m = MovimientoCaja.query.get_or_404(mov_id)
+        data = request.get_json(silent=True) or {}
+        campo = (data.get("campo") or "").strip()
+        valor = data.get("valor")
+        if campo == "fecha":
+            try:
+                m.fecha = _dt.strptime((valor or "").strip(), "%Y-%m-%d").date()
+            except (ValueError, TypeError, AttributeError):
+                return jsonify({"ok": False, "error": "Fecha invalida"}), 400
+        elif campo == "tipo":
+            if valor in ("ingreso", "egreso"):
+                m.tipo = valor
+                if m.tipo == "ingreso":
+                    m.categoria = None
+                else:
+                    m.metodo = None
+            else:
+                return jsonify({"ok": False, "error": "Tipo invalido"}), 400
+        elif campo == "monto":
+            monto = _parse_monto_caja(str(valor if valor is not None else ""))
+            if monto <= 0:
+                return jsonify({"ok": False, "error": "El monto debe ser mayor a 0"}), 400
+            m.monto_uyu = round(monto, 2)
+        elif campo == "concepto":
+            m.concepto = (str(valor or "").strip())[:300] or None
+        elif campo == "metodo":
+            v = str(valor or "").strip()
+            m.metodo = v if v in ("mercadopago", "transferencia", "efectivo", "otro") else None
+        elif campo == "categoria":
+            m.categoria = (str(valor or "").strip()) or None
+        else:
+            return jsonify({"ok": False, "error": "Campo desconocido"}), 400
+        db.session.commit()
+        resumen = _resumen_caja()
+        return jsonify({
+            "ok": True,
+            "saldo_actual": resumen["saldo_actual"],
+            "total_ingresos": resumen["total_ingresos"],
+            "total_egresos": resumen["total_egresos"],
+        })
+
     @app.route("/admin/caja/movimiento/<int:mov_id>/eliminar", methods=["POST"])
     @auth.admin_required
     def caja_movimiento_eliminar(mov_id):
