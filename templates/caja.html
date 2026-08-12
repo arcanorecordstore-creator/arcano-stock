@@ -123,7 +123,7 @@
                 <label>Monto (UYU)
                     <input type="text" name="monto" inputmode="decimal" placeholder="0" required>
                 </label>
-                <label class="caja-campo-metodo">Método (si es ingreso)
+                <label class="caja-campo-metodo">Método / origen del dinero
                     <select name="metodo">
                         <option value="">Sin especificar</option>
                         <option value="mercadopago">Mercado Pago</option>
@@ -131,6 +131,7 @@
                         <option value="efectivo">Efectivo</option>
                         <option value="otro">Otro</option>
                     </select>
+                    <span class="caja-field-hint">De dónde entra (vale también para tu aporte de capital)</span>
                 </label>
                 <label class="caja-campo-categoria">Categoría (si es egreso)
                     <input type="text" name="categoria" list="caja-cats" placeholder="Ej: Retiro, Ajuste...">
@@ -216,7 +217,7 @@
                                         <label>Monto (UYU)
                                             <input type="text" name="monto" inputmode="decimal" value="{{ '%.0f'|format(m.monto_uyu or 0) }}">
                                         </label>
-                                        <label>Método
+                                        <label>Método / origen
                                             <select name="metodo">
                                                 <option value="">Sin especificar</option>
                                                 <option value="mercadopago" {% if m.metodo == 'mercadopago' %}selected{% endif %}>Mercado Pago</option>

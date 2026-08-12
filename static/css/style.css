@@ -8743,6 +8743,7 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     font-family: inherit;
 }
 .caja-campo-concepto, .caja-campo-aporte { grid-column: 1 / -1; }
+.caja-field-hint { font-size: 11px; color: var(--text-3, #888); margin-top: 3px; }
 .caja-form-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
 .caja-form-row input { min-width: 180px; }
 
