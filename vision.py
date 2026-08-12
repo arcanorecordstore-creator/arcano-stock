@@ -557,13 +557,14 @@ def extract_from_video_frames(frames_png: list, filename: str = None) -> VisionR
 
     # Armar el contenido: todas las imagenes + (nombre de archivo) + el prompt
     content = []
-    for png in frames_png[:6]:  # tope de 6 cuadros por llamada
+    for img in frames_png[:6]:  # tope de 6 cuadros por llamada
+        media_type = "image/jpeg" if img[:2] == b"\xff\xd8" else "image/png"
         content.append({
             "type": "image",
             "source": {
                 "type": "base64",
-                "media_type": "image/png",
-                "data": base64.standard_b64encode(png).decode("utf-8"),
+                "media_type": media_type,
+                "data": base64.standard_b64encode(img).decode("utf-8"),
             },
         })
     if filename:

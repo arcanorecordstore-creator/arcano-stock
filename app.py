@@ -977,7 +977,7 @@ def register_routes(app: Flask) -> None:
                 if mtype not in _video.VIDEO_EXT_MAP:
                     errores.append(f"{f.filename}: tipo no soportado ({mtype})")
                     continue
-                # Chequear tamano ANTES de cargarlo a memoria (evita OOM con archivos gigantes)
+                # Chequear tamano ANTES de guardar (evita archivos gigantes)
                 try:
                     f.stream.seek(0, os.SEEK_END)
                     fsize = f.stream.tell()
@@ -987,15 +987,11 @@ def register_routes(app: Flask) -> None:
                 if fsize and fsize > _video.MAX_VIDEO_BYTES:
                     errores.append(f"{f.filename}: pesa demasiado ({fsize // 1024 // 1024} MB, max 50 MB)")
                     continue
-                data = f.read()
-                if len(data) > _video.MAX_VIDEO_BYTES:
-                    errores.append(f"{f.filename}: pesa demasiado (max 50 MB)")
-                    continue
                 ext = _video.VIDEO_EXT_MAP[mtype]
                 fname = f"sample_{_uuid.uuid4().hex[:12]}{ext}"
+                dest_path = os.path.join(samples_dir, fname)
                 try:
-                    with open(os.path.join(samples_dir, fname), "wb") as out:
-                        out.write(data)
+                    f.save(dest_path)  # se guarda directo a disco, sin pasar por la RAM
                 except Exception as e:
                     errores.append(f"{f.filename}: no se pudo guardar ({e})")
                     continue
@@ -1003,7 +999,7 @@ def register_routes(app: Flask) -> None:
                 fn_artista, fn_track = _video.split_artist_track(
                     _video.clean_track_name_from_filename(f.filename))
                 track_artista, track_titulo = fn_artista, fn_track
-                frames, ferr = _video.extract_frames_png(data)
+                frames, ferr = _video.extract_frames_from_path(dest_path)
                 if ferr:
                     errores.append(f"{f.filename}: {ferr}")
                 else:

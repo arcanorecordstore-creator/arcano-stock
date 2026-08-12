@@ -57,113 +57,69 @@ VIDEO_EXT_MAP = {
 MAX_VIDEO_BYTES = 50 * 1024 * 1024  # 50 MB por video
 
 
-def extract_frames_png(video_bytes: bytes, positions=(0.5, 0.35, 0.65, 0.15, 0.85),
-                       max_dim: int = 1100, n_frames: int = 1):
-    """Extrae hasta `n_frames` cuadros del video.
+def _ffmpeg_exe():
+    """Ruta al ejecutable de ffmpeg (el bundleado por imageio-ffmpeg, o del sistema)."""
+    try:
+        import imageio_ffmpeg
+        exe = imageio_ffmpeg.get_ffmpeg_exe()
+        if exe:
+            return exe
+    except Exception:
+        pass
+    import shutil
+    return shutil.which("ffmpeg") or "ffmpeg"
 
-    La placa con los datos es la misma en todo el video, asi que por defecto se
-    saca 1 solo cuadro (del medio). Las demas posiciones son respaldo por si ese
-    cuadro sale negro o en transicion. Devuelve (list_de_png_bytes, error).
+
+def extract_frames_from_path(path, n_frames: int = 1, max_width: int = 900, timeout_s: int = 45):
+    """Extrae hasta `n_frames` cuadros del video LLAMANDO A FFMPEG DIRECTO.
+
+    ffmpeg hace seek rapido (-ss antes de -i), decodifica un solo cuadro ya
+    escalado y lo saca por stdout como JPEG. Casi no usa memoria (no carga el
+    video ni depende de numpy/imageio-reader). Devuelve (list_jpg_bytes, error).
     """
-    try:
-        import imageio.v2 as imageio
-    except ImportError:
-        return [], "Falta la libreria imageio. Ejecutar: pip install imageio imageio-ffmpeg"
-    try:
-        from PIL import Image
-    except ImportError:
-        return [], "Falta la libreria Pillow."
+    import subprocess
+    exe = _ffmpeg_exe()
+    # El disco gira, cualquier frame sirve. 1s salta un posible intro/negro; 0 es respaldo.
+    seek_secs = ["1", "3", "0"]
+    frames = []
+    err_last = None
+    for ss in seek_secs:
+        if len(frames) >= n_frames:
+            break
+        cmd = [
+            exe, "-nostdin", "-loglevel", "error", "-y",
+            "-ss", ss, "-i", path,
+            "-frames:v", "1", "-an", "-sn",
+            "-vf", f"scale='min({max_width},iw)':-2",
+            "-f", "image2pipe", "-vcodec", "mjpeg", "-q:v", "4", "pipe:1",
+        ]
+        try:
+            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout_s)
+        except subprocess.TimeoutExpired:
+            return frames, "El video tardo demasiado en procesarse (timeout)."
+        except FileNotFoundError:
+            return frames, "No se encontro ffmpeg para procesar el video."
+        except Exception as e:
+            err_last = f"Error de ffmpeg: {e}"
+            continue
+        out = proc.stdout or b""
+        if out[:2] == b"\xff\xd8":  # magic de JPEG -> cuadro valido
+            frames.append(out)
+        else:
+            err_last = (proc.stderr or b"").decode("utf-8", "replace").strip()[:200] or "cuadro vacio"
+    if not frames:
+        return [], ("No se pudo extraer un cuadro del video. " + (err_last or "")).strip()
+    return frames, None
 
-    # Extension .mp4 para que imageio rutee al backend ffmpeg; ffmpeg igual
-    # decodifica el contenido real aunque sea mov/webm/etc.
+
+def extract_frames_png(video_bytes: bytes, n_frames: int = 1, max_width: int = 900):
+    """Compat/tests: recibe bytes, los escribe a un temp y extrae con ffmpeg."""
     tmp = os.path.join(tempfile.gettempdir(), f"arcano_vid_{uuid.uuid4().hex}.mp4")
     try:
         with open(tmp, "wb") as f:
             f.write(video_bytes)
-    except Exception as e:
-        return [], f"No se pudo guardar el video temporal: {e}"
-
-    frames_png = []
-    reader = None
-    try:
-        try:
-            # format="ffmpeg" fuerza el backend de video (el archivo temporal no
-            # tiene extension conocida, asi que no se puede inferir solo).
-            reader = imageio.get_reader(tmp, format="ffmpeg")
-        except Exception as e:
-            return [], f"No se pudo abrir el video (formato no soportado?): {e}"
-
-        # Ubicar los cuadros por TIEMPO usando la metadata (NO contar todos los
-        # frames ni leer el video entero: eso revienta la memoria en Render).
-        fps = 25.0
-        nframes = None
-        try:
-            meta = reader.get_meta_data()
-            fps = float(meta.get("fps") or 25.0) or 25.0
-            nf = meta.get("nframes")
-            if nf and nf != float("inf") and nf > 0:
-                nframes = int(nf)
-            else:
-                dur = meta.get("duration")
-                if dur and dur > 0:
-                    nframes = int(dur * fps)
-        except Exception:
-            nframes = None
-
-        def _to_png(arr):
-            img = Image.fromarray(arr)
-            if img.mode != "RGB":
-                img = img.convert("RGB")
-            if max(img.size) > max_dim:
-                r = max_dim / max(img.size)
-                img = img.resize((max(1, int(img.width * r)), max(1, int(img.height * r))), Image.LANCZOS)
-            b = io.BytesIO()
-            img.save(b, format="PNG", optimize=True)
-            return b.getvalue()
-
-        want = max(1, n_frames)
-        if nframes and nframes > 1:
-            # Seek eficiente (ffmpeg -ss) a cada posicion; corta al tener los que
-            # necesita. Con n_frames=1 saca solo el cuadro del medio.
-            seen = set()
-            for p in positions:
-                if len(frames_png) >= want:
-                    break
-                idx = min(nframes - 1, max(0, int(nframes * p)))
-                if idx in seen:
-                    continue
-                seen.add(idx)
-                try:
-                    arr = reader.get_data(idx)
-                    frames_png.append(_to_png(arr))
-                    del arr
-                except Exception:
-                    continue
-        else:
-            # Sin metadata: leer secuencial y quedarnos con los primeros cuadros
-            # utiles (a ~1s del inicio para saltar transiciones), sin acumular todo.
-            stride = max(1, int(fps))
-            MAX_READ = 600
-            try:
-                for i, fr in enumerate(reader):
-                    if i >= stride and i % stride == 0:
-                        frames_png.append(_to_png(fr))
-                        if len(frames_png) >= want:
-                            break
-                    if i >= MAX_READ:
-                        break
-            except Exception:
-                pass
-
-        if not frames_png:
-            return [], "No se pudieron extraer cuadros del video."
-        return frames_png, None
+        return extract_frames_from_path(tmp, n_frames=n_frames, max_width=max_width)
     finally:
-        if reader is not None:
-            try:
-                reader.close()
-            except Exception:
-                pass
         try:
             os.remove(tmp)
         except OSError:
