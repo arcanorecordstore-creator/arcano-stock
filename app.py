@@ -2667,12 +2667,47 @@ def register_routes(app: Flask) -> None:
         # Plata que ya podes tocar (todo menos lo retenido en MP)
         disponible = saldo_actual - mp_pendiente
 
+        # Cantidad de movimientos por tipo (ventas, pedidos, gastos por categoria,
+        # aportes de capital, manuales) con su total.
+        grupos = {}
+        for m in movs:
+            if m.origen == "venta":
+                key, label, orden = "venta", "Ventas", 0
+            elif m.origen == "pedido":
+                key, label, orden = "pedido", "Pedidos", 1
+            elif m.tipo == "ingreso" and m.es_aporte:
+                key, label, orden = "aporte", "Aportes de capital", 2
+            elif m.origen == "gasto":
+                cat = m.categoria or "Otros"
+                key, label, orden = "gasto:" + cat, "Gasto: " + cat, 3
+            else:
+                key, label, orden = "manual", "Manuales (aportes/retiros/ajustes)", 4
+            g = grupos.get(key)
+            if not g:
+                g = {"label": label, "count": 0, "total": 0.0, "tipo": m.tipo, "orden": orden}
+                grupos[key] = g
+            g["count"] += 1
+            g["total"] += (m.monto_uyu or 0)
+        desglose_tipos = [
+            {"label": g["label"], "count": g["count"], "total": round(g["total"], 2), "tipo": g["tipo"]}
+            for g in sorted(grupos.values(), key=lambda x: (x["orden"], -x["count"]))
+        ]
+
+        # Origen del disco (arcano / personal) de cada movimiento de venta
+        from models import Disc
+        venta_ids = [m.origen_id for m in movs if m.origen == "venta" and m.origen_id]
+        disc_origen = {}
+        if venta_ids:
+            for d in Disc.query.filter(Disc.id.in_(venta_ids)).all():
+                disc_origen[d.id] = (d.origen or "arcano")
+
         # Saldo corriente (cronologico) y luego lo damos vuelta para mostrar
         saldo = saldo_inicial
         filas = []
         for m in movs:
             saldo += (m.monto_uyu or 0) * (1 if m.tipo == "ingreso" else -1)
-            filas.append({"mov": m, "saldo": round(saldo, 2)})
+            dorigen = disc_origen.get(m.origen_id) if m.origen == "venta" else None
+            filas.append({"mov": m, "saldo": round(saldo, 2), "disc_origen": dorigen})
         filas.reverse()
 
         return {
@@ -2685,6 +2720,7 @@ def register_routes(app: Flask) -> None:
             "mp_pendiente": round(mp_pendiente, 2),
             "disponible": round(disponible, 2),
             "por_metodo": {k: round(v, 2) for k, v in por_metodo.items()},
+            "desglose_tipos": desglose_tipos,
             "filas": filas,
             "count": len(movs),
         }

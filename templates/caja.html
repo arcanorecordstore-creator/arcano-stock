@@ -164,6 +164,7 @@
                     <th>Fecha</th>
                     <th>Concepto</th>
                     <th>Origen</th>
+                    <th>Disco</th>
                     <th>Método / Categoría</th>
                     <th class="col-num">Monto</th>
                     <th class="col-num">Saldo</th>
@@ -173,12 +174,17 @@
             <tbody>
                 {% for fila in resumen.filas %}
                 {% set m = fila.mov %}
-                <tr class="caja-row {{ 'is-ingreso' if m.tipo == 'ingreso' else 'is-egreso' }}">
+                <tr class="caja-row {{ 'is-ingreso' if m.tipo == 'ingreso' else 'is-egreso' }} {% if m.origen == 'pedido' %}is-pedido{% endif %}">
                     <td class="caja-td-fecha caja-cell-edit" title="Click para editar" data-mov="{{ m.id }}" data-campo="fecha" data-editor="date" data-raw="{{ m.fecha.strftime('%Y-%m-%d') if m.fecha else '' }}">{{ m.fecha.strftime('%d/%m/%y') if m.fecha else '—' }}</td>
                     <td class="caja-td-concepto caja-cell-edit" title="Click para editar" data-mov="{{ m.id }}" data-campo="concepto" data-editor="text" data-raw="{{ m.concepto or '' }}">{{ m.concepto or '—' }}</td>
                     <td>
                         <span class="caja-origen-tag origen-{{ m.origen }}">{{ m.origen_label }}</span>
                         {% if m.es_aporte %}<span class="caja-origen-tag caja-tag-capital">Capital</span>{% endif %}
+                    </td>
+                    <td class="caja-td-disco">
+                        {% if fila.disc_origen == 'personal' %}<span class="badge badge-personal">Personal</span>
+                        {% elif fila.disc_origen == 'arcano' %}<span class="badge badge-arcano">Arcano</span>
+                        {% endif %}
                     </td>
                     <td class="caja-td-metodo caja-cell-edit" title="Click para editar"
                         data-mov="{{ m.id }}"
@@ -258,6 +264,24 @@
     <p class="caja-vacio">Todavía no hay movimientos. Las ventas, pedidos y gastos van a aparecer solos acá; también podés agregar aportes o retiros a mano arriba.</p>
     {% endif %}
 </section>
+
+<!-- ============================================================
+     Cantidad de movimientos por tipo
+     ============================================================ -->
+{% if resumen.desglose_tipos %}
+<section class="caja-desglose">
+    <h2 class="caja-section-title">Cantidad de movimientos por tipo</h2>
+    <div class="caja-desglose-grid">
+        {% for t in resumen.desglose_tipos %}
+        <div class="caja-desglose-item {{ 'ing' if t.tipo == 'ingreso' else 'egr' }}">
+            <span class="caja-desglose-label">{{ t.label }}</span>
+            <span class="caja-desglose-count">{{ t.count }} mov.</span>
+            <span class="caja-desglose-total">{{ '+' if t.tipo == 'ingreso' else '−' }} $ {{ fmt_uyu(t.total) }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
 
 <script>
     // Muestra/oculta los campos método (ingreso) y categoría (egreso) en el form de agregar
