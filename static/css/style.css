@@ -7473,6 +7473,30 @@ td.num,
 .ie-dot-ing { background: #10b981; }
 .ie-dot-egr { background: #ef4444; }
 
+/* Grafico de 6 meses: barras agrupadas con el valor visible en cada barra */
+.chart6-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.chart6-legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--text-3, #888); padding-top: 2px; }
+.chart6-leg { display: inline-flex; align-items: center; gap: 6px; }
+.chart6-sw { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.chart6-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }
+.chart6 { display: flex; align-items: flex-end; gap: 10px; min-width: 520px; padding-top: 22px; }
+.chart6-col { flex: 1 1 0; min-width: 72px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.chart6-bars { display: flex; align-items: flex-end; justify-content: center; gap: 6px; height: 150px; width: 100%; }
+.chart6-barwrap { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; flex: 1; max-width: 32px; }
+.chart6-val { font-size: 11px; font-variant-numeric: tabular-nums; margin-bottom: 3px; white-space: nowrap; font-weight: 500; }
+.chart6-bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; transition: height 0.35s ease; }
+.chart6-month { font-size: 12.5px; font-weight: 500; color: var(--text-2, #ccc); }
+.chart6-sub { font-size: 11px; color: var(--text-3, #888); font-variant-numeric: tabular-nums; text-align: center; }
+.chart6-sub.neg { color: #ef4444; }
+.c-ing { background: #10b981; }
+.c-egr { background: #ef4444; }
+.c-arc { background: #6366f1; }
+.c-per { background: #eda100; }
+.chart6-val.c-ing-t { color: #10b981; }
+.chart6-val.c-egr-t { color: #ef4444; }
+.chart6-val.c-arc-t { color: #818cf8; }
+.chart6-val.c-per-t { color: #e0a52a; }
+
 /* Arcano vs personal (barras apiladas) */
 .avp-stack { display: flex; flex-direction: column; justify-content: flex-end; height: 140px; width: 60%; max-width: 34px; border-radius: 3px 3px 0 0; overflow: hidden; }
 .avp-seg { width: 100%; min-height: 0; transition: height 0.3s ease; }

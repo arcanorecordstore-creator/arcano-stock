@@ -297,55 +297,80 @@
      Grafico: ingresos vs egresos (6 meses)
      ============================================================ -->
 <section class="conta-block">
-    <h2 class="conta-block-title">Ingresos vs egresos (ultimos 6 meses)</h2>
+    <div class="chart6-head">
+        <div>
+            <h2 class="conta-block-title">Ingresos vs egresos (ultimos 6 meses)</h2>
+            <p class="resumen-card-sub">Lo que entro por ventas (verde) vs lo que gastaste (rojo). Abajo de cada mes, la ganancia real.</p>
+        </div>
+        <div class="chart6-legend">
+            <span class="chart6-leg"><span class="chart6-sw c-ing"></span> Ingresos</span>
+            <span class="chart6-leg"><span class="chart6-sw c-egr"></span> Egresos</span>
+        </div>
+    </div>
     {% set ns = namespace(max=1) %}
     {% for m in ingresos_egresos_6m %}
         {% if m.ingresos_uyu > ns.max %}{% set ns.max = m.ingresos_uyu %}{% endif %}
         {% if m.egresos_uyu > ns.max %}{% set ns.max = m.egresos_uyu %}{% endif %}
     {% endfor %}
-    <div class="ie-chart">
-        {% for m in ingresos_egresos_6m %}
-        <div class="ie-col">
-            <div class="ie-bars">
-                <div class="ie-bar ie-bar-ing" style="height: {{ (m.ingresos_uyu / ns.max * 100) if ns.max > 0 else 0 }}%;" title="Ingresos {{ fmt_uyu(m.ingresos_uyu) }}"></div>
-                <div class="ie-bar ie-bar-egr" style="height: {{ (m.egresos_uyu / ns.max * 100) if ns.max > 0 else 0 }}%;" title="Egresos {{ fmt_uyu(m.egresos_uyu) }}"></div>
+    <div class="chart6-scroll">
+        <div class="chart6">
+            {% for m in ingresos_egresos_6m %}
+            <div class="chart6-col">
+                <div class="chart6-bars">
+                    <div class="chart6-barwrap">
+                        <span class="chart6-val c-ing-t">{{ fmt_uyu(m.ingresos_uyu) }}</span>
+                        <div class="chart6-bar c-ing" style="height: {{ (m.ingresos_uyu / ns.max * 100) if ns.max > 0 else 0 }}%;"></div>
+                    </div>
+                    <div class="chart6-barwrap">
+                        <span class="chart6-val c-egr-t">{{ fmt_uyu(m.egresos_uyu) }}</span>
+                        <div class="chart6-bar c-egr" style="height: {{ (m.egresos_uyu / ns.max * 100) if ns.max > 0 else 0 }}%;"></div>
+                    </div>
+                </div>
+                <span class="chart6-month">{{ m.label }}</span>
+                <span class="chart6-sub {% if m.ganancia_real_uyu < 0 %}neg{% endif %}">Ganancia {{ fmt_uyu(m.ganancia_real_uyu) }}</span>
             </div>
-            <span class="ie-label">{{ m.label }}</span>
-            <span class="ie-ganancia {% if m.ganancia_real_uyu < 0 %}neg{% endif %}">{{ fmt_uyu(m.ganancia_real_uyu) }}</span>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
-    <div class="ie-legend">
-        <span class="ie-legend-item"><span class="ie-dot ie-dot-ing"></span> Ingresos</span>
-        <span class="ie-legend-item"><span class="ie-dot ie-dot-egr"></span> Egresos</span>
-        <span class="ie-legend-item">Numero abajo = ganancia real del mes</span>
     </div>
 </section>
 
 <!-- Negocio puro (Arcano) vs tu coleccion personal -->
 <section class="conta-block">
-    <h2 class="conta-block-title">Negocio propio vs tu coleccion personal (6 meses)</h2>
-    <p class="resumen-card-sub">Cuanto se sostiene Arcano con su stock vs cuanto lo bancas vendiendo tus discos personales.</p>
+    <div class="chart6-head">
+        <div>
+            <h2 class="conta-block-title">Negocio propio vs tu coleccion personal (6 meses)</h2>
+            <p class="resumen-card-sub">Ventas de stock de Arcano (violeta) vs ventas de tus discos personales (ambar). Abajo, el % que fue del negocio propio.</p>
+        </div>
+        <div class="chart6-legend">
+            <span class="chart6-leg"><span class="chart6-sw c-arc"></span> Arcano</span>
+            <span class="chart6-leg"><span class="chart6-sw c-per"></span> Personal</span>
+        </div>
+    </div>
     {% set nv = namespace(max=1) %}
     {% for m in arcano_vs_personal %}
-        {% if (m.arcano + m.personal) > nv.max %}{% set nv.max = m.arcano + m.personal %}{% endif %}
+        {% if m.arcano > nv.max %}{% set nv.max = m.arcano %}{% endif %}
+        {% if m.personal > nv.max %}{% set nv.max = m.personal %}{% endif %}
     {% endfor %}
-    <div class="ie-chart">
-        {% for m in arcano_vs_personal %}
-        <div class="ie-col">
-            <div class="avp-stack" title="Arcano {{ fmt_uyu(m.arcano) }} · Personal {{ fmt_uyu(m.personal) }}">
-                <div class="avp-seg avp-per" style="height: {{ (m.personal / nv.max * 100) if nv.max > 0 else 0 }}%;"></div>
-                <div class="avp-seg avp-arc" style="height: {{ (m.arcano / nv.max * 100) if nv.max > 0 else 0 }}%;"></div>
-            </div>
-            <span class="ie-label">{{ m.label }}</span>
+    <div class="chart6-scroll">
+        <div class="chart6">
+            {% for m in arcano_vs_personal %}
             {% set tot = m.arcano + m.personal %}
-            <span class="avp-pct">{% if tot > 0 %}{{ (m.arcano / tot * 100)|round|int }}% propio{% else %}—{% endif %}</span>
+            <div class="chart6-col">
+                <div class="chart6-bars">
+                    <div class="chart6-barwrap">
+                        <span class="chart6-val c-arc-t">{{ fmt_uyu(m.arcano) }}</span>
+                        <div class="chart6-bar c-arc" style="height: {{ (m.arcano / nv.max * 100) if nv.max > 0 else 0 }}%;"></div>
+                    </div>
+                    <div class="chart6-barwrap">
+                        <span class="chart6-val c-per-t">{{ fmt_uyu(m.personal) }}</span>
+                        <div class="chart6-bar c-per" style="height: {{ (m.personal / nv.max * 100) if nv.max > 0 else 0 }}%;"></div>
+                    </div>
+                </div>
+                <span class="chart6-month">{{ m.label }}</span>
+                <span class="chart6-sub">{% if tot > 0 %}{{ (m.arcano / tot * 100)|round|int }}% propio{% else %}sin ventas{% endif %}</span>
+            </div>
+            {% endfor %}
         </div>
-        {% endfor %}
-    </div>
-    <div class="ie-legend">
-        <span class="ie-legend-item"><span class="ie-dot avp-dot-arc"></span> Arcano (stock del negocio)</span>
-        <span class="ie-legend-item"><span class="ie-dot avp-dot-per"></span> Tu coleccion personal</span>
     </div>
 </section>
 
