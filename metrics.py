@@ -309,10 +309,15 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
     unidades_personal = sum(d.copias_facturadas for d in vendidos_personal)
 
     # --- COSTO DE STOCK NO VENDIDO (solo arcano) ---
-    # Plata ya gastada en discos disponibles que todavia no se vendieron.
+    # Plata ya gastada en discos que todavia no se vendieron: los Disponibles, MAS los
+    # Pre-order que tienen un pedido asignado (ya se encargaron/pagaron a Deejay). Los
+    # Pre-order SIN pedido asignado NO cuentan: todavia no hay plata comprometida.
     disponibles_arcano = (
         Disc.query
-        .filter(Disc.estado == "Disponible")
+        .filter(
+            (Disc.estado == "Disponible")
+            | ((Disc.estado == "Pre-order") & (Disc.pedido_id.isnot(None)))
+        )
         .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
         .all()
     )
