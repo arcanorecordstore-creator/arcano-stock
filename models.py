@@ -907,6 +907,83 @@ class EgresoRecurrente(db.Model):
         return f"<EgresoRecurrente {self.categoria} {self.monto} {self.moneda}>"
 
 
+# ---------------------------------------------------------------------------
+# Caja / Banco: libro de movimientos de plata
+# ---------------------------------------------------------------------------
+
+# Tipos de movimiento y metodos de cobro de la caja
+TIPOS_MOV_CAJA = ["ingreso", "egreso"]
+# Metodos de cobro (para los ingresos): como/donde entro la plata
+METODOS_PAGO_CAJA = ["mercadopago", "transferencia", "efectivo", "otro"]
+# Etiquetas legibles de los metodos
+METODOS_PAGO_CAJA_LABEL = {
+    "mercadopago": "Mercado Pago",
+    "transferencia": "Transferencia",
+    "efectivo": "Efectivo",
+    "otro": "Otro",
+}
+
+
+class MovimientoCaja(db.Model):
+    """Un movimiento de plata en la caja/banco de Arcano.
+
+    La caja es el libro de TODOS los movimientos de dinero (entra / sale) para
+    saber cuanta plata hay realmente. Cada fila puede venir de:
+      - Automatico: se sincroniza solo desde lo que ya se carga en el sistema.
+        origen 'venta'  -> un disco Vendido (ingreso)
+        origen 'pedido' -> una compra de discos (egreso)
+        origen 'gasto'  -> un egreso por categoria (egreso)
+      - Manual: lo agrega Facundo a mano (aportes, retiros, ajustes). origen 'manual'.
+
+    Todos los campos son editables por si hubo un error al cargarlos. Los
+    automaticos guardan 'origen_id' (el id del Disc/Pedido/Egreso de origen) para
+    no duplicarse en cada sincronizacion.
+    """
+    __tablename__ = "movimientos_caja"
+
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.Date, nullable=False, default=lambda: datetime.utcnow().date())
+    tipo = db.Column(db.String(10), nullable=False, default="ingreso")  # ingreso / egreso
+    monto_uyu = db.Column(db.Float, nullable=False, default=0.0)
+    concepto = db.Column(db.String(300), nullable=True)
+    # Para ingresos: como entro la plata (mercadopago / transferencia / efectivo / otro)
+    metodo = db.Column(db.String(20), nullable=True)
+    # Para egresos: en que categoria (Pedido / Hosting / etc)
+    categoria = db.Column(db.String(60), nullable=True)
+    # Origen: 'manual' o el auto-sincronizado desde otra tabla
+    origen = db.Column(db.String(20), nullable=False, default="manual")  # manual / venta / pedido / gasto
+    origen_id = db.Column(db.Integer, nullable=True, index=True)  # id del Disc/Pedido/Egreso de origen
+    creado = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    @property
+    def es_manual(self) -> bool:
+        return (self.origen or "manual") == "manual"
+
+    @property
+    def signo(self) -> int:
+        return 1 if self.tipo == "ingreso" else -1
+
+    @property
+    def monto_con_signo(self) -> float:
+        return round((self.monto_uyu or 0) * self.signo, 2)
+
+    @property
+    def metodo_label(self) -> str:
+        return METODOS_PAGO_CAJA_LABEL.get(self.metodo or "", "")
+
+    @property
+    def origen_label(self) -> str:
+        return {
+            "manual": "Manual",
+            "venta": "Venta",
+            "pedido": "Pedido",
+            "gasto": "Gasto",
+        }.get(self.origen or "manual", "Manual")
+
+    def __repr__(self):
+        return f"<MovimientoCaja {self.tipo} {self.monto_uyu} ({self.origen})>"
+
+
 # Proveedores de pedidos
 PROVEEDORES_PEDIDO = ["Deejay.de", "Viaje", "Otro"]
 

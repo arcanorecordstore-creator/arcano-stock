@@ -37,6 +37,7 @@
                     {% endif %}
                 </a>
                 <a href="{{ url_for('contabilidad') }}" class="nav-link {% if request.endpoint == 'contabilidad' %}active{% endif %}">Contabilidad</a>
+                <a href="{{ url_for('caja') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('caja') %}active{% endif %}">Caja</a>
                 <a href="{{ url_for('pedidos') }}" class="nav-link {% if request.endpoint == 'pedidos' %}active{% endif %}">Pedidos</a>
                 <a href="{{ url_for('radar_demanda') }}" class="nav-link {% if request.endpoint == 'radar_demanda' %}active{% endif %}">Radar</a>
                 <a href="{{ url_for('disc_new') }}" class="nav-link {% if request.endpoint in ['disc_new', 'disc_edit', 'disc_detail'] %}active{% endif %}">Agregar manual</a>
@@ -82,7 +83,7 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v3.37 &middot; Ajustes: campo para el TC del dolar (USD-&gt;UYU) ademas del euro; ambos se ven siempre en el header del admin</span>
+            <span class="footer-version">v3.38 &middot; Caja/Banco: libro de movimientos de plata (ventas por metodo + pedidos + gastos automaticos, mas aportes/retiros manuales) con saldo actual</span>
         </footer>
     </div>
 

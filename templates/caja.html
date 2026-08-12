@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Caja / Banco &middot; Arcano{% endblock %}
+
+{% macro fmt_uyu(n) -%}
+{{ '{:,.0f}'.format(n or 0).replace(',', '.') }}
+{%- endmacro %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Caja / Banco de Arcano</h1>
+        <p class="page-sub">Todos los movimientos de plata: lo que entra y lo que sale. Las ventas, los pedidos y los gastos se cargan solos; vos agregás aportes o retiros a mano.</p>
+    </div>
+</section>
+
+<!-- ============================================================
+     Saldo actual (numero grande) + desglose
+     ============================================================ -->
+<section class="caja-hero">
+    <div class="caja-hero-main">
+        <span class="caja-hero-label">Plata en caja ahora</span>
+        <span class="caja-hero-value {% if resumen.saldo_actual < 0 %}negativo{% endif %}">
+            $ {{ fmt_uyu(resumen.saldo_actual) }} <span class="caja-hero-cur">UYU</span>
+        </span>
+    </div>
+    <div class="caja-hero-desglose">
+        <div class="caja-chip">
+            <span class="caja-chip-label">Saldo inicial</span>
+            <span class="caja-chip-val">$ {{ fmt_uyu(resumen.saldo_inicial) }}</span>
+        </div>
+        <div class="caja-chip pos">
+            <span class="caja-chip-label">Entró (ingresos)</span>
+            <span class="caja-chip-val">+ $ {{ fmt_uyu(resumen.total_ingresos) }}</span>
+        </div>
+        <div class="caja-chip neg">
+            <span class="caja-chip-label">Salió (egresos)</span>
+            <span class="caja-chip-val">&minus; $ {{ fmt_uyu(resumen.total_egresos) }}</span>
+        </div>
+    </div>
+</section>
+
+<!-- ============================================================
+     De dónde entró la plata (ingresos por método)
+     ============================================================ -->
+<section class="caja-metodos">
+    <h2 class="caja-section-title">De dónde entró la plata</h2>
+    <div class="caja-metodos-grid">
+        <div class="caja-metodo-card">
+            <span class="caja-metodo-label">Mercado Pago</span>
+            <span class="caja-metodo-val">$ {{ fmt_uyu(resumen.por_metodo.mercadopago) }}</span>
+        </div>
+        <div class="caja-metodo-card">
+            <span class="caja-metodo-label">Transferencia</span>
+            <span class="caja-metodo-val">$ {{ fmt_uyu(resumen.por_metodo.transferencia) }}</span>
+        </div>
+        <div class="caja-metodo-card">
+            <span class="caja-metodo-label">Efectivo</span>
+            <span class="caja-metodo-val">$ {{ fmt_uyu(resumen.por_metodo.efectivo) }}</span>
+        </div>
+        <div class="caja-metodo-card">
+            <span class="caja-metodo-label">Otro / sin especificar</span>
+            <span class="caja-metodo-val">$ {{ fmt_uyu(resumen.por_metodo.otro + resumen.por_metodo.sin) }}</span>
+        </div>
+    </div>
+    <p class="caja-hint">Las ventas por la web con Mercado Pago se marcan solas. Las de Instagram o coordinadas entran como &laquo;sin especificar&raquo;: podés editar cada venta abajo y elegir si fue transferencia o efectivo.</p>
+</section>
+
+<!-- ============================================================
+     Acciones: saldo inicial + agregar movimiento manual
+     ============================================================ -->
+<section class="caja-acciones">
+    <!-- Saldo inicial -->
+    <details class="caja-panel">
+        <summary class="caja-panel-toggle">&#9881; Saldo inicial de la caja</summary>
+        <form method="post" action="{{ url_for('caja_saldo_inicial') }}" class="caja-form-inline">
+            <p class="caja-hint">La plata que ya había en la caja antes de empezar a registrar acá. Se suma al saldo.</p>
+            <div class="caja-form-row">
+                <label>Saldo inicial (UYU)
+                    <input type="text" name="saldo_inicial" inputmode="decimal" value="{{ '%.0f'|format(resumen.saldo_inicial) }}">
+                </label>
+                <button type="submit" class="btn btn-primary">Guardar</button>
+            </div>
+        </form>
+    </details>
+
+    <!-- Agregar movimiento manual -->
+    <details class="caja-panel" open>
+        <summary class="caja-panel-toggle">&#43; Agregar movimiento manual (aporte / retiro / ajuste)</summary>
+        <form method="post" action="{{ url_for('caja_movimiento_agregar') }}" class="caja-form" id="caja-add-form">
+            <div class="caja-form-grid">
+                <label>Fecha
+                    <input type="date" name="fecha" value="{{ hoy }}">
+                </label>
+                <label>Tipo
+                    <select name="tipo" id="caja-add-tipo">
+                        <option value="ingreso">Entra plata (ingreso)</option>
+                        <option value="egreso">Sale plata (egreso)</option>
+                    </select>
+                </label>
+                <label>Monto (UYU)
+                    <input type="text" name="monto" inputmode="decimal" placeholder="0" required>
+                </label>
+                <label class="caja-campo-metodo">Método (si es ingreso)
+                    <select name="metodo">
+                        <option value="">Sin especificar</option>
+                        <option value="mercadopago">Mercado Pago</option>
+                        <option value="transferencia">Transferencia</option>
+                        <option value="efectivo">Efectivo</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                </label>
+                <label class="caja-campo-categoria">Categoría (si es egreso)
+                    <input type="text" name="categoria" list="caja-cats" placeholder="Ej: Retiro, Ajuste...">
+                    <datalist id="caja-cats">
+                        {% for c in categorias %}<option value="{{ c }}">{% endfor %}
+                    </datalist>
+                </label>
+                <label class="caja-campo-concepto">Concepto / nota
+                    <input type="text" name="concepto" placeholder="Ej: Aporte de Facundo, retiro para...">
+                </label>
+            </div>
+            <button type="submit" class="btn btn-primary">Agregar movimiento</button>
+        </form>
+    </details>
+</section>
+
+<!-- ============================================================
+     Libro de movimientos
+     ============================================================ -->
+<section class="caja-libro">
+    <h2 class="caja-section-title">Movimientos ({{ resumen.count }})</h2>
+    {% if resumen.filas %}
+    <div class="caja-table-wrap">
+        <table class="caja-table">
+            <thead>
+                <tr>
+                    <th>Fecha</th>
+                    <th>Concepto</th>
+                    <th>Origen</th>
+                    <th>Método / Categoría</th>
+                    <th class="col-num">Monto</th>
+                    <th class="col-num">Saldo</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for fila in resumen.filas %}
+                {% set m = fila.mov %}
+                <tr class="caja-row {{ 'is-ingreso' if m.tipo == 'ingreso' else 'is-egreso' }}">
+                    <td class="caja-td-fecha">{{ m.fecha.strftime('%d/%m/%y') if m.fecha else '—' }}</td>
+                    <td class="caja-td-concepto">{{ m.concepto or '—' }}</td>
+                    <td>
+                        <span class="caja-origen-tag origen-{{ m.origen }}">{{ m.origen_label }}</span>
+                    </td>
+                    <td class="caja-td-metodo">
+                        {% if m.tipo == 'ingreso' %}
+                            {{ m.metodo_label or '—' }}
+                        {% else %}
+                            {{ m.categoria or '—' }}
+                        {% endif %}
+                    </td>
+                    <td class="col-num caja-monto {{ 'pos' if m.tipo == 'ingreso' else 'neg' }}">
+                        {{ '+' if m.tipo == 'ingreso' else '−' }} $ {{ fmt_uyu(m.monto_uyu) }}
+                    </td>
+                    <td class="col-num caja-saldo-col {% if fila.saldo < 0 %}neg{% endif %}">$ {{ fmt_uyu(fila.saldo) }}</td>
+                    <td class="caja-td-acciones">
+                        <details class="caja-editar">
+                            <summary class="caja-editar-toggle" title="Editar">&#9998;</summary>
+                            <div class="caja-editar-pop">
+                                <form method="post" action="{{ url_for('caja_movimiento_editar', mov_id=m.id) }}" class="caja-editar-form">
+                                    <div class="caja-editar-grid">
+                                        <label>Fecha
+                                            <input type="date" name="fecha" value="{{ m.fecha.strftime('%Y-%m-%d') if m.fecha else '' }}">
+                                        </label>
+                                        <label>Tipo
+                                            <select name="tipo">
+                                                <option value="ingreso" {% if m.tipo == 'ingreso' %}selected{% endif %}>Ingreso</option>
+                                                <option value="egreso" {% if m.tipo == 'egreso' %}selected{% endif %}>Egreso</option>
+                                            </select>
+                                        </label>
+                                        <label>Monto (UYU)
+                                            <input type="text" name="monto" inputmode="decimal" value="{{ '%.0f'|format(m.monto_uyu or 0) }}">
+                                        </label>
+                                        <label>Método
+                                            <select name="metodo">
+                                                <option value="">Sin especificar</option>
+                                                <option value="mercadopago" {% if m.metodo == 'mercadopago' %}selected{% endif %}>Mercado Pago</option>
+                                                <option value="transferencia" {% if m.metodo == 'transferencia' %}selected{% endif %}>Transferencia</option>
+                                                <option value="efectivo" {% if m.metodo == 'efectivo' %}selected{% endif %}>Efectivo</option>
+                                                <option value="otro" {% if m.metodo == 'otro' %}selected{% endif %}>Otro</option>
+                                            </select>
+                                        </label>
+                                        <label>Categoría
+                                            <input type="text" name="categoria" value="{{ m.categoria or '' }}" list="caja-cats">
+                                        </label>
+                                        <label class="caja-editar-concepto">Concepto
+                                            <input type="text" name="concepto" value="{{ m.concepto or '' }}">
+                                        </label>
+                                    </div>
+                                    <div class="caja-editar-acciones">
+                                        <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+                                        {% if m.es_manual %}
+                                        <button type="submit" formaction="{{ url_for('caja_movimiento_eliminar', mov_id=m.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este movimiento?')">Eliminar</button>
+                                        {% else %}
+                                        <span class="caja-editar-nota">Automático (de {{ m.origen_label|lower }}). Para sacarlo, editá su origen.</span>
+                                        {% endif %}
+                                    </div>
+                                </form>
+                            </div>
+                        </details>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="caja-vacio">Todavía no hay movimientos. Las ventas, pedidos y gastos van a aparecer solos acá; también podés agregar aportes o retiros a mano arriba.</p>
+    {% endif %}
+</section>
+
+<script>
+    // Muestra/oculta los campos método (ingreso) y categoría (egreso) en el form de agregar
+    (function () {
+        var tipo = document.getElementById('caja-add-tipo');
+        var form = document.getElementById('caja-add-form');
+        if (!tipo || !form) return;
+        var met = form.querySelector('.caja-campo-metodo');
+        var cat = form.querySelector('.caja-campo-categoria');
+        function sync() {
+            var esIngreso = tipo.value === 'ingreso';
+            if (met) met.style.display = esIngreso ? '' : 'none';
+            if (cat) cat.style.display = esIngreso ? 'none' : '';
+        }
+        tipo.addEventListener('change', sync);
+        sync();
+    })();
+</script>
+{% endblock %}

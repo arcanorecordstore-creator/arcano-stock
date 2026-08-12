@@ -2511,6 +2511,265 @@ def register_routes(app: Flask) -> None:
             headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
 
+    # ---- CAJA / BANCO (libro de movimientos de plata) ----
+    def _parse_monto_caja(raw):
+        """Convierte un texto de monto a float. Tolera coma decimal es-UY."""
+        s = (raw or "").strip().replace(" ", "").replace("$", "")
+        if not s:
+            return 0.0
+        # Si hay coma, se asume formato es-UY (puntos=miles, coma=decimal)
+        if "," in s:
+            s = s.replace(".", "").replace(",", ".")
+        try:
+            return float(s)
+        except ValueError:
+            return 0.0
+
+    def _sincronizar_caja():
+        """Crea los movimientos automaticos de caja que falten (ventas, pedidos,
+        gastos) y limpia los automaticos cuyo origen ya no aplica. Idempotente:
+        no duplica ni pisa lo que Facundo haya editado. Devuelve (creados, borrados)."""
+        from models import MovimientoCaja, Disc, Pedido, Egreso, Reserva
+        from datetime import datetime as _dt
+
+        # Movimientos automaticos ya existentes, indexados por (origen, origen_id)
+        existentes = {}
+        for m in MovimientoCaja.query.filter(MovimientoCaja.origen != "manual").all():
+            existentes[(m.origen, m.origen_id)] = m
+
+        creados = 0
+        vigentes = set()  # claves auto que siguen siendo validas
+
+        # --- Mapa disco -> metodo de pago, desde las reservas ---
+        metodo_por_disc = {}
+        try:
+            for r in Reserva.query.all():
+                met = None
+                if r.pagado or (r.mp_status == "approved") or (r.metodo_pago == "mercadopago"):
+                    met = "mercadopago"
+                elif r.metodo_pago == "transferencia":
+                    met = "transferencia"
+                # 'coordinar' u otro -> lo deja sin especificar para que Facundo lo defina
+                if not met:
+                    continue
+                for it in r.items_efectivos:
+                    if it.disc_id and it.disc_id not in metodo_por_disc:
+                        metodo_por_disc[it.disc_id] = met
+        except Exception:
+            pass
+
+        # --- VENTAS (ingresos): discos Vendido con fecha ---
+        vendidos = (
+            Disc.query
+            .filter(Disc.estado == "Vendido")
+            .filter(Disc.fecha_venta.isnot(None))
+            .all()
+        )
+        for d in vendidos:
+            key = ("venta", d.id)
+            vigentes.add(key)
+            if key in existentes:
+                continue
+            monto = (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+            concepto = f"Venta: {d.artista or ''} - {d.titulo or ''}".strip(" -") or "Venta"
+            fecha = d.fecha_venta.date() if hasattr(d.fecha_venta, "date") else d.fecha_venta
+            db.session.add(MovimientoCaja(
+                fecha=fecha, tipo="ingreso", monto_uyu=round(monto, 2),
+                concepto=concepto[:300], metodo=metodo_por_disc.get(d.id),
+                categoria=None, origen="venta", origen_id=d.id,
+            ))
+            creados += 1
+
+        # --- PEDIDOS (egresos): compras de discos ---
+        for p in Pedido.query.all():
+            key = ("pedido", p.id)
+            vigentes.add(key)
+            if key in existentes:
+                continue
+            numero = (p.numero or "").strip()
+            concepto = (f"Pedido {numero}".strip() if numero else "Compra de discos")
+            if p.proveedor:
+                concepto += f" ({p.proveedor})"
+            fecha = p.fecha or (p.creado.date() if p.creado else _dt.utcnow().date())
+            db.session.add(MovimientoCaja(
+                fecha=fecha, tipo="egreso", monto_uyu=round(p.costo_total_uyu or 0, 2),
+                concepto=concepto[:300], metodo=None, categoria="Pedido",
+                origen="pedido", origen_id=p.id,
+            ))
+            creados += 1
+
+        # --- GASTOS (egresos): egresos por categoria ---
+        for e in Egreso.query.all():
+            key = ("gasto", e.id)
+            vigentes.add(key)
+            if key in existentes:
+                continue
+            concepto = (e.descripcion or "").strip() or e.categoria or "Gasto"
+            db.session.add(MovimientoCaja(
+                fecha=e.fecha, tipo="egreso", monto_uyu=round(e.monto_uyu or 0, 2),
+                concepto=concepto[:300], metodo=None, categoria=e.categoria,
+                origen="gasto", origen_id=e.id,
+            ))
+            creados += 1
+
+        # --- LIMPIEZA: auto-movimientos cuyo origen ya no existe/aplica ---
+        borrados = 0
+        for clave, mov in existentes.items():
+            if clave not in vigentes:
+                db.session.delete(mov)
+                borrados += 1
+
+        if creados or borrados:
+            db.session.commit()
+        return creados, borrados
+
+    def _resumen_caja():
+        """Arma el resumen de la caja: saldo actual, totales, ingresos por metodo
+        y la lista de movimientos (mas reciente primero) con saldo corriente."""
+        from models import MovimientoCaja
+        movs = (
+            MovimientoCaja.query
+            .order_by(MovimientoCaja.fecha.asc(), MovimientoCaja.id.asc())
+            .all()
+        )
+        try:
+            saldo_inicial = float(Setting.get("caja_saldo_inicial") or 0)
+        except (ValueError, TypeError):
+            saldo_inicial = 0.0
+
+        total_ingresos = sum(m.monto_uyu or 0 for m in movs if m.tipo == "ingreso")
+        total_egresos = sum(m.monto_uyu or 0 for m in movs if m.tipo == "egreso")
+        saldo_actual = saldo_inicial + total_ingresos - total_egresos
+
+        # Ingresos agrupados por metodo (para saber donde esta la plata)
+        por_metodo = {"mercadopago": 0.0, "transferencia": 0.0, "efectivo": 0.0, "otro": 0.0, "sin": 0.0}
+        for m in movs:
+            if m.tipo != "ingreso":
+                continue
+            k = m.metodo if m.metodo in ("mercadopago", "transferencia", "efectivo", "otro") else "sin"
+            por_metodo[k] += (m.monto_uyu or 0)
+
+        # Saldo corriente (cronologico) y luego lo damos vuelta para mostrar
+        saldo = saldo_inicial
+        filas = []
+        for m in movs:
+            saldo += (m.monto_uyu or 0) * (1 if m.tipo == "ingreso" else -1)
+            filas.append({"mov": m, "saldo": round(saldo, 2)})
+        filas.reverse()
+
+        return {
+            "saldo_inicial": round(saldo_inicial, 2),
+            "total_ingresos": round(total_ingresos, 2),
+            "total_egresos": round(total_egresos, 2),
+            "saldo_actual": round(saldo_actual, 2),
+            "por_metodo": {k: round(v, 2) for k, v in por_metodo.items()},
+            "filas": filas,
+            "count": len(movs),
+        }
+
+    @app.route("/admin/caja")
+    @auth.admin_required
+    def caja():
+        from models import METODOS_PAGO_CAJA
+        from datetime import datetime as _dt
+        _sincronizar_caja()  # trae ventas/pedidos/gastos nuevos (silencioso)
+        resumen = _resumen_caja()
+        return render_template(
+            "caja.html",
+            resumen=resumen,
+            metodos=METODOS_PAGO_CAJA,
+            categorias=Setting.get_categorias_egreso(),
+            hoy=_dt.utcnow().date().isoformat(),
+        )
+
+    @app.route("/admin/caja/movimiento", methods=["POST"])
+    @auth.admin_required
+    def caja_movimiento_agregar():
+        from models import MovimientoCaja
+        from datetime import datetime as _dt
+        tipo = (request.form.get("tipo") or "ingreso").strip()
+        if tipo not in ("ingreso", "egreso"):
+            tipo = "ingreso"
+        monto = _parse_monto_caja(request.form.get("monto"))
+        concepto = (request.form.get("concepto") or "").strip()
+        metodo = (request.form.get("metodo") or "").strip() or None
+        categoria = (request.form.get("categoria") or "").strip() or None
+        fecha_str = request.form.get("fecha") or ""
+        try:
+            fecha = _dt.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else _dt.utcnow().date()
+        except ValueError:
+            fecha = _dt.utcnow().date()
+        if monto <= 0:
+            flash("El monto debe ser mayor a 0.", "error")
+            return redirect(url_for("caja"))
+        mov = MovimientoCaja(
+            fecha=fecha, tipo=tipo, monto_uyu=round(monto, 2),
+            concepto=(concepto or ("Aporte" if tipo == "ingreso" else "Retiro"))[:300],
+            metodo=(metodo if tipo == "ingreso" else None),
+            categoria=(categoria if tipo == "egreso" else None),
+            origen="manual", origen_id=None,
+        )
+        db.session.add(mov)
+        db.session.commit()
+        flash(f"Movimiento agregado: {'+' if tipo == 'ingreso' else '-'} ${monto:,.0f} UYU.", "success")
+        return redirect(url_for("caja"))
+
+    @app.route("/admin/caja/movimiento/<int:mov_id>/editar", methods=["POST"])
+    @auth.admin_required
+    def caja_movimiento_editar(mov_id):
+        from models import MovimientoCaja
+        from datetime import datetime as _dt
+        m = MovimientoCaja.query.get_or_404(mov_id)
+        tipo = (request.form.get("tipo") or m.tipo).strip()
+        if tipo in ("ingreso", "egreso"):
+            m.tipo = tipo
+        monto = _parse_monto_caja(request.form.get("monto"))
+        if monto > 0:
+            m.monto_uyu = round(monto, 2)
+        concepto = (request.form.get("concepto") or "").strip()
+        if concepto:
+            m.concepto = concepto[:300]
+        metodo = (request.form.get("metodo") or "").strip()
+        m.metodo = (metodo or None) if m.tipo == "ingreso" else None
+        categoria = (request.form.get("categoria") or "").strip()
+        m.categoria = (categoria or None) if m.tipo == "egreso" else None
+        fecha_str = request.form.get("fecha") or ""
+        if fecha_str:
+            try:
+                m.fecha = _dt.strptime(fecha_str, "%Y-%m-%d").date()
+            except ValueError:
+                pass
+        db.session.commit()
+        flash("Movimiento actualizado.", "success")
+        return redirect(url_for("caja"))
+
+    @app.route("/admin/caja/movimiento/<int:mov_id>/eliminar", methods=["POST"])
+    @auth.admin_required
+    def caja_movimiento_eliminar(mov_id):
+        from models import MovimientoCaja
+        m = MovimientoCaja.query.get_or_404(mov_id)
+        origen = m.origen or "manual"
+        db.session.delete(m)
+        db.session.commit()
+        if origen != "manual":
+            flash(
+                "Movimiento quitado. Ojo: como venia de una venta/pedido/gasto, si ese "
+                "origen sigue existiendo se va a volver a cargar solo. Para sacarlo del "
+                "todo, edita o borra el disco/pedido/gasto de origen.",
+                "warning",
+            )
+        else:
+            flash("Movimiento eliminado.", "success")
+        return redirect(url_for("caja"))
+
+    @app.route("/admin/caja/saldo-inicial", methods=["POST"])
+    @auth.admin_required
+    def caja_saldo_inicial():
+        monto = _parse_monto_caja(request.form.get("saldo_inicial"))
+        Setting.set("caja_saldo_inicial", str(round(monto, 2)))
+        flash("Saldo inicial actualizado.", "success")
+        return redirect(url_for("caja"))
+
     # ---- PEDIDOS (compras de stock) ----
     @app.route("/admin/pedidos")
     @auth.admin_required
