@@ -49,9 +49,9 @@
                     <button type="submit" class="ped-costo-save" title="Guardar">&#10003;</button>
                 </form>
                 <span class="ped-stat-detail">
-                    {% if p.costo_eur %}{{ '%.2f'|format(p.costo_eur) }} EUR{% endif %}
-                    {% if p.costo_eur and p.costo_usd %} + {% endif %}
                     {% if p.costo_usd %}{{ '%.2f'|format(p.costo_usd) }} USD{% endif %}
+                    {% if p.costo_usd and p.costo_eur %} &middot; {% endif %}
+                    {% if p.costo_eur %}{{ '%.2f'|format(p.costo_eur) }} EUR{% endif %}
                     {% if p.usa_costo_manual %}&middot; calculado {{ fmt_uyu(p.costo_total_uyu_calculado) }}{% endif %}
                 </span>
             </div>
@@ -202,6 +202,7 @@
                                    placeholder="auto desde EUR/USD">
                         </div>
                     </div>
+                    <p class="ped-editar-tc form-field-hint">Tipo de cambio EUR&rarr;USD (seg&uacute;n los precios de arriba): <strong class="ped-tc-valor">&mdash;</strong></p>
                     <div class="form-field">
                         <label>Notas</label>
                         <textarea name="notas" rows="2" placeholder="Notas del pedido...">{{ p.notas or '' }}</textarea>
@@ -322,4 +323,26 @@
         <p class="conta-form-hint">TC actual: 1 EUR = {{ tc }} UYU &middot; 1 USD = {{ tc_usd }} UYU. Despues, al editar cada disco, elegis a que pedido pertenece.</p>
     </form>
 </section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+    // Tipo de cambio EUR->USD en vivo dentro de cada editor de pedido (USD / EUR).
+    document.querySelectorAll('.ped-editar-form').forEach(function (form) {
+        var eur = form.querySelector('[name="costo_eur"]');
+        var usd = form.querySelector('[name="costo_usd"]');
+        var out = form.querySelector('.ped-tc-valor');
+        if (!eur || !usd || !out) return;
+        function calc() {
+            var e = parseFloat((eur.value || '').replace(',', '.'));
+            var u = parseFloat((usd.value || '').replace(',', '.'));
+            out.textContent = (e > 0 && u > 0) ? ('1 EUR = ' + (u / e).toFixed(4) + ' USD') : '—';
+        }
+        eur.addEventListener('input', calc);
+        usd.addEventListener('input', calc);
+        calc();
+    });
+})();
+</script>
 {% endblock %}

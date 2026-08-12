@@ -7498,6 +7498,8 @@ td.num,
 }
 .ped-editar-form .form-field label { display: block; margin-bottom: 4px; }
 .ped-editar-form textarea { width: 100%; }
+.ped-editar-tc { margin: 0 0 12px; }
+.ped-editar-tc .ped-tc-valor { color: var(--text-1); font-weight: 600; }
 
 /* Selector de pedido en el dashboard */
 .pedido-select {

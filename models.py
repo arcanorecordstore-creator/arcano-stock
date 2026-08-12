@@ -934,19 +934,21 @@ class Pedido(db.Model):
     @property
     def costo_total_uyu(self) -> float:
         """Costo total del pedido en UYU. Si hay un monto manual (lo que
-        debito el banco), se usa ese; si no, se calcula desde euros/dolares."""
+        debito el banco), se usa ese; si no, se calcula desde la moneda del pedido."""
         if self.costo_uyu_manual is not None:
             return round(self.costo_uyu_manual, 2)
-        tc_eur = Setting.get_tc()
-        tc_usd = Setting.get_tc_usd()
-        return round((self.costo_eur or 0) * tc_eur + (self.costo_usd or 0) * tc_usd, 2)
+        return self.costo_total_uyu_calculado
 
     @property
     def costo_total_uyu_calculado(self) -> float:
-        """El costo teorico calculado desde euros/dolares (sin el manual)."""
+        """Costo teorico calculado (sin el manual). El EUR y el USD son el MISMO costo
+        en dos monedas: NO se suman. Si hay USD (lo que cobro la tarjeta) se usa ese;
+        si no, se usa el EUR (precio de Deejay)."""
         tc_eur = Setting.get_tc()
         tc_usd = Setting.get_tc_usd()
-        return round((self.costo_eur or 0) * tc_eur + (self.costo_usd or 0) * tc_usd, 2)
+        if self.costo_usd:
+            return round(self.costo_usd * tc_usd, 2)
+        return round((self.costo_eur or 0) * tc_eur, 2)
 
     @property
     def usa_costo_manual(self) -> bool:
