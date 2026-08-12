@@ -218,36 +218,35 @@ Reglas importantes:
 
 
 VIDEO_FRAMES_PROMPT = """\
-Sos un asistente experto en catalogar discos de vinilo. Te paso VARIOS cuadros \
-(frames) de un mismo video corto de un disco. En general el video tiene una \
-PLACA de diseno con los datos escritos (catalogo, genero, artista, titulo, \
-sello, ano y precio) ademas de la portada. Puede haber tambien texto con el \
-nombre del track que suena.
+Sos un asistente experto en catalogar discos de vinilo. Te paso cuadro(s) de un \
+video corto donde suena UN track de un disco. El video muestra el ARTISTA y el \
+NOMBRE DEL TRACK que esta sonando (ademas del disco/portada). NO suele mostrar el \
+nombre del EP/lanzamiento.
 
-Tu tarea: leer los datos del disco que veas a lo largo de los cuadros y \
-devolverlos como un objeto JSON valido, sin texto adicional.
+Tu tarea: leer estos datos y devolverlos como un objeto JSON valido, sin texto \
+adicional.
 
 Esquema exacto del JSON:
 
 {
-  "artista": string | null,        // el artista principal del disco
-  "titulo": string | null,         // el titulo del lanzamiento (ej: "ACID DROPS")
-  "sello": string | null,          // el sello/label (ej: "LEMAIA")
-  "anio": number | null,
-  "formato": string | null,        // ej: "12\\"", "LP", "EP" si es visible
-  "genero": string | null,         // ej: "House, Electro, Techno"
-  "catalogo": string | null,       // codigo de catalogo si es visible (ej: "LEMAIA002")
-  "precio_uyu": number | null,     // el PRECIO que aparece en la placa (ej: $1.300 -> 1300). Solo numero.
-  "titulo_track": string | null,   // si en estos cuadros se ve el NOMBRE de un track puntual (distinto del titulo del lanzamiento), ponelo aca. Si no, null.
+  "artista": string | null,        // el ARTISTA de este track (ej: "Llip", "Admo")
+  "track": string | null,          // el NOMBRE de este track (ej: "Boards", "Roger T")
+  "sello": string | null,          // el sello/label SOLO si aparece escrito
+  "anio": number | null,           // solo si aparece
+  "genero": string | null,         // solo si aparece escrito (ej: "House, Electro")
+  "catalogo": string | null,       // codigo de catalogo si aparece (ej: "LEMAIA002")
+  "precio_uyu": number | null,     // precio si aparece en pantalla (ej: $1.300 -> 1300)
   "confianza": "alta" | "media" | "baja",
   "notas_extraccion": string | null
 }
 
 Reglas:
-- Si un campo no se ve, devolve null. NO inventes.
-- "precio_uyu": el numero del precio de la placa (pesos uruguayos), sin simbolo ni puntos de miles (1.300 -> 1300).
-- "anio" entero entre 1900 y 2100, si no, null.
-- "titulo_track" SOLO si ves el nombre de un tema puntual; el titulo del lanzamiento va en "titulo".
+- Lo mas importante y casi siempre presente son "artista" y "track". El resto \
+(sello, genero, ano, catalogo, precio) va SOLO si esta escrito; si no, null.
+- NO devuelvas el nombre del EP/lanzamiento: ese dato NO esta en el video.
+- Si te paso el NOMBRE DEL ARCHIVO del video, suele venir como "Artista - Track": \
+usalo como pista fuerte para "artista" y "track".
+- "precio_uyu" sin simbolo ni puntos de miles (1.300 -> 1300). "anio" entero 1900-2100.
 - Respondes UNICAMENTE con el JSON. Sin markdown, sin explicaciones.
 """
 
@@ -534,30 +533,29 @@ def _normalize_video_data(data: dict) -> dict:
     precio = f(data.get("precio_uyu"))
     return {
         "artista": s(data.get("artista")),
-        "titulo": s(data.get("titulo")),
+        "track": s(data.get("track")),
         "sello": s(data.get("sello")),
         "anio": anio,
-        "formato": s(data.get("formato")),
         "genero": s(data.get("genero")),
         "catalogo": s(data.get("catalogo")),
         "precio_uyu": int(precio) if precio is not None else None,
-        "titulo_track": s(data.get("titulo_track")),
         "confianza": s(data.get("confianza")) or "media",
         "notas_extraccion": s(data.get("notas_extraccion")),
     }
 
 
-def extract_from_video_frames(frames_png: list) -> VisionResult:
+def extract_from_video_frames(frames_png: list, filename: str = None) -> VisionResult:
     """Extrae datos del disco desde una lista de cuadros PNG de un video.
 
     frames_png: lista de bytes PNG (los cuadros extraidos del video).
+    filename: nombre del archivo del video (pista para artista/track).
     """
     if not config.ANTHROPIC_API_KEY:
         return VisionResult(ok=False, error="Falta la API key de Anthropic (ANTHROPIC_API_KEY).")
     if not frames_png:
         return VisionResult(ok=False, error="No se recibieron cuadros del video.")
 
-    # Armar el contenido: todas las imagenes + el prompt
+    # Armar el contenido: todas las imagenes + (nombre de archivo) + el prompt
     content = []
     for png in frames_png[:6]:  # tope de 6 cuadros por llamada
         content.append({
@@ -568,6 +566,8 @@ def extract_from_video_frames(frames_png: list) -> VisionResult:
                 "data": base64.standard_b64encode(png).decode("utf-8"),
             },
         })
+    if filename:
+        content.append({"type": "text", "text": f"Nombre del archivo del video: {filename}"})
     content.append({"type": "text", "text": VIDEO_FRAMES_PROMPT})
 
     try:

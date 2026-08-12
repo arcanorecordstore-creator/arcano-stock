@@ -9143,6 +9143,14 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     padding: 9px 11px; background: var(--bg-1, #151515); border: 1px solid var(--border-2, #333);
     border-radius: 8px; color: var(--text-1, #eee); font-size: 14px; font-family: inherit; width: 100%; box-sizing: border-box;
 }
+.videorev-track-fields { display: flex; align-items: center; gap: 8px; }
+.videorev-artista { flex: 0 1 42%; }
+.videorev-titulo { flex: 1 1 55%; }
+.videorev-dash { color: var(--text-4, #777); flex: 0 0 auto; }
+@media (max-width: 560px) {
+    .videorev-track-fields { flex-direction: column; align-items: stretch; gap: 6px; }
+    .videorev-dash { display: none; }
+}
 .videorev-file { font-size: 11.5px; color: var(--text-4, #777); word-break: break-all; }
 .videorev-vid { flex: 0 0 auto; width: 180px; max-width: 100%; border-radius: 8px; background: #000; max-height: 120px; }
 .videorev-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }

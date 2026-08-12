@@ -999,23 +999,36 @@ def register_routes(app: Flask) -> None:
                 except Exception as e:
                     errores.append(f"{f.filename}: no se pudo guardar ({e})")
                     continue
-                titulo_track = ""
+                # Respaldo desde el nombre del archivo (suele venir "Artista - Track")
+                fn_artista, fn_track = _video.split_artist_track(
+                    _video.clean_track_name_from_filename(f.filename))
+                track_artista, track_titulo = fn_artista, fn_track
                 frames, ferr = _video.extract_frames_png(data)
                 if ferr:
                     errores.append(f"{f.filename}: {ferr}")
                 else:
-                    res = vision.extract_from_video_frames(frames)
+                    res = vision.extract_from_video_frames(frames, filename=f.filename)
                     if res.cost_usd:
                         total_cost += res.cost_usd
                     if res.ok:
                         d = res.data
-                        for k in ("artista", "titulo", "sello", "anio", "formato", "genero", "catalogo", "precio_uyu"):
+                        # Datos del disco (solo lo que aparece escrito): primer no-nulo
+                        for k in ("sello", "anio", "genero", "catalogo", "precio_uyu"):
                             if not disc_fields.get(k) and d.get(k):
                                 disc_fields[k] = d.get(k)
-                        titulo_track = d.get("titulo_track") or ""
+                        # El video muestra el artista y el nombre del track (NO el EP)
+                        if d.get("artista"):
+                            track_artista = d.get("artista")
+                        if d.get("track"):
+                            track_titulo = d.get("track")
                     else:
                         errores.append(f"{f.filename}: {res.error}")
-                tracks.append({"titulo": titulo_track, "sample_local": fname, "archivo": f.filename})
+                tracks.append({
+                    "artista": track_artista or "",
+                    "titulo": track_titulo or "",
+                    "sample_local": fname,
+                    "archivo": f.filename,
+                })
 
             if total_cost > 0:
                 _track_api_cost(total_cost)
@@ -1024,6 +1037,13 @@ def register_routes(app: Flask) -> None:
             if not tracks:
                 flash("No se pudo procesar ningun video. " + " · ".join(errores[:3]), "error")
                 return redirect(url_for("disc_new_from_video"))
+
+            # Artista del disco: el comun a todos los tracks, o "Various" si difieren.
+            _arts = [t["artista"] for t in tracks if t.get("artista")]
+            if _arts:
+                disc_fields["artista"] = _arts[0] if len(set(_arts)) == 1 else "Various"
+            disc_fields["formato"] = "Vinyl"  # siempre vinilo
+            # El titulo del EP no esta en el video: queda vacio para que lo ponga Facundo.
 
             session["video_prefill"] = disc_fields
             session["video_tracks"] = tracks
@@ -1073,10 +1093,12 @@ def register_routes(app: Flask) -> None:
             creados = 0
             for idx in range(n):
                 tit = (request.form.get(f"track_titulo_{idx}") or "").strip() or f"Track {idx + 1}"
+                art = (request.form.get(f"track_artista_{idx}") or "").strip() or None
                 sample = (request.form.get(f"track_sample_{idx}") or "").strip()
                 sample = sample if sample in validos else None
                 db.session.add(Track(
-                    disc_id=disc.id, posicion=idx, titulo=tit[:300], sample_local=sample,
+                    disc_id=disc.id, posicion=idx, titulo=tit[:300], artista=art,
+                    sample_local=sample,
                 ))
                 creados += 1
             db.session.commit()

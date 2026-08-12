@@ -9,8 +9,40 @@ Usa imageio + imageio-ffmpeg (traen su propio ffmpeg, sin dependencia de sistema
 """
 import io
 import os
+import re
 import tempfile
 import uuid
+
+
+def clean_track_name_from_filename(filename: str):
+    """Saca un nombre de track legible del nombre del archivo del video.
+
+    Los reels suelen venir como 'reel_<hash>_Artista_-_Track_(Official_Audio).mp4'.
+    Devuelve 'Artista - Track' (o None si no queda nada util)."""
+    if not filename:
+        return None
+    name = os.path.splitext(str(filename))[0]
+    # Sacar prefijos tipo 'reel_762df59b_' o '762df59b_' (hash de descarga)
+    name = re.sub(r"^(reel|sample|video|vid|ig)[_-]", "", name, flags=re.I)
+    name = re.sub(r"^[0-9a-fA-F]{6,}[_-]", "", name)
+    name = name.replace("_", " ").strip()
+    # Sacar parentesis del final: (Official Audio), (39 REC01), etc.
+    name = re.sub(r"\s*\([^)]*\)\s*$", "", name).strip()
+    name = re.sub(r"\s*\[[^\]]*\]\s*$", "", name).strip()
+    name = re.sub(r"\s+", " ", name)
+    # Normalizar el separador ' - '
+    name = re.sub(r"\s*-\s*", " - ", name).strip(" -")
+    return name or None
+
+
+def split_artist_track(name: str):
+    """De 'Artista - Track' devuelve (artista, track). Sin separador -> (None, name)."""
+    if not name:
+        return None, None
+    if " - " in name:
+        a, t = name.split(" - ", 1)
+        return (a.strip() or None), (t.strip() or None)
+    return None, (name.strip() or None)
 
 # Tipos de video aceptados -> extension del archivo guardado como sample
 VIDEO_EXT_MAP = {
