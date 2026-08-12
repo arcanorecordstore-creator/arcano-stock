@@ -299,12 +299,12 @@
 <section class="conta-block">
     <div class="chart6-head">
         <div>
-            <h2 class="conta-block-title">Ingresos vs egresos (ultimos 6 meses)</h2>
-            <p class="resumen-card-sub">Lo que entro por ventas (verde) vs lo que gastaste (rojo). Abajo de cada mes, la ganancia real.</p>
+            <h2 class="conta-block-title">Plata que entro vs salio (ultimos 6 meses)</h2>
+            <p class="resumen-card-sub">Lo que entro por ventas (verde) vs lo que salio: gastos operativos + pedidos/compras de stock (rojo). Abajo, el neto del mes (entro menos salio). Los meses con pedido dan muy negativo: es normal, comprás stock de una.</p>
         </div>
         <div class="chart6-legend">
-            <span class="chart6-leg"><span class="chart6-sw c-ing"></span> Ingresos</span>
-            <span class="chart6-leg"><span class="chart6-sw c-egr"></span> Egresos</span>
+            <span class="chart6-leg"><span class="chart6-sw c-ing"></span> Entro (ventas)</span>
+            <span class="chart6-leg"><span class="chart6-sw c-egr"></span> Salio (gastos + pedidos)</span>
         </div>
     </div>
     {% set ns = namespace(max=1) %}
@@ -327,7 +327,7 @@
                     </div>
                 </div>
                 <span class="chart6-month">{{ m.label }}</span>
-                <span class="chart6-sub {% if m.ganancia_real_uyu < 0 %}neg{% endif %}">Ganancia {{ fmt_uyu(m.ganancia_real_uyu) }}</span>
+                <span class="chart6-sub {% if m.neto_uyu < 0 %}neg{% endif %}">Neto {{ fmt_uyu(m.neto_uyu) }}</span>
             </div>
             {% endfor %}
         </div>

@@ -448,13 +448,17 @@ def dinero_por_cobrar() -> dict:
 
 
 def ingresos_vs_egresos_6m() -> list:
-    """Ingresos, egresos y ganancia real de los ultimos 6 meses (para grafico)."""
-    from datetime import date, datetime as _dt
+    """Plata que entro vs salio por mes (ultimos 6 meses), para el grafico.
+
+    Egresos INCLUYE los pedidos (compras de stock) ademas de los gastos
+    operativos: es una mirada de CAJA (cuanta plata se movio). El neto es
+    ingresos - egresos. Distinto de la 'ganancia real' del hero, que es
+    contable (el costo del pedido se cuenta al vender cada disco)."""
+    from datetime import date
+    from models import Pedido
     hoy = date.today()
-    meses = []
     nombres_es = ["", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
     y, m = hoy.year, hoy.month
-    # Retroceder 5 meses
     lista = []
     for _ in range(6):
         lista.append((y, m))
@@ -468,10 +472,18 @@ def ingresos_vs_egresos_6m() -> list:
         inicio = date(yy, mm, 1)
         fin = date(yy + 1, 1, 1) if mm == 12 else date(yy, mm + 1, 1)
         r = _resumen_rango(inicio, fin)
+        # Pedidos (compras de stock) con fecha en el mes = plata que salio
+        peds = Pedido.query.filter(Pedido.fecha >= inicio, Pedido.fecha < fin).all()
+        costo_pedidos = sum(p.costo_total_uyu for p in peds)
+        egresos_total = (r["egresos_uyu"] or 0) + costo_pedidos
+        neto = (r["ingresos_uyu"] or 0) - egresos_total
         salida.append({
             "label": f"{nombres_es[mm]} {str(yy)[-2:]}",
             "ingresos_uyu": r["ingresos_uyu"],
-            "egresos_uyu": r["egresos_uyu"],
+            "egresos_uyu": round(egresos_total, 2),
+            "egresos_opex_uyu": r["egresos_uyu"],
+            "pedidos_uyu": round(costo_pedidos, 2),
+            "neto_uyu": round(neto, 2),
             "ganancia_real_uyu": r["ganancia_real_uyu"],
         })
     return salida
