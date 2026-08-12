@@ -2667,6 +2667,13 @@ def register_routes(app: Flask) -> None:
         # Plata que ya podes tocar (todo menos lo retenido en MP)
         disponible = saldo_actual - mp_pendiente
 
+        # Adelantos de MP: aportes que Facundo hizo para tener la liquidez de MP
+        # antes de que MP pague. Los 'pendiente' todavia esperan el pago de MP.
+        adelantos_pendientes = [m for m in movs if (m.adelanto_mp or "") == "pendiente"]
+        adelanto_pendiente_total = sum(m.monto_uyu or 0 for m in adelantos_pendientes)
+        # Lo que hay en MP y todavia no adelantaste (para no adelantar dos veces)
+        por_adelantar = max(0.0, mp_pendiente - adelanto_pendiente_total)
+
         # Cantidad de movimientos por tipo (ventas, pedidos, gastos por categoria,
         # aportes de capital, manuales) con su total.
         grupos = {}
@@ -2719,6 +2726,9 @@ def register_routes(app: Flask) -> None:
             "saldo_actual": round(saldo_actual, 2),
             "mp_pendiente": round(mp_pendiente, 2),
             "disponible": round(disponible, 2),
+            "por_adelantar": round(por_adelantar, 2),
+            "adelantos_pendientes": adelantos_pendientes,
+            "adelanto_pendiente_total": round(adelanto_pendiente_total, 2),
             "por_metodo": {k: round(v, 2) for k, v in por_metodo.items()},
             "desglose_tipos": desglose_tipos,
             "filas": filas,
@@ -2909,6 +2919,54 @@ def register_routes(app: Flask) -> None:
         db.session.add(aporte)
         db.session.commit()
         flash(f"Registrado tu aporte de capital: + ${monto:,.0f} UYU. Tu gasto queda como está.", "success")
+        return redirect(url_for("caja"))
+
+    @app.route("/admin/caja/adelantar-mp", methods=["POST"])
+    @auth.admin_required
+    def caja_adelantar_mp():
+        """Adelanta con plata propia lo que Mercado Pago todavia no libero: crea un
+        aporte de capital por el monto pendiente en MP que aun no se adelanto, y lo
+        marca como 'adelanto pendiente' para recordar el retiro cuando MP pague."""
+        from models import MovimientoCaja
+        from datetime import datetime as _dt
+        resumen = _resumen_caja()
+        monto = round(resumen["por_adelantar"], 2)
+        if monto <= 0:
+            flash("No hay nada nuevo para adelantar de Mercado Pago.", "warning")
+            return redirect(url_for("caja"))
+        mov = MovimientoCaja(
+            fecha=_dt.utcnow().date(), tipo="ingreso", monto_uyu=monto,
+            concepto="Adelanto de Mercado Pago (tu plata; lo recuperás cuando MP pague)",
+            metodo=None, categoria=None, es_aporte=True, adelanto_mp="pendiente",
+            origen="manual", origen_id=None,
+        )
+        db.session.add(mov)
+        db.session.commit()
+        flash(f"Adelantaste ${monto:,.0f} de tu plata. Cuando MP te pague, tocá «MP ya me pagó» para registrar el retiro.", "success")
+        return redirect(url_for("caja"))
+
+    @app.route("/admin/caja/movimiento/<int:mov_id>/saldar-adelanto", methods=["POST"])
+    @auth.admin_required
+    def caja_saldar_adelanto(mov_id):
+        """MP ya libero el dinero del adelanto: crea el retiro (Facundo recupera su
+        plata a lo personal) y marca el adelanto como saldado."""
+        from models import MovimientoCaja
+        from datetime import datetime as _dt
+        m = MovimientoCaja.query.get_or_404(mov_id)
+        if (m.adelanto_mp or "") != "pendiente":
+            flash("Ese adelanto ya estaba saldado.", "warning")
+            return redirect(url_for("caja"))
+        monto = round(m.monto_uyu or 0, 2)
+        retiro = MovimientoCaja(
+            fecha=_dt.utcnow().date(), tipo="egreso", monto_uyu=monto,
+            concepto="Retiro: MP liberó el adelanto (recuperás tu plata)",
+            metodo=None, categoria="Retiro", es_aporte=False,
+            origen="manual", origen_id=None,
+        )
+        db.session.add(retiro)
+        m.adelanto_mp = "saldado"
+        db.session.commit()
+        flash(f"Registrado el retiro de ${monto:,.0f}. Tu adelanto quedó saldado.", "success")
         return redirect(url_for("caja"))
 
     @app.route("/admin/caja/saldo-inicial", methods=["POST"])

@@ -956,6 +956,10 @@ class MovimientoCaja(db.Model):
     # True si es un aporte de capital de Facundo (plata propia que puso en el negocio).
     # Es un ingreso, pero se separa de las ventas: no es facturacion, es inversion.
     es_aporte = db.Column(db.Boolean, nullable=False, default=False)
+    # Marca los aportes que son un "adelanto de Mercado Pago" (Facundo pone su plata
+    # para tener liquidez mientras MP retiene el cobro). Valores: 'pendiente' (falta
+    # que MP pague y hacer el retiro) / 'saldado' (MP ya pago y se hizo el retiro).
+    adelanto_mp = db.Column(db.String(20), nullable=True)
     creado = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     @property
@@ -1182,7 +1186,7 @@ def _migrate_schema(app):
     with app.app_context():
         inspector = inspect(db.engine)
 
-        # Columna es_aporte en la tabla movimientos_caja (aporte de capital)
+        # Columnas nuevas en la tabla movimientos_caja
         if inspector.has_table("movimientos_caja"):
             _mcols = [c["name"] for c in inspector.get_columns("movimientos_caja")]
             if "es_aporte" not in _mcols:
@@ -1190,6 +1194,11 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE movimientos_caja ADD COLUMN es_aporte BOOLEAN DEFAULT 0"))
                     conn.commit()
                 print("Migracion: columna es_aporte agregada a movimientos_caja")
+            if "adelanto_mp" not in _mcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE movimientos_caja ADD COLUMN adelanto_mp VARCHAR(20)"))
+                    conn.commit()
+                print("Migracion: columna adelanto_mp agregada a movimientos_caja")
 
         # Campos de pago Mercado Pago en la tabla reservas
         if inspector.has_table("reservas"):

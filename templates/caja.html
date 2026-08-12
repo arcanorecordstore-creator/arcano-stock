@@ -47,20 +47,45 @@
 </section>
 
 <!-- ============================================================
-     Disponible ya vs retenido en Mercado Pago (paga a ~30 días)
+     Retenido en Mercado Pago (paga a ~30 días) + adelanto
      ============================================================ -->
 <section class="caja-liquidez">
-    <div class="caja-liq-card ok">
-        <span class="caja-liq-label">Disponible ya</span>
-        <span class="caja-liq-val {% if resumen.disponible < 0 %}negativo{% endif %}">$ {{ fmt_uyu(resumen.disponible) }}</span>
-        <span class="caja-liq-foot">Lo que podés tocar hoy (efectivo, transferencias, MP ya liberado, tu capital)</span>
-    </div>
     <div class="caja-liq-card mp">
         <span class="caja-liq-label">En Mercado Pago</span>
         <span class="caja-liq-val">$ {{ fmt_uyu(resumen.mp_pendiente) }}</span>
-        <span class="caja-liq-foot">Cobrado por MP en los últimos 30 días. Todavía no lo tenés: MP lo libera a los ~30 días del cobro.</span>
+        <span class="caja-liq-foot">Cobrado por MP en los últimos 30 días. MP lo libera a los ~30 días del cobro.</span>
+        {% if resumen.por_adelantar > 0 %}
+        <form method="post" action="{{ url_for('caja_adelantar_mp') }}" class="caja-adelantar-form">
+            <button type="submit" class="btn btn-primary btn-sm">Adelantar $ {{ fmt_uyu(resumen.por_adelantar) }} con mi plata</button>
+            <span class="caja-field-hint">Ponés tu plata ahora para tener la liquidez; la recuperás cuando MP pague.</span>
+        </form>
+        {% endif %}
     </div>
 </section>
+
+<!-- Recordatorio: adelantos de MP esperando el pago para hacer el retiro -->
+{% if resumen.adelantos_pendientes %}
+<section class="caja-adelantos">
+    <div class="caja-adelantos-head">
+        <h2 class="caja-section-title">Adelantos de Mercado Pago a recuperar</h2>
+        <span class="caja-adelantos-total">$ {{ fmt_uyu(resumen.adelanto_pendiente_total) }}</span>
+    </div>
+    <div class="caja-adelantos-list">
+        {% for a in resumen.adelantos_pendientes %}
+        <div class="caja-adelanto-item">
+            <div class="caja-adelanto-info">
+                <span class="caja-adelanto-monto">$ {{ fmt_uyu(a.monto_uyu) }}</span>
+                <span class="caja-adelanto-fecha">Adelantado el {{ a.fecha.strftime('%d/%m/%y') if a.fecha else '—' }}</span>
+            </div>
+            <form method="post" action="{{ url_for('caja_saldar_adelanto', mov_id=a.id) }}">
+                <button type="submit" class="btn btn-ghost btn-sm">MP ya me pagó &rarr; retirar</button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    <p class="caja-hint">Cuando MP te deposite un adelanto, tocá «MP ya me pagó»: registra el retiro (recuperás tu plata) y deja la caja en el número real.</p>
+</section>
+{% endif %}
 
 <!-- ============================================================
      De dónde entró la plata (ingresos por método)
