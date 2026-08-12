@@ -5916,6 +5916,25 @@ td.num,
     100% { background: transparent; }
 }
 
+/* v3.34 - Boton para recalcular el costo de un disco con el TC actual */
+.col-costofinal { white-space: nowrap; }
+.tc-recalc-btn {
+    background: none;
+    border: none;
+    color: var(--text-4);
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1;
+    padding: 0 2px;
+    margin-left: 5px;
+    vertical-align: middle;
+    transition: color 0.15s;
+}
+.tc-recalc-btn:hover { color: var(--text-1); }
+.tc-recalc-btn:disabled { opacity: 0.5; cursor: default; }
+.tc-recalc-btn.spinning { animation: tcSpin 0.6s linear infinite; display: inline-block; }
+@keyframes tcSpin { to { transform: rotate(360deg); } }
+
 /* Columna de fechas en el dashboard */
 .col-fecha {
     white-space: nowrap;

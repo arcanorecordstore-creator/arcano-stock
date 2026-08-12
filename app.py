@@ -2191,6 +2191,20 @@ def register_routes(app: Flask) -> None:
             db.session.commit()
             return jsonify({"ok": True, "campo": campo, "valor": disc.audio_estado or ""})
 
+        elif campo == "recalcular_tc":
+            # Actualiza el TC del disco al TC global (EUR->UYU) actual y recalcula el costo.
+            tc_actual = Setting.get_tc()
+            disc.recalcular_costo_final(tc_actual)
+            db.session.commit()
+            return jsonify({
+                "ok": True,
+                "campo": campo,
+                "tc_usado": disc.tc_usado,
+                "costo_final_uyu": round(disc.costo_final_uyu or 0),
+                "ganancia_uyu": round(disc.ganancia_uyu or 0),
+                "margen_pct": round(disc.margen_pct or 0, 1),
+            })
+
         return jsonify({"ok": False, "error": "Campo no editable"}), 400
 
     # ----------------------------------------------------------------------

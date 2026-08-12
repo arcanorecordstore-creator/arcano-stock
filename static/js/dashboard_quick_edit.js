@@ -90,7 +90,7 @@
                         }
                         // Costo y envio ademas actualizan el costo final
                         if ((campo === 'costo_eur' || campo === 'envio_eur') && res.data.costo_final_uyu !== undefined) {
-                            var celCF = fila.querySelector('.col-costofinal');
+                            var celCF = fila.querySelector('.col-costofinal .col-costofinal-val') || fila.querySelector('.col-costofinal');
                             if (celCF) celCF.textContent = fmtMiles(res.data.costo_final_uyu);
                         }
                     } else {
@@ -304,6 +304,45 @@
                 else if (e.key === 'Escape') { cerrar(false); }
             });
             input.addEventListener('blur', function () { cerrar(true); });
+        });
+    });
+
+    // ---- Recalcular TC: actualiza el disco al TC global actual y recalcula el costo UYU ----
+    tabla.querySelectorAll('.tc-recalc-btn').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            var discId = btn.dataset.discId;
+            var td = btn.closest('.col-costofinal');
+            var val = td ? td.querySelector('.col-costofinal-val') : null;
+            btn.disabled = true;
+            btn.classList.add('spinning');
+            guardar(discId, 'recalcular_tc', '1').then(function (res) {
+                btn.disabled = false;
+                btn.classList.remove('spinning');
+                if (res.ok && res.data.ok) {
+                    if (val) val.textContent = fmtMiles(res.data.costo_final_uyu);
+                    var fila = td.closest('tr');
+                    var celG = fila.querySelector('.col-ganancia');
+                    var celM = fila.querySelector('.col-margen');
+                    if (celG && res.data.ganancia_uyu !== undefined) {
+                        celG.textContent = fmtMiles(res.data.ganancia_uyu);
+                        celG.classList.toggle('gain', res.data.ganancia_uyu >= 0);
+                        celG.classList.toggle('loss', res.data.ganancia_uyu < 0);
+                    }
+                    if (celM && res.data.margen_pct !== undefined) {
+                        celM.textContent = res.data.margen_pct + '%';
+                        celM.classList.toggle('loss', res.data.margen_pct < 0);
+                    }
+                    flashCell(td, true);
+                } else {
+                    flashCell(td, false);
+                    if (res.data && res.data.error) alert(res.data.error);
+                }
+            }).catch(function () {
+                btn.disabled = false;
+                btn.classList.remove('spinning');
+                if (td) flashCell(td, false);
+            });
         });
     });
 })();
