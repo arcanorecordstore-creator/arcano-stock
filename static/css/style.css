@@ -8624,6 +8624,32 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .caja-chip-val { font-size: 18px; font-weight: 700; color: var(--text-1, #eee); }
 .caja-chip.pos .caja-chip-val { color: #10b981; }
 .caja-chip.neg .caja-chip-val { color: #ef4444; }
+.caja-chip.cap { border-color: rgba(139,92,246,0.5); }
+.caja-chip.cap .caja-chip-val { color: #a78bfa; }
+
+/* Checkbox de aporte de capital */
+.caja-check-label {
+    flex-direction: row !important;
+    align-items: center;
+    gap: 8px !important;
+    color: var(--text-2, #ccc) !important;
+    font-size: 12.5px !important;
+    cursor: pointer;
+}
+.caja-check-label input { width: auto; }
+
+/* Badge "Capital" y botón de aporte en el editor */
+.caja-tag-capital { background: rgba(139,92,246,0.16); color: #a78bfa; margin-left: 4px; }
+.caja-editar-aporte-box {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-1, #2a2a2a);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px;
+}
+.caja-editar-aporte-txt { font-size: 12.5px; color: var(--text-3, #888); }
 
 /* Ingresos por método */
 .caja-metodos { margin-bottom: 20px; }
@@ -8688,7 +8714,7 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     font-size: 14px;
     font-family: inherit;
 }
-.caja-campo-concepto { grid-column: 1 / -1; }
+.caja-campo-concepto, .caja-campo-aporte { grid-column: 1 / -1; }
 .caja-form-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
 .caja-form-row input { min-width: 180px; }
 

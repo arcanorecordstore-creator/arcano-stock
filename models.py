@@ -953,6 +953,9 @@ class MovimientoCaja(db.Model):
     # Origen: 'manual' o el auto-sincronizado desde otra tabla
     origen = db.Column(db.String(20), nullable=False, default="manual")  # manual / venta / pedido / gasto
     origen_id = db.Column(db.Integer, nullable=True, index=True)  # id del Disc/Pedido/Egreso de origen
+    # True si es un aporte de capital de Facundo (plata propia que puso en el negocio).
+    # Es un ingreso, pero se separa de las ventas: no es facturacion, es inversion.
+    es_aporte = db.Column(db.Boolean, nullable=False, default=False)
     creado = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     @property
@@ -1178,6 +1181,15 @@ def _migrate_schema(app):
     
     with app.app_context():
         inspector = inspect(db.engine)
+
+        # Columna es_aporte en la tabla movimientos_caja (aporte de capital)
+        if inspector.has_table("movimientos_caja"):
+            _mcols = [c["name"] for c in inspector.get_columns("movimientos_caja")]
+            if "es_aporte" not in _mcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE movimientos_caja ADD COLUMN es_aporte BOOLEAN DEFAULT 0"))
+                    conn.commit()
+                print("Migracion: columna es_aporte agregada a movimientos_caja")
 
         # Campos de pago Mercado Pago en la tabla reservas
         if inspector.has_table("reservas"):

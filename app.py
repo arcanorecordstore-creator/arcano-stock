@@ -2641,10 +2641,15 @@ def register_routes(app: Flask) -> None:
         total_egresos = sum(m.monto_uyu or 0 for m in movs if m.tipo == "egreso")
         saldo_actual = saldo_inicial + total_ingresos - total_egresos
 
-        # Ingresos agrupados por metodo (para saber donde esta la plata)
+        # Capital aportado por Facundo (plata propia, no es facturacion)
+        total_aportes = sum(m.monto_uyu or 0 for m in movs if m.tipo == "ingreso" and m.es_aporte)
+        # Ventas cobradas = ingresos que NO son aporte de capital
+        total_ventas = total_ingresos - total_aportes
+
+        # Ventas cobradas agrupadas por metodo (excluye aportes de capital)
         por_metodo = {"mercadopago": 0.0, "transferencia": 0.0, "efectivo": 0.0, "otro": 0.0, "sin": 0.0}
         for m in movs:
-            if m.tipo != "ingreso":
+            if m.tipo != "ingreso" or m.es_aporte:
                 continue
             k = m.metodo if m.metodo in ("mercadopago", "transferencia", "efectivo", "otro") else "sin"
             por_metodo[k] += (m.monto_uyu or 0)
@@ -2661,6 +2666,8 @@ def register_routes(app: Flask) -> None:
             "saldo_inicial": round(saldo_inicial, 2),
             "total_ingresos": round(total_ingresos, 2),
             "total_egresos": round(total_egresos, 2),
+            "total_aportes": round(total_aportes, 2),
+            "total_ventas": round(total_ventas, 2),
             "saldo_actual": round(saldo_actual, 2),
             "por_metodo": {k: round(v, 2) for k, v in por_metodo.items()},
             "filas": filas,
@@ -2699,14 +2706,18 @@ def register_routes(app: Flask) -> None:
             fecha = _dt.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else _dt.utcnow().date()
         except ValueError:
             fecha = _dt.utcnow().date()
+        # Aporte de capital: solo aplica a ingresos
+        es_aporte = bool(request.form.get("es_aporte")) and tipo == "ingreso"
         if monto <= 0:
             flash("El monto debe ser mayor a 0.", "error")
             return redirect(url_for("caja"))
+        concepto_final = concepto or ("Aporte de capital" if es_aporte else ("Aporte" if tipo == "ingreso" else "Retiro"))
         mov = MovimientoCaja(
             fecha=fecha, tipo=tipo, monto_uyu=round(monto, 2),
-            concepto=(concepto or ("Aporte" if tipo == "ingreso" else "Retiro"))[:300],
+            concepto=concepto_final[:300],
             metodo=(metodo if tipo == "ingreso" else None),
             categoria=(categoria if tipo == "egreso" else None),
+            es_aporte=es_aporte,
             origen="manual", origen_id=None,
         )
         db.session.add(mov)
@@ -2733,6 +2744,8 @@ def register_routes(app: Flask) -> None:
         m.metodo = (metodo or None) if m.tipo == "ingreso" else None
         categoria = (request.form.get("categoria") or "").strip()
         m.categoria = (categoria or None) if m.tipo == "egreso" else None
+        # Aporte de capital: solo para ingresos
+        m.es_aporte = bool(request.form.get("es_aporte")) and m.tipo == "ingreso"
         fecha_str = request.form.get("fecha") or ""
         if fecha_str:
             try:
@@ -2766,6 +2779,7 @@ def register_routes(app: Flask) -> None:
                     m.categoria = None
                 else:
                     m.metodo = None
+                    m.es_aporte = False
             else:
                 return jsonify({"ok": False, "error": "Tipo invalido"}), 400
         elif campo == "monto":
@@ -2808,6 +2822,42 @@ def register_routes(app: Flask) -> None:
             )
         else:
             flash("Movimiento eliminado.", "success")
+        return redirect(url_for("caja"))
+
+    @app.route("/admin/caja/movimiento/<int:mov_id>/marcar-aporte", methods=["POST"])
+    @auth.admin_required
+    def caja_marcar_aporte(mov_id):
+        """Marca que un egreso (pedido/gasto/retiro) lo pago Facundo con su plata:
+        crea un aporte de capital (ingreso) por el mismo monto y fecha. Asi la caja
+        refleja la inversion sin perder el gasto. Idempotente por (monto, fecha)."""
+        from models import MovimientoCaja
+        m = MovimientoCaja.query.get_or_404(mov_id)
+        if m.tipo != "egreso":
+            flash("El aporte de capital se marca sobre un gasto (algo que salió de la caja).", "error")
+            return redirect(url_for("caja"))
+        monto = round(m.monto_uyu or 0, 2)
+        if monto <= 0:
+            flash("Ese gasto no tiene monto.", "error")
+            return redirect(url_for("caja"))
+        # Evitar duplicar: si ya hay un aporte por el mismo monto y fecha, no crear otro
+        ya = (
+            MovimientoCaja.query
+            .filter_by(tipo="ingreso", es_aporte=True, fecha=m.fecha, monto_uyu=monto)
+            .first()
+        )
+        if ya:
+            flash("Ese aporte de capital ya estaba registrado.", "warning")
+            return redirect(url_for("caja"))
+        etiqueta = (m.concepto or "gasto").strip()
+        aporte = MovimientoCaja(
+            fecha=m.fecha, tipo="ingreso", monto_uyu=monto,
+            concepto=f"Aporte de capital (pagaste: {etiqueta})"[:300],
+            metodo=None, categoria=None, es_aporte=True,
+            origen="manual", origen_id=None,
+        )
+        db.session.add(aporte)
+        db.session.commit()
+        flash(f"Registrado tu aporte de capital: + ${monto:,.0f} UYU. Tu gasto queda como está.", "success")
         return redirect(url_for("caja"))
 
     @app.route("/admin/caja/saldo-inicial", methods=["POST"])

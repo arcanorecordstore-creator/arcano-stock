@@ -37,6 +37,12 @@
             <span class="caja-chip-label">Salió (egresos)</span>
             <span class="caja-chip-val">&minus; $ {{ fmt_uyu(resumen.total_egresos) }}</span>
         </div>
+        {% if resumen.total_aportes > 0 %}
+        <div class="caja-chip cap">
+            <span class="caja-chip-label">Capital que pusiste</span>
+            <span class="caja-chip-val">$ {{ fmt_uyu(resumen.total_aportes) }}</span>
+        </div>
+        {% endif %}
     </div>
 </section>
 
@@ -44,7 +50,7 @@
      De dónde entró la plata (ingresos por método)
      ============================================================ -->
 <section class="caja-metodos">
-    <h2 class="caja-section-title">De dónde entró la plata</h2>
+    <h2 class="caja-section-title">Ventas cobradas por método</h2>
     <div class="caja-metodos-grid">
         <div class="caja-metodo-card">
             <span class="caja-metodo-label">Mercado Pago</span>
@@ -119,6 +125,10 @@
                 <label class="caja-campo-concepto">Concepto / nota
                     <input type="text" name="concepto" placeholder="Ej: Aporte de Facundo, retiro para...">
                 </label>
+                <label class="caja-campo-aporte caja-check-label">
+                    <input type="checkbox" name="es_aporte" value="1">
+                    Es un aporte de capital tuyo (plata propia que ponés en Arcano)
+                </label>
             </div>
             <button type="submit" class="btn btn-primary">Agregar movimiento</button>
         </form>
@@ -152,6 +162,7 @@
                     <td class="caja-td-concepto caja-cell-edit" title="Click para editar" data-mov="{{ m.id }}" data-campo="concepto" data-editor="text" data-raw="{{ m.concepto or '' }}">{{ m.concepto or '—' }}</td>
                     <td>
                         <span class="caja-origen-tag origen-{{ m.origen }}">{{ m.origen_label }}</span>
+                        {% if m.es_aporte %}<span class="caja-origen-tag caja-tag-capital">Capital</span>{% endif %}
                     </td>
                     <td class="caja-td-metodo caja-cell-edit" title="Click para editar"
                         data-mov="{{ m.id }}"
@@ -198,6 +209,10 @@
                                         <label class="caja-editar-concepto">Concepto
                                             <input type="text" name="concepto" value="{{ m.concepto or '' }}">
                                         </label>
+                                        <label class="caja-editar-concepto caja-check-label">
+                                            <input type="checkbox" name="es_aporte" value="1" {% if m.es_aporte %}checked{% endif %}>
+                                            Es un aporte de capital tuyo (plata propia). Aplica solo si es un ingreso.
+                                        </label>
                                     </div>
                                     <div class="caja-editar-acciones">
                                         <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
@@ -208,6 +223,12 @@
                                         <span class="caja-editar-nota">Automático (de {{ m.origen_label|lower }}). Para sacarlo, editá su origen.</span>
                                         {% endif %}
                                     </div>
+                                    {% if m.tipo == 'egreso' %}
+                                    <div class="caja-editar-aporte-box">
+                                        <span class="caja-editar-aporte-txt">¿Este gasto lo pagaste con tu plata?</span>
+                                        <button type="submit" formaction="{{ url_for('caja_marcar_aporte', mov_id=m.id) }}" class="btn btn-ghost btn-sm">&#128176; Lo pagué con mi plata (registrar aporte)</button>
+                                    </div>
+                                    {% endif %}
                                 </form>
                             </div>
                         </details>
@@ -230,10 +251,15 @@
         if (!tipo || !form) return;
         var met = form.querySelector('.caja-campo-metodo');
         var cat = form.querySelector('.caja-campo-categoria');
+        var apo = form.querySelector('.caja-campo-aporte');
         function sync() {
             var esIngreso = tipo.value === 'ingreso';
             if (met) met.style.display = esIngreso ? '' : 'none';
             if (cat) cat.style.display = esIngreso ? 'none' : '';
+            if (apo) {
+                apo.style.display = esIngreso ? '' : 'none';
+                if (!esIngreso) { var cb = apo.querySelector('input'); if (cb) cb.checked = false; }
+            }
         }
         tipo.addEventListener('change', sync);
         sync();
