@@ -22,11 +22,11 @@ VIDEO_EXT_MAP = {
     "video/3gpp": ".3gp",
 }
 
-MAX_VIDEO_BYTES = 60 * 1024 * 1024  # 60 MB por video
+MAX_VIDEO_BYTES = 50 * 1024 * 1024  # 50 MB por video
 
 
-def extract_frames_png(video_bytes: bytes, positions=(0.08, 0.25, 0.5, 0.75, 0.95),
-                       max_dim: int = 1400):
+def extract_frames_png(video_bytes: bytes, positions=(0.1, 0.3, 0.55, 0.8),
+                       max_dim: int = 1100):
     """Extrae cuadros del video en las posiciones dadas (fraccion 0..1).
 
     Devuelve (list_de_png_bytes, error). En exito error es None.
@@ -59,64 +59,72 @@ def extract_frames_png(video_bytes: bytes, positions=(0.08, 0.25, 0.5, 0.75, 0.9
         except Exception as e:
             return [], f"No se pudo abrir el video (formato no soportado?): {e}"
 
-        # Cantidad de frames: intentar count_frames; si falla, estimar por duracion*fps
-        n = None
+        # Ubicar los cuadros por TIEMPO usando la metadata (NO contar todos los
+        # frames ni leer el video entero: eso revienta la memoria en Render).
+        fps = 25.0
+        nframes = None
         try:
-            n = reader.count_frames()
-        except Exception:
-            n = None
-        if not n or n <= 0:
-            try:
-                meta = reader.get_meta_data()
+            meta = reader.get_meta_data()
+            fps = float(meta.get("fps") or 25.0) or 25.0
+            nf = meta.get("nframes")
+            if nf and nf != float("inf") and nf > 0:
+                nframes = int(nf)
+            else:
                 dur = meta.get("duration")
-                fps = meta.get("fps")
-                if dur and fps:
-                    n = int(dur * fps)
-            except Exception:
-                n = None
+                if dur and dur > 0:
+                    nframes = int(dur * fps)
+        except Exception:
+            nframes = None
 
-        def _grab(idx):
-            return reader.get_data(idx)
+        def _to_png(arr):
+            img = Image.fromarray(arr)
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+            if max(img.size) > max_dim:
+                r = max_dim / max(img.size)
+                img = img.resize((max(1, int(img.width * r)), max(1, int(img.height * r))), Image.LANCZOS)
+            b = io.BytesIO()
+            img.save(b, format="PNG", optimize=True)
+            return b.getvalue()
 
-        indices = []
-        if n and n > 0:
+        if nframes and nframes > 1:
+            # Seek eficiente (ffmpeg -ss) a cada posicion; un frame a la vez
+            seen = set()
             for p in positions:
-                idx = min(n - 1, max(0, int(n * p)))
-                if idx not in indices:
-                    indices.append(idx)
+                idx = min(nframes - 1, max(0, int(nframes * p)))
+                if idx in seen:
+                    continue
+                seen.add(idx)
+                try:
+                    arr = reader.get_data(idx)
+                    frames_png.append(_to_png(arr))
+                    del arr
+                except Exception:
+                    continue
         else:
-            # No sabemos la cantidad: leemos secuencialmente hasta un tope y sampleamos
-            buff = []
-            for i, fr in enumerate(reader):
-                buff.append(fr)
-                if i >= 1200:
-                    break
-            n = len(buff)
-            if n == 0:
-                return [], "El video no tiene cuadros legibles."
-            for p in positions:
-                idx = min(n - 1, max(0, int(n * p)))
-                if idx not in indices:
-                    indices.append(idx)
-            _grab = lambda idx: buff[idx]  # noqa: E731
-
-        for idx in indices:
+            # Sin metadata confiable: leer secuencial SIN acumular todo. Guardamos
+            # un cuadro (ya comprimido) cada ~1s, con tope de lecturas y de guardados.
+            stride = max(1, int(fps))
+            MAX_READ = 900
+            MAX_KEEP = 8
+            kept = []
             try:
-                arr = _grab(idx)
+                for i, fr in enumerate(reader):
+                    if i % stride == 0:
+                        kept.append(_to_png(fr))
+                        if len(kept) >= MAX_KEEP:
+                            break
+                    if i >= MAX_READ:
+                        break
             except Exception:
-                continue
-            try:
-                img = Image.fromarray(arr)
-                if img.mode != "RGB":
-                    img = img.convert("RGB")
-                if max(img.size) > max_dim:
-                    r = max_dim / max(img.size)
-                    img = img.resize((int(img.width * r), int(img.height * r)), Image.LANCZOS)
-                buf = io.BytesIO()
-                img.save(buf, format="PNG", optimize=True)
-                frames_png.append(buf.getvalue())
-            except Exception:
-                continue
+                pass
+            if kept:
+                if len(kept) <= len(positions):
+                    frames_png = kept
+                else:
+                    step = len(kept) / float(len(positions))
+                    for j in range(len(positions)):
+                        frames_png.append(kept[min(len(kept) - 1, int(j * step))])
 
         if not frames_png:
             return [], "No se pudieron extraer cuadros del video."

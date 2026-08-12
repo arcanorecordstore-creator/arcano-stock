@@ -977,9 +977,19 @@ def register_routes(app: Flask) -> None:
                 if mtype not in _video.VIDEO_EXT_MAP:
                     errores.append(f"{f.filename}: tipo no soportado ({mtype})")
                     continue
+                # Chequear tamano ANTES de cargarlo a memoria (evita OOM con archivos gigantes)
+                try:
+                    f.stream.seek(0, os.SEEK_END)
+                    fsize = f.stream.tell()
+                    f.stream.seek(0)
+                except (OSError, ValueError):
+                    fsize = 0
+                if fsize and fsize > _video.MAX_VIDEO_BYTES:
+                    errores.append(f"{f.filename}: pesa demasiado ({fsize // 1024 // 1024} MB, max 50 MB)")
+                    continue
                 data = f.read()
                 if len(data) > _video.MAX_VIDEO_BYTES:
-                    errores.append(f"{f.filename}: pesa demasiado (max 60 MB)")
+                    errores.append(f"{f.filename}: pesa demasiado (max 50 MB)")
                     continue
                 ext = _video.VIDEO_EXT_MAP[mtype]
                 fname = f"sample_{_uuid.uuid4().hex[:12]}{ext}"
