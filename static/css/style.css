@@ -3,21 +3,23 @@
    ========================================================================= */
 
 :root {
-    --bg-0: #0a0a0a;
-    --bg-1: #111111;
-    --bg-2: #161616;
-    --bg-3: #1a1a1a;
-    --bg-hover: #1d1d1d;
+    /* Modo oscuro "Alto contraste" (v3.35): fondo casi negro + superficies (cards)
+       claramente mas claras para que se separen del fondo. */
+    --bg-0: #0d0d0f;
+    --bg-1: #20222a;
+    --bg-2: #262932;
+    --bg-3: #2c2f39;
+    --bg-hover: #30333d;
 
-    --border-1: #1f1f1f;
-    --border-2: #2a2a2a;
-    --border-3: #3a3a3a;
+    --border-1: #2a2d36;
+    --border-2: #34373f;
+    --border-3: #414550;
 
     --text-1: #ffffff;
-    --text-2: #d4d4d4;
-    --text-3: #a0a0a0;
-    --text-4: #6b6b6b;
-    --text-5: #4a4a4a;
+    --text-2: #cbced4;
+    --text-3: #90939b;
+    --text-4: #74777f;
+    --text-5: #565962;
 
     --accent: #ffffff;
     --gain: #10b981;
