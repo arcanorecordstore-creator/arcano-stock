@@ -28,7 +28,8 @@
                     <span class="brand-sub">Stock Manager</span>
                 </a>
             </div>
-            <nav class="topbar-nav">
+            <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="topbar-nav">&#9776;</button>
+            <nav class="topbar-nav" id="topbar-nav">
                 <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">Dashboard</a>
                 <a href="{{ url_for('admin_reservas') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('admin_reserva') %}active{% endif %}">
                     Reservas
@@ -83,7 +84,7 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v3.45 &middot; Caja: cuadro &laquo;En mercaderia&raquo; — la plata metida en stock (costo de los discos de Arcano no vendidos), mismo numero que la contabilidad</span>
+            <span class="footer-version">v3.46 &middot; Admin mobile: menu hamburguesa, menos padding, botones tocables (44px), tablas de contabilidad/pedidos con scroll y cards que se apilan en el celu</span>
         </footer>
     </div>
 
@@ -102,6 +103,17 @@
                     document.documentElement.setAttribute('data-theme', 'light');
                     try { localStorage.setItem('arcano-admin-theme', 'light'); } catch (e) {}
                 }
+            });
+        })();
+
+        // Menu hamburguesa (mobile): abre/cierra el nav del admin
+        (function () {
+            var t = document.getElementById('nav-toggle');
+            var n = document.getElementById('topbar-nav');
+            if (!t || !n) return;
+            t.addEventListener('click', function () {
+                var open = n.classList.toggle('open');
+                t.setAttribute('aria-expanded', open ? 'true' : 'false');
             });
         })();
     </script>

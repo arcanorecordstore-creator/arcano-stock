@@ -164,6 +164,20 @@ body.app { display: block; padding: 0; }
     gap: 4px;
 }
 
+.nav-toggle {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 40px;
+    background: var(--bg-3);
+    border: 1px solid var(--border-2);
+    border-radius: 8px;
+    color: var(--text-1);
+    font-size: 20px;
+    cursor: pointer;
+}
+
 .nav-link {
     padding: 8px 14px;
     font-size: 13px;
@@ -6829,31 +6843,62 @@ td.num,
    ADMIN RESPONSIVE — adaptacion para celular (<= 768px)
    ========================================================================= */
 @media (max-width: 768px) {
-    /* --- Header y navegacion --- */
+    /* --- Menos padding general en el celu --- */
+    .app-main { padding: 16px 12px; }
+    .app-footer { padding: 14px 12px; flex-direction: column; gap: 4px; text-align: center; }
+
+    /* --- Header y navegacion (menu hamburguesa) --- */
     .topbar {
         flex-wrap: wrap;
         padding: 10px 12px;
-        gap: 8px;
+        gap: 8px 10px;
     }
-    .topbar-brand { flex: 1 1 auto; }
+    .topbar-brand { flex: 0 1 auto; order: 1; }
+    .brand-logo { font-size: 18px; letter-spacing: 3px; }
+    .brand-sub { display: none; }
+    .nav-toggle { display: inline-flex; order: 2; }
+    .topbar-meta { order: 3; flex: 1 1 auto; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 2px 8px; }
+    .topbar-meta .meta-label { font-size: 9px; }
     .topbar-nav {
-        order: 3;
+        order: 4;
         width: 100%;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-        display: flex;
-        flex-wrap: nowrap;
-        gap: 4px;
-        padding-bottom: 4px;
-        scrollbar-width: thin;
+        display: none;
+        flex-direction: column;
+        gap: 2px;
+        overflow: visible;
     }
+    .topbar-nav.open { display: flex; }
     .topbar-nav .nav-link {
         white-space: nowrap;
-        flex: 0 0 auto;
-        font-size: 13px;
-        padding: 8px 12px;
+        font-size: 15px;
+        padding: 12px 14px;
+        border-radius: 8px;
     }
-    .topbar-meta { flex: 0 0 auto; }
+
+    /* --- Botones de accion de las filas: target tocable --- */
+    .action-btn {
+        padding: 9px 12px;
+        font-size: 13px;
+        min-height: 40px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* --- Tablas angostas (contabilidad/pedidos): scroll en vez de aplastar --- */
+    .rank-table, .conta-table, .ped-discos-table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        white-space: nowrap;
+    }
+
+    /* --- Flash: que no se salga de la pantalla --- */
+    .flash-stack { left: 12px; right: 12px; max-width: none; }
+
+    /* --- Grids de 2 columnas que faltaba bajar a una --- */
+    .recalc-stats { grid-template-columns: 1fr !important; }
+    .caja-form-grid { grid-template-columns: 1fr !important; }
 
     /* --- Filtros del dashboard: apilar --- */
     .filters {
