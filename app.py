@@ -1092,6 +1092,7 @@ def register_routes(app: Flask) -> None:
             validos = {t["sample_local"] for t in tracks}
             n = _i("track_count") or 0
             creados = 0
+            tl_lines = []  # tambien armamos el tracklist en TEXTO
             for idx in range(n):
                 tit = (request.form.get(f"track_titulo_{idx}") or "").strip() or f"Track {idx + 1}"
                 art = (request.form.get(f"track_artista_{idx}") or "").strip() or None
@@ -1102,6 +1103,10 @@ def register_routes(app: Flask) -> None:
                     sample_local=sample,
                 ))
                 creados += 1
+                tl_lines.append(f"{idx + 1}. " + (f"{art} - {tit}" if art else tit))
+            # Cargar los nombres tambien en el tracklist de texto
+            if tl_lines:
+                disc.tracklist = "\n".join(tl_lines)
             db.session.commit()
             session.pop("video_prefill", None)
             session.pop("video_tracks", None)
