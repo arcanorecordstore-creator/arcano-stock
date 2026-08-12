@@ -25,8 +25,8 @@
         </span>
     </div>
     <div class="caja-hero-desglose">
-        <div class="caja-chip">
-            <span class="caja-chip-label">Saldo inicial</span>
+        <div class="caja-chip caja-chip-editable" id="caja-si-chip" title="Click para editar el saldo inicial" data-raw="{{ '%.0f'|format(resumen.saldo_inicial) }}">
+            <span class="caja-chip-label">Saldo inicial &#9998;</span>
             <span class="caja-chip-val">$ {{ fmt_uyu(resumen.saldo_inicial) }}</span>
         </div>
         <div class="caja-chip pos">
@@ -43,6 +43,22 @@
             <span class="caja-chip-val">$ {{ fmt_uyu(resumen.total_aportes) }}</span>
         </div>
         {% endif %}
+    </div>
+</section>
+
+<!-- ============================================================
+     Disponible ya vs retenido en Mercado Pago (paga a ~30 días)
+     ============================================================ -->
+<section class="caja-liquidez">
+    <div class="caja-liq-card ok">
+        <span class="caja-liq-label">Disponible ya</span>
+        <span class="caja-liq-val {% if resumen.disponible < 0 %}negativo{% endif %}">$ {{ fmt_uyu(resumen.disponible) }}</span>
+        <span class="caja-liq-foot">Lo que podés tocar hoy (efectivo, transferencias, MP ya liberado, tu capital)</span>
+    </div>
+    <div class="caja-liq-card mp">
+        <span class="caja-liq-label">En Mercado Pago</span>
+        <span class="caja-liq-val">$ {{ fmt_uyu(resumen.mp_pendiente) }}</span>
+        <span class="caja-liq-foot">Cobrado por MP en los últimos 30 días. Todavía no lo tenés: MP lo libera a los ~30 días del cobro.</span>
     </div>
 </section>
 
@@ -365,6 +381,44 @@
                 if (cell.classList.contains('editing')) return;
                 editar(cell);
             });
+        });
+    })();
+
+    // Saldo inicial: click en el chip para editarlo ahí mismo
+    (function () {
+        var chip = document.getElementById('caja-si-chip');
+        if (!chip) return;
+        var val = chip.querySelector('.caja-chip-val');
+        var abierto = false;
+        chip.addEventListener('click', function () {
+            if (abierto) return;
+            abierto = true;
+            var orig = val.innerHTML;
+            var input = document.createElement('input');
+            input.type = 'text'; input.inputMode = 'decimal';
+            input.value = chip.dataset.raw || '';
+            input.className = 'caja-inline-input';
+            val.innerHTML = '';
+            val.appendChild(input);
+            input.focus();
+            try { input.select(); } catch (e) {}
+            function cancelar() { abierto = false; val.innerHTML = orig; }
+            function guardar() {
+                if (!abierto) return;
+                abierto = false;
+                fetch('{{ url_for("caja_saldo_inicial") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: 'saldo_inicial=' + encodeURIComponent(input.value)
+                }).then(function () { window.location.reload(); })
+                  .catch(function () { alert('No se pudo guardar.'); val.innerHTML = orig; });
+            }
+            input.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Enter') { ev.preventDefault(); guardar(); }
+                else if (ev.key === 'Escape') { ev.preventDefault(); cancelar(); }
+            });
+            input.addEventListener('blur', guardar);
+            input.addEventListener('click', function (ev) { ev.stopPropagation(); });
         });
     })();
 </script>

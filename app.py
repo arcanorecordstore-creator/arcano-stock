@@ -2654,6 +2654,19 @@ def register_routes(app: Flask) -> None:
             k = m.metodo if m.metodo in ("mercadopago", "transferencia", "efectivo", "otro") else "sin"
             por_metodo[k] += (m.monto_uyu or 0)
 
+        # Plata todavia retenida en Mercado Pago: MP libera el dinero ~30 dias
+        # despues del cobro. Lo cobrado por MP en los ultimos 30 dias todavia no
+        # esta disponible; lo mas viejo ya se libero (cuenta como disponible).
+        from datetime import datetime as _dt2, timedelta as _td
+        limite_mp = _dt2.utcnow().date() - _td(days=30)
+        mp_pendiente = sum(
+            (m.monto_uyu or 0) for m in movs
+            if m.tipo == "ingreso" and not m.es_aporte
+            and m.metodo == "mercadopago" and m.fecha and m.fecha > limite_mp
+        )
+        # Plata que ya podes tocar (todo menos lo retenido en MP)
+        disponible = saldo_actual - mp_pendiente
+
         # Saldo corriente (cronologico) y luego lo damos vuelta para mostrar
         saldo = saldo_inicial
         filas = []
@@ -2669,6 +2682,8 @@ def register_routes(app: Flask) -> None:
             "total_aportes": round(total_aportes, 2),
             "total_ventas": round(total_ventas, 2),
             "saldo_actual": round(saldo_actual, 2),
+            "mp_pendiente": round(mp_pendiente, 2),
+            "disponible": round(disponible, 2),
             "por_metodo": {k: round(v, 2) for k, v in por_metodo.items()},
             "filas": filas,
             "count": len(movs),
