@@ -286,6 +286,12 @@
                 <textarea id="analytics_snippet" name="analytics_snippet" rows="4" placeholder="&lt;script async src=&quot;https://www.googletagmanager.com/gtag/js?id=G-XXXX&quot;&gt;&lt;/script&gt;..." style="font-family: monospace; font-size: 12px;">{{ analytics_snippet or '' }}</textarea>
             </div>
 
+            <div class="form-field" style="margin-top: 14px;">
+                <label for="meta_pixel_id">Pixel de Meta (Facebook / Instagram) <span class="form-field-hint">(pega solo el ID numerico del pixel; lo sacas de Meta &rarr; Events Manager)</span></label>
+                <input type="text" id="meta_pixel_id" name="meta_pixel_id" value="{{ meta_pixel_id or '' }}" placeholder="1234567890123456" inputmode="numeric" style="font-family: monospace;">
+                <span class="form-field-hint">Con el ID cargado, la tienda mide las visitas y las conversiones (agregar al carrito, iniciar compra y compra) para optimizar la pauta. Deja el campo vacio para apagarlo.</span>
+            </div>
+
             <div class="form-field" style="margin-top: 22px; border-top: 1px solid var(--border-2, #333); padding-top: 18px;">
                 <label class="carrusel-toggle" style="font-size: 15px;">
                     <input type="checkbox" name="mercadopago_activo" value="1" {% if mercadopago_activo %}checked{% endif %}>

@@ -14,8 +14,22 @@ window.Arcano = window.Arcano || {};
 /* Evento a Google Analytics (embudo de conversion). No hace nada si GA no esta
    cargado, asi que es seguro en local y en el sandbox. */
 window.arcanoGA = function (name, params) {
+    params = params || {};
     if (typeof window.gtag === 'function') {
-        try { window.gtag('event', name, params || {}); } catch (e) {}
+        try { window.gtag('event', name, params); } catch (e) {}
+    }
+    // Meta Pixel (Facebook): mapea los eventos de conversion a los estandar de Meta.
+    // Se dispara solo si el pixel esta cargado (ID puesto en Ajustes).
+    if (typeof window.fbq === 'function') {
+        try {
+            var mapa = { add_to_cart: 'AddToCart', begin_checkout: 'InitiateCheckout', purchase: 'Purchase' };
+            var evento = mapa[name];
+            if (evento) {
+                var datos = { currency: params.currency || 'UYU' };
+                if (params.value != null) datos.value = params.value;
+                window.fbq('track', evento, datos);
+            }
+        } catch (e) {}
     }
 };
 

@@ -3063,6 +3063,7 @@ def register_routes(app: Flask) -> None:
             public_instagram=Setting.get("public_instagram", ""),
             public_whatsapp=Setting.get("public_whatsapp", ""),
             analytics_snippet=Setting.get("analytics_snippet", ""),
+            meta_pixel_id=Setting.get("meta_pixel_id", ""),
             tip_label=Setting.get("tip_label", "Tip"),
             carrusel_preorder=Setting.get("carrusel_preorder", "1") == "1",
             carrusel_tips=Setting.get("carrusel_tips", "1") == "1",
@@ -3317,6 +3318,7 @@ def register_routes(app: Flask) -> None:
             "instagram": Setting.get("public_instagram", ""),
             "whatsapp": Setting.get("public_whatsapp", ""),
             "analytics_snippet": Setting.get("analytics_snippet", ""),
+            "meta_pixel_id": Setting.get("meta_pixel_id", ""),
             "tip_label": Setting.get("tip_label", "Tip"),
             "banner_url": _banner_url_si_existe(),
             "anuncio_texto": Setting.get("public_anuncio_texto", ""),
@@ -4585,6 +4587,7 @@ def register_routes(app: Flask) -> None:
             "public_carrusel_velocidad",
             "public_card_tamano",
             "analytics_snippet",
+            "meta_pixel_id",
             "tip_label",
             "carrusel_preorder",
             "carrusel_tips",
@@ -4625,6 +4628,10 @@ def register_routes(app: Flask) -> None:
                     value = str(max(3, min(n, 20)))
                 except (ValueError, TypeError):
                     value = "7"
+            # ID del pixel de Meta: solo digitos (evita inyeccion al insertarlo en el HTML)
+            elif key == "meta_pixel_id":
+                import re as _re
+                value = _re.sub(r"\D", "", value)[:20]
             Setting.set(key, value)
         flash("Textos publicos actualizados.", "success")
         return redirect(url_for("settings_page"))
