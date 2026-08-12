@@ -7472,7 +7472,32 @@ td.num,
 }
 .ped-progress-fill.full { background: #10b981; }
 .ped-notas { font-size: 13px; color: var(--text-2, #aaa); margin-bottom: 12px; font-style: italic; }
-.ped-card-foot { display: flex; justify-content: flex-end; }
+.ped-card-foot { display: flex; flex-direction: column; gap: 12px; align-items: stretch; }
+.ped-card-foot .inline-form { align-self: flex-end; }
+
+/* v3.30 - Formulario para editar todos los campos de un pedido (desplegable) */
+.ped-editar { width: 100%; }
+.ped-editar > summary {
+    display: inline-flex;
+    align-items: center;
+    width: auto;
+    cursor: pointer;
+    list-style: none;
+}
+.ped-editar > summary::-webkit-details-marker { display: none; }
+.ped-editar-form {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-1);
+}
+.ped-editar-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+}
+.ped-editar-form .form-field label { display: block; margin-bottom: 4px; }
+.ped-editar-form textarea { width: 100%; }
 
 /* Selector de pedido en el dashboard */
 .pedido-select {

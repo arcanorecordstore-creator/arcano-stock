@@ -2595,6 +2595,57 @@ def register_routes(app: Flask) -> None:
                 flash("Monto invalido.", "error")
         return redirect(url_for("pedidos"))
 
+    @app.route("/admin/pedidos/<int:pedido_id>/editar", methods=["POST"])
+    @auth.admin_required
+    def pedido_editar(pedido_id):
+        """Edita todos los campos de un pedido (por si se cargo algo mal)."""
+        from models import Pedido, PROVEEDORES_PEDIDO
+        from datetime import datetime as _dt
+        ped = Pedido.query.get_or_404(pedido_id)
+
+        ped.numero = (request.form.get("numero") or "").strip() or None
+
+        prov = (request.form.get("proveedor") or "").strip()
+        if prov in PROVEEDORES_PEDIDO:
+            ped.proveedor = prov
+
+        try:
+            ped.cant_discos = max(0, int(request.form.get("cant_discos") or 0))
+        except (ValueError, TypeError):
+            pass
+        try:
+            ped.costo_eur = max(0.0, float(str(request.form.get("costo_eur") or 0).replace(",", ".")))
+        except (ValueError, TypeError):
+            pass
+        try:
+            ped.costo_usd = max(0.0, float(str(request.form.get("costo_usd") or 0).replace(",", ".")))
+        except (ValueError, TypeError):
+            pass
+
+        fecha_str = (request.form.get("fecha") or "").strip()
+        if fecha_str:
+            try:
+                ped.fecha = _dt.strptime(fecha_str, "%Y-%m-%d").date()
+            except ValueError:
+                pass
+
+        # Costo real UYU (manual): vacio => None (vuelve al calculo automatico).
+        raw = (request.form.get("costo_uyu_manual") or "").strip().replace(",", ".")
+        if raw == "":
+            ped.costo_uyu_manual = None
+        else:
+            try:
+                v = float(raw)
+                ped.costo_uyu_manual = v if v >= 0 else None
+            except (ValueError, TypeError):
+                pass
+
+        ped.notas = (request.form.get("notas") or "").strip() or None
+
+        db.session.commit()
+        flash(f"Pedido {ped.numero or ped.id} actualizado.", "success")
+        return redirect(url_for("pedidos"))
+
     @app.route("/admin/pedidos/exportar/excel")
     @auth.admin_required
     def pedidos_exportar_excel():

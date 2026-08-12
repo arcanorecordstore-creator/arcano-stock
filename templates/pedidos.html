@@ -165,6 +165,50 @@
         {% endif %}
 
         <div class="ped-card-foot">
+            <details class="ped-editar">
+                <summary class="action-btn">&#9998; Editar pedido</summary>
+                <form method="post" action="{{ url_for('pedido_editar', pedido_id=p.id) }}" class="ped-editar-form">
+                    <div class="ped-editar-grid">
+                        <div class="form-field">
+                            <label>Numero de pedido</label>
+                            <input type="text" name="numero" value="{{ p.numero or '' }}" placeholder="ej: 1, 2, 3...">
+                        </div>
+                        <div class="form-field">
+                            <label>Proveedor</label>
+                            <select name="proveedor">
+                                {% for prov in proveedores %}<option value="{{ prov }}" {% if p.proveedor == prov %}selected{% endif %}>{{ prov }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-field">
+                            <label>Fecha</label>
+                            <input type="date" name="fecha" value="{{ p.fecha.strftime('%Y-%m-%d') if p.fecha else '' }}">
+                        </div>
+                        <div class="form-field">
+                            <label>Discos declarados</label>
+                            <input type="number" name="cant_discos" min="0" value="{{ p.cant_discos }}">
+                        </div>
+                        <div class="form-field">
+                            <label>Costo EUR</label>
+                            <input type="number" name="costo_eur" min="0" step="0.01" value="{{ '%.2f'|format(p.costo_eur or 0) }}">
+                        </div>
+                        <div class="form-field">
+                            <label>Costo USD</label>
+                            <input type="number" name="costo_usd" min="0" step="0.01" value="{{ '%.2f'|format(p.costo_usd or 0) }}">
+                        </div>
+                        <div class="form-field">
+                            <label>Costo real UYU <span class="form-field-hint">(opcional)</span></label>
+                            <input type="number" name="costo_uyu_manual" min="0" step="0.01"
+                                   value="{{ '%.0f'|format(p.costo_uyu_manual) if p.costo_uyu_manual is not none else '' }}"
+                                   placeholder="auto desde EUR/USD">
+                        </div>
+                    </div>
+                    <div class="form-field">
+                        <label>Notas</label>
+                        <textarea name="notas" rows="2" placeholder="Notas del pedido...">{{ p.notas or '' }}</textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm">Guardar cambios</button>
+                </form>
+            </details>
             <form method="post" action="{{ url_for('pedido_borrar', pedido_id=p.id) }}" class="inline-form"
                   data-confirm="Eliminar el pedido {{ p.numero or p.id }}? Los discos quedaran sin pedido (no se borran).">
                 <button type="submit" class="action-btn danger">Eliminar pedido</button>
