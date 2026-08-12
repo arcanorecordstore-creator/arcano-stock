@@ -2550,9 +2550,18 @@ def register_routes(app: Flask) -> None:
         except ValueError:
             fecha = _dt.utcnow().date()
         notas = (request.form.get("notas") or "").strip()
+
+        def _opt_float(name):
+            r = (request.form.get(name) or "").strip().replace(",", ".")
+            try:
+                return max(0.0, float(r)) if r != "" else None
+            except (ValueError, TypeError):
+                return None
+
         ped = Pedido(
             numero=numero, fecha=fecha, cant_discos=cant,
             costo_eur=costo_eur, costo_usd=costo_usd, proveedor=proveedor, notas=notas,
+            envio_eur=_opt_float("envio_eur"), servicio_eur=_opt_float("servicio_eur"),
         )
         db.session.add(ped)
         db.session.commit()
@@ -2639,6 +2648,18 @@ def register_routes(app: Flask) -> None:
                 ped.costo_uyu_manual = v if v >= 0 else None
             except (ValueError, TypeError):
                 pass
+
+        # Costos informativos (envio y servicio de la web, en EUR): no entran en ningun
+        # calculo, solo se guardan. Vacio => None.
+        for _campo in ("envio_eur", "servicio_eur"):
+            _raw = (request.form.get(_campo) or "").strip().replace(",", ".")
+            if _raw == "":
+                setattr(ped, _campo, None)
+            else:
+                try:
+                    setattr(ped, _campo, max(0.0, float(_raw)))
+                except (ValueError, TypeError):
+                    pass
 
         ped.notas = (request.form.get("notas") or "").strip() or None
 

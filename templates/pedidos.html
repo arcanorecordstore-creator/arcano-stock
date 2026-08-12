@@ -54,6 +54,9 @@
                     {% if p.costo_eur %}{{ '%.2f'|format(p.costo_eur) }} EUR{% endif %}
                     {% if p.usa_costo_manual %}&middot; calculado {{ fmt_uyu(p.costo_total_uyu_calculado) }}{% endif %}
                 </span>
+                {% if p.envio_eur or p.servicio_eur %}
+                <span class="ped-stat-detail">Env&iacute;o {{ '%.2f'|format(p.envio_eur or 0) }} EUR &middot; Servicio {{ '%.2f'|format(p.servicio_eur or 0) }} EUR <span class="form-field-hint">(no suma al costo)</span></span>
+                {% endif %}
             </div>
             <div class="ped-stat">
                 <span class="ped-stat-label">Discos</span>
@@ -196,6 +199,16 @@
                             <input type="number" name="costo_usd" min="0" step="0.01" value="{{ '%.2f'|format(p.costo_usd or 0) }}">
                         </div>
                         <div class="form-field">
+                            <label>Costo de env&iacute;o EUR <span class="form-field-hint">(solo dato)</span></label>
+                            <input type="number" name="envio_eur" min="0" step="0.01"
+                                   value="{{ '%.2f'|format(p.envio_eur) if p.envio_eur is not none else '' }}" placeholder="opcional">
+                        </div>
+                        <div class="form-field">
+                            <label>Costo de servicio EUR <span class="form-field-hint">(solo dato)</span></label>
+                            <input type="number" name="servicio_eur" min="0" step="0.01"
+                                   value="{{ '%.2f'|format(p.servicio_eur) if p.servicio_eur is not none else '' }}" placeholder="opcional">
+                        </div>
+                        <div class="form-field">
                             <label>Costo real UYU <span class="form-field-hint">(opcional)</span></label>
                             <input type="number" name="costo_uyu_manual" min="0" step="0.01"
                                    value="{{ '%.0f'|format(p.costo_uyu_manual) if p.costo_uyu_manual is not none else '' }}"
@@ -313,6 +326,14 @@
             <div class="form-field form-field-sm">
                 <label for="ped-usd">Costo en USD</label>
                 <input type="number" id="ped-usd" name="costo_usd" min="0" step="0.01" placeholder="ej: 0">
+            </div>
+            <div class="form-field form-field-sm">
+                <label for="ped-envio">Env&iacute;o EUR <span class="form-field-hint">(solo dato)</span></label>
+                <input type="number" id="ped-envio" name="envio_eur" min="0" step="0.01" placeholder="opcional">
+            </div>
+            <div class="form-field form-field-sm">
+                <label for="ped-servicio">Servicio EUR <span class="form-field-hint">(solo dato)</span></label>
+                <input type="number" id="ped-servicio" name="servicio_eur" min="0" step="0.01" placeholder="opcional">
             </div>
         </div>
         <div class="form-field">

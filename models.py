@@ -926,6 +926,10 @@ class Pedido(db.Model):
     costo_uyu_manual = db.Column(db.Float, nullable=True)
     proveedor = db.Column(db.String(40), nullable=False, default="Deejay.de")
     notas = db.Column(db.Text, nullable=True)
+    # Costos informativos del pedido (envio y servicio de la web, en EUR). NO entran en
+    # ningun calculo: el costo total lo pone Facundo a mano (costo_usd / costo_uyu_manual).
+    envio_eur = db.Column(db.Float, nullable=True)
+    servicio_eur = db.Column(db.Float, nullable=True)
     creado = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     # Relacion con los discos asignados a este pedido
@@ -1221,6 +1225,16 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE pedidos ADD COLUMN costo_uyu_manual FLOAT"))
                     conn.commit()
                 print("Migracion: columna costo_uyu_manual agregada a pedidos")
+            if "envio_eur" not in pcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE pedidos ADD COLUMN envio_eur FLOAT"))
+                    conn.commit()
+                print("Migracion: columna envio_eur agregada a pedidos")
+            if "servicio_eur" not in pcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE pedidos ADD COLUMN servicio_eur FLOAT"))
+                    conn.commit()
+                print("Migracion: columna servicio_eur agregada a pedidos")
 
         # Columnas es_tip y resena_corta en discs (curaduria visible)
         if inspector.has_table("discs"):
