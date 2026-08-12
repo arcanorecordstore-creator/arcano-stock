@@ -1069,36 +1069,10 @@ def register_routes(app: Flask) -> None:
                 except (TypeError, ValueError):
                     return None
 
-            # El titulo del EP es obligatorio (no sale del video). Si falta, se
-            # vuelve a la revision preservando lo que ya edito, sin crashear.
-            titulo = _s("titulo")
-            if not titulo:
-                flash("Poné el título del EP antes de crear la ficha (no sale del video).", "error")
-                validos = {t["sample_local"] for t in tracks}
-                arch_by_sample = {t["sample_local"]: t.get("archivo", "") for t in tracks}
-                n0 = _i("track_count") or 0
-                tracks_back = []
-                for idx in range(n0):
-                    smp = (request.form.get(f"track_sample_{idx}") or "").strip()
-                    if smp not in validos:
-                        continue
-                    tracks_back.append({
-                        "artista": request.form.get(f"track_artista_{idx}") or "",
-                        "titulo": request.form.get(f"track_titulo_{idx}") or "",
-                        "sample_local": smp,
-                        "archivo": arch_by_sample.get(smp, ""),
-                    })
-                prefill_back = {
-                    "artista": _s("artista"), "titulo": _s("titulo"), "sello": _s("sello"),
-                    "genero": _s("genero"), "anio": _i("anio"),
-                    "formato": _s("formato") or "Vinyl", "catalogo": _s("catalogo"),
-                    "precio_uyu": _i("precio_uyu"),
-                }
-                return render_template(
-                    "disc_video_review.html", prefill=prefill_back, tracks=tracks_back,
-                    info=session.get("video_info") or {}, tc=Setting.get_tc(),
-                )
-
+            # El titulo del EP NO es obligatorio (no sale del video). Si va vacio,
+            # se pone un placeholder que Facundo edita despues en la ficha
+            # (la columna del disco no admite null).
+            titulo = _s("titulo") or "Sin título"
             precio = _i("precio_uyu") or 0
             disc = Disc(
                 estado="Disponible", stock=1, origen="arcano",
