@@ -126,7 +126,10 @@ def create_app() -> Flask:
             raise RuntimeError(
                 "ADMIN_USER/ADMIN_PASS no configurados en produccion: el admin quedaria abierto."
             )
-    app.config["MAX_CONTENT_LENGTH"] = 35 * 1024 * 1024  # 35 MB (permite samples de video)
+    # Limite de tamano de request. Alto porque "Desde video" sube VARIOS videos
+    # juntos (cada uno hasta 50 MB). El resto de los uploads (covers, un sample)
+    # son mucho mas chicos.
+    app.config["MAX_CONTENT_LENGTH"] = 400 * 1024 * 1024  # 400 MB
 
     # --- Seguridad de cookies de sesion ---
     # HTTPONLY: el JS no puede leer la cookie (previene robo por XSS).

@@ -68,21 +68,39 @@
         var processing = document.getElementById('video-processing');
         if (!input) return;
 
+        var PER_VIDEO_MB = 50;   // limite por video (server)
+        var TOTAL_MB = 390;      // limite del lote (server ~400MB)
         function render() {
             list.innerHTML = '';
             var files = input.files;
-            if (!files || !files.length) return;
+            var submit = document.getElementById('video-submit');
+            if (!files || !files.length) { if (submit) submit.disabled = false; return; }
+            var totalMB = 0, tooBig = false;
+            for (var i = 0; i < files.length; i++) totalMB += files[i].size / 1024 / 1024;
             var head = document.createElement('p');
             head.className = 'video-list-head';
-            head.textContent = files.length + ' video(s) = ' + files.length + ' track(s)';
+            head.textContent = files.length + ' video(s) = ' + files.length + ' track(s)  ·  ' + Math.round(totalMB) + ' MB en total';
             list.appendChild(head);
             for (var i = 0; i < files.length; i++) {
-                var row = document.createElement('div');
-                row.className = 'video-item';
                 var mb = Math.round(files[i].size / 1024 / 1024 * 10) / 10;
-                row.textContent = (i + 1) + '.  ' + files[i].name + '  ·  ' + mb + ' MB';
+                var over = mb > PER_VIDEO_MB;
+                if (over) tooBig = true;
+                var row = document.createElement('div');
+                row.className = 'video-item' + (over ? ' video-item-over' : '');
+                row.textContent = (i + 1) + '.  ' + files[i].name + '  ·  ' + mb + ' MB' + (over ? '  — muy pesado (máx ' + PER_VIDEO_MB + ' MB)' : '');
                 list.appendChild(row);
             }
+            var warn = null;
+            if (tooBig) warn = 'Hay video(s) que pasan los ' + PER_VIDEO_MB + ' MB. Sacalos o comprimilos antes de subir.';
+            else if (totalMB > TOTAL_MB) warn = 'El lote pesa mucho (' + Math.round(totalMB) + ' MB). Subí menos videos por vez.';
+            else if (totalMB > 150) warn = 'Son ' + Math.round(totalMB) + ' MB: la subida puede tardar un rato según tu conexión. Esperá a que termine.';
+            if (warn) {
+                var w = document.createElement('p');
+                w.className = 'video-warn';
+                w.textContent = warn;
+                list.appendChild(w);
+            }
+            if (submit) submit.disabled = tooBig || totalMB > TOTAL_MB;
         }
         input.addEventListener('change', render);
         if (drop) {
