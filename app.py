@@ -948,6 +948,141 @@ def register_routes(app: Flask) -> None:
             api_key_set=api_key_set,
         )
 
+    @app.route("/admin/discs/new/from-video", methods=["GET", "POST"])
+    @auth.admin_required
+    def disc_new_from_video():
+        """Sube uno o varios videos del disco (los de Instagram). Cada video =
+        un track y queda como su sample. De la placa saca los datos del disco."""
+        api_key_set = bool(config.ANTHROPIC_API_KEY)
+        if request.method == "POST":
+            if not api_key_set:
+                flash("La API key de Anthropic no esta configurada.", "error")
+                return redirect(url_for("disc_new_from_video"))
+            files = [f for f in request.files.getlist("videos") if f and f.filename]
+            if not files:
+                flash("Subi al menos un video.", "error")
+                return redirect(url_for("disc_new_from_video"))
+
+            import video as _video
+            import uuid as _uuid
+            samples_dir = app.config["SAMPLES_DIR"]
+            os.makedirs(samples_dir, exist_ok=True)
+
+            disc_fields = {}
+            tracks = []
+            total_cost = 0.0
+            errores = []
+            for f in files:
+                mtype = (f.mimetype or "").lower()
+                if mtype not in _video.VIDEO_EXT_MAP:
+                    errores.append(f"{f.filename}: tipo no soportado ({mtype})")
+                    continue
+                data = f.read()
+                if len(data) > _video.MAX_VIDEO_BYTES:
+                    errores.append(f"{f.filename}: pesa demasiado (max 60 MB)")
+                    continue
+                ext = _video.VIDEO_EXT_MAP[mtype]
+                fname = f"sample_{_uuid.uuid4().hex[:12]}{ext}"
+                try:
+                    with open(os.path.join(samples_dir, fname), "wb") as out:
+                        out.write(data)
+                except Exception as e:
+                    errores.append(f"{f.filename}: no se pudo guardar ({e})")
+                    continue
+                titulo_track = ""
+                frames, ferr = _video.extract_frames_png(data)
+                if ferr:
+                    errores.append(f"{f.filename}: {ferr}")
+                else:
+                    res = vision.extract_from_video_frames(frames)
+                    if res.cost_usd:
+                        total_cost += res.cost_usd
+                    if res.ok:
+                        d = res.data
+                        for k in ("artista", "titulo", "sello", "anio", "formato", "genero", "catalogo", "precio_uyu"):
+                            if not disc_fields.get(k) and d.get(k):
+                                disc_fields[k] = d.get(k)
+                        titulo_track = d.get("titulo_track") or ""
+                    else:
+                        errores.append(f"{f.filename}: {res.error}")
+                tracks.append({"titulo": titulo_track, "sample_local": fname, "archivo": f.filename})
+
+            if total_cost > 0:
+                _track_api_cost(total_cost)
+                db.session.commit()
+
+            if not tracks:
+                flash("No se pudo procesar ningun video. " + " · ".join(errores[:3]), "error")
+                return redirect(url_for("disc_new_from_video"))
+
+            session["video_prefill"] = disc_fields
+            session["video_tracks"] = tracks
+            session["video_info"] = {"cost_usd": round(total_cost, 4), "errores": errores}
+            flash(f"{len(tracks)} video(s) procesado(s). Costo: ${total_cost:.4f} USD. Revisá y creá la ficha.", "success")
+            return redirect(url_for("disc_video_review"))
+
+        return render_template("disc_from_video.html", api_key_set=api_key_set)
+
+    @app.route("/admin/discs/new/from-video/review", methods=["GET", "POST"])
+    @auth.admin_required
+    def disc_video_review():
+        prefill = session.get("video_prefill") or {}
+        tracks = session.get("video_tracks") or []
+        if not tracks:
+            flash("No hay datos de video para revisar. Subí los videos primero.", "error")
+            return redirect(url_for("disc_new_from_video"))
+
+        if request.method == "POST":
+            from datetime import datetime as _dt
+            def _s(k):
+                v = (request.form.get(k) or "").strip()
+                return v or None
+            def _i(k):
+                try:
+                    return int(request.form.get(k))
+                except (TypeError, ValueError):
+                    return None
+            precio = _i("precio_uyu") or 0
+            disc = Disc(
+                estado="Disponible", stock=1, origen="arcano",
+                artista=_s("artista"), titulo=_s("titulo"), sello=_s("sello"),
+                anio=_i("anio"), formato=_s("formato"), genero=_s("genero"),
+                tags=_s("catalogo"), precio_uyu=float(precio),
+                fecha_ingreso=_dt.utcnow(),
+            )
+            if not disc.artista and not disc.titulo:
+                flash("Poné al menos artista o título antes de crear la ficha.", "error")
+                return redirect(url_for("disc_video_review"))
+            db.session.add(disc)
+            db.session.flush()
+            db.session.add(StatusHistory(disc_id=disc.id, estado=disc.estado, nota="Ingreso al stock (desde video)"))
+
+            # Solo aceptar sample_local que vengan de la sesion (anti-manipulacion)
+            validos = {t["sample_local"] for t in tracks}
+            n = _i("track_count") or 0
+            creados = 0
+            for idx in range(n):
+                tit = (request.form.get(f"track_titulo_{idx}") or "").strip() or f"Track {idx + 1}"
+                sample = (request.form.get(f"track_sample_{idx}") or "").strip()
+                sample = sample if sample in validos else None
+                db.session.add(Track(
+                    disc_id=disc.id, posicion=idx, titulo=tit[:300], sample_local=sample,
+                ))
+                creados += 1
+            db.session.commit()
+            session.pop("video_prefill", None)
+            session.pop("video_tracks", None)
+            session.pop("video_info", None)
+            flash(f"Ficha creada con {creados} track(s) y sus samples. Agregale la portada si querés.", "success")
+            return redirect(url_for("disc_edit", disc_id=disc.id) + "#tracks-section")
+
+        return render_template(
+            "disc_video_review.html",
+            prefill=prefill, tracks=tracks,
+            info=session.get("video_info") or {},
+            tc=Setting.get_tc(),
+        )
+
     @app.route("/admin/discs/new/from-url", methods=["GET", "POST"])
     @auth.admin_required
     def disc_new_from_url():

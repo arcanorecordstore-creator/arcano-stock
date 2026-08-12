@@ -21,6 +21,8 @@ services:
         value: /var/data/arcano_stock.db
       - key: COVERS_PATH
         value: /var/data/covers
+      - key: SAMPLES_PATH
+        value: /var/data/samples
       - key: SECRET_KEY
         generateValue: true
       - key: PYTHON_VERSION

@@ -50,7 +50,7 @@
                     </div>
                 </div>
 
-                {% set agregar_activo = ep in ['disc_new', 'disc_edit', 'disc_detail', 'disc_new_from_url', 'disc_new_from_image', 'disc_new_from_invoice', 'disc_invoice_review'] %}
+                {% set agregar_activo = ep in ['disc_new', 'disc_edit', 'disc_detail', 'disc_new_from_url', 'disc_new_from_image', 'disc_new_from_invoice', 'disc_invoice_review', 'disc_new_from_video', 'disc_video_review'] %}
                 <div class="nav-group">
                     <button type="button" class="nav-link nav-group-btn {% if agregar_activo %}active{% endif %}" aria-haspopup="true" aria-expanded="false">Agregar <span class="nav-caret">&#9662;</span></button>
                     <div class="nav-group-menu">
@@ -58,6 +58,7 @@
                         <a href="{{ url_for('disc_new_from_url') }}" class="nav-link {% if ep == 'disc_new_from_url' %}active{% endif %}">Desde URL</a>
                         <a href="{{ url_for('disc_new_from_image') }}" class="nav-link {% if ep == 'disc_new_from_image' %}active{% endif %}">Desde screenshot</a>
                         <a href="{{ url_for('disc_new_from_invoice') }}" class="nav-link {% if ep in ['disc_new_from_invoice', 'disc_invoice_review'] %}active{% endif %}">Desde factura</a>
+                        <a href="{{ url_for('disc_new_from_video') }}" class="nav-link {% if ep in ['disc_new_from_video', 'disc_video_review'] %}active{% endif %}">Desde video</a>
                     </div>
                 </div>
 
@@ -100,7 +101,7 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v3.50 &middot; Menu del admin agrupado: Dashboard, Reservas, Gestion (Contabilidad/Caja/Pedidos/Radar), Agregar (Manual/URL/screenshot/factura), Ajustes, Tienda. Desplegables en desktop, secciones en el celu; ya no se desborda</span>
+            <span class="footer-version">v3.51 &middot; Nuevo &laquo;Desde video&raquo;: subis los videos del disco (los de Instagram), la IA lee la placa (artista/titulo/sello/genero/precio) y crea la ficha; cada video = un track y queda como su sample</span>
         </footer>
     </div>
 

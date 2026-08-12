@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Agregar desde video &middot; Arcano{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Agregar desde video</h1>
+        <p class="page-sub">Subí los videos del disco (los de Instagram). Cada video es un track: de la placa saco los datos y el video queda como su sample.</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('disc_new') }}" class="btn btn-ghost">Cargar manual en su lugar</a>
+    </div>
+</section>
+
+<div class="upload-grid">
+    <section class="upload-card">
+        {% if not api_key_set %}
+        <div class="upload-warning">
+            <strong>API key no configurada.</strong> Agregá <code>ANTHROPIC_API_KEY</code> en el entorno (Render / .env) y reiniciá.
+        </div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('disc_new_from_video') }}" id="video-form">
+            <label class="video-drop" for="videos">
+                <span class="video-drop-icon">&#9654;</span>
+                <span class="video-drop-title">Elegí los videos del disco</span>
+                <span class="video-drop-sub">uno por track &middot; MP4, MOV, WEBM &middot; máx 60 MB c/u</span>
+                <input type="file" id="videos" name="videos" accept="video/*" multiple required hidden>
+            </label>
+
+            <div id="video-list" class="video-list"></div>
+
+            <div class="upload-actions">
+                <button type="submit" class="btn btn-primary" id="video-submit" {% if not api_key_set %}disabled{% endif %}>
+                    Procesar videos
+                </button>
+                <span class="video-processing" id="video-processing" hidden>Procesando… puede tardar unos segundos por video.</span>
+            </div>
+        </form>
+    </section>
+
+    <aside class="upload-aside">
+        <h3 class="upload-aside-title">Cómo funciona</h3>
+        <ol class="upload-steps">
+            <li>Subís uno o varios videos del disco (uno por track).</li>
+            <li>La página saca cuadros de cada video y la IA lee la placa: artista, título, sello, género, precio, catálogo, año.</li>
+            <li><strong>Cantidad de videos = cantidad de tracks.</strong> Cada video queda como el sample de su track (lo que suena en la ficha).</li>
+            <li>Te llevamos a una pantalla de revisión para confirmar antes de crear la ficha.</li>
+        </ol>
+
+        <h3 class="upload-aside-title">Ojo</h3>
+        <p class="upload-aside-text">
+            Solo lee lo que el video muestra con texto legible (la placa). El precio sale de la placa; la portada la agregás vos después.
+            El gasto de IA se acumula en <a href="{{ url_for('settings_page') }}" class="link">Ajustes</a>.
+        </p>
+    </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        var input = document.getElementById('videos');
+        var drop = document.querySelector('.video-drop');
+        var list = document.getElementById('video-list');
+        var form = document.getElementById('video-form');
+        var processing = document.getElementById('video-processing');
+        if (!input) return;
+
+        function render() {
+            list.innerHTML = '';
+            var files = input.files;
+            if (!files || !files.length) return;
+            var head = document.createElement('p');
+            head.className = 'video-list-head';
+            head.textContent = files.length + ' video(s) = ' + files.length + ' track(s)';
+            list.appendChild(head);
+            for (var i = 0; i < files.length; i++) {
+                var row = document.createElement('div');
+                row.className = 'video-item';
+                var mb = Math.round(files[i].size / 1024 / 1024 * 10) / 10;
+                row.textContent = (i + 1) + '.  ' + files[i].name + '  ·  ' + mb + ' MB';
+                list.appendChild(row);
+            }
+        }
+        input.addEventListener('change', render);
+        if (drop) {
+            drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('dragover'); });
+            drop.addEventListener('dragleave', function () { drop.classList.remove('dragover'); });
+            drop.addEventListener('drop', function (e) {
+                e.preventDefault(); drop.classList.remove('dragover');
+                if (e.dataTransfer && e.dataTransfer.files.length) { input.files = e.dataTransfer.files; render(); }
+            });
+        }
+        if (form) {
+            form.addEventListener('submit', function () {
+                if (processing) processing.hidden = false;
+                var btn = document.getElementById('video-submit');
+                if (btn) { btn.disabled = true; btn.textContent = 'Procesando…'; }
+            });
+        }
+    })();
+</script>
+{% endblock %}

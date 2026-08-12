@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Revisar ficha (desde video) &middot; Arcano{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Revisar antes de crear</h1>
+        <p class="page-sub">Confirmá los datos que la IA sacó de los videos. Corregí lo que haga falta y creá la ficha.</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('disc_new_from_video') }}" class="btn btn-ghost">Volver a subir</a>
+    </div>
+</section>
+
+{% if info.errores %}
+<div class="upload-warning">
+    <strong>Algunos videos tuvieron problemas:</strong> {{ info.errores|join(' · ') }}
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('disc_video_review') }}" class="videorev-form">
+    <section class="videorev-card">
+        <h2 class="videorev-title">Datos del disco</h2>
+        <div class="videorev-grid">
+            <label>Artista<input type="text" name="artista" value="{{ prefill.artista or '' }}"></label>
+            <label>Título<input type="text" name="titulo" value="{{ prefill.titulo or '' }}"></label>
+            <label>Sello<input type="text" name="sello" value="{{ prefill.sello or '' }}"></label>
+            <label>Género<input type="text" name="genero" value="{{ prefill.genero or '' }}"></label>
+            <label>Año<input type="number" name="anio" value="{{ prefill.anio or '' }}"></label>
+            <label>Formato<input type="text" name="formato" value="{{ prefill.formato or '' }}"></label>
+            <label>Catálogo<input type="text" name="catalogo" value="{{ prefill.catalogo or '' }}"></label>
+            <label>Precio (UYU)<input type="number" name="precio_uyu" value="{{ prefill.precio_uyu or '' }}"></label>
+        </div>
+    </section>
+
+    <section class="videorev-card">
+        <h2 class="videorev-title">Tracks ({{ tracks|length }}) &middot; cada uno con su video de sample</h2>
+        <p class="videorev-sub">El orden es el que subiste los videos. Poné el nombre de cada track (si la IA no lo detectó) y confirmá que el video es el correcto.</p>
+        <input type="hidden" name="track_count" value="{{ tracks|length }}">
+        <div class="videorev-tracks">
+            {% for t in tracks %}
+            <div class="videorev-track">
+                <span class="videorev-tracknum">{{ loop.index }}</span>
+                <div class="videorev-track-main">
+                    <input type="text" name="track_titulo_{{ loop.index0 }}" value="{{ t.titulo or '' }}" placeholder="Nombre del track (opcional)">
+                    <input type="hidden" name="track_sample_{{ loop.index0 }}" value="{{ t.sample_local }}">
+                    <span class="videorev-file">{{ t.archivo }}</span>
+                </div>
+                <video class="videorev-vid" src="{{ url_for('serve_sample', filename=t.sample_local) }}" controls preload="metadata" playsinline></video>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <div class="videorev-actions">
+        <button type="submit" class="btn btn-primary">Crear ficha en el dashboard</button>
+        <a href="{{ url_for('disc_new_from_video') }}" class="btn btn-ghost">Cancelar</a>
+    </div>
+</form>
+{% endblock %}

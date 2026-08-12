@@ -217,6 +217,41 @@ Reglas importantes:
 """
 
 
+VIDEO_FRAMES_PROMPT = """\
+Sos un asistente experto en catalogar discos de vinilo. Te paso VARIOS cuadros \
+(frames) de un mismo video corto de un disco. En general el video tiene una \
+PLACA de diseno con los datos escritos (catalogo, genero, artista, titulo, \
+sello, ano y precio) ademas de la portada. Puede haber tambien texto con el \
+nombre del track que suena.
+
+Tu tarea: leer los datos del disco que veas a lo largo de los cuadros y \
+devolverlos como un objeto JSON valido, sin texto adicional.
+
+Esquema exacto del JSON:
+
+{
+  "artista": string | null,        // el artista principal del disco
+  "titulo": string | null,         // el titulo del lanzamiento (ej: "ACID DROPS")
+  "sello": string | null,          // el sello/label (ej: "LEMAIA")
+  "anio": number | null,
+  "formato": string | null,        // ej: "12\\"", "LP", "EP" si es visible
+  "genero": string | null,         // ej: "House, Electro, Techno"
+  "catalogo": string | null,       // codigo de catalogo si es visible (ej: "LEMAIA002")
+  "precio_uyu": number | null,     // el PRECIO que aparece en la placa (ej: $1.300 -> 1300). Solo numero.
+  "titulo_track": string | null,   // si en estos cuadros se ve el NOMBRE de un track puntual (distinto del titulo del lanzamiento), ponelo aca. Si no, null.
+  "confianza": "alta" | "media" | "baja",
+  "notas_extraccion": string | null
+}
+
+Reglas:
+- Si un campo no se ve, devolve null. NO inventes.
+- "precio_uyu": el numero del precio de la placa (pesos uruguayos), sin simbolo ni puntos de miles (1.300 -> 1300).
+- "anio" entero entre 1900 y 2100, si no, null.
+- "titulo_track" SOLO si ves el nombre de un tema puntual; el titulo del lanzamiento va en "titulo".
+- Respondes UNICAMENTE con el JSON. Sin markdown, sin explicaciones.
+"""
+
+
 @dataclass
 class VisionResult:
     """Resultado de una extraccion via vision."""
@@ -458,6 +493,122 @@ def extract_disc_from_image(
             message.usage.input_tokens, message.usage.output_tokens
         ),
         raw_response=raw_text,
+    )
+
+
+def _normalize_video_data(data: dict) -> dict:
+    """Normaliza datos extraidos desde cuadros de un video."""
+    if not isinstance(data, dict):
+        return {}
+
+    def s(value):
+        if value is None:
+            return None
+        if isinstance(value, str):
+            v = value.strip()
+            return v if v else None
+        return str(value)
+
+    def f(value):
+        if value is None or value == "":
+            return None
+        try:
+            if isinstance(value, str):
+                value = value.replace("$", "").replace(".", "").replace(",", ".").strip()
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    def i(value):
+        if value is None or value == "":
+            return None
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            return None
+
+    anio = i(data.get("anio"))
+    if anio is not None and not (1900 <= anio <= 2100):
+        anio = None
+
+    precio = f(data.get("precio_uyu"))
+    return {
+        "artista": s(data.get("artista")),
+        "titulo": s(data.get("titulo")),
+        "sello": s(data.get("sello")),
+        "anio": anio,
+        "formato": s(data.get("formato")),
+        "genero": s(data.get("genero")),
+        "catalogo": s(data.get("catalogo")),
+        "precio_uyu": int(precio) if precio is not None else None,
+        "titulo_track": s(data.get("titulo_track")),
+        "confianza": s(data.get("confianza")) or "media",
+        "notas_extraccion": s(data.get("notas_extraccion")),
+    }
+
+
+def extract_from_video_frames(frames_png: list) -> VisionResult:
+    """Extrae datos del disco desde una lista de cuadros PNG de un video.
+
+    frames_png: lista de bytes PNG (los cuadros extraidos del video).
+    """
+    if not config.ANTHROPIC_API_KEY:
+        return VisionResult(ok=False, error="Falta la API key de Anthropic (ANTHROPIC_API_KEY).")
+    if not frames_png:
+        return VisionResult(ok=False, error="No se recibieron cuadros del video.")
+
+    # Armar el contenido: todas las imagenes + el prompt
+    content = []
+    for png in frames_png[:6]:  # tope de 6 cuadros por llamada
+        content.append({
+            "type": "image",
+            "source": {
+                "type": "base64",
+                "media_type": "image/png",
+                "data": base64.standard_b64encode(png).decode("utf-8"),
+            },
+        })
+    content.append({"type": "text", "text": VIDEO_FRAMES_PROMPT})
+
+    try:
+        client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+        message = client.messages.create(
+            model=VISION_MODEL,
+            max_tokens=2048,
+            messages=[{"role": "user", "content": content}],
+        )
+    except anthropic.AuthenticationError:
+        return VisionResult(ok=False, error="La API key de Anthropic es invalida o fue revocada.")
+    except anthropic.RateLimitError:
+        return VisionResult(ok=False, error="Limite de uso alcanzado. Esperar unos segundos.")
+    except anthropic.APIStatusError as e:
+        msg = str(e)
+        if any(w in msg.lower() for w in ("credit", "balance", "billing")):
+            return VisionResult(ok=False, error="La cuenta de Anthropic no tiene creditos suficientes.")
+        return VisionResult(ok=False, error=f"Error de la API: {msg}")
+    except anthropic.APIConnectionError:
+        return VisionResult(ok=False, error="No se pudo conectar a la API de Anthropic.")
+    except Exception as e:
+        return VisionResult(ok=False, error=f"Error inesperado: {type(e).__name__}: {e}")
+
+    raw_text = ""
+    for block in message.content:
+        if getattr(block, "type", None) == "text":
+            raw_text += block.text
+
+    parsed = _extract_json_from_text(raw_text)
+    cost = _calculate_cost(message.usage.input_tokens, message.usage.output_tokens)
+    if parsed is None:
+        return VisionResult(
+            ok=False, error="El modelo respondio pero no se pudo interpretar como JSON.",
+            input_tokens=message.usage.input_tokens, output_tokens=message.usage.output_tokens,
+            cost_usd=cost, raw_response=raw_text,
+        )
+
+    return VisionResult(
+        ok=True, data=_normalize_video_data(parsed),
+        input_tokens=message.usage.input_tokens, output_tokens=message.usage.output_tokens,
+        cost_usd=cost, raw_response=raw_text,
     )
 
 

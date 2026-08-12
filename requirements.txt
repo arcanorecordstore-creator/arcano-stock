@@ -12,4 +12,6 @@ Pillow
 openpyxl
 reportlab
 yt-dlp
+imageio
+imageio-ffmpeg
 gunicorn
