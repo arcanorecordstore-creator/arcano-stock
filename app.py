@@ -2708,6 +2708,22 @@ def register_routes(app: Flask) -> None:
             for d in Disc.query.filter(Disc.id.in_(venta_ids)).all():
                 disc_origen[d.id] = (d.origen or "arcano")
 
+        # Plata metida en mercaderia: costo de los discos de Arcano (no personales)
+        # comprados y todavia no vendidos. Misma definicion que la contabilidad
+        # (Disponibles + Pre-order con pedido asignado). No es plata en caja: es
+        # plata convertida en stock.
+        mercaderia_discos = (
+            Disc.query
+            .filter(
+                (Disc.estado == "Disponible")
+                | ((Disc.estado == "Pre-order") & (Disc.pedido_id.isnot(None)))
+            )
+            .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
+            .all()
+        )
+        mercaderia_uyu = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in mercaderia_discos)
+        mercaderia_count = len(mercaderia_discos)
+
         # Saldo corriente (cronologico) y luego lo damos vuelta para mostrar
         saldo = saldo_inicial
         filas = []
@@ -2726,6 +2742,8 @@ def register_routes(app: Flask) -> None:
             "saldo_actual": round(saldo_actual, 2),
             "mp_pendiente": round(mp_pendiente, 2),
             "disponible": round(disponible, 2),
+            "mercaderia_uyu": round(mercaderia_uyu, 2),
+            "mercaderia_count": mercaderia_count,
             "por_adelantar": round(por_adelantar, 2),
             "adelantos_pendientes": adelantos_pendientes,
             "adelanto_pendiente_total": round(adelanto_pendiente_total, 2),

@@ -8654,13 +8654,16 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 }
 .caja-editar-aporte-txt { font-size: 12.5px; color: var(--text-3, #888); }
 
-/* Retenido en Mercado Pago + adelanto */
+/* Retenido en Mercado Pago + mercaderia */
 .caja-liquidez {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 12px;
     margin-bottom: 20px;
+    align-items: start;
 }
+.caja-liq-card.stock { border-left-color: #eda100; }
+.caja-liq-card.stock .caja-liq-val { color: #e0a52a; }
 .caja-adelantar-form { margin-top: 12px; display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
 
 /* Recordatorio de adelantos de MP a recuperar */

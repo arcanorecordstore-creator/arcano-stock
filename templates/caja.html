@@ -61,6 +61,11 @@
         </form>
         {% endif %}
     </div>
+    <div class="caja-liq-card stock">
+        <span class="caja-liq-label">En mercadería (stock sin vender)</span>
+        <span class="caja-liq-val">$ {{ fmt_uyu(resumen.mercaderia_uyu) }}</span>
+        <span class="caja-liq-foot">Lo que te costaron los {{ resumen.mercaderia_count }} discos de Arcano que todavía no vendiste. No es plata en caja: es plata metida en vinilo.</span>
+    </div>
 </section>
 
 <!-- Recordatorio: adelantos de MP esperando el pago para hacer el retiro -->
