@@ -25,11 +25,13 @@ VIDEO_EXT_MAP = {
 MAX_VIDEO_BYTES = 50 * 1024 * 1024  # 50 MB por video
 
 
-def extract_frames_png(video_bytes: bytes, positions=(0.1, 0.3, 0.55, 0.8),
-                       max_dim: int = 1100):
-    """Extrae cuadros del video en las posiciones dadas (fraccion 0..1).
+def extract_frames_png(video_bytes: bytes, positions=(0.5, 0.35, 0.65, 0.15, 0.85),
+                       max_dim: int = 1100, n_frames: int = 1):
+    """Extrae hasta `n_frames` cuadros del video.
 
-    Devuelve (list_de_png_bytes, error). En exito error es None.
+    La placa con los datos es la misma en todo el video, asi que por defecto se
+    saca 1 solo cuadro (del medio). Las demas posiciones son respaldo por si ese
+    cuadro sale negro o en transicion. Devuelve (list_de_png_bytes, error).
     """
     try:
         import imageio.v2 as imageio
@@ -87,10 +89,14 @@ def extract_frames_png(video_bytes: bytes, positions=(0.1, 0.3, 0.55, 0.8),
             img.save(b, format="PNG", optimize=True)
             return b.getvalue()
 
+        want = max(1, n_frames)
         if nframes and nframes > 1:
-            # Seek eficiente (ffmpeg -ss) a cada posicion; un frame a la vez
+            # Seek eficiente (ffmpeg -ss) a cada posicion; corta al tener los que
+            # necesita. Con n_frames=1 saca solo el cuadro del medio.
             seen = set()
             for p in positions:
+                if len(frames_png) >= want:
+                    break
                 idx = min(nframes - 1, max(0, int(nframes * p)))
                 if idx in seen:
                     continue
@@ -102,29 +108,20 @@ def extract_frames_png(video_bytes: bytes, positions=(0.1, 0.3, 0.55, 0.8),
                 except Exception:
                     continue
         else:
-            # Sin metadata confiable: leer secuencial SIN acumular todo. Guardamos
-            # un cuadro (ya comprimido) cada ~1s, con tope de lecturas y de guardados.
+            # Sin metadata: leer secuencial y quedarnos con los primeros cuadros
+            # utiles (a ~1s del inicio para saltar transiciones), sin acumular todo.
             stride = max(1, int(fps))
-            MAX_READ = 900
-            MAX_KEEP = 8
-            kept = []
+            MAX_READ = 600
             try:
                 for i, fr in enumerate(reader):
-                    if i % stride == 0:
-                        kept.append(_to_png(fr))
-                        if len(kept) >= MAX_KEEP:
+                    if i >= stride and i % stride == 0:
+                        frames_png.append(_to_png(fr))
+                        if len(frames_png) >= want:
                             break
                     if i >= MAX_READ:
                         break
             except Exception:
                 pass
-            if kept:
-                if len(kept) <= len(positions):
-                    frames_png = kept
-                else:
-                    step = len(kept) / float(len(positions))
-                    for j in range(len(positions)):
-                        frames_png.append(kept[min(len(kept) - 1, int(j * step))])
 
         if not frames_png:
             return [], "No se pudieron extraer cuadros del video."
