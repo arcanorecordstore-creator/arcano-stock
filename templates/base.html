@@ -30,22 +30,38 @@
             </div>
             <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="topbar-nav">&#9776;</button>
             <nav class="topbar-nav" id="topbar-nav">
-                <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">Dashboard</a>
-                <a href="{{ url_for('admin_reservas') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('admin_reserva') %}active{% endif %}">
+                {% set ep = request.endpoint or '' %}
+                <a href="{{ url_for('dashboard') }}" class="nav-link {% if ep == 'dashboard' %}active{% endif %}">Dashboard</a>
+                <a href="{{ url_for('admin_reservas') }}" class="nav-link {% if ep.startswith('admin_reserva') %}active{% endif %}">
                     Reservas
                     {% if reservas_pendientes_count > 0 %}
                     <span class="nav-badge">{{ reservas_pendientes_count }}</span>
                     {% endif %}
                 </a>
-                <a href="{{ url_for('contabilidad') }}" class="nav-link {% if request.endpoint == 'contabilidad' %}active{% endif %}">Contabilidad</a>
-                <a href="{{ url_for('caja') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('caja') %}active{% endif %}">Caja</a>
-                <a href="{{ url_for('pedidos') }}" class="nav-link {% if request.endpoint == 'pedidos' %}active{% endif %}">Pedidos</a>
-                <a href="{{ url_for('radar_demanda') }}" class="nav-link {% if request.endpoint == 'radar_demanda' %}active{% endif %}">Radar</a>
-                <a href="{{ url_for('disc_new') }}" class="nav-link {% if request.endpoint in ['disc_new', 'disc_edit', 'disc_detail'] %}active{% endif %}">Agregar manual</a>
-                <a href="{{ url_for('disc_new_from_url') }}" class="nav-link {% if request.endpoint == 'disc_new_from_url' %}active{% endif %}">Desde URL</a>
-                <a href="{{ url_for('disc_new_from_image') }}" class="nav-link {% if request.endpoint == 'disc_new_from_image' %}active{% endif %}">Desde screenshot</a>
-                <a href="{{ url_for('disc_new_from_invoice') }}" class="nav-link {% if request.endpoint in ['disc_new_from_invoice', 'disc_invoice_review'] %}active{% endif %}">Desde factura</a>
-                <a href="{{ url_for('settings_page') }}" class="nav-link {% if request.endpoint and request.endpoint.startswith('settings') %}active{% endif %}">Ajustes</a>
+
+                {% set gestion_activo = ep == 'contabilidad' or ep.startswith('caja') or ep == 'pedidos' or ep == 'radar_demanda' %}
+                <div class="nav-group">
+                    <button type="button" class="nav-link nav-group-btn {% if gestion_activo %}active{% endif %}" aria-haspopup="true" aria-expanded="false">Gesti&oacute;n <span class="nav-caret">&#9662;</span></button>
+                    <div class="nav-group-menu">
+                        <a href="{{ url_for('contabilidad') }}" class="nav-link {% if ep == 'contabilidad' %}active{% endif %}">Contabilidad</a>
+                        <a href="{{ url_for('caja') }}" class="nav-link {% if ep.startswith('caja') %}active{% endif %}">Caja</a>
+                        <a href="{{ url_for('pedidos') }}" class="nav-link {% if ep == 'pedidos' %}active{% endif %}">Pedidos</a>
+                        <a href="{{ url_for('radar_demanda') }}" class="nav-link {% if ep == 'radar_demanda' %}active{% endif %}">Radar</a>
+                    </div>
+                </div>
+
+                {% set agregar_activo = ep in ['disc_new', 'disc_edit', 'disc_detail', 'disc_new_from_url', 'disc_new_from_image', 'disc_new_from_invoice', 'disc_invoice_review'] %}
+                <div class="nav-group">
+                    <button type="button" class="nav-link nav-group-btn {% if agregar_activo %}active{% endif %}" aria-haspopup="true" aria-expanded="false">Agregar <span class="nav-caret">&#9662;</span></button>
+                    <div class="nav-group-menu">
+                        <a href="{{ url_for('disc_new') }}" class="nav-link {% if ep in ['disc_new', 'disc_edit', 'disc_detail'] %}active{% endif %}">Manual</a>
+                        <a href="{{ url_for('disc_new_from_url') }}" class="nav-link {% if ep == 'disc_new_from_url' %}active{% endif %}">Desde URL</a>
+                        <a href="{{ url_for('disc_new_from_image') }}" class="nav-link {% if ep == 'disc_new_from_image' %}active{% endif %}">Desde screenshot</a>
+                        <a href="{{ url_for('disc_new_from_invoice') }}" class="nav-link {% if ep in ['disc_new_from_invoice', 'disc_invoice_review'] %}active{% endif %}">Desde factura</a>
+                    </div>
+                </div>
+
+                <a href="{{ url_for('settings_page') }}" class="nav-link {% if ep.startswith('settings') %}active{% endif %}">Ajustes</a>
                 <a href="{{ url_for('home') }}" target="_blank" class="nav-link nav-link-external" title="Ver tienda publica">Tienda &nearr;</a>
             </nav>
             <div class="topbar-meta">
@@ -84,7 +100,7 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v3.49 &middot; Contabilidad: el grafico ahora suma los pedidos a los egresos (plata que salio) y muestra el neto del mes; es la mirada de caja. La ganancia real del hero sigue siendo contable</span>
+            <span class="footer-version">v3.50 &middot; Menu del admin agrupado: Dashboard, Reservas, Gestion (Contabilidad/Caja/Pedidos/Radar), Agregar (Manual/URL/screenshot/factura), Ajustes, Tienda. Desplegables en desktop, secciones en el celu; ya no se desborda</span>
         </footer>
     </div>
 
@@ -114,6 +130,36 @@
             t.addEventListener('click', function () {
                 var open = n.classList.toggle('open');
                 t.setAttribute('aria-expanded', open ? 'true' : 'false');
+            });
+        })();
+
+        // Grupos del nav (Gestion / Agregar): click para abrir/cerrar el desplegable
+        (function () {
+            var groups = document.querySelectorAll('.nav-group');
+            if (!groups.length) return;
+            groups.forEach(function (g) {
+                var btn = g.querySelector('.nav-group-btn');
+                if (!btn) return;
+                btn.addEventListener('click', function (e) {
+                    e.stopPropagation();
+                    var isOpen = g.classList.contains('open');
+                    groups.forEach(function (o) {
+                        o.classList.remove('open');
+                        var b = o.querySelector('.nav-group-btn');
+                        if (b) b.setAttribute('aria-expanded', 'false');
+                    });
+                    if (!isOpen) {
+                        g.classList.add('open');
+                        btn.setAttribute('aria-expanded', 'true');
+                    }
+                });
+            });
+            document.addEventListener('click', function () {
+                groups.forEach(function (o) {
+                    o.classList.remove('open');
+                    var b = o.querySelector('.nav-group-btn');
+                    if (b) b.setAttribute('aria-expanded', 'false');
+                });
             });
         })();
     </script>
