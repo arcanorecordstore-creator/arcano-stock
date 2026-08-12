@@ -2295,6 +2295,9 @@ def register_routes(app: Flask) -> None:
             por_cobrar=por_cobrar,
             ingresos_egresos_6m=ingresos_egresos_6m,
             pedidos_lista=pedidos_lista,
+            recuperacion=metrics.recuperacion_inversion(),
+            stock_frenado=metrics.stock_frenado(),
+            arcano_vs_personal=metrics.arcano_vs_personal_6m(),
             **data,
         )
 
@@ -2511,6 +2514,23 @@ def register_routes(app: Flask) -> None:
             headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
 
+    @app.route("/admin/contabilidad/informe-pdf")
+    @auth.admin_required
+    def contabilidad_informe_pdf():
+        """Genera el informe PDF de contabilidad del periodo elegido."""
+        import informe
+        from flask import Response
+        periodo = request.args.get("periodo", "mes_actual")
+        desde = request.args.get("desde") or None
+        hasta = request.args.get("hasta") or None
+        buf = informe.generar_informe_pdf(periodo, desde, hasta)
+        filename = f"arcano_informe_{periodo}.pdf"
+        return Response(
+            buf.getvalue(),
+            mimetype="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+
     # ---- CAJA / BANCO (libro de movimientos de plata) ----
     def _parse_monto_caja(raw):
         """Convierte un texto de monto a float. Tolera coma decimal es-UY."""
@@ -2623,15 +2643,30 @@ def register_routes(app: Flask) -> None:
             db.session.commit()
         return creados, borrados
 
-    def _resumen_caja():
+    def _resumen_caja(mes=None):
         """Arma el resumen de la caja: saldo actual, totales, ingresos por metodo
-        y la lista de movimientos (mas reciente primero) con saldo corriente."""
+        y la lista de movimientos (mas reciente primero) con saldo corriente.
+
+        Si se pasa `mes` ('YYYY-MM'), la LISTA de movimientos y el desglose se
+        filtran a ese mes; los cuadros de arriba (saldo, MP, mercaderia) siguen
+        siendo al dia."""
         from models import MovimientoCaja
         movs = (
             MovimientoCaja.query
             .order_by(MovimientoCaja.fecha.asc(), MovimientoCaja.id.asc())
             .all()
         )
+        # Meses con movimientos (para el selector) + determinacion del filtro
+        _nombres_mes = ["", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+        _meses_set = sorted({(m.fecha.year, m.fecha.month) for m in movs if m.fecha}, reverse=True)
+        meses_disponibles = [{"val": "%04d-%02d" % (y, mm), "label": "%s %d" % (_nombres_mes[mm], y)} for (y, mm) in _meses_set]
+        fy = fm = None
+        if mes:
+            try:
+                fy, fm = int(mes[:4]), int(mes[5:7])
+            except (ValueError, TypeError):
+                fy = fm = None
+        mes_activo = fy is not None and fm is not None
         try:
             saldo_inicial = float(Setting.get("caja_saldo_inicial") or 0)
         except (ValueError, TypeError):
@@ -2674,32 +2709,6 @@ def register_routes(app: Flask) -> None:
         # Lo que hay en MP y todavia no adelantaste (para no adelantar dos veces)
         por_adelantar = max(0.0, mp_pendiente - adelanto_pendiente_total)
 
-        # Cantidad de movimientos por tipo (ventas, pedidos, gastos por categoria,
-        # aportes de capital, manuales) con su total.
-        grupos = {}
-        for m in movs:
-            if m.origen == "venta":
-                key, label, orden = "venta", "Ventas", 0
-            elif m.origen == "pedido":
-                key, label, orden = "pedido", "Pedidos", 1
-            elif m.tipo == "ingreso" and m.es_aporte:
-                key, label, orden = "aporte", "Aportes de capital", 2
-            elif m.origen == "gasto":
-                cat = m.categoria or "Otros"
-                key, label, orden = "gasto:" + cat, "Gasto: " + cat, 3
-            else:
-                key, label, orden = "manual", "Manuales (aportes/retiros/ajustes)", 4
-            g = grupos.get(key)
-            if not g:
-                g = {"label": label, "count": 0, "total": 0.0, "tipo": m.tipo, "orden": orden}
-                grupos[key] = g
-            g["count"] += 1
-            g["total"] += (m.monto_uyu or 0)
-        desglose_tipos = [
-            {"label": g["label"], "count": g["count"], "total": round(g["total"], 2), "tipo": g["tipo"]}
-            for g in sorted(grupos.values(), key=lambda x: (x["orden"], -x["count"]))
-        ]
-
         # Origen del disco (arcano / personal) de cada movimiento de venta
         from models import Disc
         venta_ids = [m.origen_id for m in movs if m.origen == "venta" and m.origen_id]
@@ -2724,14 +2733,47 @@ def register_routes(app: Flask) -> None:
         mercaderia_uyu = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in mercaderia_discos)
         mercaderia_count = len(mercaderia_discos)
 
-        # Saldo corriente (cronologico) y luego lo damos vuelta para mostrar
+        # Saldo corriente sobre TODOS los movimientos (cronologico)
         saldo = saldo_inicial
         filas = []
         for m in movs:
             saldo += (m.monto_uyu or 0) * (1 if m.tipo == "ingreso" else -1)
             dorigen = disc_origen.get(m.origen_id) if m.origen == "venta" else None
             filas.append({"mov": m, "saldo": round(saldo, 2), "disc_origen": dorigen})
+        # Filtro por mes: solo afecta la lista y el desglose (el saldo corriente de
+        # cada fila sigue siendo el real acumulado hasta ese movimiento).
+        if mes_activo:
+            filas = [f for f in filas if f["mov"].fecha and f["mov"].fecha.year == fy and f["mov"].fecha.month == fm]
+        movs_mostrados = [f["mov"] for f in filas]
         filas.reverse()
+
+        mes_entro = sum(m.monto_uyu or 0 for m in movs_mostrados if m.tipo == "ingreso")
+        mes_salio = sum(m.monto_uyu or 0 for m in movs_mostrados if m.tipo == "egreso")
+
+        # Cantidad de movimientos por tipo (sobre lo que se muestra)
+        grupos = {}
+        for m in movs_mostrados:
+            if m.origen == "venta":
+                key, label, orden = "venta", "Ventas", 0
+            elif m.origen == "pedido":
+                key, label, orden = "pedido", "Pedidos", 1
+            elif m.tipo == "ingreso" and m.es_aporte:
+                key, label, orden = "aporte", "Aportes de capital", 2
+            elif m.origen == "gasto":
+                cat = m.categoria or "Otros"
+                key, label, orden = "gasto:" + cat, "Gasto: " + cat, 3
+            else:
+                key, label, orden = "manual", "Manuales (aportes/retiros/ajustes)", 4
+            g = grupos.get(key)
+            if not g:
+                g = {"label": label, "count": 0, "total": 0.0, "tipo": m.tipo, "orden": orden}
+                grupos[key] = g
+            g["count"] += 1
+            g["total"] += (m.monto_uyu or 0)
+        desglose_tipos = [
+            {"label": g["label"], "count": g["count"], "total": round(g["total"], 2), "tipo": g["tipo"]}
+            for g in sorted(grupos.values(), key=lambda x: (x["orden"], -x["count"]))
+        ]
 
         return {
             "saldo_inicial": round(saldo_inicial, 2),
@@ -2750,7 +2792,12 @@ def register_routes(app: Flask) -> None:
             "por_metodo": {k: round(v, 2) for k, v in por_metodo.items()},
             "desglose_tipos": desglose_tipos,
             "filas": filas,
-            "count": len(movs),
+            "count": len(movs_mostrados),
+            "meses_disponibles": meses_disponibles,
+            "mes_filtro": ("%04d-%02d" % (fy, fm)) if mes_activo else "",
+            "mes_activo": mes_activo,
+            "mes_entro": round(mes_entro, 2),
+            "mes_salio": round(mes_salio, 2),
         }
 
     @app.route("/admin/caja")
@@ -2759,7 +2806,8 @@ def register_routes(app: Flask) -> None:
         from models import METODOS_PAGO_CAJA
         from datetime import datetime as _dt
         _sincronizar_caja()  # trae ventas/pedidos/gastos nuevos (silencioso)
-        resumen = _resumen_caja()
+        mes = request.args.get("mes") or None
+        resumen = _resumen_caja(mes)
         return render_template(
             "caja.html",
             resumen=resumen,

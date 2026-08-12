@@ -7473,6 +7473,33 @@ td.num,
 .ie-dot-ing { background: #10b981; }
 .ie-dot-egr { background: #ef4444; }
 
+/* Arcano vs personal (barras apiladas) */
+.avp-stack { display: flex; flex-direction: column; justify-content: flex-end; height: 140px; width: 60%; max-width: 34px; border-radius: 3px 3px 0 0; overflow: hidden; }
+.avp-seg { width: 100%; min-height: 0; transition: height 0.3s ease; }
+.avp-arc { background: #6366f1; }
+.avp-per { background: #eda100; }
+.avp-pct { font-size: 10px; color: var(--text-3, #888); font-variant-numeric: tabular-nums; }
+.avp-dot-arc { background: #6366f1; }
+.avp-dot-per { background: #eda100; }
+
+/* Recuperacion de la inversion */
+.recup-row { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+.recup-cifra { display: flex; flex-direction: column; align-items: center; min-width: 90px; }
+.recup-num { font-size: 34px; font-weight: 700; color: var(--text-1, #eee); line-height: 1; }
+.recup-cifra-sub { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-3, #888); }
+.recup-bar-wrap { flex: 1; min-width: 200px; }
+.recup-bar { height: 16px; background: var(--bg-3, #2c2c2c); border-radius: 999px; overflow: hidden; }
+.recup-bar-fill { height: 100%; background: #6366f1; border-radius: 999px; transition: width 0.4s ease; min-width: 2px; }
+.recup-bar-fill.full { background: #10b981; }
+.recup-detail { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; font-size: 13px; color: var(--text-3, #888); }
+.recup-green { color: #10b981; }
+.recup-red { color: #ef4444; }
+.recup-foot { margin-top: 12px; font-size: 13px; color: var(--text-3, #888); }
+
+/* Fila de stock frenado */
+.row-frenado { background: rgba(239,68,68,0.07); }
+.row-frenado .rank-num strong { color: #ef4444; }
+
 /* ============================================================
    PEDIDOS
    ============================================================ */
@@ -8923,6 +8950,15 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     border-radius: 12px;
     font-size: 14px;
 }
+
+/* Filtro por mes de la caja */
+.caja-libro-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.caja-mes-filtro label { font-size: 12.5px; color: var(--text-3, #888); display: inline-flex; align-items: center; gap: 6px; }
+.caja-mes-filtro select {
+    padding: 7px 10px; background: var(--bg-2, #1e1e1e); border: 1px solid var(--border-2, #333);
+    border-radius: 8px; color: var(--text-1, #eee); font-size: 13px; font-family: inherit;
+}
+.caja-mes-resumen { font-size: 13px; color: var(--text-3, #888); margin: 6px 0 10px; }
 
 /* Cantidad de movimientos por tipo */
 .caja-desglose { margin-top: 22px; }

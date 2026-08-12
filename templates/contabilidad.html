@@ -24,6 +24,7 @@
        class="conta-periodo-btn {% if periodo == val %}active{% endif %}">{{ label }}</a>
     {% endfor %}
     <a href="{{ url_for('contabilidad_exportar', periodo=periodo, desde=desde, hasta=hasta) }}" class="conta-export-btn">&#8595; Exportar CSV</a>
+    <a href="{{ url_for('contabilidad_informe_pdf', periodo=periodo, desde=desde, hasta=hasta) }}" class="conta-export-btn conta-export-pdf">&#128196; Bajar informe PDF</a>
 </section>
 
 <!-- Filtro por fechas personalizado -->
@@ -321,6 +322,69 @@
     </div>
 </section>
 
+<!-- Negocio puro (Arcano) vs tu coleccion personal -->
+<section class="conta-block">
+    <h2 class="conta-block-title">Negocio propio vs tu coleccion personal (6 meses)</h2>
+    <p class="resumen-card-sub">Cuanto se sostiene Arcano con su stock vs cuanto lo bancas vendiendo tus discos personales.</p>
+    {% set nv = namespace(max=1) %}
+    {% for m in arcano_vs_personal %}
+        {% if (m.arcano + m.personal) > nv.max %}{% set nv.max = m.arcano + m.personal %}{% endif %}
+    {% endfor %}
+    <div class="ie-chart">
+        {% for m in arcano_vs_personal %}
+        <div class="ie-col">
+            <div class="avp-stack" title="Arcano {{ fmt_uyu(m.arcano) }} · Personal {{ fmt_uyu(m.personal) }}">
+                <div class="avp-seg avp-per" style="height: {{ (m.personal / nv.max * 100) if nv.max > 0 else 0 }}%;"></div>
+                <div class="avp-seg avp-arc" style="height: {{ (m.arcano / nv.max * 100) if nv.max > 0 else 0 }}%;"></div>
+            </div>
+            <span class="ie-label">{{ m.label }}</span>
+            {% set tot = m.arcano + m.personal %}
+            <span class="avp-pct">{% if tot > 0 %}{{ (m.arcano / tot * 100)|round|int }}% propio{% else %}—{% endif %}</span>
+        </div>
+        {% endfor %}
+    </div>
+    <div class="ie-legend">
+        <span class="ie-legend-item"><span class="ie-dot avp-dot-arc"></span> Arcano (stock del negocio)</span>
+        <span class="ie-legend-item"><span class="ie-dot avp-dot-per"></span> Tu coleccion personal</span>
+    </div>
+</section>
+
+<!-- ============================================================
+     Recuperacion de la inversion en pedidos
+     ============================================================ -->
+{% if recuperacion.pedidos_count > 0 %}
+<section class="conta-block">
+    <h2 class="conta-block-title">Recuperacion de la inversion</h2>
+    <p class="resumen-card-sub">Cuanto de lo que gastaste en pedidos ya volvio como ventas.</p>
+    <div class="recup-row">
+        <div class="recup-cifra">
+            <span class="recup-num">{{ recuperacion.pct_real|round|int }}%</span>
+            <span class="recup-cifra-sub">recuperado</span>
+        </div>
+        <div class="recup-bar-wrap">
+            <div class="recup-bar">
+                <div class="recup-bar-fill {% if recuperacion.recuperado_total %}full{% endif %}" style="width: {{ recuperacion.pct }}%;"></div>
+            </div>
+            <div class="recup-detail">
+                <span>Invertido: <strong>$ {{ fmt_uyu(recuperacion.invertido) }}</strong></span>
+                <span>Recuperado: <strong class="recup-green">$ {{ fmt_uyu(recuperacion.recuperado) }}</strong></span>
+                {% if not recuperacion.recuperado_total %}
+                <span>Falta: <strong class="recup-red">$ {{ fmt_uyu(recuperacion.falta) }}</strong></span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <p class="recup-foot">
+        {% if recuperacion.recuperado_total %}
+        Ya recuperaste toda tu inversion en pedidos. Lo que vendas de ahora en mas es ganancia limpia.
+        {% else %}
+        Vendiste <strong>{{ recuperacion.discos_vendidos }}</strong> de <strong>{{ recuperacion.discos_total }}</strong> discos de tus pedidos.
+        Te quedan <strong>{{ recuperacion.discos_sin_vender }}</strong> por vender para recuperar todo.
+        {% endif %}
+    </p>
+</section>
+{% endif %}
+
 <!-- ============================================================
      Pedidos (compras de stock)
      ============================================================ -->
@@ -487,6 +551,45 @@
         <p class="resumen-empty">No hay ventas registradas todavia.</p>
         {% endif %}
     </div>
+</section>
+
+<!-- Stock que no rota (aging) -->
+<section class="resumen-card resumen-card-full">
+    <h2 class="resumen-card-title">Stock que no rota</h2>
+    <p class="resumen-card-sub">
+        Discos de Arcano disponibles, del que mas tiempo lleva sin venderse al que menos.
+        {% if stock_frenado.frenados_count > 0 %}
+        Tenes <strong class="recup-red">{{ stock_frenado.frenados_count }}</strong> disco(s) frenado(s) (+{{ stock_frenado.umbral }} dias) con <strong>$ {{ fmt_uyu(stock_frenado.plata_frenada) }}</strong> quietos.
+        {% else %}
+        Ninguno pasa los {{ stock_frenado.umbral }} dias todavia — tu stock esta rotando bien.
+        {% endif %}
+    </p>
+    {% if stock_frenado.filas %}
+    <table class="rank-table">
+        <thead><tr><th class="rank-num">Dias</th><th>Disco</th><th>Sello</th><th class="rank-num-cell">Costo (quieto)</th><th class="rank-num-cell">Precio</th><th>Ingreso</th></tr></thead>
+        <tbody>
+            {% for f in stock_frenado.filas[:20] %}
+            <tr class="{% if f.dias is not none and f.dias >= stock_frenado.umbral %}row-frenado{% endif %}">
+                <td class="rank-num"><strong>{{ f.dias if f.dias is not none else '—' }}</strong></td>
+                <td class="rank-name">
+                    <a href="{{ url_for('disc_detail', disc_id=f.disc.id) }}" class="rank-link">
+                        <strong>{{ f.disc.artista }}</strong> &mdash; {{ f.disc.titulo }}
+                    </a>
+                </td>
+                <td>{{ f.disc.sello or '—' }}</td>
+                <td class="rank-num-cell">{{ fmt_uyu(f.costo) }}</td>
+                <td class="rank-num-cell">{{ fmt_uyu(f.precio) }}</td>
+                <td>{{ f.disc.fecha_ingreso.strftime('%d/%m/%Y') if f.disc.fecha_ingreso else '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% if stock_frenado.filas|length > 20 %}
+    <p class="resumen-card-sub" style="margin-top:8px;">Mostrando los 20 mas viejos de {{ stock_frenado.total_disponibles }} disponibles.</p>
+    {% endif %}
+    {% else %}
+    <p class="resumen-empty">No hay discos disponibles de Arcano en stock.</p>
+    {% endif %}
 </section>
 
 <!-- Top discos rentables -->

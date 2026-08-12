@@ -186,7 +186,24 @@
      Libro de movimientos
      ============================================================ -->
 <section class="caja-libro">
-    <h2 class="caja-section-title">Movimientos ({{ resumen.count }})</h2>
+    <div class="caja-libro-head">
+        <h2 class="caja-section-title">Movimientos ({{ resumen.count }})</h2>
+        {% if resumen.meses_disponibles %}
+        <form method="get" action="{{ url_for('caja') }}" class="caja-mes-filtro" id="caja-mes-form">
+            <label>Ver:
+                <select name="mes" onchange="document.getElementById('caja-mes-form').submit()">
+                    <option value="">Todos los movimientos</option>
+                    {% for m in resumen.meses_disponibles %}
+                    <option value="{{ m.val }}" {% if resumen.mes_filtro == m.val %}selected{% endif %}>{{ m.label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </form>
+        {% endif %}
+    </div>
+    {% if resumen.mes_activo %}
+    <p class="caja-mes-resumen">En este mes entró <strong class="caja-monto pos">+ $ {{ fmt_uyu(resumen.mes_entro) }}</strong> y salió <strong class="caja-monto neg">− $ {{ fmt_uyu(resumen.mes_salio) }}</strong>. El saldo de la columna es el acumulado real hasta cada movimiento.</p>
+    {% endif %}
     {% if resumen.filas %}
     <div class="caja-table-wrap">
         <table class="caja-table">
@@ -291,6 +308,8 @@
             </tbody>
         </table>
     </div>
+    {% elif resumen.mes_activo %}
+    <p class="caja-vacio">No hubo movimientos en el mes elegido. Probá «Todos los movimientos» arriba.</p>
     {% else %}
     <p class="caja-vacio">Todavía no hay movimientos. Las ventas, pedidos y gastos van a aparecer solos acá; también podés agregar aportes o retiros a mano arriba.</p>
     {% endif %}

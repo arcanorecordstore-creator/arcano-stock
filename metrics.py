@@ -475,3 +475,98 @@ def ingresos_vs_egresos_6m() -> list:
             "ganancia_real_uyu": r["ganancia_real_uyu"],
         })
     return salida
+
+
+def stock_frenado(dias_umbral: int = 45) -> dict:
+    """Discos de Arcano (no personales) que siguen Disponibles, ordenados por
+    cuanto tiempo llevan en stock (los mas viejos primero). Sirve para ver que
+    plata esta quieta y que conviene rematar o empujar."""
+    from datetime import date
+    hoy = date.today()
+    discos = (
+        Disc.query
+        .filter(Disc.estado == "Disponible")
+        .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
+        .all()
+    )
+    filas = []
+    for d in discos:
+        fi = d.fecha_ingreso
+        if fi is not None:
+            fecha = fi.date() if hasattr(fi, "date") else fi
+            dias = (hoy - fecha).days
+        else:
+            dias = None
+        filas.append({
+            "disc": d,
+            "dias": dias,
+            "costo": round((d.costo_final_uyu or 0) * (d.stock or 1), 2),
+            "precio": round(d.precio_mostrar or d.precio_uyu or 0, 2),
+        })
+    # Los mas viejos primero; los sin fecha al final
+    filas.sort(key=lambda x: (x["dias"] is None, -(x["dias"] or 0)))
+    frenados = [f for f in filas if (f["dias"] or 0) >= dias_umbral]
+    return {
+        "filas": filas,
+        "frenados_count": len(frenados),
+        "plata_frenada": round(sum(f["costo"] for f in frenados), 2),
+        "umbral": dias_umbral,
+        "total_disponibles": len(filas),
+    }
+
+
+def recuperacion_inversion() -> dict:
+    """Cuanto se invirtio en pedidos vs cuanto se recupero vendiendo esos discos."""
+    from models import Pedido
+    peds = Pedido.query.all()
+    invertido = sum(p.costo_total_uyu for p in peds)
+    recuperado = sum(p.recaudado_uyu for p in peds)
+    discos_total = sum(p.discos_asignados for p in peds)
+    discos_vendidos = sum(p.discos_vendidos for p in peds)
+    pct = round(recuperado / invertido * 100, 1) if invertido > 0 else 0.0
+    return {
+        "invertido": round(invertido, 2),
+        "recuperado": round(recuperado, 2),
+        "falta": round(max(0, invertido - recuperado), 2),
+        "pct": min(pct, 100),
+        "pct_real": pct,
+        "discos_total": discos_total,
+        "discos_vendidos": discos_vendidos,
+        "discos_sin_vender": discos_total - discos_vendidos,
+        "recuperado_total": recuperado >= invertido and invertido > 0,
+        "pedidos_count": len(peds),
+    }
+
+
+def arcano_vs_personal_6m() -> list:
+    """Por mes (ultimos 6): ventas de stock de Arcano vs ventas de tu coleccion
+    personal. Muestra cuanto se sostiene el negocio por si solo."""
+    from datetime import date
+    hoy = date.today()
+    nombres_es = ["", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    y, m = hoy.year, hoy.month
+    lista = []
+    for _ in range(6):
+        lista.append((y, m))
+        m -= 1
+        if m == 0:
+            m = 12
+            y -= 1
+    lista.reverse()
+    salida = []
+    for (yy, mm) in lista:
+        inicio, fin = _month_bounds(yy, mm)
+        vend = (
+            Disc.query.filter(Disc.estado == "Vendido")
+            .filter(Disc.fecha_venta >= inicio).filter(Disc.fecha_venta < fin).all()
+        )
+        arc = sum((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+                  for d in vend if (d.origen or "arcano") != "personal")
+        per = sum((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+                  for d in vend if (d.origen or "arcano") == "personal")
+        salida.append({
+            "label": f"{nombres_es[mm]} {str(yy)[-2:]}",
+            "arcano": round(arc, 2),
+            "personal": round(per, 2),
+        })
+    return salida
