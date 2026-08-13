@@ -6601,30 +6601,26 @@ td.num,
     .cart-btn-carrusel { padding: 8px 12px; }
 }
 
-/* En PC: exactamente 2 cards por vista (Facundo: mas de 2 es demasiada info).
-   La portada se agranda para que la card no quede vacia. En celular queda igual. */
+/* En PC: EXACTAMENTE 2 tarjetas por carrusel (card = 50%). Para que no quede el
+   vacio a la derecha, se AGRANDA el contenido (portada + texto) hasta llenar la
+   card, en vez de achicar la card. Padding recortado para ganar lugar. */
 @media (min-width: 900px) {
     /* border-width 1px aca (no en el bloque de arriba) porque la base de
        .carrusel-card viene despues en el archivo y si no la pisa. */
-    /* Ancho acotado (recorta el "pedazo que sobra" en pantallas anchas: 50% daba
-       cards de ~730px medio vacias) y contenido CENTRADO. */
-    .carrusel-card { flex: 0 0 min(560px, calc(50% - 13px)); gap: 14px; border-width: 1px; align-items: center; }
-    /* Centrar TODO el contenido de la card: portada + texto van centrados como
-       grupo (no pegados a la izquierda). El info deja de estirarse para que el
-       grupo quede compacto y centrado; el texto tambien centrado. */
-    .carrusel-body { gap: 24px; justify-content: center; align-self: stretch; }
-    .carrusel-info { flex: 0 1 auto; text-align: center; }
-    /* Portada mas chica que antes: es lo que hacia las cards muy altas. Siguen
-       siendo 2 por fila, pero mas bajas. */
-    .carrusel-cover { flex: 0 0 170px; width: 170px; height: 170px; }
-    .carrusel-artist { font-size: 19px; }
-    .carrusel-title-disc { font-size: 15px; }
-    .carrusel-price { font-size: 17px; }
-    .carrusel-play-badge { width: 54px; height: 54px; font-size: 21px; }
-    /* Boton a lo ancho de toda la card, mas grande. */
+    /* align-items: stretch para que el .carrusel-body llene TODO el ancho de la
+       card (con center se colapsaba al contenido y dejaba el vacio). */
+    .carrusel-card { flex: 0 0 calc(50% - 13px); gap: 12px; border-width: 1px; align-items: stretch; padding: 16px; }
+    .carrusel-body { gap: 22px; }
+    .carrusel-info { flex: 1 1 auto; }
+    /* Portada grande: llena la mitad izquierda de la card. */
+    .carrusel-cover { flex: 0 0 230px; width: 230px; height: 230px; }
+    .carrusel-artist { font-size: 23px; }
+    .carrusel-title-disc { font-size: 17px; }
+    .carrusel-price { font-size: 20px; }
+    .carrusel-play-badge { width: 66px; height: 66px; font-size: 26px; }
     .cart-btn-carrusel {
-        padding: 13px 22px;
-        font-size: 15px;
+        padding: 14px 22px;
+        font-size: 16px;
         border-radius: 9px;
     }
 }
