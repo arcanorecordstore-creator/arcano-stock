@@ -6614,22 +6614,22 @@ td.num,
     .carrusel-card { flex: 0 0 calc(50% - 13px); flex-direction: row; gap: 10px; border-width: 1px; align-items: center; padding: 16px; }
     .carrusel-body { flex: 1 1 auto; gap: 16px; }
     .carrusel-info { flex: 1 1 auto; }
-    .carrusel-cover { flex: 0 0 190px; width: 190px; height: 190px; }
+    .carrusel-cover { flex: 0 0 172px; width: 172px; height: 172px; }
     .carrusel-artist { font-size: 22px; }
     .carrusel-title-disc { font-size: 16px; }
     .carrusel-price { font-size: 19px; }
-    .carrusel-play-badge { width: 62px; height: 62px; font-size: 24px; }
-    /* Boton a la derecha, mas ancho (crece hacia la izquierda; el borde derecho
-       queda fijo), alto generoso. */
+    .carrusel-play-badge { width: 60px; height: 60px; font-size: 24px; }
+    /* Boton a la derecha con proporciones normales (alto natural de una linea),
+       un poco mas ancho. */
     .cart-btn-carrusel {
-        flex: 0 0 220px;
-        width: 220px;
+        flex: 0 0 230px;
+        width: 230px;
         align-self: center;
-        min-height: 112px;
         margin: 0;
-        padding: 16px 18px;
-        font-size: 15px;
+        padding: 13px 20px;
+        font-size: 16px;
         border-radius: 10px;
+        white-space: nowrap;
     }
 }
 
