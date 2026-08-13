@@ -771,6 +771,20 @@ def _email_valido(email):
     return _EMAIL_RE.match(email) is not None
 
 
+def _text_on_color(hexcolor):
+    """Devuelve un color de texto legible (#0a0a0a o #fff) segun si el fondo dado
+    es claro u oscuro. Para los tags de categoria con color elegido por Facundo."""
+    try:
+        h = (hexcolor or "").lstrip("#")
+        if len(h) == 3:
+            h = "".join(c * 2 for c in h)
+        r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+        lum = 0.299 * r + 0.587 * g + 0.114 * b
+        return "#0a0a0a" if lum > 150 else "#ffffff"
+    except Exception:
+        return "#ffffff"
+
+
 def _intercalar_tips(discos):
     """Reordena una lista de discos para carrusel de modo que los 'staff picks'
     (es_tip) queden REPARTIDOS entre los que no lo tienen, en vez de todos juntos
@@ -3157,14 +3171,47 @@ def register_routes(app: Flask) -> None:
             db.session.query(_MC.origen_categoria).filter(_MC.origen_categoria.isnot(None)).distinct().all()
             if (r[0] or "").strip()
         })
+        # Colores elegidos por categoria (nombre -> hex) + color de texto legible
+        import json as _json
+        try:
+            colores_map = _json.loads(Setting.get("origen_cat_colores", "") or "{}")
+        except Exception:
+            colores_map = {}
+        origen_cat_estilos = {
+            cat: {"bg": colores_map.get(cat), "fg": _text_on_color(colores_map.get(cat))}
+            for cat in categorias_origen
+        }
         return render_template(
             "caja.html",
             resumen=resumen,
             metodos=METODOS_PAGO_CAJA,
             categorias=Setting.get_categorias_egreso(),
             categorias_origen=categorias_origen,
+            colores_map=colores_map,
+            origen_cat_estilos=origen_cat_estilos,
             hoy=_dt.utcnow().date().isoformat(),
         )
+
+    @app.route("/admin/caja/origen-color", methods=["POST"])
+    @auth.admin_required
+    def caja_origen_color():
+        """Guarda (o borra) el color elegido para una categoria de origen."""
+        import json as _json
+        import re as _re
+        cat = (request.form.get("categoria") or "").strip()[:60]
+        color = (request.form.get("color") or "").strip()
+        if not cat:
+            return redirect(url_for("caja"))
+        try:
+            m = _json.loads(Setting.get("origen_cat_colores", "") or "{}")
+        except Exception:
+            m = {}
+        if _re.match(r"^#[0-9a-fA-F]{6}$", color):
+            m[cat] = color.lower()
+        else:
+            m.pop(cat, None)
+        Setting.set("origen_cat_colores", _json.dumps(m))
+        return redirect(url_for("caja"))
 
     @app.route("/admin/caja/movimiento", methods=["POST"])
     @auth.admin_required

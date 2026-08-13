@@ -9218,6 +9218,13 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 /* Categoria de origen propia (manual con categoria puesta): tono distinto */
 .caja-origen-tag.origen-custom { background: rgba(20,184,166,0.16); color: #2dd4bf; }
 .caja-td-origen { cursor: pointer; }
+/* Gestor de colores de las categorias de origen */
+.caja-colores-grid { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.caja-color-item { display: inline-flex; align-items: center; gap: 8px; }
+.caja-color-item input[type="color"] {
+    width: 36px; height: 26px; padding: 0; border: 1px solid var(--border-2);
+    border-radius: 6px; background: none; cursor: pointer;
+}
 
 /* Editar movimiento (popover) */
 .caja-td-acciones { text-align: right; position: relative; }
