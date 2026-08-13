@@ -190,24 +190,21 @@
     {% for c in categorias_origen %}<option value="{{ c }}">{% endfor %}
 </datalist>
 
-{% if categorias_origen %}
 <section class="caja-section">
-    <details class="caja-panel">
-        <summary class="caja-panel-toggle">Colores de las categorías de origen</summary>
+    <details class="caja-panel" open>
+        <summary class="caja-panel-toggle">&#127912; Color de los orígenes (elegí el color de cada uno)</summary>
         <div class="caja-colores-grid">
-            {% for cat in categorias_origen %}
-            {% set _e = origen_cat_estilos.get(cat) %}
+            {% for item in colores_panel %}
             <form method="post" action="{{ url_for('caja_origen_color') }}" class="caja-color-item">
-                <input type="hidden" name="categoria" value="{{ cat }}">
-                <span class="caja-origen-tag {% if not (_e and _e.bg) %}origen-custom{% endif %}"{% if _e and _e.bg %} style="background: {{ _e.bg }}; color: {{ _e.fg }};"{% endif %}>{{ cat }}</span>
-                <input type="color" name="color" value="{{ colores_map.get(cat) or '#14b8a6' }}" onchange="this.form.submit()" title="Elegí el color de {{ cat }}" aria-label="Color de {{ cat }}">
+                <input type="hidden" name="categoria" value="{{ item.clave }}">
+                <span class="caja-origen-tag" style="background: {{ item.color }}; color: {{ item.fg }};">{{ item.label }}</span>
+                <input type="color" name="color" value="{{ item.color }}" onchange="this.form.submit()" title="Elegí el color de {{ item.label }}" aria-label="Color de {{ item.label }}">
             </form>
             {% endfor %}
         </div>
-        <p class="caja-field-hint" style="margin-top:10px;">El color se aplica a todos los movimientos de esa categoría.</p>
+        <p class="caja-field-hint" style="margin-top:10px;">El color se aplica a todos los movimientos de ese origen (Venta, Pedido, Gasto, Manual y tus categorías propias).</p>
     </details>
 </section>
-{% endif %}
 
 <!-- ============================================================
      Libro de movimientos
@@ -254,7 +251,8 @@
                     <td class="caja-td-concepto caja-cell-edit" title="Click para editar" data-mov="{{ m.id }}" data-campo="concepto" data-editor="text" data-raw="{{ m.concepto or '' }}">{{ m.concepto or '—' }}</td>
                     <td class="{% if m.es_manual %}caja-cell-edit caja-td-origen{% endif %}"
                         {% if m.es_manual %}title="Click para poner/editar la categoría" data-mov="{{ m.id }}" data-campo="origen_categoria" data-editor="origencat" data-raw="{{ m.origen_categoria or '' }}"{% endif %}>
-                        {% set _est = origen_cat_estilos.get(m.origen_categoria) if (m.es_manual and m.origen_categoria) else None %}
+                        {% set _ck = m.origen_categoria if (m.es_manual and m.origen_categoria) else (m.origen or 'manual') %}
+                        {% set _est = origen_estilos.get(_ck) %}
                         <span class="caja-origen-tag origen-{{ m.origen }}{% if m.es_manual and m.origen_categoria and not (_est and _est.bg) %} origen-custom{% endif %}"{% if _est and _est.bg %} style="background: {{ _est.bg }}; color: {{ _est.fg }};"{% endif %}>{{ m.origen_display }}</span>
                         {% if m.es_aporte %}<span class="caja-origen-tag caja-tag-capital">Capital</span>{% endif %}
                     </td>

@@ -3171,24 +3171,34 @@ def register_routes(app: Flask) -> None:
             db.session.query(_MC.origen_categoria).filter(_MC.origen_categoria.isnot(None)).distinct().all()
             if (r[0] or "").strip()
         })
-        # Colores elegidos por categoria (nombre -> hex) + color de texto legible
+        # Colores elegidos (clave -> hex). La clave es la categoria propia (si el
+        # manual la tiene) o el origen fijo ('manual'/'venta'/'pedido'/'gasto').
         import json as _json
         try:
             colores_map = _json.loads(Setting.get("origen_cat_colores", "") or "{}")
         except Exception:
             colores_map = {}
-        origen_cat_estilos = {
-            cat: {"bg": colores_map.get(cat), "fg": _text_on_color(colores_map.get(cat))}
-            for cat in categorias_origen
-        }
+        _def_origen = {"manual": "#a78bfa", "venta": "#34d399", "pedido": "#60a5fa", "gasto": "#f87171"}
+        origen_estilos = {}
+        for k in list(_def_origen.keys()) + list(categorias_origen):
+            bg = colores_map.get(k)
+            origen_estilos[k] = {"bg": bg, "fg": _text_on_color(bg) if bg else None}
+        # Panel de colores: los 4 origenes fijos + las categorias propias
+        colores_panel = []
+        for k, lbl in [("manual", "Manual"), ("venta", "Venta"), ("pedido", "Pedido"), ("gasto", "Gasto")]:
+            col = colores_map.get(k) or _def_origen[k]
+            colores_panel.append({"clave": k, "label": lbl, "color": col, "fg": _text_on_color(col)})
+        for cat in categorias_origen:
+            col = colores_map.get(cat) or "#14b8a6"
+            colores_panel.append({"clave": cat, "label": cat, "color": col, "fg": _text_on_color(col)})
         return render_template(
             "caja.html",
             resumen=resumen,
             metodos=METODOS_PAGO_CAJA,
             categorias=Setting.get_categorias_egreso(),
             categorias_origen=categorias_origen,
-            colores_map=colores_map,
-            origen_cat_estilos=origen_cat_estilos,
+            origen_estilos=origen_estilos,
+            colores_panel=colores_panel,
             hoy=_dt.utcnow().date().isoformat(),
         )
 
