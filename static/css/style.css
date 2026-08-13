@@ -6572,9 +6572,9 @@ td.num,
     color: inherit;
 }
 /* El boton va abajo, ocupando 75% del ancho (Facundo: 25% menos que el ancho
-   completo), alineado a la izquierda con el borde de la card. */
+   completo), CENTRADO. */
 .cart-btn-carrusel {
-    align-self: flex-start;
+    align-self: center;
     width: 75%;
     margin-top: 0;
 }
