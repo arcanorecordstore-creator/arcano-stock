@@ -6571,10 +6571,11 @@ td.num,
     text-decoration: none;
     color: inherit;
 }
-/* El boton va a lo ancho de toda la card, abajo (pedido de Facundo). */
+/* El boton va abajo, ocupando 75% del ancho (Facundo: 25% menos que el ancho
+   completo), alineado a la izquierda con el borde de la card. */
 .cart-btn-carrusel {
-    align-self: stretch;
-    width: 100%;
+    align-self: flex-start;
+    width: 75%;
     margin-top: 0;
 }
 .carrusel-artist { font-size: 18px; font-weight: 600; color: var(--text-1); line-height: 1.25; }
