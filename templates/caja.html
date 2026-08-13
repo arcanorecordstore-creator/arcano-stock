@@ -194,12 +194,13 @@
     <details class="caja-panel" open>
         <summary class="caja-panel-toggle">&#127912; Categorías de origen (agregar, eliminar y colorear)</summary>
 
-        <p class="caja-field-hint">Orígenes del sistema (solo el color):</p>
+        <p class="caja-field-hint">Orígenes del sistema (renombralos y elegí el color; no se borran porque se generan solos desde tus ventas/pedidos/gastos):</p>
         <div class="caja-colores-grid">
             {% for item in origen_fijos %}
-            <form method="post" action="{{ url_for('caja_origen_color') }}" class="caja-color-item">
-                <input type="hidden" name="categoria" value="{{ item.clave }}">
+            <form method="post" action="{{ url_for('caja_origen_fijo') }}" class="caja-color-item caja-cat-item" style="gap:6px;">
+                <input type="hidden" name="clave" value="{{ item.clave }}">
                 <span class="caja-origen-tag" style="background: {{ item.color }}; color: {{ item.fg }};">{{ item.label }}</span>
+                <input type="text" name="label" value="{{ item.label }}" onchange="this.form.submit()" class="caja-cat-name-input" title="Renombrar" aria-label="Nombre de {{ item.label }}">
                 <input type="color" name="color" value="{{ item.color }}" onchange="this.form.submit()" title="Color de {{ item.label }}" aria-label="Color de {{ item.label }}">
             </form>
             {% endfor %}
@@ -278,7 +279,8 @@
                         {% if m.es_manual %}title="Click para poner/editar la categoría" data-mov="{{ m.id }}" data-campo="origen_categoria" data-editor="origencat" data-raw="{{ m.origen_categoria or '' }}"{% endif %}>
                         {% set _ck = m.origen_categoria if (m.es_manual and m.origen_categoria) else (m.origen or 'manual') %}
                         {% set _est = origen_estilos.get(_ck) %}
-                        <span class="caja-origen-tag origen-{{ m.origen }}{% if m.es_manual and m.origen_categoria and not (_est and _est.bg) %} origen-custom{% endif %}"{% if _est and _est.bg %} style="background: {{ _est.bg }}; color: {{ _est.fg }};"{% endif %}>{{ m.origen_display }}</span>
+                        {% set _lbl = m.origen_categoria if (m.es_manual and m.origen_categoria) else (labels_map.get(m.origen) or m.origen_label) %}
+                        <span class="caja-origen-tag origen-{{ m.origen }}{% if m.es_manual and m.origen_categoria and not (_est and _est.bg) %} origen-custom{% endif %}"{% if _est and _est.bg %} style="background: {{ _est.bg }}; color: {{ _est.fg }};"{% endif %}>{{ _lbl }}</span>
                         {% if m.es_aporte %}<span class="caja-origen-tag caja-tag-capital">Capital</span>{% endif %}
                     </td>
                     <td class="caja-td-disco">

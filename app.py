@@ -3220,11 +3220,20 @@ def register_routes(app: Flask) -> None:
         for k in list(_def_origen.keys()) + list(categorias_origen):
             bg = colores_map.get(k)
             origen_estilos[k] = {"bg": bg, "fg": _text_on_color(bg) if bg else None}
-        # Los 4 origenes fijos (color, sin borrar)
+        # Etiquetas (nombres) personalizadas de los origenes fijos
+        try:
+            labels_map = _json.loads(Setting.get("origen_labels", "") or "{}")
+        except Exception:
+            labels_map = {}
+        _def_labels = {"manual": "Manual", "venta": "Venta", "pedido": "Pedido", "gasto": "Gasto"}
+        # Los 4 origenes fijos (nombre editable + color; NO se borran, son automaticos)
         origen_fijos = []
-        for k, lbl in [("manual", "Manual"), ("venta", "Venta"), ("pedido", "Pedido"), ("gasto", "Gasto")]:
+        for k in ("manual", "venta", "pedido", "gasto"):
             col = colores_map.get(k) or _def_origen[k]
-            origen_fijos.append({"clave": k, "label": lbl, "color": col, "fg": _text_on_color(col)})
+            origen_fijos.append({
+                "clave": k, "label": labels_map.get(k) or _def_labels[k],
+                "color": col, "fg": _text_on_color(col),
+            })
         # Las categorias propias (color + eliminar)
         origen_propias = []
         for cat in categorias_origen:
@@ -3239,8 +3248,43 @@ def register_routes(app: Flask) -> None:
             origen_estilos=origen_estilos,
             origen_fijos=origen_fijos,
             origen_propias=origen_propias,
+            labels_map=labels_map,
             hoy=_dt.utcnow().date().isoformat(),
         )
+
+    @app.route("/admin/caja/origen-fijo", methods=["POST"])
+    @auth.admin_required
+    def caja_origen_fijo():
+        """Renombra (label) y/o recolorea un origen fijo (manual/venta/pedido/gasto).
+        No se pueden eliminar: son automaticos (se regeneran desde ventas/pedidos/gastos)."""
+        import json as _json
+        import re as _re
+        clave = (request.form.get("clave") or "").strip()
+        if clave not in ("manual", "venta", "pedido", "gasto"):
+            return redirect(url_for("caja"))
+        # Nombre personalizado
+        label = (request.form.get("label") or "").strip()[:40]
+        try:
+            labels = _json.loads(Setting.get("origen_labels", "") or "{}")
+        except Exception:
+            labels = {}
+        _defs = {"manual": "Manual", "venta": "Venta", "pedido": "Pedido", "gasto": "Gasto"}
+        if label and label != _defs[clave]:
+            labels[clave] = label
+        else:
+            labels.pop(clave, None)  # vacio o el default -> volver al nombre estandar
+        Setting.set("origen_labels", _json.dumps(labels))
+        # Color (opcional)
+        color = (request.form.get("color") or "").strip()
+        if color:
+            try:
+                m = _json.loads(Setting.get("origen_cat_colores", "") or "{}")
+            except Exception:
+                m = {}
+            if _re.match(r"^#[0-9a-fA-F]{6}$", color):
+                m[clave] = color.lower()
+            Setting.set("origen_cat_colores", _json.dumps(m))
+        return redirect(url_for("caja"))
 
     @app.route("/admin/caja/categoria-origen/agregar", methods=["POST"])
     @auth.admin_required

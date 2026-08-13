@@ -9226,6 +9226,10 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     border-radius: 6px; background: none; cursor: pointer;
 }
 .caja-cat-item { padding: 4px 4px 4px 8px; border: 1px solid var(--border-1); border-radius: 8px; }
+.caja-cat-name-input {
+    width: 108px; padding: 5px 8px; border: 1px solid var(--border-2); border-radius: 6px;
+    background: var(--bg-2); color: var(--text-1); font-family: inherit; font-size: 12px;
+}
 .caja-cat-del {
     width: 24px; height: 24px; border: none; background: none; color: var(--text-4);
     font-size: 19px; line-height: 1; cursor: pointer; border-radius: 6px;
