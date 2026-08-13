@@ -70,22 +70,34 @@ def _ffmpeg_exe():
     return shutil.which("ffmpeg") or "ffmpeg"
 
 
-def extract_frames_from_path(path, n_frames: int = 1, max_width: int = 900, timeout_s: int = 45):
+def extract_frames_from_path(path, n_frames: int = 1, max_width: int = 900,
+                             timeout_s: int = 20, total_budget_s: int = 40):
     """Extrae hasta `n_frames` cuadros del video LLAMANDO A FFMPEG DIRECTO.
 
     ffmpeg hace seek rapido (-ss antes de -i), decodifica un solo cuadro ya
     escalado y lo saca por stdout como JPEG. Casi no usa memoria (no carga el
     video ni depende de numpy/imageio-reader). Devuelve (list_jpg_bytes, error).
+
+    `total_budget_s` es un techo GLOBAL: aunque haya varios intentos de seek,
+    la suma no puede pasarse de ese presupuesto (si no, con 3 seeks lentos se
+    podia llegar a ~135s y matar al worker de Gunicorn -> 502).
     """
     import subprocess
+    import time
     exe = _ffmpeg_exe()
     # El disco gira, cualquier frame sirve. 1s salta un posible intro/negro; 0 es respaldo.
     seek_secs = ["1", "3", "0"]
     frames = []
     err_last = None
+    t0 = time.monotonic()
     for ss in seek_secs:
         if len(frames) >= n_frames:
             break
+        restante = total_budget_s - (time.monotonic() - t0)
+        if restante <= 1:
+            err_last = err_last or "el video tardo demasiado (presupuesto agotado)"
+            break
+        per_call = max(1, int(min(timeout_s, restante)))
         cmd = [
             exe, "-nostdin", "-loglevel", "error", "-y",
             "-ss", ss, "-i", path,
@@ -94,9 +106,10 @@ def extract_frames_from_path(path, n_frames: int = 1, max_width: int = 900, time
             "-f", "image2pipe", "-vcodec", "mjpeg", "-q:v", "4", "pipe:1",
         ]
         try:
-            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=timeout_s)
+            proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=per_call)
         except subprocess.TimeoutExpired:
-            return frames, "El video tardo demasiado en procesarse (timeout)."
+            err_last = "El video tardo demasiado en procesarse (timeout)."
+            continue
         except FileNotFoundError:
             return frames, "No se encontro ffmpeg para procesar el video."
         except Exception as e:

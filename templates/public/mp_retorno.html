@@ -16,4 +16,20 @@
     {% endif %}
     <a href="{{ url_for('home') }}" class="btn btn-primary">Volver al cat&aacute;logo</a>
 </section>
+
+{% if reserva and (estado_mp == 'approved' or reserva.pagado) %}
+<script>
+(function () {
+    // Conversion del embudo: compra pagada por Mercado Pago (GA + pixel de Meta).
+    // Mismo transaction_id que la reserva para no duplicar contra otros eventos.
+    if (window.arcanoGA) {
+        window.arcanoGA('purchase', {
+            transaction_id: 'reserva-{{ reserva.id }}',
+            value: {{ reserva.total_uyu or 0 }},
+            currency: 'UYU'
+        });
+    }
+})();
+</script>
+{% endif %}
 {% endblock %}

@@ -199,6 +199,12 @@
       fieldForm.addEventListener('submit', function (e) {
         var campo = fieldSelector ? fieldSelector.value : '';
         if (!campo) { e.preventDefault(); alert('Elegi que queres cambiar.'); return; }
+        // Confirmacion: la edicion masiva toca varios discos a la vez
+        var nSel = getSelected().length;
+        if (!window.confirm('Vas a aplicar este cambio a ' + nSel + ' disco' + (nSel === 1 ? '' : 's') + '. Continuar?')) {
+          e.preventDefault();
+          return;
+        }
         // Limpiar hidden previos
         fieldForm.querySelectorAll('.bulk-dyn').forEach(function (el) { el.remove(); });
         function addHidden(name, value) {

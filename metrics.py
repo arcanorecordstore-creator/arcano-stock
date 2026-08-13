@@ -350,10 +350,15 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
     ant_inicio, ant_fin = _periodo_anterior(periodo)
     if ant_inicio and ant_fin:
         ant = _resumen_rango(ant_inicio, ant_fin)
-        # Variacion de la ganancia real
+        # Comparamos el RESULTADO OPERATIVO del periodo (ingresos - costo de los
+        # vendidos de arcano - egresos), SIN el stock no vendido. El stock es una
+        # foto "a hoy" (no pertenece a un periodo pasado), asi que dejarlo afuera
+        # de ambos lados hace la comparacion coherente. _resumen_rango usa esa
+        # misma formula, asi que aca comparamos manzanas con manzanas.
+        flujo_actual = ganancia_bruta - egresos_uyu
         prev = ant["ganancia_real_uyu"]
         if prev != 0:
-            var_pct = round((ganancia_real - prev) / abs(prev) * 100, 1)
+            var_pct = round((flujo_actual - prev) / abs(prev) * 100, 1)
         else:
             var_pct = None
         comparacion = {
@@ -361,7 +366,7 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
             "egresos_ant": ant["egresos_uyu"],
             "ganancia_real_ant": prev,
             "var_ganancia_pct": var_pct,
-            "mejoro": ganancia_real >= prev,
+            "mejoro": flujo_actual >= prev,
         }
 
     return {
@@ -415,7 +420,11 @@ def _periodo_anterior(periodo: str):
 
 
 def _resumen_rango(inicio, fin):
-    """Calcula ingresos, egresos y ganancia real de un rango de fechas (date)."""
+    """Resultado OPERATIVO de un rango de fechas: ingresos de las ventas menos el
+    costo de los discos de ARCANO vendidos (los personales no le costaron nada al
+    negocio) menos los gastos del periodo. NO incluye el stock no vendido (que es
+    una foto 'a hoy', no de un periodo pasado). Misma formula que el flujo del
+    periodo actual, para que la comparacion periodo-contra-periodo sea coherente."""
     from datetime import datetime as _dt
     inicio_dt = _dt(inicio.year, inicio.month, inicio.day)
     fin_dt = _dt(fin.year, fin.month, fin.day)
@@ -424,7 +433,11 @@ def _resumen_rango(inicio, fin):
         .filter(Disc.fecha_venta >= inicio_dt).filter(Disc.fecha_venta < fin_dt).all()
     )
     ingresos = sum((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in vendidos)
-    costo = sum((d.costo_final_uyu or 0) * d.copias_facturadas for d in vendidos)
+    # Costo SOLO de los de arcano (excluye personales), igual que costo_discos_uyu.
+    costo = sum(
+        (d.costo_final_uyu or 0) * d.copias_facturadas
+        for d in vendidos if (d.origen or "arcano") != "personal"
+    )
     egresos = (
         Egreso.query.filter(Egreso.fecha >= inicio).filter(Egreso.fecha < fin).all()
     )

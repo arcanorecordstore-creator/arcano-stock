@@ -60,7 +60,16 @@
                     <div class="carrusel-artist">{{ d.artista }}</div>
                     <div class="carrusel-title-disc">{{ d.titulo }}</div>
                     {% if d.sello %}<div class="carrusel-label">{{ d.sello }}</div>{% endif %}
-                    {% if d.precio_uyu > 0 %}<div class="carrusel-price">$ {{ '{:,.0f}'.format(d.precio_uyu).replace(',', '.') }}</div>{% endif %}
+                    {% if d.precio_uyu > 0 %}
+                        {% if d.en_oferta %}
+                        <div class="carrusel-price carrusel-price-oferta">
+                            <span class="precio-tachado">$ {{ '{:,.0f}'.format(d.precio_uyu).replace(',', '.') }}</span>
+                            <span class="precio-oferta">$ {{ '{:,.0f}'.format(d.precio_mostrar).replace(',', '.') }}</span>
+                        </div>
+                        {% else %}
+                        <div class="carrusel-price">$ {{ '{:,.0f}'.format(d.precio_uyu).replace(',', '.') }}</div>
+                        {% endif %}
+                    {% endif %}
                 </div>
             </a>
             {% endfor %}

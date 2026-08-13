@@ -2,7 +2,7 @@
 
 {% block title %}{{ disc.artista }} - {{ disc.titulo }} &middot; Arcano{% endblock %}
 
-{% block meta_description %}{{ disc.artista }} - {{ disc.titulo }}{% if disc.sello %} en {{ disc.sello }}{% endif %}. {% if disc.precio_uyu > 0 %}$ {{ '{:,.0f}'.format(disc.precio_uyu).replace(',', '.') }} UYU. {% endif %}Disponible en Arcano Record Store.{% endblock %}
+{% block meta_description %}{% if disc.resena_corta %}{{ disc.resena_corta }} · {% endif %}{{ disc.artista }} - {{ disc.titulo }}{% if disc.sello %} en {{ disc.sello }}{% endif %}. {% if disc.precio_uyu > 0 %}$ {{ '{:,.0f}'.format(disc.precio_uyu).replace(',', '.') }} UYU. {% endif %}Disponible en Arcano Record Store.{% endblock %}
 
 {% block og_type %}product{% endblock %}
 {% block og_title %}{{ disc.artista }} - {{ disc.titulo }}{% endblock %}
@@ -104,7 +104,9 @@
         </script>
         {% endif %}
 
-        {% if disc.sample_url %}
+        {# Sample legacy a nivel disco: solo se muestra si NINGUN track tiene sample,
+           asi nunca hay dos reproductores sonando a la vez (evita el doble audio). #}
+        {% if disc.sample_url and not disc.tiene_sample %}
         <div class="public-disc-sample">
             <p class="public-disc-sample-label">Audio sample</p>
             <audio controls preload="metadata" style="width: 100%;">
@@ -137,6 +139,12 @@
             <span class="public-badge public-badge-{{ tag_slug }}">{{ tag }}</span>
             {% endfor %}
         </div>
+        {% endif %}
+
+        {# Nota de curaduria (la misma reseña corta del Tip): visible en la ficha e
+           indexable por Google -> suma autoridad de curaduria y SEO. #}
+        {% if disc.resena_corta %}
+        <p class="public-disc-resena">&ldquo;{{ disc.resena_corta }}&rdquo;<span class="public-disc-resena-firma">&mdash; Arcano</span></p>
         {% endif %}
 
         {% if disc.genero %}

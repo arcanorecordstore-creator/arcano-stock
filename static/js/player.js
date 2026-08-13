@@ -20,7 +20,7 @@
         fpCart = $('fp-cart'), fpFallback = $('fp-fallback');
 
     var playlist = [], playIndex = 0, playCover = '';
-    var modoEscucharTodo = false, escucharTodoTimer = null;
+    var modoEscucharTodo = false, escucharTodoTimer = null, playCountTimer = null;
     var engine = null, isPlaying = false, activeBtn = null, seeking = false;
     var volumen = 1;
     try { var vs = localStorage.getItem('arcano-volume'); if (vs !== null) volumen = Math.min(1, Math.max(0, parseFloat(vs))); } catch (e) {}
@@ -78,6 +78,7 @@
     // ---- Motores ----
     function destruirEngine() {
         if (escucharTodoTimer) { clearTimeout(escucharTodoTimer); escucharTodoTimer = null; }
+        if (playCountTimer) { clearTimeout(playCountTimer); playCountTimer = null; }
         if (engine) { try { engine.destroy(); } catch (e) {} engine = null; }
         try { fpAudio.pause(); fpAudio.onended = null; fpAudio.ontimeupdate = null; fpAudio.onplay = null; fpAudio.onpause = null; fpAudio.removeAttribute('src'); fpAudio.load(); } catch (e) {}
         fpSlot.innerHTML = '';
@@ -169,7 +170,13 @@
         actualizarCarrito(t.discId, t.disponible);
         actualizarNav();
         actualizarCola();
-        registrarPlay(t.id);
+        // El conteo de escuchas solo cuenta si el track suena unos segundos y NO
+        // esta en modo "Escuchar todo" (ese modo recorre TODO el catalogo solo y
+        // ensuciaria el chart de "lo mas escuchado" con un click). destruirEngine
+        // limpia este timer al saltar/cerrar antes de que se cumpla.
+        if (!modoEscucharTodo && t.id) {
+            playCountTimer = setTimeout(function () { registrarPlay(t.id); }, 8000);
+        }
         setPlayingUI(true);
         if (t.kind === 'local') engine = engineLocal(t);
         else if (t.kind === 'soundcloud') engine = engineSoundCloud(t);

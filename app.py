@@ -2,6 +2,7 @@
 import csv
 import io
 import os
+import re as _re_email
 from datetime import datetime, timedelta
 
 from flask import (
@@ -66,6 +67,44 @@ def _reserva_registrar(ip):
     _reserva_attempts.setdefault(ip, []).append(_t.time())
 
 
+_webhook_hits: dict = {}  # ip -> [timestamps] para limitar el webhook de MP
+
+
+def _webhook_supera_limite(ip, limite=120, ventana=60):
+    """True si esta IP golpeo el webhook de MP demasiadas veces en la ventana.
+    Cada hit puede disparar una llamada saliente a la API de MP, asi que sin
+    limite un flood amplifica. El limite es holgado: MP notifica desde pocas IPs
+    y no llega a esos numeros en operacion normal."""
+    import time as _t
+    ahora = _t.time()
+    marcas = [t for t in _webhook_hits.get(ip, []) if ahora - t < ventana]
+    marcas.append(ahora)
+    _webhook_hits[ip] = marcas
+    return len(marcas) > limite
+
+
+_play_dedup: dict = {}  # (ip, track_id) -> ultimo timestamp
+
+
+def _play_ya_contado(ip, track_id, ventana=20):
+    """True si esta IP ya conto una escucha de este track hace < ventana segundos.
+    Evita que el contador (y el chart 'lo mas escuchado') se infle con clicks
+    repetidos, reintentos del player o un bot que golpee el endpoint publico."""
+    import time as _t
+    ahora = _t.time()
+    # Poda barata para que el dict no crezca sin limite.
+    if len(_play_dedup) > 5000:
+        for k, ts in list(_play_dedup.items()):
+            if ahora - ts > 3600:
+                _play_dedup.pop(k, None)
+    clave = (ip, track_id)
+    ultimo = _play_dedup.get(clave, 0)
+    if ahora - ultimo < ventana:
+        return True
+    _play_dedup[clave] = ahora
+    return False
+
+
 def convertir_cover_a_webp(path_original: str) -> str:
     """Convierte una imagen recien guardada a WebP (calidad 85).
 
@@ -126,10 +165,24 @@ def create_app() -> Flask:
             raise RuntimeError(
                 "ADMIN_USER/ADMIN_PASS no configurados en produccion: el admin quedaria abierto."
             )
-    # Limite de tamano de request. Alto porque "Desde video" sube VARIOS videos
-    # juntos (cada uno hasta 50 MB). El resto de los uploads (covers, un sample)
-    # son mucho mas chicos.
-    app.config["MAX_CONTENT_LENGTH"] = 400 * 1024 * 1024  # 400 MB
+    # Techo GLOBAL de tamano de request. Alto porque "Desde video" sube VARIOS
+    # videos juntos. Es solo el limite duro de ultima instancia; el guard de
+    # _limitar_tamano_por_endpoint() aplica un limite MUCHO mas chico a todo lo
+    # que no sea el subir-video (asi no se puede DoSear el login con 400 MB).
+    app.config["MAX_CONTENT_LENGTH"] = 400 * 1024 * 1024  # 400 MB (techo duro)
+    # Endpoints que legitimamente suben archivos grandes (videos).
+    _ENDPOINTS_UPLOAD_GRANDE = {"disc_new_from_video", "disc_video_review"}
+    _LIMITE_NORMAL = 60 * 1024 * 1024  # 60 MB para el resto (covers, samples, galeria)
+
+    @app.before_request
+    def _limitar_tamano_por_endpoint():
+        # Rechaza temprano (por el header Content-Length, sin leer el cuerpo) los
+        # requests desmesurados a endpoints que no son el de subir video.
+        if request.endpoint in _ENDPOINTS_UPLOAD_GRANDE:
+            return
+        cl = request.content_length
+        if cl is not None and cl > _LIMITE_NORMAL:
+            return "Archivo demasiado grande.", 413
 
     # --- Seguridad de cookies de sesion ---
     # HTTPONLY: el JS no puede leer la cookie (previene robo por XSS).
@@ -686,6 +739,87 @@ def _track_api_cost(cost_usd: float) -> None:
         count = 1
     Setting.set("api_cost_total_usd", f"{total:.6f}")
     Setting.set("api_calls_count", str(count))
+
+
+def _client_ip():
+    """IP del cliente para rate-limiting (anti-abuso). Detras del proxy de Render
+    el ULTIMO valor de X-Forwarded-For es el que agrega el proxy de confianza (la
+    IP real que vio Render). El PRIMERO lo puede falsificar el cliente mandando su
+    propio header, asi que NO se usa: un atacante rotaria IPs falsas para saltarse
+    el limite. Si no hay XFF, se usa remote_addr."""
+    xff = request.headers.get("X-Forwarded-For", "")
+    if xff:
+        partes = [p.strip() for p in xff.split(",") if p.strip()]
+        if partes:
+            return partes[-1]
+    return request.remote_addr or "?"
+
+
+_EMAIL_RE = _re_email.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _email_valido(email):
+    """Valida un email de forma conservadora y, sobre todo, RECHAZA saltos de
+    linea (\\r \\n): un email con un salto de linea permitiria inyectar headers
+    (Bcc:, etc.) en el mail de confirmacion que se envia al cliente."""
+    if not email or len(email) > 200:
+        return False
+    if "\n" in email or "\r" in email:
+        return False
+    return _EMAIL_RE.match(email) is not None
+
+
+def _archivos_de_disco(disc):
+    """Junta los nombres de archivo (portada, galeria, samples) que usa un disco.
+    Se llama ANTES de borrar el disco, para saber que archivos revisar despues."""
+    covers, samples = set(), set()
+    if disc.cover_local:
+        covers.add(disc.cover_local)
+    for img in disc.imagenes:
+        if img.filename:
+            covers.add(img.filename)
+    for t in disc.tracks:
+        if t.sample_local:
+            samples.add(t.sample_local)
+    return covers, samples
+
+
+def _purgar_archivos_huerfanos(covers_dir, samples_dir, static_folder, covers, samples):
+    """Borra del disco los archivos que ya no referencia NINGUN registro.
+    Se llama DESPUES de commitear la eliminacion, para que las queries reflejen
+    el estado final. Best-effort: cualquier error al borrar se ignora.
+
+    OJO: al duplicar un disco se copia el mismo nombre de archivo, asi que un
+    archivo puede seguir en uso por otro disco/track -> por eso se verifica que
+    no quede ninguna referencia antes de borrarlo (si no, romperiamos la copia)."""
+    from models import DiscImage, Track
+
+    def _rm(path):
+        try:
+            if path and os.path.exists(path):
+                os.remove(path)
+        except Exception:
+            pass
+
+    for fname in covers:
+        if not fname:
+            continue
+        en_uso = (
+            Disc.query.filter_by(cover_local=fname).first() is not None
+            or DiscImage.query.filter_by(filename=fname).first() is not None
+        )
+        if en_uso:
+            continue
+        _rm(os.path.join(covers_dir, fname))
+
+    for fname in samples:
+        if not fname:
+            continue
+        if Track.query.filter_by(sample_local=fname).first() is not None:
+            continue
+        _rm(os.path.join(samples_dir, fname))
+        # Samples viejos que hayan quedado en static/samples (fallback)
+        _rm(os.path.join(static_folder, "samples", fname))
 
 
 # ---------------------------------------------------------------------------
@@ -1774,9 +1908,18 @@ def register_routes(app: Flask) -> None:
 
         if action == "delete":
             count = len(discs)
+            covers, samples = set(), set()
+            for d in discs:
+                c, s = _archivos_de_disco(d)
+                covers |= c
+                samples |= s
             for d in discs:
                 db.session.delete(d)
             db.session.commit()
+            _purgar_archivos_huerfanos(
+                app.config["COVERS_DIR"], app.config["SAMPLES_DIR"],
+                app.static_folder, covers, samples,
+            )
             flash(f"{count} disco{'s' if count != 1 else ''} eliminado{'s' if count != 1 else ''}.", "success")
             return redirect(url_for("dashboard"))
 
@@ -2178,8 +2321,13 @@ def register_routes(app: Flask) -> None:
     def disc_delete(disc_id: int):
         disc = Disc.query.get_or_404(disc_id)
         nombre = f"{disc.artista} - {disc.titulo}"
+        covers, samples = _archivos_de_disco(disc)
         db.session.delete(disc)
         db.session.commit()
+        _purgar_archivos_huerfanos(
+            app.config["COVERS_DIR"], app.config["SAMPLES_DIR"],
+            app.static_folder, covers, samples,
+        )
         flash(f"Disco eliminado: {nombre}", "success")
         return redirect(url_for("dashboard"))
 
@@ -2722,9 +2870,11 @@ def register_routes(app: Flask) -> None:
             return 0.0
 
     def _sincronizar_caja():
-        """Crea los movimientos automaticos de caja que falten (ventas, pedidos,
-        gastos) y limpia los automaticos cuyo origen ya no aplica. Idempotente:
-        no duplica ni pisa lo que Facundo haya editado. Devuelve (creados, borrados)."""
+        """Sincroniza los movimientos automaticos de caja (ventas, pedidos, gastos):
+        crea los que falten, ACTUALIZA los que cambiaron en su origen (ej: se edito
+        el precio de un disco o el costo de un pedido) y borra los que ya no aplican.
+        Idempotente. Los movimientos que Facundo edito a mano (manual_override=True)
+        NO se pisan. Devuelve (creados, actualizados, borrados)."""
         from models import MovimientoCaja, Disc, Pedido, Egreso, Reserva
         from datetime import datetime as _dt
 
@@ -2734,7 +2884,11 @@ def register_routes(app: Flask) -> None:
             existentes[(m.origen, m.origen_id)] = m
 
         creados = 0
+        actualizados = 0
         vigentes = set()  # claves auto que siguen siendo validas
+
+        def _difiere(a, b):
+            return abs((a or 0) - (b or 0)) > 0.005
 
         # --- Mapa disco -> metodo de pago, desde las reservas ---
         metodo_por_disc = {}
@@ -2764,49 +2918,80 @@ def register_routes(app: Flask) -> None:
         for d in vendidos:
             key = ("venta", d.id)
             vigentes.add(key)
-            if key in existentes:
-                continue
-            monto = (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
-            concepto = f"Venta: {d.artista or ''} - {d.titulo or ''}".strip(" -") or "Venta"
+            monto = round((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas, 2)
+            concepto = (f"Venta: {d.artista or ''} - {d.titulo or ''}".strip(" -") or "Venta")[:300]
             fecha = d.fecha_venta.date() if hasattr(d.fecha_venta, "date") else d.fecha_venta
-            db.session.add(MovimientoCaja(
-                fecha=fecha, tipo="ingreso", monto_uyu=round(monto, 2),
-                concepto=concepto[:300], metodo=metodo_por_disc.get(d.id),
-                categoria=None, origen="venta", origen_id=d.id,
-            ))
-            creados += 1
+            metodo = metodo_por_disc.get(d.id)
+            mov = existentes.get(key)
+            if mov is None:
+                db.session.add(MovimientoCaja(
+                    fecha=fecha, tipo="ingreso", monto_uyu=monto,
+                    concepto=concepto, metodo=metodo,
+                    categoria=None, origen="venta", origen_id=d.id,
+                ))
+                creados += 1
+            elif not mov.manual_override:
+                # El origen manda: si cambio el precio/fecha, actualizamos la caja.
+                if _difiere(mov.monto_uyu, monto) or mov.fecha != fecha or mov.tipo != "ingreso":
+                    mov.monto_uyu = monto
+                    mov.fecha = fecha
+                    mov.tipo = "ingreso"
+                    mov.concepto = concepto
+                    actualizados += 1
+                # El metodo lo puede definir Facundo; solo lo completamos si falta.
+                if metodo and not mov.metodo:
+                    mov.metodo = metodo
+                    actualizados += 1
 
         # --- PEDIDOS (egresos): compras de discos ---
         for p in Pedido.query.all():
             key = ("pedido", p.id)
             vigentes.add(key)
-            if key in existentes:
-                continue
             numero = (p.numero or "").strip()
             concepto = (f"Pedido {numero}".strip() if numero else "Compra de discos")
             if p.proveedor:
                 concepto += f" ({p.proveedor})"
+            concepto = concepto[:300]
             fecha = p.fecha or (p.creado.date() if p.creado else _dt.utcnow().date())
-            db.session.add(MovimientoCaja(
-                fecha=fecha, tipo="egreso", monto_uyu=round(p.costo_total_uyu or 0, 2),
-                concepto=concepto[:300], metodo=None, categoria="Pedido",
-                origen="pedido", origen_id=p.id,
-            ))
-            creados += 1
+            monto = round(p.costo_total_uyu or 0, 2)
+            mov = existentes.get(key)
+            if mov is None:
+                db.session.add(MovimientoCaja(
+                    fecha=fecha, tipo="egreso", monto_uyu=monto,
+                    concepto=concepto, metodo=None, categoria="Pedido",
+                    origen="pedido", origen_id=p.id,
+                ))
+                creados += 1
+            elif not mov.manual_override:
+                if _difiere(mov.monto_uyu, monto) or mov.fecha != fecha or mov.tipo != "egreso":
+                    mov.monto_uyu = monto
+                    mov.fecha = fecha
+                    mov.tipo = "egreso"
+                    mov.concepto = concepto
+                    actualizados += 1
 
         # --- GASTOS (egresos): egresos por categoria ---
         for e in Egreso.query.all():
             key = ("gasto", e.id)
             vigentes.add(key)
-            if key in existentes:
-                continue
-            concepto = (e.descripcion or "").strip() or e.categoria or "Gasto"
-            db.session.add(MovimientoCaja(
-                fecha=e.fecha, tipo="egreso", monto_uyu=round(e.monto_uyu or 0, 2),
-                concepto=concepto[:300], metodo=None, categoria=e.categoria,
-                origen="gasto", origen_id=e.id,
-            ))
-            creados += 1
+            concepto = ((e.descripcion or "").strip() or e.categoria or "Gasto")[:300]
+            monto = round(e.monto_uyu or 0, 2)
+            mov = existentes.get(key)
+            if mov is None:
+                db.session.add(MovimientoCaja(
+                    fecha=e.fecha, tipo="egreso", monto_uyu=monto,
+                    concepto=concepto, metodo=None, categoria=e.categoria,
+                    origen="gasto", origen_id=e.id,
+                ))
+                creados += 1
+            elif not mov.manual_override:
+                if (_difiere(mov.monto_uyu, monto) or mov.fecha != e.fecha
+                        or mov.categoria != e.categoria):
+                    mov.monto_uyu = monto
+                    mov.fecha = e.fecha
+                    mov.categoria = e.categoria
+                    mov.concepto = concepto
+                    actualizados += 1
 
         # --- LIMPIEZA: auto-movimientos cuyo origen ya no existe/aplica ---
         borrados = 0
@@ -2815,9 +3000,9 @@ def register_routes(app: Flask) -> None:
                 db.session.delete(mov)
                 borrados += 1
 
-        if creados or borrados:
+        if creados or borrados or actualizados:
             db.session.commit()
-        return creados, borrados
+        return creados, actualizados, borrados
 
     def _resumen_caja(mes=None):
         """Arma el resumen de la caja: saldo actual, totales, ingresos por metodo
@@ -3055,6 +3240,11 @@ def register_routes(app: Flask) -> None:
                 m.fecha = _dt.strptime(fecha_str, "%Y-%m-%d").date()
             except ValueError:
                 pass
+        # Si es un movimiento automatico, al editarlo a mano queda "tomado" por
+        # Facundo: la sincronizacion ya no lo pisa. (Para volver a auto: borralo,
+        # se regenera solo desde el origen en la proxima sincronizacion.)
+        if not m.es_manual:
+            m.manual_override = True
         db.session.commit()
         flash("Movimiento actualizado.", "success")
         return redirect(url_for("caja"))
@@ -3099,6 +3289,9 @@ def register_routes(app: Flask) -> None:
             m.categoria = (str(valor or "").strip()) or None
         else:
             return jsonify({"ok": False, "error": "Campo desconocido"}), 400
+        # Editar a mano un movimiento automatico lo "toma": deja de sincronizarse.
+        if not m.es_manual:
+            m.manual_override = True
         db.session.commit()
         resumen = _resumen_caja()
         return jsonify({
@@ -4173,6 +4366,10 @@ def register_routes(app: Flask) -> None:
     def mp_webhook():
         """Mercado Pago avisa aca cuando cambia el estado de un pago. Confirmamos
         contra la API de MP y, si esta aprobado, completamos la reserva."""
+        # Rate-limit anti-flood: devolvemos 200 para no gatillar reintentos de MP,
+        # pero salteamos el procesamiento (y la llamada saliente a la API).
+        if _webhook_supera_limite(_client_ip()):
+            return "", 200
         payment_id = (request.args.get("data.id") or request.args.get("id") or "")
         if not payment_id:
             data = request.get_json(silent=True) or {}
@@ -4554,6 +4751,10 @@ def register_routes(app: Flask) -> None:
         track = Track.query.get(track_id)
         if not track:
             return jsonify({"ok": False}), 404
+        # Dedup anti-inflado: la misma IP no cuenta el mismo track dos veces
+        # dentro de la ventana. Devolvemos ok igual (el player no necesita saberlo).
+        if _play_ya_contado(_client_ip(), track_id):
+            return jsonify({"ok": True, "plays": track.play_count or 0, "dedup": True})
         track.play_count = (track.play_count or 0) + 1
         db.session.add(PlayEvent(track_id=track.id, disc_id=track.disc_id))
         db.session.commit()
@@ -4633,7 +4834,7 @@ def register_routes(app: Flask) -> None:
 
         if request.method == "POST":
             # Anti-spam: mismo limite por IP que el checkout
-            ip_reserva = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+            ip_reserva = _client_ip()
             if _reserva_supera_limite(ip_reserva):
                 flash("Recibimos muchas reservas desde tu conexion en poco tiempo. Espera un rato o escribinos por Instagram/WhatsApp.", "error")
                 return render_template("public/reservar.html", disc=disc, form={}, **_public_context()), 429
@@ -4650,7 +4851,7 @@ def register_routes(app: Flask) -> None:
                 errores.append("Ingresa un celular valido (ej: 099 123 456).")
             if not email:
                 errores.append("Ingresa tu email para enviarte la confirmacion.")
-            elif "@" not in email:
+            elif not _email_valido(email):
                 errores.append("El email no parece valido.")
 
             if errores:
@@ -4700,12 +4901,12 @@ def register_routes(app: Flask) -> None:
                 except Exception:
                     pass
 
-            return render_template(
-                "public/reserva_ok.html",
-                disc=disc,
-                reserva=reserva,
-                **_public_context(),
-            )
+            # PRG (Post/Redirect/Get): en vez de renderizar aca, guardamos el id en
+            # la sesion y redirigimos. Asi, si el cliente refresca la pagina de
+            # confirmacion, NO se reenvia el POST (evita reservas duplicadas).
+            session["ultima_reserva_ok"] = reserva.id
+            session["ultima_reserva_multi"] = False
+            return redirect(url_for("reserva_confirmada"))
 
         # Si el cliente esta logueado, precargar sus datos para no pedirlos de nuevo
         cliente = None
@@ -4721,6 +4922,35 @@ def register_routes(app: Flask) -> None:
                 "whatsapp": cliente.whatsapp if cliente else "",
             },
             cliente=cliente,
+            **_public_context(),
+        )
+
+    @app.route("/reserva-confirmada")
+    def reserva_confirmada():
+        """Pagina de confirmacion (destino del PRG de reservar/checkout).
+        Lee la reserva desde la sesion (no por la URL, asi no se puede espiar la
+        reserva de otro cambiando un id). Se consume: al refrescar vuelve al home."""
+        rid = session.pop("ultima_reserva_ok", None)
+        multi = session.pop("ultima_reserva_multi", False)
+        if not rid:
+            return redirect(url_for("home"))
+        reserva = Reserva.query.get(rid)
+        if not reserva:
+            return redirect(url_for("home"))
+        disc = None
+        if not multi:
+            items = reserva.items_efectivos
+            if items:
+                disc = Disc.query.get(items[0].disc_id)
+            # Si el disco ya no existe, usamos el layout multi (que se apoya en los
+            # snapshots guardados en el item y no necesita el objeto Disc).
+            if disc is None:
+                multi = True
+        return render_template(
+            "public/reserva_ok.html",
+            reserva=reserva,
+            disc=disc,
+            multi=multi,
             **_public_context(),
         )
 
@@ -4753,7 +4983,7 @@ def register_routes(app: Flask) -> None:
             errores = []
             if len(nombre) < 2:
                 errores.append("Ingresa tu nombre.")
-            if "@" not in email or "." not in email:
+            if not _email_valido(email):
                 errores.append("Ingresa un email valido.")
             if len(password) < 6:
                 errores.append("La contrasena debe tener al menos 6 caracteres.")
@@ -4798,7 +5028,7 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("cliente_cuenta"))
 
         if request.method == "POST":
-            ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+            ip = _client_ip()
             import time as _time
             info = _cliente_login_attempts.get(ip, {"count": 0, "until": 0})
             if _time.time() < info["until"]:
@@ -4971,7 +5201,7 @@ def register_routes(app: Flask) -> None:
             ids = list(dict.fromkeys(ids))[:100]   # deduplicar preservando orden
 
             # Anti-spam: frenar avalanchas de reservas desde una misma IP
-            ip_reserva = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+            ip_reserva = _client_ip()
             if _reserva_supera_limite(ip_reserva):
                 flash("Recibimos muchas reservas desde tu conexion en poco tiempo. Espera un rato o escribinos por Instagram/WhatsApp.", "error")
                 return render_template("public/checkout.html", ids=ids_raw, form={}, **_public_context()), 429
@@ -4991,7 +5221,7 @@ def register_routes(app: Flask) -> None:
                 errores.append("Ingresa un celular valido (ej: 099 123 456).")
             if not email:
                 errores.append("Ingresa tu email para enviarte la confirmacion.")
-            elif "@" not in email:
+            elif not _email_valido(email):
                 errores.append("El email no parece valido.")
 
             # Cuenta opcional: si dejo una contrasena (y no esta logueado), validamos el largo
@@ -5129,12 +5359,11 @@ def register_routes(app: Flask) -> None:
                 except Exception:
                     pass
 
-            return render_template(
-                "public/reserva_ok.html",
-                reserva=reserva,
-                multi=True,
-                **_public_context(),
-            )
+            # PRG: guardamos el id en sesion y redirigimos a la pagina de
+            # confirmacion. Refrescar no reenvia el POST (no duplica la reserva).
+            session["ultima_reserva_ok"] = reserva.id
+            session["ultima_reserva_multi"] = True
+            return redirect(url_for("reserva_confirmada"))
 
         # GET
         ids_raw = (request.args.get("ids") or "").strip()
@@ -5429,7 +5658,7 @@ def register_routes(app: Flask) -> None:
 
         if request.method == "POST":
             # --- Rate limiting: frena fuerza bruta por IP ---
-            ip = request.headers.get("X-Forwarded-For", request.remote_addr or "?").split(",")[0].strip()
+            ip = _client_ip()
             info = _login_attempts.get(ip, {"count": 0, "until": 0})
             import time as _time
             if _time.time() < info["until"]:

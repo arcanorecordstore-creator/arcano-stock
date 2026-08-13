@@ -138,7 +138,9 @@ class Disc(db.Model):
 
     @property
     def ganancia_uyu(self) -> float:
-        return round(self.precio_uyu - self.costo_final_uyu, 2)
+        # Usa el precio de oferta si el disco esta en oferta (es lo que se cobra),
+        # no el precio de lista, asi el margen no queda inflado.
+        return round((self.precio_mostrar or self.precio_uyu or 0) - (self.costo_final_uyu or 0), 2)
 
     @property
     def mostrar_cartel_nuevo(self) -> bool:
@@ -212,9 +214,10 @@ class Disc(db.Model):
 
     @property
     def margen_pct(self) -> float:
-        if self.precio_uyu <= 0:
+        base = self.precio_mostrar or self.precio_uyu or 0
+        if base <= 0:
             return 0.0
-        return round((self.ganancia_uyu / self.precio_uyu) * 100, 2)
+        return round((self.ganancia_uyu / base) * 100, 2)
 
     @property
     def tags_list(self) -> list[str]:
@@ -960,6 +963,10 @@ class MovimientoCaja(db.Model):
     # para tener liquidez mientras MP retiene el cobro). Valores: 'pendiente' (falta
     # que MP pague y hacer el retiro) / 'saldado' (MP ya pago y se hizo el retiro).
     adelanto_mp = db.Column(db.String(20), nullable=True)
+    # True cuando Facundo edito a mano un movimiento AUTOMATICO. En ese caso la
+    # sincronizacion deja de pisar su edicion (respeta el monto/fecha que puso).
+    # Los movimientos automaticos sin tocar SI se actualizan si cambia el origen.
+    manual_override = db.Column(db.Boolean, nullable=False, default=False)
     creado = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     @property
@@ -1160,6 +1167,20 @@ class Pedido(db.Model):
 # ---------------------------------------------------------------------------
 
 from sqlalchemy import event as _sa_event
+from sqlalchemy.engine import Engine as _SA_Engine
+
+
+@_sa_event.listens_for(_SA_Engine, "connect")
+def _sqlite_fk_pragma(dbapi_conn, connection_record):
+    """Activa la verificacion de FOREIGN KEYS en SQLite (viene APAGADA por
+    defecto). Sin esto los ON DELETE CASCADE y las FK no se respetan a nivel
+    base de datos. Es best-effort: si el driver no es SQLite, se ignora."""
+    try:
+        cur = dbapi_conn.cursor()
+        cur.execute("PRAGMA foreign_keys=ON")
+        cur.close()
+    except Exception:
+        pass
 
 
 @_sa_event.listens_for(Disc, "before_insert")
@@ -1199,6 +1220,11 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE movimientos_caja ADD COLUMN adelanto_mp VARCHAR(20)"))
                     conn.commit()
                 print("Migracion: columna adelanto_mp agregada a movimientos_caja")
+            if "manual_override" not in _mcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE movimientos_caja ADD COLUMN manual_override BOOLEAN DEFAULT 0"))
+                    conn.commit()
+                print("Migracion: columna manual_override agregada a movimientos_caja")
 
         # Campos de pago Mercado Pago en la tabla reservas
         if inspector.has_table("reservas"):

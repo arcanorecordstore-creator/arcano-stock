@@ -72,6 +72,12 @@ def send_email(subject: str, body_text: str, body_html: str = None, to: str = No
     if not destinatario:
         return False, "Sin destinatario"
 
+    # Defensa anti header-injection: un destinatario o asunto con salto de linea
+    # permitiria inyectar headers (Bcc:, etc.). Se rechaza de plano.
+    if any(c in (destinatario or "") for c in ("\r", "\n")):
+        return False, "Destinatario invalido"
+    subject = (subject or "").replace("\r", " ").replace("\n", " ")
+
     # Cuerpo del mensaje (texto plano + HTML alternativo)
     cuerpo = MIMEMultipart("alternative")
     cuerpo.attach(MIMEText(body_text, "plain", "utf-8"))

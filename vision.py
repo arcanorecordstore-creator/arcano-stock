@@ -400,7 +400,7 @@ def extract_disc_from_image(
 
     # Llamar a la API
     try:
-        client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+        client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, timeout=60.0)
         message = client.messages.create(
             model=VISION_MODEL,
             max_tokens=2048,
@@ -572,7 +572,7 @@ def extract_from_video_frames(frames_png: list, filename: str = None) -> VisionR
     content.append({"type": "text", "text": VIDEO_FRAMES_PROMPT})
 
     try:
-        client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+        client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, timeout=60.0)
         message = client.messages.create(
             model=VISION_MODEL,
             max_tokens=2048,
@@ -712,7 +712,7 @@ def extract_invoice_from_image(
     image_b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
 
     try:
-        client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY)
+        client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, timeout=60.0)
         message = client.messages.create(
             model=VISION_MODEL,
             max_tokens=4096,  # mas tokens porque puede haber varios discos
