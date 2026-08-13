@@ -6561,11 +6561,20 @@ td.num,
 .carrusel-price { font-size: 17px; font-weight: 600; color: var(--text-1); margin-top: 8px; }
 .carrusel-price-oferta { display: flex; gap: 7px; align-items: baseline; margin-top: 8px; }
 
-/* En movil: 1 tapa por slide, con la portada bien grande y aire para el texto.
+/* En movil: 1 tapa por slide. Cards mas BAJAS (Facundo): portada mas chica y el
+   texto/espaciado apretados para que la card no quede tan alta.
    La medida gana porque va DESPUES del bloque base de .carrusel-cover. */
 @media (max-width: 720px) {
-    .carrusel-card { gap: 18px; padding: 18px; }
-    .carrusel-cover { flex: 0 0 140px; width: 140px; height: 140px; }
+    .carrusel-card { gap: 14px; padding: 13px; align-items: center; }
+    .carrusel-cover { flex: 0 0 116px; width: 116px; height: 116px; }
+    .carrusel-info { gap: 3px; }
+    .carrusel-info-link { gap: 2px; }
+    .carrusel-artist { font-size: 16px; }
+    .carrusel-title-disc { font-size: 14px; }
+    .carrusel-label { margin-top: 1px; }
+    .carrusel-price { font-size: 16px; margin-top: 4px; }
+    .carrusel-price-oferta { margin-top: 4px; }
+    .cart-btn-carrusel { margin-top: 8px; padding: 7px 12px; }
 }
 
 /* En PC: exactamente 2 cards por vista (Facundo: mas de 2 es demasiada info).
