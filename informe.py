@@ -11,7 +11,10 @@ from reportlab.lib.units import mm
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
-                                TableStyle, HRFlowable)
+                                TableStyle, HRFlowable, PageBreak)
+from reportlab.graphics.shapes import Drawing
+from reportlab.graphics.charts.barcharts import VerticalBarChart
+from reportlab.graphics.charts.legends import Legend
 
 import metrics
 from models import Disc, Pedido, MovimientoCaja, Setting
@@ -23,6 +26,19 @@ def _money(n):
     except (TypeError, ValueError):
         n = 0
     return "$ " + format(int(round(n)), ",d").replace(",", ".")
+
+
+def _ts_tabla():
+    """Estilo reutilizable para las tablas de tops/pedidos del informe."""
+    from reportlab.lib import colors as _c
+    return TableStyle([
+        ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 8.5), ("BACKGROUND", (0, 0), (-1, 0), _c.HexColor("#0A0A0A")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), _c.white), ("FONT", (0, 1), (-1, -1), "Helvetica", 8.5),
+        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+        ("TOPPADDING", (0, 0), (-1, -1), 4.2), ("BOTTOMPADDING", (0, 0), (-1, -1), 4.2),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_c.white, _c.HexColor("#faf9f6")]),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.4, _c.HexColor("#e3e2dc")),
+    ])
 
 
 def _chequeos():
@@ -42,10 +58,41 @@ def _chequeos():
     return checks
 
 
+def _grafico_barras(labels, series, colores, ancho_mm=174, alto=130):
+    """Devuelve un Drawing con un grafico de barras agrupadas.
+    series: lista de listas (una por serie). colores: lista de HexColor."""
+    w = ancho_mm * mm
+    d = Drawing(w, alto)
+    bc = VerticalBarChart()
+    bc.x = 34
+    bc.y = 16
+    bc.width = w - 48
+    bc.height = alto - 28
+    bc.data = series
+    bc.categoryAxis.categoryNames = labels
+    bc.categoryAxis.labels.fontSize = 7
+    bc.valueAxis.labels.fontSize = 7
+    todos = [v for s in series for v in s]
+    bc.valueAxis.valueMin = min(0, min(todos)) if todos else 0
+    bc.groupSpacing = 8
+    bc.barSpacing = 0.5
+    for i, col in enumerate(colores):
+        if i < len(bc.bars):
+            bc.bars[i].fillColor = col
+    d.add(bc)
+    return d
+
+
 def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None):
     conta = metrics.contabilidad(periodo, desde, hasta)
     recup = metrics.recuperacion_inversion()
     frenado = metrics.stock_frenado()
+    data = metrics.get_all_metrics()
+    kpis = data["kpis"]
+    por_cobrar = metrics.dinero_por_cobrar()
+    seis_m = metrics.ingresos_vs_egresos_6m()
+    arc_per = metrics.arcano_vs_personal_6m()
+    pedidos = Pedido.query.order_by(Pedido.fecha.desc()).all()
 
     movs = MovimientoCaja.query.all()
     try:
@@ -114,6 +161,15 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None):
                        "de los discos de Arcano (vendidos y en stock) y los gastos operativos."
                        % (conta["unidades_vendidas"], conta["titulos_vendidos"]), small))
 
+    # Desglose por origen (Arcano vs coleccion personal)
+    E.append(mrow([("Ingresos de Arcano", _money(conta["ingresos_arcano_uyu"])),
+                   ("Aporte de tu coleccion", _money(conta["ingresos_personal_uyu"])),
+                   ("Stock no vendido (Arcano)", _money(conta["costo_stock_no_vendido_uyu"]))]))
+    if conta["ingresos_personal_uyu"]:
+        E.append(Spacer(1, 4))
+        E.append(Paragraph("De los ingresos, <b>%s</b> vienen de tu coleccion personal (no le costaron nada al negocio)."
+                           % _money(conta["ingresos_personal_uyu"]), small))
+
     # Estado actual del negocio
     E.append(Paragraph("Estado actual del negocio (hoy)", h2))
     E.append(mrow([("Plata en caja", _money(saldo)),
@@ -126,6 +182,111 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None):
                            _money(recup["recuperado"]), recup["discos_sin_vender"], _money(recup["falta"])), body))
     elif recup["recuperado_total"]:
         E.append(Paragraph("Ya recuperaste toda tu inversion en pedidos: lo que vendas de ahora en mas es ganancia limpia.", body))
+
+    # Evolucion de los ultimos 6 meses (mirada de caja) + grafico
+    E.append(Paragraph("Plata que entro vs salio (ultimos 6 meses)", h2))
+    E.append(Paragraph("Mirada de caja: los egresos incluyen los pedidos (compras de stock). El neto es lo que entro menos lo que salio.", small))
+    if seis_m:
+        labels = [m["label"] for m in seis_m]
+        serie_ing = [round(m["ingresos_uyu"]) for m in seis_m]
+        serie_egr = [round(m["egresos_uyu"]) for m in seis_m]
+        E.append(_grafico_barras(labels, [serie_ing, serie_egr], [GREEN, RED]))
+        E.append(Paragraph("<font color='#0f7a53'>Verde: ingresos</font> &nbsp; <font color='#c0392b'>Rojo: egresos (con pedidos)</font>", small))
+        data6 = [["Mes", "Ingresos", "Egresos", "Gastos", "Pedidos", "Neto"]]
+        for m in seis_m:
+            data6.append([m["label"], _money(m["ingresos_uyu"]), _money(m["egresos_uyu"]),
+                          _money(m["egresos_opex_uyu"]), _money(m["pedidos_uyu"]), _money(m["neto_uyu"])])
+        t = Table(data6, colWidths=[24*mm, 30*mm, 30*mm, 30*mm, 30*mm, 30*mm])
+        t.setStyle(TableStyle([("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 8), ("BACKGROUND", (0, 0), (-1, 0), BLACK),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("FONT", (0, 1), (-1, -1), "Helvetica", 8),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"), ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#faf9f6")]),
+            ("LINEBELOW", (0, 0), (-1, -1), 0.4, colors.HexColor("#e3e2dc"))]))
+        E.append(t)
+
+    # Arcano vs coleccion personal
+    if arc_per and any(m["arcano"] or m["personal"] for m in arc_per):
+        E.append(Paragraph("Arcano vs tu coleccion personal (6 meses)", h2))
+        labels = [m["label"] for m in arc_per]
+        E.append(_grafico_barras(labels, [[round(m["arcano"]) for m in arc_per],
+                                          [round(m["personal"]) for m in arc_per]], [BLACK, colors.HexColor("#3b82f6")]))
+        E.append(Paragraph("<font color='#0a0a0a'>Negro: ventas de Arcano</font> &nbsp; <font color='#3b82f6'>Azul: tu coleccion</font>", small))
+
+    # Egresos por categoria
+    if conta.get("egresos_por_categoria"):
+        E.append(Paragraph("Egresos por categoria (periodo)", h2))
+        data = [["Categoria", "Total"]]
+        for cat, monto in conta["egresos_por_categoria"]:
+            data.append([cat or "(sin categoria)", _money(monto)])
+        data.append(["TOTAL", _money(conta["egresos_uyu"])])
+        t = Table(data, colWidths=[130*mm, 44*mm])
+        n = len(conta["egresos_por_categoria"])
+        t.setStyle(TableStyle([("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 9), ("BACKGROUND", (0, 0), (-1, 0), BLACK),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("FONT", (0, 1), (-1, -1), "Helvetica", 9),
+            ("ALIGN", (1, 0), (1, -1), "RIGHT"), ("TOPPADDING", (0, 0), (-1, -1), 4.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 4.5),
+            ("FONT", (0, n + 1), (-1, n + 1), "Helvetica-Bold", 9), ("LINEABOVE", (0, n + 1), (-1, n + 1), 0.8, BLACK),
+            ("ROWBACKGROUNDS", (0, 1), (-1, n), [colors.white, colors.HexColor("#faf9f6")])]))
+        E.append(t)
+
+    # Top sellos y discos
+    E.append(PageBreak())
+    E.append(Paragraph("Top sellos y discos", h2))
+    tsi = data["top_sellos_inversion"]
+    if tsi:
+        E.append(Paragraph("<b>Sellos con mas plata inmovilizada (stock)</b>", body))
+        d0 = [["Sello", "Titulos", "Unidades", "Inversion"]]
+        for s in tsi:
+            d0.append([(s["sello"] or "-")[:34], str(s["titulos"]), str(s["unidades"]), _money(s["inversion_uyu"])])
+        t = Table(d0, colWidths=[90*mm, 24*mm, 26*mm, 34*mm])
+        t.setStyle(_ts_tabla())
+        E.append(t)
+        E.append(Spacer(1, 6))
+    tsr = data["top_sellos_rotacion"]
+    if tsr:
+        E.append(Paragraph("<b>Sellos que mas rotan (vendidos)</b>", body))
+        d0 = [["Sello", "Titulos vend.", "Unidades", "Facturado"]]
+        for s in tsr:
+            d0.append([(s["sello"] or "-")[:34], str(s["titulos_vendidos"]), str(s["unidades_vendidas"]), _money(s["facturado_uyu"])])
+        t = Table(d0, colWidths=[90*mm, 24*mm, 26*mm, 34*mm])
+        t.setStyle(_ts_tabla())
+        E.append(t)
+        E.append(Spacer(1, 6))
+    tdr = data["top_discos_rentables"]
+    if tdr:
+        E.append(Paragraph("<b>Discos vendidos mas rentables</b>", body))
+        d0 = [["Disco", "Sello", "Precio", "Ganancia", "Margen"]]
+        for d in tdr:
+            nombre = ("%s - %s" % (d["artista"] or "", d["titulo"] or ""))[:42]
+            d0.append([nombre, (d["sello"] or "-")[:18], _money(d["precio_uyu"]), _money(d["ganancia_uyu"]), "%.0f%%" % (d["margen_pct"] or 0)])
+        t = Table(d0, colWidths=[74*mm, 34*mm, 22*mm, 24*mm, 20*mm])
+        t.setStyle(_ts_tabla())
+        E.append(t)
+
+    # Pedidos
+    if pedidos:
+        E.append(Paragraph("Pedidos (compras de stock)", h2))
+        d0 = [["Numero", "Fecha", "Costo", "Recaudado", "Resultado", "Rotacion"]]
+        for p in pedidos[:14]:
+            def _g(a):
+                try:
+                    v = getattr(p, a)
+                    return v if v is not None else 0
+                except Exception:
+                    return 0
+            d0.append([(p.numero or "-")[:16], p.fecha.strftime("%d/%m/%y") if p.fecha else "-",
+                       _money(_g("costo_total_uyu")), _money(_g("recaudado_uyu")), _money(_g("resultado_uyu")),
+                       "%.0f%%" % _g("rotacion_pct")])
+        t = Table(d0, colWidths=[36*mm, 22*mm, 30*mm, 30*mm, 30*mm, 26*mm])
+        t.setStyle(_ts_tabla())
+        E.append(t)
+
+    # Dinero por cobrar
+    E.append(Paragraph("Dinero por cobrar (reservados)", h2))
+    if por_cobrar["titulos"]:
+        E.append(Paragraph("Tenes <b>%d disco(s)</b> reservados sin cobrar todavia, por un total de <b>%s</b>."
+                           % (por_cobrar["titulos"], _money(por_cobrar["total_uyu"])), body))
+    else:
+        E.append(Paragraph("No hay discos reservados pendientes de cobro.", body))
 
     # Stock que no rota
     E.append(Paragraph("Stock que no rota", h2))

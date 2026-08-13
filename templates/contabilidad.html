@@ -23,7 +23,7 @@
     <a href="{{ url_for('contabilidad', periodo=val) }}"
        class="conta-periodo-btn {% if periodo == val %}active{% endif %}">{{ label }}</a>
     {% endfor %}
-    <a href="{{ url_for('contabilidad_exportar', periodo=periodo, desde=desde, hasta=hasta) }}" class="conta-export-btn">&#8595; Exportar CSV</a>
+    <a href="{{ url_for('contabilidad_exportar', periodo=periodo, desde=desde, hasta=hasta) }}" class="conta-export-btn">&#8595; Exportar Excel</a>
     <a href="{{ url_for('contabilidad_informe_pdf', periodo=periodo, desde=desde, hasta=hasta) }}" class="conta-export-btn conta-export-pdf">&#128196; Bajar informe PDF</a>
 </section>
 

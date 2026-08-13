@@ -6561,15 +6561,15 @@ td.num,
     .carrusel-cover { flex: 0 0 140px; width: 140px; height: 140px; }
 }
 
-/* En PC: cards del carrusel mas grandes (portada 200px) para que se vean MENOS
-   discos por vista y cada uno luzca mas. En celular queda como esta. */
+/* En PC: exactamente 2 cards por vista (Facundo: mas de 2 es demasiada info).
+   La portada se agranda para que la card no quede vacia. En celular queda igual. */
 @media (min-width: 900px) {
-    .carrusel-card { flex: 0 0 min(500px, 100%); gap: 26px; }
-    .carrusel-cover { flex: 0 0 200px; width: 200px; height: 200px; }
-    .carrusel-artist { font-size: 20px; }
+    .carrusel-card { flex: 0 0 calc(50% - 13px); gap: 28px; }
+    .carrusel-cover { flex: 0 0 230px; width: 230px; height: 230px; }
+    .carrusel-artist { font-size: 21px; }
     .carrusel-title-disc { font-size: 16px; }
-    .carrusel-price { font-size: 18px; }
-    .carrusel-play-badge { width: 60px; height: 60px; font-size: 23px; }
+    .carrusel-price { font-size: 19px; }
+    .carrusel-play-badge { width: 64px; height: 64px; font-size: 24px; }
 }
 
 /* Checkboxes de marcado para la home en el dashboard */

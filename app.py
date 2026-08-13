@@ -2785,57 +2785,17 @@ def register_routes(app: Flask) -> None:
     @app.route("/admin/contabilidad/exportar")
     @auth.admin_required
     def contabilidad_exportar():
-        """Exporta los egresos del periodo a CSV."""
-        from models import Egreso
-        import csv
-        import io
+        """Exporta TODA la contabilidad del periodo a Excel (multi-hoja con graficos)."""
+        import informe_excel
+        from flask import send_file
         periodo = request.args.get("periodo", "mes_actual")
         desde = request.args.get("desde")
         hasta = request.args.get("hasta")
-        inicio, fin = metrics._rango_periodo(periodo, desde, hasta)
-        egresos = (
-            Egreso.query
-            .filter(Egreso.fecha >= inicio, Egreso.fecha < fin)
-            .order_by(Egreso.fecha.asc())
-            .all()
-        )
-        output = io.StringIO()
-        writer = csv.writer(output)
-        writer.writerow(["Fecha", "Categoria", "Descripcion", "Monto", "Moneda", "TC usado", "Monto UYU"])
-        for e in egresos:
-            writer.writerow([
-                e.fecha.strftime("%Y-%m-%d"), e.categoria, e.descripcion or "",
-                f"{e.monto:.2f}", e.moneda, f"{e.tc_usado:.2f}", f"{e.monto_uyu:.2f}",
-            ])
-        # Tambien las ventas del periodo
-        from datetime import datetime as _dt
-        inicio_dt = _dt(inicio.year, inicio.month, inicio.day)
-        fin_dt = _dt(fin.year, fin.month, fin.day)
-        vendidos = (
-            Disc.query.filter(Disc.estado == "Vendido")
-            .filter(Disc.fecha_venta >= inicio_dt, Disc.fecha_venta < fin_dt)
-            .order_by(Disc.fecha_venta.asc()).all()
-        )
-        writer.writerow([])
-        writer.writerow(["VENTAS DEL PERIODO"])
-        writer.writerow(["Fecha venta", "Artista", "Titulo", "Sello", "Precio UYU", "Copias", "Costo UYU", "Ganancia UYU"])
-        for d in vendidos:
-            precio = d.precio_mostrar or d.precio_uyu or 0
-            writer.writerow([
-                d.fecha_venta.strftime("%Y-%m-%d") if d.fecha_venta else "",
-                d.artista, d.titulo, d.sello or "",
-                f"{precio:.0f}", d.copias_facturadas,
-                f"{(d.costo_final_uyu or 0):.0f}",
-                f"{((precio - (d.costo_final_uyu or 0)) * d.copias_facturadas):.0f}",
-            ])
-        from flask import Response
-        csv_data = output.getvalue()
-        output.close()
-        filename = f"arcano_contabilidad_{periodo}.csv"
-        return Response(
-            csv_data,
-            mimetype="text/csv",
-            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        buf = informe_excel.generar_excel(periodo, desde, hasta)
+        filename = f"arcano_contabilidad_{periodo}.xlsx"
+        return send_file(
+            buf, as_attachment=True, download_name=filename,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         )
 
     @app.route("/admin/contabilidad/informe-pdf")
