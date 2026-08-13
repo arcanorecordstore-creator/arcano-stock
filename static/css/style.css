@@ -15,6 +15,10 @@
     --border-2: #34373f;
     --border-3: #414550;
 
+    /* Sombra sutil de las cards para que se separen del fondo (v3.64). En oscuro
+       la separacion viene sobre todo del contraste de fondo; la sombra suma poco. */
+    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
+
     --text-1: #ffffff;
     --text-2: #cbced4;
     --text-3: #90939b;
@@ -62,6 +66,10 @@
     --border-1: #e4e4e4;
     --border-2: #d4d4d4;
     --border-3: #b8b8b8;
+
+    /* Sombra sutil de las cards: en tema claro es lo que las separa del fondo
+       (card blanca sobre fondo casi blanco). Suave, no pesada (v3.64). */
+    --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
 
     --text-1: #0a0a0a;
     --text-2: #2a2a2a;
@@ -2749,10 +2757,11 @@ body.app { display: block; padding: 0; }
     display: flex;
     flex-direction: column;
     background-color: var(--bg-1);
-    border: 1px solid var(--border-1);
+    border: 1px solid var(--border-2);
     border-radius: 8px;
+    box-shadow: var(--card-shadow);
     overflow: hidden;
-    transition: transform 0.15s, border-color 0.15s;
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
 }
 
 .public-card:hover {
@@ -6421,18 +6430,22 @@ td.num,
 /* Cada card ocupa media pantalla (2 por slide) y se desliza con el dedo */
 .carrusel-card {
     scroll-snap-align: start;
-    flex: 0 0 calc(50% - 12px);
+    /* Ancho fijo: antes era 50% y en pantallas grandes la card se estiraba a
+       ~600px con la portada ocupando solo ~27% (mitad de la card vacia). Con un
+       ancho acotado queda proporcionada y se ven ~2-3 con la siguiente asomando. */
+    flex: 0 0 min(440px, 100%);
     display: flex;
     align-items: center;
     gap: 22px;
     text-decoration: none;
     color: inherit;
     background: var(--bg-1);
-    border: 1px solid var(--border-1);
+    border: 1px solid var(--border-2);
     border-radius: 12px;
+    box-shadow: var(--card-shadow);
     padding: 20px;
     box-sizing: border-box;
-    transition: border-color 0.15s, transform 0.15s;
+    transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
 }
 .carrusel-card:hover {
     border-color: var(--border-3);
@@ -6516,7 +6529,7 @@ td.num,
 /* En movil: 1 tapa por slide, con la portada bien grande y aire para el texto.
    La medida gana porque va DESPUES del bloque base de .carrusel-cover. */
 @media (max-width: 720px) {
-    .carrusel-card { flex: 0 0 100%; gap: 18px; padding: 18px; }
+    .carrusel-card { gap: 18px; padding: 18px; }
     .carrusel-cover { flex: 0 0 140px; width: 140px; height: 140px; }
 }
 
@@ -6643,9 +6656,9 @@ td.num,
 
 /* Tamaños de card configurables desde el admin (doble clase = mas especifico) */
 /* Modo automatico: el tamaño controla cuantas columnas entran */
-.public-grid.public-grid-chico { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
-.public-grid.public-grid-mediano { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
-.public-grid.public-grid-grande { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.public-grid.public-grid-chico { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+.public-grid.public-grid-mediano { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+.public-grid.public-grid-grande { grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); }
 
 /* Modo columnas fijas (grid con style inline): el tamaño achica la card DENTRO de su columna.
    Usa porcentaje para que siempre haya progresion visible sin importar cuantas columnas. */
@@ -8421,6 +8434,46 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 }
 .fp-cart-btn:hover { filter: brightness(1.08); }
 .fp-cart-btn.is-in-cart { background: var(--bg-3, #2a2a2a); color: var(--text-2, #ccc); }
+
+/* Control de volumen del reproductor (v3.64). Solo en desktop: en celular la barra
+   ya va justa y el telefono tiene sus botones de volumen. */
+.fp-volume { display: flex; align-items: center; gap: 6px; }
+.fp-vol-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 82px;
+    height: 4px;
+    background: var(--border-3, #555);
+    border-radius: 2px;
+    cursor: pointer;
+    outline: none;
+}
+.fp-vol-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--text-1);
+    border: none;
+    cursor: pointer;
+}
+.fp-vol-slider::-moz-range-thumb {
+    width: 13px;
+    height: 13px;
+    border-radius: 50%;
+    background: var(--text-1);
+    border: none;
+    cursor: pointer;
+}
+/* El boton verde "Agregar al carrito" del reproductor, mas grande SOLO en PC
+   (en celular queda como estaba, que Facundo dijo que estaba bien). */
+@media (min-width: 701px) {
+    .fp-cart-btn { font-size: 14px; padding: 9px 18px; gap: 6px; }
+}
+@media (max-width: 700px) {
+    .fp-volume { display: none; }
+}
 
 /* v2.84 - Radar de demanda (admin) */
 .radar-page { max-width: 1000px; margin: 0 auto; }

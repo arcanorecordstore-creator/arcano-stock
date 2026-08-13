@@ -267,6 +267,13 @@
             <span class="fp-cart-in" hidden>&#10003; En el carrito</span>
         </button>
         <div class="fp-actions">
+            <div class="fp-volume" id="fp-volume">
+                <button type="button" class="fp-ctrl fp-ctrl-sm fp-vol-btn" id="fp-vol-btn" aria-label="Silenciar" title="Silenciar / activar sonido">
+                    <svg class="fp-ico-vol" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.5 8.5a5 5 0 0 1 0 7"></path><path d="M18.5 6a8 8 0 0 1 0 12"></path></svg>
+                    <svg class="fp-ico-mute" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" hidden><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="22" y1="9" x2="16" y2="15"></line><line x1="16" y1="9" x2="22" y2="15"></line></svg>
+                </button>
+                <input type="range" class="fp-vol-slider" id="fp-vol-slider" min="0" max="100" value="100" aria-label="Volumen" title="Volumen">
+            </div>
             <button type="button" class="fp-ctrl fp-ctrl-sm" id="fp-queue" aria-label="Ver la lista" title="Ver la lista">
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><circle cx="4" cy="6" r="1"></circle><circle cx="4" cy="12" r="1"></circle><circle cx="4" cy="18" r="1"></circle></svg>
             </button>
