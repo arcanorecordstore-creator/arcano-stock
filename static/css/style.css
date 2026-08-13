@@ -6423,13 +6423,14 @@ td.num,
     scroll-snap-align: start;
     flex: 0 0 calc(50% - 12px);
     display: flex;
-    gap: 18px;
+    align-items: center;
+    gap: 22px;
     text-decoration: none;
     color: inherit;
     background: var(--bg-1);
     border: 1px solid var(--border-1);
     border-radius: 12px;
-    padding: 16px;
+    padding: 20px;
     box-sizing: border-box;
     transition: border-color 0.15s, transform 0.15s;
 }
@@ -6439,9 +6440,9 @@ td.num,
 }
 .carrusel-cover {
     position: relative;
-    flex: 0 0 130px;
-    width: 130px;
-    height: 130px;
+    flex: 0 0 160px;
+    width: 160px;
+    height: 160px;
     border-radius: 8px;
     overflow: hidden;
     background: var(--bg-2);
@@ -6466,12 +6467,12 @@ td.num,
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 46px;
-    height: 46px;
+    width: 56px;
+    height: 56px;
     border-radius: 50%;
     background: rgba(0, 0, 0, 0.58);
     color: #fff;
-    font-size: 17px;
+    font-size: 21px;
     line-height: 1;
     transition: background 0.15s, transform 0.15s;
 }
@@ -6487,34 +6488,36 @@ td.num,
     color: var(--text-4);
 }
 .carrusel-info {
+    flex: 1 1 auto;            /* que ocupe TODO el ancho libre al costado de la portada */
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 4px;
+    gap: 6px;
     min-width: 0;
 }
 .carrusel-info-link {
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 5px;
     min-width: 0;
     text-decoration: none;
     color: inherit;
 }
 .cart-btn-carrusel {
     align-self: flex-start;
-    margin-top: 10px;
+    margin-top: 14px;
 }
-.carrusel-artist { font-size: 16px; font-weight: 600; color: var(--text-1); }
-.carrusel-title-disc { font-size: 14px; color: var(--text-2); }
+.carrusel-artist { font-size: 18px; font-weight: 600; color: var(--text-1); line-height: 1.25; }
+.carrusel-title-disc { font-size: 15px; color: var(--text-2); line-height: 1.3; }
 .carrusel-label { font-size: 12px; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
-.carrusel-price { font-size: 15px; font-weight: 600; color: var(--text-1); margin-top: 6px; }
-.carrusel-price-oferta { display: flex; gap: 7px; align-items: baseline; margin-top: 6px; }
+.carrusel-price { font-size: 17px; font-weight: 600; color: var(--text-1); margin-top: 8px; }
+.carrusel-price-oferta { display: flex; gap: 7px; align-items: baseline; margin-top: 8px; }
 
-/* En movil: 1 tapa por slide */
+/* En movil: 1 tapa por slide, con la portada bien grande y aire para el texto.
+   La medida gana porque va DESPUES del bloque base de .carrusel-cover. */
 @media (max-width: 720px) {
-    .carrusel-card { flex: 0 0 100%; }
-    .carrusel-cover { flex: 0 0 90px; width: 90px; height: 90px; }
+    .carrusel-card { flex: 0 0 100%; gap: 18px; padding: 18px; }
+    .carrusel-cover { flex: 0 0 140px; width: 140px; height: 140px; }
 }
 
 /* Checkboxes de marcado para la home en el dashboard */
@@ -6618,13 +6621,9 @@ td.num,
 /* Cards mas redondeadas (menos rectangulares) */
 .carrusel-card {
     border-radius: 20px;
-    padding: 20px;
 }
 .carrusel-cover {
     border-radius: 16px;
-    flex: 0 0 120px;
-    width: 120px;
-    height: 120px;
 }
 /* Barra de progreso */
 .public-carrusel-progress {
