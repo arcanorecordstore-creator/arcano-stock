@@ -48,6 +48,7 @@
             {% for d in discos %}
             {% set ps = d.primer_track_sample %}
             <div class="carrusel-card">
+                {% if d.es_tip %}<span class="card-staff-sticker">{{ tip_label or 'Staff Picks' }}</span>{% endif %}
                 <div class="carrusel-body">
                 <div class="carrusel-cover">
                     {% if d.cover_local %}
@@ -153,7 +154,7 @@
     {% endif %}
 
     {% if tips_carrusel and car_tips %}
-    {{ carrusel(tips_carrusel, tip_label or 'Tip', 'tips') }}
+    {{ carrusel(tips_carrusel, tip_label or 'Staff Picks', 'tips') }}
     {% endif %}
 
     {% if mas_escuchados and car_escuchados %}
@@ -301,6 +302,7 @@
 <div class="public-grid public-grid-{{ card_tamano or 'mediano' }}" data-mobile-cols="{{ grid_mobile or '1' }}"{% if grid_columnas and grid_columnas != 'auto' %} style="grid-template-columns: repeat({{ grid_columnas }}, 1fr);"{% endif %}>
     {% for d in discs %}
     <a href="{{ url_for('public_disc', disc_id=d.id) }}" class="public-card{% if d.esta_agotado and not d.mostrar_preorder %} public-card-agotado{% endif %}">
+        {% if d.es_tip and not d.esta_agotado %}<span class="card-staff-sticker">{{ tip_label or 'Staff Picks' }}</span>{% endif %}
         <div class="public-card-cover">
             {% if d.cover_local %}
                 <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="{{ d.artista }} - {{ d.titulo }}" loading="lazy">
@@ -322,9 +324,6 @@
                 {% endif %}
                 {% if d.mostrar_cartel_ultima and not d.esta_agotado %}
                 <span class="public-card-badge public-card-badge-last">Ultima copia</span>
-                {% endif %}
-                {% if d.es_tip and not d.esta_agotado %}
-                <span class="public-card-badge public-card-badge-tip">&#9733; {{ tip_label or 'Tip' }}</span>
                 {% endif %}
             </div>
             {% set ps = d.primer_track_sample %}

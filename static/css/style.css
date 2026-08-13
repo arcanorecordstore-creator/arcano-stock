@@ -6492,6 +6492,8 @@ td.num,
     border-radius: 12px;
     box-shadow: var(--card-shadow);
     padding: 20px;
+    position: relative;
+    overflow: hidden;
     box-sizing: border-box;
     transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
 }
@@ -8081,6 +8083,27 @@ td.num,
     background: linear-gradient(135deg, #b8860b, #daa520);
     color: #0a0a0a;
     font-weight: 700;
+}
+/* Sticker diagonal "Staff Picks" en la esquina superior derecha de la card
+   (grilla y carrusel), para los discos con es_tip prendido. La card recorta el
+   sobrante (overflow:hidden) dejando la banda diagonal en la esquina. */
+.card-staff-sticker {
+    position: absolute;
+    top: 18px;
+    right: -48px;
+    width: 165px;
+    transform: rotate(45deg);
+    background: linear-gradient(135deg, #b8860b, #daa520);
+    color: #0a0a0a;
+    text-align: center;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    padding: 5px 0;
+    box-shadow: 0 2px 7px rgba(0, 0, 0, 0.32);
+    z-index: 5;
+    pointer-events: none;
 }
 /* --- Badge Tip en la ficha --- */
 .public-badge-tip-ficha {
