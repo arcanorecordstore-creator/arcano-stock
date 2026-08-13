@@ -48,6 +48,7 @@
             {% for d in discos %}
             {% set ps = d.primer_track_sample %}
             <div class="carrusel-card">
+                <div class="carrusel-body">
                 <div class="carrusel-cover">
                     {% if d.cover_local %}
                         <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="{{ d.artista }} - {{ d.titulo }}" loading="lazy">
@@ -110,13 +111,14 @@
                         <div class="carrusel-price">$ {{ '{:,.0f}'.format(d.precio_uyu).replace(',', '.') }}</div>
                         {% endif %}
                     {% endif %}
-                    {% if not d.esta_agotado and d.precio_uyu > 0 %}
-                    <button type="button" class="cart-btn cart-btn-inline cart-btn-carrusel" data-cart-id="{{ d.id }}" aria-label="Agregar {{ d.artista }} - {{ d.titulo }} al carrito" title="Agregar al carrito">
-                        <span class="cart-label-add">Agregar al carrito</span>
-                        <span class="cart-label-in">&#10003; Agregado</span>
-                    </button>
-                    {% endif %}
                 </div>
+                </div>
+                {% if not d.esta_agotado and d.precio_uyu > 0 %}
+                <button type="button" class="cart-btn cart-btn-inline cart-btn-carrusel" data-cart-id="{{ d.id }}" aria-label="Agregar {{ d.artista }} - {{ d.titulo }} al carrito" title="Agregar al carrito">
+                    <span class="cart-label-add">Agregar al carrito</span>
+                    <span class="cart-label-in">&#10003; Agregado</span>
+                </button>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
