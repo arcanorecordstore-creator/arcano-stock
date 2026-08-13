@@ -212,10 +212,13 @@ def create_app() -> Flask:
     def serve_cover(filename):
         return send_from_directory(app.config["COVERS_DIR"], filename)
 
-    # Carpeta de samples de audio/video subidos a mano. En produccion (Render)
-    # se define SAMPLES_PATH apuntando al disco persistente; en local usa
-    # static/samples. Sin esto, los archivos subidos se borrarian en cada deploy.
+    # Carpeta de samples de audio/video subidos a mano. En produccion tiene que
+    # vivir en el DISCO PERSISTENTE o los archivos se borran en cada deploy.
+    # Prioridad: SAMPLES_PATH explicito > derivar del disco de covers (mismo disco
+    # persistente en Render, aunque no este SAMPLES_PATH) > static/samples (local).
     samples_path = os.environ.get("SAMPLES_PATH", "").strip()
+    if not samples_path and covers_path:
+        samples_path = os.path.join(os.path.dirname(covers_path.rstrip("/\\")), "samples")
     if samples_path:
         os.makedirs(samples_path, exist_ok=True)
         app.config["SAMPLES_DIR"] = samples_path
