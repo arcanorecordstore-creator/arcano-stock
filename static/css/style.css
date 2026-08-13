@@ -6606,8 +6606,14 @@ td.num,
 @media (min-width: 900px) {
     /* border-width 1px aca (no en el bloque de arriba) porque la base de
        .carrusel-card viene despues en el archivo y si no la pisa. */
-    .carrusel-card { flex: 0 0 calc(50% - 13px); gap: 14px; border-width: 1px; }
-    .carrusel-body { gap: 24px; }
+    /* Ancho acotado (recorta el "pedazo que sobra" en pantallas anchas: 50% daba
+       cards de ~730px medio vacias) y contenido CENTRADO. */
+    .carrusel-card { flex: 0 0 min(560px, calc(50% - 13px)); gap: 14px; border-width: 1px; align-items: center; }
+    /* Centrar TODO el contenido de la card: portada + texto van centrados como
+       grupo (no pegados a la izquierda). El info deja de estirarse para que el
+       grupo quede compacto y centrado; el texto tambien centrado. */
+    .carrusel-body { gap: 24px; justify-content: center; align-self: stretch; }
+    .carrusel-info { flex: 0 1 auto; text-align: center; }
     /* Portada mas chica que antes: es lo que hacia las cards muy altas. Siguen
        siendo 2 por fila, pero mas bajas. */
     .carrusel-cover { flex: 0 0 170px; width: 170px; height: 170px; }
