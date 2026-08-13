@@ -250,9 +250,9 @@ window.arcanoGA = function (name, params) {
                 btn.classList.add('cart-pop');
                 // Al agregar: abrir el menu lateral. Al quitar: solo un toast.
                 if (added) {
-                    var card = btn.closest('.public-card') || btn.closest('.public-disc-layout') || document;
-                    var tit = ((card.querySelector('.public-card-title') || card.querySelector('.public-disc-title') || {}).textContent || '').trim();
-                    var art = ((card.querySelector('.public-card-artist') || card.querySelector('.public-disc-artist') || {}).textContent || '').trim();
+                    var card = btn.closest('.public-card') || btn.closest('.carrusel-card') || btn.closest('.public-disc-layout') || document;
+                    var tit = ((card.querySelector('.public-card-title') || card.querySelector('.carrusel-title-disc') || card.querySelector('.public-disc-title') || {}).textContent || '').trim();
+                    var art = ((card.querySelector('.public-card-artist') || card.querySelector('.carrusel-artist') || card.querySelector('.public-disc-artist') || {}).textContent || '').trim();
                     if (window.arcanoGA) window.arcanoGA('add_to_cart', { currency: 'UYU', items: [{ item_id: String(id), item_name: (art ? art + ' - ' : '') + tit }] });
                     if (window.ArcanoCartDrawer) window.ArcanoCartDrawer.open((art ? art + ' - ' : '') + tit);
                     else if (window.arcanoToast) window.arcanoToast('\u2713 Agregado al carrito');
@@ -645,8 +645,9 @@ window.arcanoGA = function (name, params) {
         if (!btn) return;
         // Solo animar cuando AGREGA (no cuando ya estaba en el carrito)
         if (btn.classList.contains('in-cart')) return;
-        var card = btn.closest('.public-card') || btn.closest('.public-disc-layout') || document;
+        var card = btn.closest('.public-card') || btn.closest('.carrusel-card') || btn.closest('.public-disc-layout') || document;
         var img = card.querySelector('.public-card-cover img') ||
+                  card.querySelector('.carrusel-cover img') ||
                   card.querySelector('.public-disc-cover img');
         volarAlCarrito(img);
     });

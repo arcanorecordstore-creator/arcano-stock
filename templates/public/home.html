@@ -46,7 +46,8 @@
     <div class="public-carrusel-viewport">
         <div class="public-carrusel-track">
             {% for d in discos %}
-            <a href="{{ url_for('public_disc', disc_id=d.id) }}" class="carrusel-card">
+            {% set ps = d.primer_track_sample %}
+            <div class="carrusel-card">
                 <div class="carrusel-cover">
                     {% if d.cover_local %}
                         <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="{{ d.artista }} - {{ d.titulo }}" loading="lazy">
@@ -55,11 +56,50 @@
                     {% else %}
                         <div class="carrusel-cover-empty">&#9834;</div>
                     {% endif %}
+                    {% if ps %}
+                    {# Tocar la foto reproduce el disco. NO lleva la clase .card-play-btn
+                       a proposito, para no duplicar el disco en "Escuchar todo". #}
+                    {% set card_cover = url_for('serve_cover', filename=d.cover_local) if d.cover_local else (d.cover_url if d.cover_url else '') %}
+                    {% set tracks_data = [] %}
+                    {% for t in d.tracks_con_sample %}
+                        {% set _ = tracks_data.append({
+                            'id': t.id,
+                            'kind': t.sample_kind,
+                            'audioUrl': url_for('serve_sample', filename=t.sample_local) if t.sample_kind == 'local' else '',
+                            'youtubeId': t.youtube_video_id or '',
+                            'youtubeStart': t.youtube_start or 0,
+                            'soundcloudUrl': t.youtube_url if t.sample_kind == 'soundcloud' else '',
+                            'title': t.titulo,
+                            'artist': t.artista or d.artista,
+                            'discId': d.id,
+                            'disponible': (not d.esta_agotado)
+                        }) %}
+                    {% endfor %}
+                    <button type="button" class="carrusel-cover-play" data-play="{{ ps.sample_kind }}"
+                            data-track-id="{{ ps.id }}"
+                            data-tracks="{{ tracks_data|tojson|forceescape }}"
+                            data-cover-url="{{ card_cover }}"
+                            {% if ps.sample_kind == 'local' %}data-audio-url="{{ url_for('serve_sample', filename=ps.sample_local) }}"{% endif %}
+                            {% if ps.sample_kind == 'youtube' %}data-youtube-id="{{ ps.youtube_video_id }}" data-youtube-start="{{ ps.youtube_start or 0 }}"{% endif %}
+                            {% if ps.sample_kind == 'soundcloud' %}data-soundcloud-url="{{ ps.youtube_url }}"{% endif %}
+                            data-track-title="{{ ps.titulo }}"
+                            data-track-artist="{{ ps.artista or d.artista }}"
+                            aria-label="Escuchar {{ d.artista }} - {{ d.titulo }}" title="Escuchar preview">
+                        <span class="carrusel-play-badge">
+                            <span class="play-icon">&#9654;</span>
+                            <span class="pause-icon" hidden>&#9724;</span>
+                        </span>
+                    </button>
+                    {% else %}
+                    <a href="{{ url_for('public_disc', disc_id=d.id) }}" class="carrusel-cover-link" aria-label="Ver {{ d.artista }} - {{ d.titulo }}"></a>
+                    {% endif %}
                 </div>
                 <div class="carrusel-info">
-                    <div class="carrusel-artist">{{ d.artista }}</div>
-                    <div class="carrusel-title-disc">{{ d.titulo }}</div>
-                    {% if d.sello %}<div class="carrusel-label">{{ d.sello }}</div>{% endif %}
+                    <a href="{{ url_for('public_disc', disc_id=d.id) }}" class="carrusel-info-link">
+                        <div class="carrusel-artist">{{ d.artista }}</div>
+                        <div class="carrusel-title-disc">{{ d.titulo }}</div>
+                        {% if d.sello %}<div class="carrusel-label">{{ d.sello }}</div>{% endif %}
+                    </a>
                     {% if d.precio_uyu > 0 %}
                         {% if d.en_oferta %}
                         <div class="carrusel-price carrusel-price-oferta">
@@ -70,8 +110,14 @@
                         <div class="carrusel-price">$ {{ '{:,.0f}'.format(d.precio_uyu).replace(',', '.') }}</div>
                         {% endif %}
                     {% endif %}
+                    {% if not d.esta_agotado and d.precio_uyu > 0 %}
+                    <button type="button" class="cart-btn cart-btn-inline cart-btn-carrusel" data-cart-id="{{ d.id }}" aria-label="Agregar {{ d.artista }} - {{ d.titulo }} al carrito" title="Agregar al carrito">
+                        <span class="cart-label-add">Agregar al carrito</span>
+                        <span class="cart-label-in">&#10003; Agregado</span>
+                    </button>
+                    {% endif %}
                 </div>
-            </a>
+            </div>
             {% endfor %}
         </div>
     </div>
