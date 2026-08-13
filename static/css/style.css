@@ -6609,18 +6609,21 @@ td.num,
        .carrusel-card viene despues en el archivo y si no la pisa. */
     /* Layout en FILA: portada | texto | boton a la DERECHA (llena el espacio que
        quedaba vacio, en vez del boton a lo ancho abajo). La card mantiene su tamaño. */
-    .carrusel-card { flex: 0 0 calc(50% - 13px); flex-direction: row; gap: 20px; border-width: 1px; align-items: center; padding: 16px; }
-    .carrusel-body { flex: 1 1 auto; gap: 20px; }
+    /* gap chico entre el texto y el boton para que el texto se estire mas a la
+       derecha; portada un toque mas chica para dar lugar al boton mas ancho. */
+    .carrusel-card { flex: 0 0 calc(50% - 13px); flex-direction: row; gap: 10px; border-width: 1px; align-items: center; padding: 16px; }
+    .carrusel-body { flex: 1 1 auto; gap: 16px; }
     .carrusel-info { flex: 1 1 auto; }
-    .carrusel-cover { flex: 0 0 210px; width: 210px; height: 210px; }
+    .carrusel-cover { flex: 0 0 190px; width: 190px; height: 190px; }
     .carrusel-artist { font-size: 22px; }
     .carrusel-title-disc { font-size: 16px; }
     .carrusel-price { font-size: 19px; }
-    .carrusel-play-badge { width: 64px; height: 64px; font-size: 25px; }
-    /* Boton a la derecha: ancho fijo y alto generoso, ocupa el area vacia. */
+    .carrusel-play-badge { width: 62px; height: 62px; font-size: 24px; }
+    /* Boton a la derecha, mas ancho (crece hacia la izquierda; el borde derecho
+       queda fijo), alto generoso. */
     .cart-btn-carrusel {
-        flex: 0 0 190px;
-        width: 190px;
+        flex: 0 0 220px;
+        width: 220px;
         align-self: center;
         min-height: 112px;
         margin: 0;
