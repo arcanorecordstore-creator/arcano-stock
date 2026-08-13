@@ -17,11 +17,12 @@
     <a href="{{ url_for('home') }}" class="btn btn-primary">Volver al cat&aacute;logo</a>
 </section>
 
-{% if reserva and (estado_mp == 'approved' or reserva.pagado) %}
+{% if medir_compra %}
 <script>
 (function () {
     // Conversion del embudo: compra pagada por Mercado Pago (GA + pixel de Meta).
-    // Mismo transaction_id que la reserva para no duplicar contra otros eventos.
+    // Solo se renderiza si el backend confirmo el pago (reserva.pagado, verificado
+    // por API) y una sola vez por reserva -> no mide pagos falsos ni duplica.
     if (window.arcanoGA) {
         window.arcanoGA('purchase', {
             transaction_id: 'reserva-{{ reserva.id }}',

@@ -6607,21 +6607,26 @@ td.num,
 @media (min-width: 900px) {
     /* border-width 1px aca (no en el bloque de arriba) porque la base de
        .carrusel-card viene despues en el archivo y si no la pisa. */
-    /* align-items: stretch para que el .carrusel-body llene TODO el ancho de la
-       card (con center se colapsaba al contenido y dejaba el vacio). */
-    .carrusel-card { flex: 0 0 calc(50% - 13px); gap: 12px; border-width: 1px; align-items: stretch; padding: 16px; }
-    .carrusel-body { gap: 22px; }
+    /* Layout en FILA: portada | texto | boton a la DERECHA (llena el espacio que
+       quedaba vacio, en vez del boton a lo ancho abajo). La card mantiene su tamaño. */
+    .carrusel-card { flex: 0 0 calc(50% - 13px); flex-direction: row; gap: 20px; border-width: 1px; align-items: center; padding: 16px; }
+    .carrusel-body { flex: 1 1 auto; gap: 20px; }
     .carrusel-info { flex: 1 1 auto; }
-    /* Portada grande: llena la mitad izquierda de la card. */
-    .carrusel-cover { flex: 0 0 230px; width: 230px; height: 230px; }
-    .carrusel-artist { font-size: 23px; }
-    .carrusel-title-disc { font-size: 17px; }
-    .carrusel-price { font-size: 20px; }
-    .carrusel-play-badge { width: 66px; height: 66px; font-size: 26px; }
+    .carrusel-cover { flex: 0 0 210px; width: 210px; height: 210px; }
+    .carrusel-artist { font-size: 22px; }
+    .carrusel-title-disc { font-size: 16px; }
+    .carrusel-price { font-size: 19px; }
+    .carrusel-play-badge { width: 64px; height: 64px; font-size: 25px; }
+    /* Boton a la derecha: ancho fijo y alto generoso, ocupa el area vacia. */
     .cart-btn-carrusel {
-        padding: 14px 22px;
-        font-size: 16px;
-        border-radius: 9px;
+        flex: 0 0 190px;
+        width: 190px;
+        align-self: center;
+        min-height: 112px;
+        margin: 0;
+        padding: 16px 18px;
+        font-size: 15px;
+        border-radius: 10px;
     }
 }
 

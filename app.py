@@ -467,7 +467,9 @@ def compute_totals(discs):
         suma_costo_eur += (d.costo_eur or 0) * (d.stock or 1)
         suma_envio_eur += (d.envio_eur or 0) * (d.stock or 1)
         suma_costo_final_uyu += (d.costo_final_uyu or 0) * (d.stock or 1)
-        suma_precio_uyu += (d.precio_uyu or 0) * (d.stock or 1)
+        # precio_mostrar (con oferta) para que el pie cuadre: precio - costo = ganancia
+        # (la ganancia ya usa el precio de oferta).
+        suma_precio_uyu += (d.precio_mostrar or d.precio_uyu or 0) * (d.stock or 1)
         suma_ganancia_uyu += (d.ganancia_uyu or 0) * (d.stock or 1)
         stock_total += d.stock or 0
         if d.estado == "Disponible":
@@ -4381,10 +4383,21 @@ def register_routes(app: Flask) -> None:
                 _mp_completar_reserva(reserva, payment_id=payment_id, status="approved")
         if not estado_mp and reserva:
             estado_mp = reserva.mp_status
+        # Medir la compra en el pixel/GA SOLO si el pago esta confirmado del lado
+        # del servidor (reserva.pagado, que exige verificacion contra la API de MP)
+        # y UNA sola vez por reserva (bandera en sesion). Asi no se mide un
+        # ?status=approved falso pasado por la URL, ni se duplica al refrescar.
+        medir_compra = False
+        if reserva and reserva.pagado:
+            medidas = session.get("compras_medidas") or []
+            if reserva.id not in medidas:
+                medir_compra = True
+                session["compras_medidas"] = (medidas + [reserva.id])[-20:]
         return render_template(
             "public/mp_retorno.html",
             reserva=reserva,
             estado_mp=estado_mp,
+            medir_compra=medir_compra,
             **_public_context(),
         )
 

@@ -26,10 +26,10 @@
     {% if meta_pixel_id %}
     <script>
     !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
-    fbq('init', '{{ meta_pixel_id }}');
+    fbq('init', {{ meta_pixel_id|tojson }});
     fbq('track', 'PageView');
     </script>
-    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id={{ meta_pixel_id }}&amp;ev=PageView&amp;noscript=1" alt=""></noscript>
+    <noscript><img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id={{ meta_pixel_id|urlencode }}&amp;ev=PageView&amp;noscript=1" alt=""></noscript>
     {% endif %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -230,7 +230,6 @@
     </div>
     <div class="public-footer-bottom">
         <span>&copy; {{ now.year }} Arcano Record Store &middot; Montevideo, Uruguay</span>
-        <span class="public-footer-ver">v3.37</span>
     </div>
 </footer>
 
