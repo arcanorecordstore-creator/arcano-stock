@@ -6665,6 +6665,14 @@ td.num,
     border-color: var(--accent);
 }
 .home-check:hover .home-check-icon { border-color: var(--border-3); }
+/* Toggle "Staff Picks" (SP): dorado cuando esta prendido, para que combine con
+   el sticker de la card. Usa el gradiente (no var(--accent)) asi se ve en ambos temas. */
+.home-check-staff .home-check-icon { font-size: 10px; letter-spacing: 0.5px; }
+.home-check-staff input:checked + .home-check-icon {
+    background: linear-gradient(135deg, #b8860b, #daa520);
+    color: #0a0a0a;
+    border-color: #b8860b;
+}
 
 /* Control de volumen en el reproductor flotante */
 .floating-player-volume {

@@ -247,6 +247,10 @@
                 </td>
                 <td class="col-stock col-editable" data-edit="stock" data-disc-id="{{ d.id }}" data-raw="{{ d.stock }}" title="Click para editar el stock">{{ d.stock }}</td>
                 <td class="col-home">
+                    <label class="home-check home-check-staff" title="Staff Picks (sticker dorado en la card)">
+                        <input type="checkbox" class="mark-home" data-campo="es_tip" data-disc-id="{{ d.id }}" {% if d.es_tip %}checked{% endif %}>
+                        <span class="home-check-icon">SP</span>
+                    </label>
                     <label class="home-check" title="Destacado">
                         <input type="checkbox" class="mark-home" data-campo="destacado" data-disc-id="{{ d.id }}" {% if d.destacado %}checked{% endif %}>
                         <span class="home-check-icon">&#9733;</span>

@@ -153,9 +153,8 @@
     {{ carrusel(preorders_carrusel, 'Pre-order', 'preorder') }}
     {% endif %}
 
-    {% if tips_carrusel and car_tips %}
-    {{ carrusel(tips_carrusel, tip_label or 'Staff Picks', 'tips') }}
-    {% endif %}
+    {# Staff Picks ya NO es un carrusel: es solo el sticker dorado en la esquina de
+       la card, para los discos con el toggle prendido desde el dashboard. #}
 
     {% if mas_escuchados and car_escuchados %}
     {{ carrusel(mas_escuchados, 'Lo mas escuchado del mes', 'escuchados') }}
