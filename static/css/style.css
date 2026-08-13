@@ -8113,6 +8113,18 @@ td.num,
     z-index: 5;
     pointer-events: none;
 }
+/* En celular el sticker queda grande para las cards chicas de la GRILLA -> se
+   achica. En el carrusel (mobile) queda como esta (Facundo dijo que esta bien). */
+@media (max-width: 720px) {
+    .public-card .card-staff-sticker {
+        top: 14px;
+        right: -44px;
+        width: 145px;
+        font-size: 9.5px;
+        letter-spacing: 0.04em;
+        padding: 4px 0;
+    }
+}
 /* --- Badge Tip en la ficha --- */
 .public-badge-tip-ficha {
     background: linear-gradient(135deg, #b8860b, #daa520);
