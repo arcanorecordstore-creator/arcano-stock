@@ -8097,19 +8097,19 @@ td.num,
    sobrante (overflow:hidden) dejando la banda diagonal en la esquina. */
 .card-staff-sticker {
     position: absolute;
-    top: 18px;
-    right: -48px;
-    width: 165px;
+    top: 24px;
+    right: -54px;
+    width: 190px;
     transform: rotate(45deg);
     background: linear-gradient(135deg, #b8860b, #daa520);
     color: #0a0a0a;
     text-align: center;
-    font-size: 10.5px;
+    font-size: 13px;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.07em;
-    padding: 5px 0;
-    box-shadow: 0 2px 7px rgba(0, 0, 0, 0.32);
+    padding: 8px 0;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.34);
     z-index: 5;
     pointer-events: none;
 }
