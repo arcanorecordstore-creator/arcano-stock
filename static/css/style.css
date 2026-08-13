@@ -9225,6 +9225,21 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     width: 36px; height: 26px; padding: 0; border: 1px solid var(--border-2);
     border-radius: 6px; background: none; cursor: pointer;
 }
+.caja-cat-item { padding: 4px 4px 4px 8px; border: 1px solid var(--border-1); border-radius: 8px; }
+.caja-cat-del {
+    width: 24px; height: 24px; border: none; background: none; color: var(--text-4);
+    font-size: 19px; line-height: 1; cursor: pointer; border-radius: 6px;
+}
+.caja-cat-del:hover { background: rgba(239,68,68,0.16); color: var(--loss, #ef4444); }
+.caja-cat-add { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 16px; }
+.caja-cat-add input[type="text"] {
+    padding: 8px 12px; border: 1px solid var(--border-2); border-radius: 8px;
+    background: var(--bg-2); color: var(--text-1); min-width: 220px; font-family: inherit;
+}
+.caja-cat-add input[type="color"] {
+    width: 36px; height: 34px; padding: 0; border: 1px solid var(--border-2);
+    border-radius: 6px; background: none; cursor: pointer;
+}
 
 /* Editar movimiento (popover) */
 .caja-td-acciones { text-align: right; position: relative; }

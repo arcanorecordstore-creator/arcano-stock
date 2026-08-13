@@ -771,6 +771,48 @@ def _email_valido(email):
     return _EMAIL_RE.match(email) is not None
 
 
+def _categorias_origen_lista():
+    """Lista GESTIONADA de categorias de origen propias (caja). Guardada en el
+    setting origen_categorias_lista. La primera vez se siembra con las que ya
+    esten en uso, para no perder las existentes."""
+    import json as _json
+    raw = Setting.get("origen_categorias_lista", None)
+    if raw is None:
+        from models import MovimientoCaja as _MC
+        used = sorted({
+            (r[0] or "").strip() for r in
+            db.session.query(_MC.origen_categoria).filter(_MC.origen_categoria.isnot(None)).distinct().all()
+            if (r[0] or "").strip()
+        })
+        Setting.set("origen_categorias_lista", _json.dumps(used))
+        return used
+    try:
+        return [c for c in _json.loads(raw) if isinstance(c, str) and c.strip()]
+    except Exception:
+        return []
+
+
+def _categorias_origen_guardar(lista):
+    import json as _json
+    # unica, sin vacios, respetando el orden
+    limpia = []
+    for c in lista:
+        c = (c or "").strip()[:60]
+        if c and c not in limpia:
+            limpia.append(c)
+    Setting.set("origen_categorias_lista", _json.dumps(limpia))
+    return limpia
+
+
+def _categorias_origen_add(nombre):
+    """Agrega una categoria a la lista gestionada (si no estaba). Devuelve la lista."""
+    nombre = (nombre or "").strip()[:60]
+    lista = _categorias_origen_lista()
+    if nombre and nombre not in lista:
+        lista = _categorias_origen_guardar(lista + [nombre])
+    return lista
+
+
 def _text_on_color(hexcolor):
     """Devuelve un color de texto legible (#0a0a0a o #fff) segun si el fondo dado
     es claro u oscuro. Para los tags de categoria con color elegido por Facundo."""
@@ -3164,13 +3206,8 @@ def register_routes(app: Flask) -> None:
         _sincronizar_caja()  # trae ventas/pedidos/gastos nuevos (silencioso)
         mes = request.args.get("mes") or None
         resumen = _resumen_caja(mes)
-        # Categorias de origen ya usadas (para autocompletar en manuales)
-        from models import MovimientoCaja as _MC
-        categorias_origen = sorted({
-            (r[0] or "").strip() for r in
-            db.session.query(_MC.origen_categoria).filter(_MC.origen_categoria.isnot(None)).distinct().all()
-            if (r[0] or "").strip()
-        })
+        # Lista GESTIONADA de categorias de origen propias (agregar/eliminar)
+        categorias_origen = _categorias_origen_lista()
         # Colores elegidos (clave -> hex). La clave es la categoria propia (si el
         # manual la tiene) o el origen fijo ('manual'/'venta'/'pedido'/'gasto').
         import json as _json
@@ -3183,14 +3220,16 @@ def register_routes(app: Flask) -> None:
         for k in list(_def_origen.keys()) + list(categorias_origen):
             bg = colores_map.get(k)
             origen_estilos[k] = {"bg": bg, "fg": _text_on_color(bg) if bg else None}
-        # Panel de colores: los 4 origenes fijos + las categorias propias
-        colores_panel = []
+        # Los 4 origenes fijos (color, sin borrar)
+        origen_fijos = []
         for k, lbl in [("manual", "Manual"), ("venta", "Venta"), ("pedido", "Pedido"), ("gasto", "Gasto")]:
             col = colores_map.get(k) or _def_origen[k]
-            colores_panel.append({"clave": k, "label": lbl, "color": col, "fg": _text_on_color(col)})
+            origen_fijos.append({"clave": k, "label": lbl, "color": col, "fg": _text_on_color(col)})
+        # Las categorias propias (color + eliminar)
+        origen_propias = []
         for cat in categorias_origen:
             col = colores_map.get(cat) or "#14b8a6"
-            colores_panel.append({"clave": cat, "label": cat, "color": col, "fg": _text_on_color(col)})
+            origen_propias.append({"clave": cat, "label": cat, "color": col, "fg": _text_on_color(col)})
         return render_template(
             "caja.html",
             resumen=resumen,
@@ -3198,9 +3237,54 @@ def register_routes(app: Flask) -> None:
             categorias=Setting.get_categorias_egreso(),
             categorias_origen=categorias_origen,
             origen_estilos=origen_estilos,
-            colores_panel=colores_panel,
+            origen_fijos=origen_fijos,
+            origen_propias=origen_propias,
             hoy=_dt.utcnow().date().isoformat(),
         )
+
+    @app.route("/admin/caja/categoria-origen/agregar", methods=["POST"])
+    @auth.admin_required
+    def caja_origen_categoria_agregar():
+        """Crea una categoria de origen propia (opcionalmente con color)."""
+        import json as _json
+        import re as _re
+        nombre = (request.form.get("nombre") or "").strip()[:60]
+        if nombre:
+            _categorias_origen_add(nombre)
+            color = (request.form.get("color") or "").strip()
+            if _re.match(r"^#[0-9a-fA-F]{6}$", color):
+                try:
+                    m = _json.loads(Setting.get("origen_cat_colores", "") or "{}")
+                except Exception:
+                    m = {}
+                m[nombre] = color.lower()
+                Setting.set("origen_cat_colores", _json.dumps(m))
+            flash(f"Categoría de origen agregada: {nombre}", "success")
+        return redirect(url_for("caja"))
+
+    @app.route("/admin/caja/categoria-origen/eliminar", methods=["POST"])
+    @auth.admin_required
+    def caja_origen_categoria_eliminar():
+        """Elimina una categoria propia: la saca de la lista, de los colores y la
+        limpia de los movimientos que la usaban (como en Notion)."""
+        import json as _json
+        from models import MovimientoCaja as _MC
+        nombre = (request.form.get("nombre") or "").strip()[:60]
+        if nombre:
+            lista = [c for c in _categorias_origen_lista() if c != nombre]
+            _categorias_origen_guardar(lista)
+            try:
+                m = _json.loads(Setting.get("origen_cat_colores", "") or "{}")
+                if nombre in m:
+                    del m[nombre]
+                    Setting.set("origen_cat_colores", _json.dumps(m))
+            except Exception:
+                pass
+            # Limpiar los movimientos que la usaban (quedan como Manual)
+            _MC.query.filter_by(origen_categoria=nombre).update({"origen_categoria": None})
+            db.session.commit()
+            flash(f"Categoría eliminada: {nombre}", "info")
+        return redirect(url_for("caja"))
 
     @app.route("/admin/caja/origen-color", methods=["POST"])
     @auth.admin_required
@@ -3247,6 +3331,8 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("caja"))
         concepto_final = concepto or ("Aporte de capital" if es_aporte else ("Aporte" if tipo == "ingreso" else "Retiro"))
         origen_categoria = (request.form.get("origen_categoria") or "").strip()[:60] or None
+        if origen_categoria:
+            _categorias_origen_add(origen_categoria)  # crear la categoria si es nueva
         mov = MovimientoCaja(
             fecha=fecha, tipo=tipo, monto_uyu=round(monto, 2),
             concepto=concepto_final[:300],
@@ -3341,6 +3427,8 @@ def register_routes(app: Flask) -> None:
             if not m.es_manual:
                 return jsonify({"ok": False, "error": "El origen de un movimiento automatico no se cambia (lo maneja el sistema)."}), 400
             m.origen_categoria = (str(valor or "").strip())[:60] or None
+            if m.origen_categoria:
+                _categorias_origen_add(m.origen_categoria)  # crear si es nueva (Notion-style)
         else:
             return jsonify({"ok": False, "error": "Campo desconocido"}), 400
         # Editar a mano un movimiento automatico lo "toma": deja de sincronizarse.

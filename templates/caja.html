@@ -192,17 +192,42 @@
 
 <section class="caja-section">
     <details class="caja-panel" open>
-        <summary class="caja-panel-toggle">&#127912; Color de los orígenes (elegí el color de cada uno)</summary>
+        <summary class="caja-panel-toggle">&#127912; Categorías de origen (agregar, eliminar y colorear)</summary>
+
+        <p class="caja-field-hint">Orígenes del sistema (solo el color):</p>
         <div class="caja-colores-grid">
-            {% for item in colores_panel %}
+            {% for item in origen_fijos %}
             <form method="post" action="{{ url_for('caja_origen_color') }}" class="caja-color-item">
                 <input type="hidden" name="categoria" value="{{ item.clave }}">
                 <span class="caja-origen-tag" style="background: {{ item.color }}; color: {{ item.fg }};">{{ item.label }}</span>
-                <input type="color" name="color" value="{{ item.color }}" onchange="this.form.submit()" title="Elegí el color de {{ item.label }}" aria-label="Color de {{ item.label }}">
+                <input type="color" name="color" value="{{ item.color }}" onchange="this.form.submit()" title="Color de {{ item.label }}" aria-label="Color de {{ item.label }}">
             </form>
             {% endfor %}
         </div>
-        <p class="caja-field-hint" style="margin-top:10px;">El color se aplica a todos los movimientos de ese origen (Venta, Pedido, Gasto, Manual y tus categorías propias).</p>
+
+        <p class="caja-field-hint" style="margin-top:16px;">Tus categorías (color y eliminar):</p>
+        <div class="caja-colores-grid">
+            {% for item in origen_propias %}
+            <div class="caja-color-item caja-cat-item">
+                <form method="post" action="{{ url_for('caja_origen_color') }}" class="caja-color-item" style="gap:6px;">
+                    <input type="hidden" name="categoria" value="{{ item.clave }}">
+                    <span class="caja-origen-tag" style="background: {{ item.color }}; color: {{ item.fg }};">{{ item.label }}</span>
+                    <input type="color" name="color" value="{{ item.color }}" onchange="this.form.submit()" title="Color de {{ item.label }}" aria-label="Color de {{ item.label }}">
+                </form>
+                <form method="post" action="{{ url_for('caja_origen_categoria_eliminar') }}" onsubmit="return confirm('¿Eliminar la categoría «{{ item.label }}»? Los movimientos que la usen quedan como Manual.');">
+                    <input type="hidden" name="nombre" value="{{ item.clave }}">
+                    <button type="submit" class="caja-cat-del" title="Eliminar categoría" aria-label="Eliminar {{ item.label }}">&times;</button>
+                </form>
+            </div>
+            {% endfor %}
+            {% if not origen_propias %}<span class="caja-field-hint">Todavía no creaste categorías propias.</span>{% endif %}
+        </div>
+
+        <form method="post" action="{{ url_for('caja_origen_categoria_agregar') }}" class="caja-cat-add">
+            <input type="text" name="nombre" placeholder="Nueva categoría (ej: Compra, Regalo...)" maxlength="60" required>
+            <input type="color" name="color" value="#14b8a6" title="Color (opcional)" aria-label="Color de la nueva categoría">
+            <button type="submit" class="btn btn-primary">Agregar categoría</button>
+        </form>
     </details>
 </section>
 
