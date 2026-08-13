@@ -87,8 +87,8 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None):
     conta = metrics.contabilidad(periodo, desde, hasta)
     recup = metrics.recuperacion_inversion()
     frenado = metrics.stock_frenado()
-    data = metrics.get_all_metrics()
-    kpis = data["kpis"]
+    mets = metrics.get_all_metrics()
+    kpis = mets["kpis"]
     por_cobrar = metrics.dinero_por_cobrar()
     seis_m = metrics.ingresos_vs_egresos_6m()
     arc_per = metrics.arcano_vs_personal_6m()
@@ -231,7 +231,7 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None):
     # Top sellos y discos
     E.append(PageBreak())
     E.append(Paragraph("Top sellos y discos", h2))
-    tsi = data["top_sellos_inversion"]
+    tsi = mets["top_sellos_inversion"]
     if tsi:
         E.append(Paragraph("<b>Sellos con mas plata inmovilizada (stock)</b>", body))
         d0 = [["Sello", "Titulos", "Unidades", "Inversion"]]
@@ -241,7 +241,7 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None):
         t.setStyle(_ts_tabla())
         E.append(t)
         E.append(Spacer(1, 6))
-    tsr = data["top_sellos_rotacion"]
+    tsr = mets["top_sellos_rotacion"]
     if tsr:
         E.append(Paragraph("<b>Sellos que mas rotan (vendidos)</b>", body))
         d0 = [["Sello", "Titulos vend.", "Unidades", "Facturado"]]
@@ -251,7 +251,7 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None):
         t.setStyle(_ts_tabla())
         E.append(t)
         E.append(Spacer(1, 6))
-    tdr = data["top_discos_rentables"]
+    tdr = mets["top_discos_rentables"]
     if tdr:
         E.append(Paragraph("<b>Discos vendidos mas rentables</b>", body))
         d0 = [["Disco", "Sello", "Precio", "Ganancia", "Margen"]]
