@@ -172,6 +172,10 @@
                 <label class="caja-campo-concepto">Concepto / nota
                     <input type="text" name="concepto" placeholder="Ej: Aporte de Facundo, retiro para...">
                 </label>
+                <label>Categoría de origen (opcional)
+                    <input type="text" name="origen_categoria" list="caja-origen-cats" placeholder="Ej: Efectivo mano, Regalo...">
+                    <span class="caja-field-hint">Cómo clasificar este movimiento en la columna Origen (solo manuales)</span>
+                </label>
                 <label class="caja-campo-aporte caja-check-label">
                     <input type="checkbox" name="es_aporte" value="1">
                     Es un aporte de capital tuyo (plata propia que ponés en Arcano)
@@ -181,6 +185,10 @@
         </form>
     </details>
 </section>
+
+<datalist id="caja-origen-cats">
+    {% for c in categorias_origen %}<option value="{{ c }}">{% endfor %}
+</datalist>
 
 <!-- ============================================================
      Libro de movimientos
@@ -225,8 +233,9 @@
                 <tr class="caja-row {{ 'is-ingreso' if m.tipo == 'ingreso' else 'is-egreso' }} {% if m.origen == 'pedido' %}is-pedido{% endif %}">
                     <td class="caja-td-fecha caja-cell-edit" title="Click para editar" data-mov="{{ m.id }}" data-campo="fecha" data-editor="date" data-raw="{{ m.fecha.strftime('%Y-%m-%d') if m.fecha else '' }}">{{ m.fecha.strftime('%d/%m/%y') if m.fecha else '—' }}</td>
                     <td class="caja-td-concepto caja-cell-edit" title="Click para editar" data-mov="{{ m.id }}" data-campo="concepto" data-editor="text" data-raw="{{ m.concepto or '' }}">{{ m.concepto or '—' }}</td>
-                    <td>
-                        <span class="caja-origen-tag origen-{{ m.origen }}">{{ m.origen_label }}</span>
+                    <td class="{% if m.es_manual %}caja-cell-edit caja-td-origen{% endif %}"
+                        {% if m.es_manual %}title="Click para poner/editar la categoría" data-mov="{{ m.id }}" data-campo="origen_categoria" data-editor="origencat" data-raw="{{ m.origen_categoria or '' }}"{% endif %}>
+                        <span class="caja-origen-tag origen-{{ m.origen }}{% if m.es_manual and m.origen_categoria %} origen-custom{% endif %}">{{ m.origen_display }}</span>
                         {% if m.es_aporte %}<span class="caja-origen-tag caja-tag-capital">Capital</span>{% endif %}
                     </td>
                     <td class="caja-td-disco">
@@ -428,6 +437,10 @@
                     if (o[0] === raw) op.selected = true;
                     el.appendChild(op);
                 });
+            } else if (editor === 'origencat') {
+                el = document.createElement('input'); el.type = 'text'; el.value = raw;
+                el.setAttribute('list', 'caja-origen-cats');
+                el.placeholder = 'Ej: Efectivo mano, Regalo...';
             } else { // text, categoria, monto
                 el = document.createElement('input'); el.type = 'text'; el.value = raw;
                 if (editor === 'monto') el.inputMode = 'decimal';

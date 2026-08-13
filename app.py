@@ -3150,11 +3150,19 @@ def register_routes(app: Flask) -> None:
         _sincronizar_caja()  # trae ventas/pedidos/gastos nuevos (silencioso)
         mes = request.args.get("mes") or None
         resumen = _resumen_caja(mes)
+        # Categorias de origen ya usadas (para autocompletar en manuales)
+        from models import MovimientoCaja as _MC
+        categorias_origen = sorted({
+            (r[0] or "").strip() for r in
+            db.session.query(_MC.origen_categoria).filter(_MC.origen_categoria.isnot(None)).distinct().all()
+            if (r[0] or "").strip()
+        })
         return render_template(
             "caja.html",
             resumen=resumen,
             metodos=METODOS_PAGO_CAJA,
             categorias=Setting.get_categorias_egreso(),
+            categorias_origen=categorias_origen,
             hoy=_dt.utcnow().date().isoformat(),
         )
 
@@ -3181,6 +3189,7 @@ def register_routes(app: Flask) -> None:
             flash("El monto debe ser mayor a 0.", "error")
             return redirect(url_for("caja"))
         concepto_final = concepto or ("Aporte de capital" if es_aporte else ("Aporte" if tipo == "ingreso" else "Retiro"))
+        origen_categoria = (request.form.get("origen_categoria") or "").strip()[:60] or None
         mov = MovimientoCaja(
             fecha=fecha, tipo=tipo, monto_uyu=round(monto, 2),
             concepto=concepto_final[:300],
@@ -3188,6 +3197,7 @@ def register_routes(app: Flask) -> None:
             categoria=(categoria if tipo == "egreso" else None),
             es_aporte=es_aporte,
             origen="manual", origen_id=None,
+            origen_categoria=origen_categoria,
         )
         db.session.add(mov)
         db.session.commit()
@@ -3268,6 +3278,12 @@ def register_routes(app: Flask) -> None:
             m.metodo = v if v in ("mercadopago", "transferencia", "efectivo", "otro") else None
         elif campo == "categoria":
             m.categoria = (str(valor or "").strip()) or None
+        elif campo == "origen_categoria":
+            # Categoria de origen libre: solo para manuales (no tocar los automaticos
+            # Venta/Pedido/Gasto, que los maneja el sync).
+            if not m.es_manual:
+                return jsonify({"ok": False, "error": "El origen de un movimiento automatico no se cambia (lo maneja el sistema)."}), 400
+            m.origen_categoria = (str(valor or "").strip())[:60] or None
         else:
             return jsonify({"ok": False, "error": "Campo desconocido"}), 400
         # Editar a mano un movimiento automatico lo "toma": deja de sincronizarse.

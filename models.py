@@ -967,6 +967,10 @@ class MovimientoCaja(db.Model):
     # sincronizacion deja de pisar su edicion (respeta el monto/fecha que puso).
     # Los movimientos automaticos sin tocar SI se actualizan si cambia el origen.
     manual_override = db.Column(db.Boolean, nullable=False, default=False)
+    # Categoria de origen LIBRE para movimientos manuales (ej: "Efectivo mano",
+    # "Regalo"). Solo aplica a los manuales; los automaticos muestran Venta/Pedido/
+    # Gasto. No toca el sync (el origen sigue siendo "manual").
+    origen_categoria = db.Column(db.String(60), nullable=True)
     creado = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     @property
@@ -993,6 +997,14 @@ class MovimientoCaja(db.Model):
             "pedido": "Pedido",
             "gasto": "Gasto",
         }.get(self.origen or "manual", "Manual")
+
+    @property
+    def origen_display(self) -> str:
+        """Lo que se muestra en la columna Origen: la categoria propia si es un
+        manual con categoria puesta; si no, la etiqueta estandar."""
+        if self.es_manual and self.origen_categoria:
+            return self.origen_categoria
+        return self.origen_label
 
     def __repr__(self):
         return f"<MovimientoCaja {self.tipo} {self.monto_uyu} ({self.origen})>"
@@ -1225,6 +1237,11 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE movimientos_caja ADD COLUMN manual_override BOOLEAN DEFAULT 0"))
                     conn.commit()
                 print("Migracion: columna manual_override agregada a movimientos_caja")
+            if "origen_categoria" not in _mcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE movimientos_caja ADD COLUMN origen_categoria VARCHAR(60)"))
+                    conn.commit()
+                print("Migracion: columna origen_categoria agregada a movimientos_caja")
 
         # Campos de pago Mercado Pago en la tabla reservas
         if inspector.has_table("reservas"):
