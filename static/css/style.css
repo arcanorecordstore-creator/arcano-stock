@@ -511,6 +511,13 @@ body.app { display: block; padding: 0; }
 .col-resizer:hover::after { background: var(--border-3); }
 body.col-resizing,
 body.col-resizing * { cursor: col-resize !important; user-select: none !important; }
+/* Con columnas de ancho fijo, las celdas recortan el contenido que no entra
+   (asi se puede ACHICAR una columna por debajo del ancho de su contenido). */
+.stock-table.cols-resizable th,
+.stock-table.cols-resizable td {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
 
 .stock-table tbody tr { transition: background-color 0.1s ease; }
 .stock-table tbody tr:hover { background-color: var(--bg-hover); }
@@ -2783,7 +2790,7 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
     display: flex;
     flex-direction: column;
     background-color: var(--bg-1);
-    border: 1px solid var(--border-2);
+    border: 2px solid var(--border-2);
     border-radius: 8px;
     box-shadow: var(--card-shadow);
     overflow: hidden;
@@ -6468,7 +6475,7 @@ td.num,
     text-decoration: none;
     color: inherit;
     background: var(--bg-1);
-    border: 1px solid var(--border-2);
+    border: 2px solid var(--border-2);
     border-radius: 12px;
     box-shadow: var(--card-shadow);
     padding: 20px;
@@ -6564,12 +6571,23 @@ td.num,
 /* En PC: exactamente 2 cards por vista (Facundo: mas de 2 es demasiada info).
    La portada se agranda para que la card no quede vacia. En celular queda igual. */
 @media (min-width: 900px) {
-    .carrusel-card { flex: 0 0 calc(50% - 13px); gap: 28px; }
-    .carrusel-cover { flex: 0 0 230px; width: 230px; height: 230px; }
-    .carrusel-artist { font-size: 21px; }
-    .carrusel-title-disc { font-size: 16px; }
-    .carrusel-price { font-size: 19px; }
-    .carrusel-play-badge { width: 64px; height: 64px; font-size: 24px; }
+    .carrusel-card { flex: 0 0 calc(50% - 13px); gap: 24px; }
+    /* Portada mas chica que antes: es lo que hacia las cards muy altas. Siguen
+       siendo 2 por fila, pero mas bajas. */
+    .carrusel-cover { flex: 0 0 170px; width: 170px; height: 170px; }
+    .carrusel-artist { font-size: 19px; }
+    .carrusel-title-disc { font-size: 15px; }
+    .carrusel-price { font-size: 17px; }
+    .carrusel-play-badge { width: 54px; height: 54px; font-size: 21px; }
+    /* El boton "Agregar al carrito" ocupa el ancho libre a la derecha (el espacio
+       que quedaba vacio). */
+    .cart-btn-carrusel {
+        align-self: stretch;
+        margin-top: 14px;
+        padding: 11px 20px;
+        font-size: 14px;
+        border-radius: 9px;
+    }
 }
 
 /* Checkboxes de marcado para la home en el dashboard */
