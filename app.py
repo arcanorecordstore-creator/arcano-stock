@@ -771,6 +771,25 @@ def _email_valido(email):
     return _EMAIL_RE.match(email) is not None
 
 
+def _intercalar_tips(discos):
+    """Reordena una lista de discos para carrusel de modo que los 'staff picks'
+    (es_tip) queden REPARTIDOS entre los que no lo tienen, en vez de todos juntos
+    al principio (si no, parece que todos son staff picks). El primero nunca es un
+    staff pick mientras haya al menos un disco sin el flag."""
+    discos = list(discos)
+    tips = [d for d in discos if d.es_tip]
+    otros = [d for d in discos if not d.es_tip]
+    if not tips or not otros:
+        return discos
+    resultado = list(otros)
+    n, k = len(otros), len(tips)
+    for i, t in enumerate(tips):
+        pos = round((i + 1) * n / (k + 1)) + i  # +i: la lista crece al insertar
+        pos = max(1, min(pos, len(resultado)))   # nunca en la posicion 0 (primero)
+        resultado.insert(pos, t)
+    return resultado
+
+
 def _archivos_de_disco(disc):
     """Junta los nombres de archivo (portada, galeria, samples) que usa un disco.
     Se llama ANTES de borrar el disco, para saber que archivos revisar despues."""
@@ -4641,6 +4660,11 @@ def register_routes(app: Flask) -> None:
             # --- PRE-ORDER ---
             # Discos en estado Pre-order con el toggle de carrusel prendido
             preorders_carrusel = [d for d in all_disponibles if d.en_carrusel_preorder][:12]
+
+            # Intercalar los staff picks (es_tip) para que no queden todos juntos
+            # al principio y parezca que todos los discos lo son.
+            destacados = _intercalar_tips(destacados)
+            nuevos_ingresos = _intercalar_tips(nuevos_ingresos)
 
         # --- TIPS DEL CURADOR ---
         # Discos marcados como tip, disponibles. Se muestra siempre que haya.
