@@ -486,6 +486,32 @@ body.app { display: block; padding: 0; }
     color: var(--text-2);
 }
 
+/* Handle para redimensionar columnas (borde derecho del encabezado) */
+.col-resizer {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 9px;
+    height: 100%;
+    cursor: col-resize;
+    user-select: none;
+    z-index: 3;
+}
+.col-resizer::after {
+    content: "";
+    position: absolute;
+    top: 22%;
+    right: 3px;
+    height: 56%;
+    width: 2px;
+    background: transparent;
+    border-radius: 1px;
+    transition: background 0.15s ease;
+}
+.col-resizer:hover::after { background: var(--border-3); }
+body.col-resizing,
+body.col-resizing * { cursor: col-resize !important; user-select: none !important; }
+
 .stock-table tbody tr { transition: background-color 0.1s ease; }
 .stock-table tbody tr:hover { background-color: var(--bg-hover); }
 .stock-table tbody tr:last-child td { border-bottom: none; }
@@ -4117,6 +4143,8 @@ body.app { display: block; padding: 0; }
     background-color: var(--bg-3);
     border-left-color: var(--gain);
 }
+/* Si la fila tiene sample, toda la fila es clickeable para reproducir */
+.public-track-row:has(.public-track-play-btn) { cursor: pointer; }
 
 .public-track-side {
     font-size: 12px;
@@ -6531,6 +6559,17 @@ td.num,
 @media (max-width: 720px) {
     .carrusel-card { gap: 18px; padding: 18px; }
     .carrusel-cover { flex: 0 0 140px; width: 140px; height: 140px; }
+}
+
+/* En PC: cards del carrusel mas grandes (portada 200px) para que se vean MENOS
+   discos por vista y cada uno luzca mas. En celular queda como esta. */
+@media (min-width: 900px) {
+    .carrusel-card { flex: 0 0 min(500px, 100%); gap: 26px; }
+    .carrusel-cover { flex: 0 0 200px; width: 200px; height: 200px; }
+    .carrusel-artist { font-size: 20px; }
+    .carrusel-title-disc { font-size: 16px; }
+    .carrusel-price { font-size: 18px; }
+    .carrusel-play-badge { width: 60px; height: 60px; font-size: 23px; }
 }
 
 /* Checkboxes de marcado para la home en el dashboard */

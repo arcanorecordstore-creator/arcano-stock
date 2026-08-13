@@ -351,6 +351,16 @@
         activeBtn = btn; iniciarLista([trackDeBtn(btn)], btn.dataset.coverUrl, false);
     });
 
+    // En la ficha, tocar CUALQUIER parte de la fila del track lo reproduce
+    // (no solo el boton de play a la derecha). Si la fila no tiene sample, no hace nada.
+    document.addEventListener('click', function (e) {
+        var row = e.target.closest('.public-track-row');
+        if (!row) return;
+        if (e.target.closest('[data-play]') || e.target.closest('a')) return; // el boton/link ya lo manejan
+        var btn = row.querySelector('.public-track-play-btn');
+        if (btn) btn.click();
+    });
+
     // ---- Escuchar todo ----
     function sincronizarListenAll() {
         var b = document.getElementById('listen-all-btn'); if (!b) return;
