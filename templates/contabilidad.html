@@ -339,11 +339,11 @@
     <div class="chart6-head">
         <div>
             <h2 class="conta-block-title">Negocio propio vs tu coleccion personal (6 meses)</h2>
-            <p class="resumen-card-sub">Ventas de stock de Arcano (violeta) vs ventas de tus discos personales (ambar). Abajo, el % que fue del negocio propio.</p>
-        </div>
-        <div class="chart6-legend">
-            <span class="chart6-leg"><span class="chart6-sw c-arc"></span> Arcano</span>
-            <span class="chart6-leg"><span class="chart6-sw c-per"></span> Personal</span>
+            <p class="resumen-card-sub">Ventas de stock de Arcano (violeta) vs ventas de tus discos personales (ambar). Abajo, el % de cada uno.</p>
+            <div class="chart6-legend chart6-legend-abajo">
+                <span class="chart6-leg"><span class="chart6-sw c-arc"></span> Arcano</span>
+                <span class="chart6-leg"><span class="chart6-sw c-per"></span> Personal</span>
+            </div>
         </div>
     </div>
     {% set nv = namespace(max=1) %}
@@ -367,7 +367,7 @@
                     </div>
                 </div>
                 <span class="chart6-month">{{ m.label }}</span>
-                <span class="chart6-sub">{% if tot > 0 %}{{ (m.arcano / tot * 100)|round|int }}% propio{% else %}sin ventas{% endif %}</span>
+                <span class="chart6-sub">{% if tot > 0 %}{% set ap = (m.arcano / tot * 100)|round|int %}<span class="c-arc-t">{{ ap }}% Arcano</span> · <span class="c-per-t">{{ 100 - ap }}% personales</span>{% else %}sin ventas{% endif %}</span>
             </div>
             {% endfor %}
         </div>
