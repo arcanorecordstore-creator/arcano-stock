@@ -5677,8 +5677,9 @@ def register_routes(app: Flask) -> None:
                     flash("El envío de mails no está configurado (SMTP).", "error")
                 else:
                     _discos = [i.disco for i in reserva.items_efectivos if i.disco]
+                    texto_custom = (request.form.get("texto_mail") or "").strip() or None
                     try:
-                        ok, msg = mailer.send_reserva_estado_cliente(reserva, reserva.estado, _discos)
+                        ok, msg = mailer.send_reserva_estado_cliente(reserva, reserva.estado, _discos, texto_custom=texto_custom)
                     except Exception as e:
                         ok, msg = False, str(e)
                     if ok:
@@ -5717,6 +5718,7 @@ def register_routes(app: Flask) -> None:
             estados=ESTADOS_RESERVA,
             conflictos=conflictos,
             tc=Setting.get_tc(),
+            texto_mail_default=mailer.texto_estado_default(reserva.estado),
         )
 
     # ----------------------------------------------------------------------

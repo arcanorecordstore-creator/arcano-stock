@@ -74,15 +74,19 @@
             </form>
 
             <p class="detail-actions-label">Avisar al cliente</p>
-            {% if reserva.email %}
-            <form method="post" action="{{ url_for('admin_reserva_detail', reserva_id=reserva.id) }}"
-                  data-confirm="¿Enviar un mail a {{ reserva.email }} avisándole que su reserva está «{{ reserva.estado }}»?">
-                <input type="hidden" name="accion" value="enviar_mail">
-                <button type="submit" class="action-btn" style="width: 100%;">&#9993; Enviar mail al cliente</button>
-            </form>
-            <p style="font-size: 12px; color: var(--text-4); margin: 6px 0 0;">Manda el aviso del estado actual ({{ reserva.estado }}). Solo Confirmada, Completada o Cancelada tienen mail.</p>
-            {% else %}
+            {% if not reserva.email %}
             <p style="font-size: 12px; color: var(--text-4); margin: 0;">El cliente no dejó email, no se le puede avisar por mail.</p>
+            {% elif not texto_mail_default %}
+            <p style="font-size: 12px; color: var(--text-4); margin: 0;">El estado actual («{{ reserva.estado }}») no tiene mail de aviso. Poné la reserva en Confirmada, Completada o Cancelada para poder avisarle.</p>
+            {% else %}
+            <form method="post" action="{{ url_for('admin_reserva_detail', reserva_id=reserva.id) }}"
+                  data-confirm="¿Enviar este mail a {{ reserva.email }}?">
+                <input type="hidden" name="accion" value="enviar_mail">
+                <label for="texto-mail" style="display:block; font-size: 12px; color: var(--text-4); margin: 0 0 4px;">Texto del mail (podés editarlo antes de enviar):</label>
+                <textarea id="texto-mail" name="texto_mail" rows="4" class="detail-mail-textarea">{{ texto_mail_default }}</textarea>
+                <button type="submit" class="action-btn" style="width: 100%; margin-top: 8px;">&#9993; Enviar mail al cliente</button>
+            </form>
+            <p style="font-size: 12px; color: var(--text-4); margin: 6px 0 0;">Se manda como aviso de «{{ reserva.estado }}» a {{ reserva.email }}.</p>
             {% endif %}
 
             <p class="detail-actions-label">Acciones</p>

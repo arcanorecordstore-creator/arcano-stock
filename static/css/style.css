@@ -1553,6 +1553,20 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
     margin-top: 0;
 }
 
+.detail-mail-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    border: 1px solid var(--border-2);
+    border-radius: 8px;
+    background: var(--bg-2);
+    color: var(--text-1);
+    font-family: inherit;
+    font-size: 13px;
+    line-height: 1.45;
+    resize: vertical;
+}
+
 .badge-lg {
     font-size: 13px;
     padding: 6px 14px;

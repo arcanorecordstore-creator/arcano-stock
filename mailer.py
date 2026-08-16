@@ -366,23 +366,35 @@ Montevideo, Uruguay
     return send_email(subject, body_text, body_html, to=reserva.email)
 
 
-def send_reserva_estado_cliente(reserva, nuevo_estado, discs) -> tuple[bool, str]:
+# Titulo + texto por defecto de cada estado (editable desde el admin al enviar)
+RESERVA_ESTADO_MENSAJES = {
+    "Confirmada": ("Confirmamos tu pedido",
+                   "Confirmamos tu pedido. En breve coordinamos la entrega por WhatsApp."),
+    "Completada": ("Tu pedido esta completo",
+                   "Tu pedido se completo. Gracias por comprar en Arcano!"),
+    "Cancelada": ("Tu pedido fue cancelado",
+                  "Tu pedido fue cancelado. Si fue un error o queres retomarlo, escribinos por WhatsApp."),
+}
+
+
+def texto_estado_default(estado) -> str:
+    """Texto por defecto del mail para un estado (para prellenar el campo editable)."""
+    par = RESERVA_ESTADO_MENSAJES.get(estado)
+    return par[1] if par else ""
+
+
+def send_reserva_estado_cliente(reserva, nuevo_estado, discs, texto_custom=None) -> tuple[bool, str]:
     """Avisa al cliente que su pedido cambio de estado (confirmado / completado /
-    cancelado). Se dispara cuando Facundo cambia el estado desde el admin."""
+    cancelado). Lo dispara Facundo con el boton del admin. Si `texto_custom` viene,
+    usa ese texto en vez del por defecto."""
     if not reserva.email:
         return False, "El cliente no dejo email"
 
-    mensajes = {
-        "Confirmada": ("Confirmamos tu pedido",
-                       "Confirmamos tu pedido. En breve coordinamos la entrega por WhatsApp."),
-        "Completada": ("Tu pedido esta completo",
-                       "Tu pedido se completo. Gracias por comprar en Arcano!"),
-        "Cancelada": ("Tu pedido fue cancelado",
-                      "Tu pedido fue cancelado. Si fue un error o queres retomarlo, escribinos por WhatsApp."),
-    }
-    if nuevo_estado not in mensajes:
+    if nuevo_estado not in RESERVA_ESTADO_MENSAJES:
         return False, "Ese estado no manda aviso"
-    titulo, texto = mensajes[nuevo_estado]
+    titulo, texto = RESERVA_ESTADO_MENSAJES[nuevo_estado]
+    if texto_custom and texto_custom.strip():
+        texto = texto_custom.strip()
 
     lineas = "\n".join(f"  - {d.artista} - {d.titulo}" for d in discs)
     subject = f"{titulo} - pedido #{reserva.id} - Arcano Record Store"
