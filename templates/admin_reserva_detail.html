@@ -82,11 +82,33 @@
             <form method="post" action="{{ url_for('admin_reserva_detail', reserva_id=reserva.id) }}"
                   data-confirm="¿Enviar este mail a {{ reserva.email }}?">
                 <input type="hidden" name="accion" value="enviar_mail">
-                <label for="texto-mail" style="display:block; font-size: 12px; color: var(--text-4); margin: 0 0 4px;">Texto del mail (podés editarlo antes de enviar):</label>
-                <textarea id="texto-mail" name="texto_mail" rows="4" class="detail-mail-textarea">{{ texto_mail_default }}</textarea>
-                <button type="submit" class="action-btn" style="width: 100%; margin-top: 8px;">&#9993; Enviar mail al cliente</button>
+                <label for="texto-mail" style="display:block; font-size: 12px; color: var(--text-4); margin: 0 0 4px;">Mensaje (podés editarlo):</label>
+                <textarea id="texto-mail" name="texto_mail" rows="3" class="detail-mail-textarea">{{ texto_mail_default }}</textarea>
+
+                <p class="detail-actions-label" style="margin-top: 12px;">Así le llega el mail completo</p>
+                <div class="mail-preview">
+                    <div class="mail-preview-sub"><strong>Asunto:</strong> {{ mail_subject }}</div>
+                    <div class="mail-preview-body">Hola {{ reserva.nombre }},
+
+<span id="mail-preview-msg">{{ texto_mail_default }}</span>
+
+Pedido #{{ reserva.id }}:
+{% for i in reserva.items_efectivos %}{% if i.disco %}  - {{ i.disco.artista }} - {{ i.disco.titulo }}
+{% endif %}{% endfor %}
+Arcano Record Store
+Montevideo, Uruguay</div>
+                </div>
+
+                <button type="submit" class="action-btn" style="width: 100%; margin-top: 10px;">&#9993; Enviar mail al cliente</button>
             </form>
-            <p style="font-size: 12px; color: var(--text-4); margin: 6px 0 0;">Se manda como aviso de «{{ reserva.estado }}» a {{ reserva.email }}.</p>
+            <p style="font-size: 12px; color: var(--text-4); margin: 6px 0 0;">Se manda a {{ reserva.email }}.</p>
+            <script>
+                (function () {
+                    var ta = document.getElementById('texto-mail');
+                    var pv = document.getElementById('mail-preview-msg');
+                    if (ta && pv) ta.addEventListener('input', function () { pv.textContent = ta.value; });
+                })();
+            </script>
             {% endif %}
 
             <p class="detail-actions-label">Acciones</p>

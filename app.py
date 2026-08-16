@@ -408,6 +408,16 @@ def query_discs(args):
     if origen and origen != "todos":
         q = q.filter(Disc.origen == origen)
 
+    pedido = (args.get("pedido") or "").strip()
+    if pedido and pedido != "todos":
+        if pedido == "sin_pedido":
+            q = q.filter(Disc.pedido_id.is_(None))
+        else:
+            try:
+                q = q.filter(Disc.pedido_id == int(pedido))
+            except (ValueError, TypeError):
+                pass
+
     audio = (args.get("audio") or "").strip()
     if audio and audio != "todos":
         if audio == "sin_definir":
@@ -957,6 +967,7 @@ def register_routes(app: Flask) -> None:
             "estado": request.args.get("estado", "todos"),
             "sello": request.args.get("sello", "todos"),
             "origen": request.args.get("origen", "todos"),
+            "pedido": request.args.get("pedido", "todos"),
             "audio": request.args.get("audio", "todos"),
             "order": request.args.get("order", "orden"),
             "dir": request.args.get("dir", "desc"),
@@ -5712,6 +5723,8 @@ def register_routes(app: Flask) -> None:
                 if disco and disco.estado in ("Vendido", "Reservado"):
                     conflictos.append(item)
 
+        _par = mailer.RESERVA_ESTADO_MENSAJES.get(reserva.estado)
+        mail_subject = f"{_par[0]} - pedido #{reserva.id} - Arcano Record Store" if _par else ""
         return render_template(
             "admin_reserva_detail.html",
             reserva=reserva,
@@ -5719,6 +5732,7 @@ def register_routes(app: Flask) -> None:
             conflictos=conflictos,
             tc=Setting.get_tc(),
             texto_mail_default=mailer.texto_estado_default(reserva.estado),
+            mail_subject=mail_subject,
         )
 
     # ----------------------------------------------------------------------

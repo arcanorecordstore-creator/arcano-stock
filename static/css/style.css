@@ -1566,6 +1566,28 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
     line-height: 1.45;
     resize: vertical;
 }
+.mail-preview {
+    border: 1px solid var(--border-1);
+    border-radius: 8px;
+    background: var(--bg-2);
+    overflow: hidden;
+}
+.mail-preview-sub {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border-1);
+    font-size: 12px;
+    color: var(--text-2);
+}
+.mail-preview-body {
+    padding: 10px;
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text-2);
+    white-space: pre-wrap;
+    word-break: break-word;
+    max-height: 220px;
+    overflow-y: auto;
+}
 
 .badge-lg {
     font-size: 13px;

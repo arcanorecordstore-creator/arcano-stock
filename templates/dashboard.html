@@ -74,6 +74,16 @@
         </select>
     </div>
     <div class="filter-group">
+        <label for="pedido">Pedido</label>
+        <select id="pedido" name="pedido">
+            <option value="todos" {% if filtros.pedido == 'todos' %}selected{% endif %}>Todos</option>
+            {% for p in todos_los_pedidos %}
+                <option value="{{ p.id }}" {% if filtros.pedido == p.id|string %}selected{% endif %}>#{{ p.numero }}{% if p.proveedor %} &middot; {{ p.proveedor }}{% endif %}</option>
+            {% endfor %}
+            <option value="sin_pedido" {% if filtros.pedido == 'sin_pedido' %}selected{% endif %}>Sin pedido</option>
+        </select>
+    </div>
+    <div class="filter-group">
         <label for="audio">Audio</label>
         <select id="audio" name="audio">
             <option value="todos" {% if filtros.audio == 'todos' %}selected{% endif %}>Todos</option>
