@@ -5665,15 +5665,26 @@ def register_routes(app: Flask) -> None:
                         if cambios:
                             db.session.commit()
 
-                    flash(f"Reserva marcada como {nuevo}.", "success")
+                    # Ya NO se manda mail automatico al cambiar el estado: Facundo
+                    # decide cuando avisar con el boton "Enviar mail al cliente".
+                    flash(f"Reserva marcada como {nuevo}. (No se envio mail; usá el botón si querés avisarle.)", "success")
 
-                    # Avisar al cliente por mail del cambio de estado (best-effort)
-                    if reserva.email and mailer.can_send() and nuevo in ("Confirmada", "Completada", "Cancelada"):
-                        try:
-                            _discos = [i.disco for i in reserva.items_efectivos if i.disco]
-                            mailer.send_reserva_estado_cliente(reserva, nuevo, _discos)
-                        except Exception:
-                            pass
+            elif accion == "enviar_mail":
+                # Envio MANUAL del aviso de estado al cliente (lo dispara Facundo).
+                if not reserva.email:
+                    flash("Esta reserva no tiene email del cliente.", "error")
+                elif not mailer.can_send():
+                    flash("El envío de mails no está configurado (SMTP).", "error")
+                else:
+                    _discos = [i.disco for i in reserva.items_efectivos if i.disco]
+                    try:
+                        ok, msg = mailer.send_reserva_estado_cliente(reserva, reserva.estado, _discos)
+                    except Exception as e:
+                        ok, msg = False, str(e)
+                    if ok:
+                        flash(f"Mail enviado a {reserva.email} (estado: {reserva.estado}).", "success")
+                    else:
+                        flash(f"No se envió el mail: {msg}", "error")
 
             elif accion == "delete":
                 # Si algun disco quedo Reservado por esta reserva, devolverlo a Disponible
