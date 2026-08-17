@@ -155,7 +155,11 @@
             }
 
             select.addEventListener('change', function () { cerrar(true); });
-            select.addEventListener('blur', function () { cerrar(false); });
+            // El blur GUARDA (no descarta): en un <select> nativo el blur puede
+            // dispararse antes que el change y perdiamos la eleccion (el estado
+            // "volvia" a Pre-order). Si no cambiaste nada (nuevo === actual) cerrar()
+            // revierte sin guardar igual. Escape sigue cancelando explicitamente.
+            select.addEventListener('blur', function () { cerrar(true); });
             select.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') cerrar(false);
             });
@@ -218,7 +222,8 @@
             }
 
             select.addEventListener('change', function () { cerrar(true); });
-            select.addEventListener('blur', function () { cerrar(false); });
+            // Igual que en Estado: el blur guarda (no descarta) para no perder la eleccion.
+            select.addEventListener('blur', function () { cerrar(true); });
             select.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') cerrar(false);
             });
