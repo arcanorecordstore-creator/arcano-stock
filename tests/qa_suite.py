@@ -324,7 +324,7 @@ def test_admin_acciones(c):
 # ---------------------------------------------------------------------------
 def main():
     print("=" * 66)
-    print("  SUITE DE QA — Arcano Record Store")
+    print("  SUITE DE QA - Arcano Record Store")
     print("  DB temporal:", os.environ["DATABASE_PATH"])
     print("=" * 66)
     seed()
@@ -358,7 +358,7 @@ def main():
             fail_total += 1
 
     print("\n" + "=" * 66)
-    print("  RESULTADO:  %d OK  ·  %d FALLA  ·  %d total"
+    print("  RESULTADO:  %d OK  |  %d FALLA  |  %d total"
           % (ok_total, fail_total, ok_total + fail_total))
     print("=" * 66)
 
