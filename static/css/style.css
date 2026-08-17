@@ -5315,6 +5315,25 @@ td.num,
 }
 .checkout-desglose-total strong { font-size: 17px; }
 
+/* Entrega / envio en el checkout */
+.ck-entrega { margin-top: 4px; }
+.entrega-direccion {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.entrega-nudge {
+    margin: 0;
+    padding: 8px 11px;
+    border-radius: 8px;
+    background: rgba(46, 158, 91, 0.14);
+    color: #2e9e5b;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.35;
+}
+
 /* Multi-disco en bandeja admin */
 .reserva-card-multi { color: var(--text-4); font-size: 12px; margin-left: 6px; }
 .reserva-card-total {

@@ -750,6 +750,12 @@ class Reserva(db.Model):
     mp_status = db.Column(db.String(30), nullable=True)  # approved / pending / rejected
     total_cobrado_uyu = db.Column(db.Float, nullable=True)  # total + recargo cobrado
 
+    # Entrega / envio (solo en COMPRAS; las reservas a coordinar se arreglan por WhatsApp)
+    entrega_tipo = db.Column(db.String(20), nullable=True)   # retiro / montevideo / interior
+    envio_costo_uyu = db.Column(db.Float, nullable=False, default=0.0)
+    envio_direccion = db.Column(db.String(400), nullable=True)   # Mvd: direccion; Interior: direccion/localidad
+    envio_agencia = db.Column(db.String(200), nullable=True)     # solo interior
+
     # Relacion (puede ser null si el disco se borro)
     disc = db.relationship("Disc", backref="reservas", foreign_keys=[disc_id])
     cliente = db.relationship("Cliente", backref=db.backref("reservas", order_by="Reserva.fecha.desc()"), foreign_keys=[cliente_id])
@@ -800,6 +806,22 @@ class Reserva(db.Model):
     @property
     def cantidad_discos(self) -> int:
         return len(self.items_efectivos)
+
+    @property
+    def total_con_envio(self) -> float:
+        """Total de los discos + el envio cobrado (si lo hubo)."""
+        return (self.total_uyu or 0) + (self.envio_costo_uyu or 0)
+
+    @property
+    def entrega_label(self) -> str:
+        """Texto lindo de la entrega elegida (para admin/mails)."""
+        if self.entrega_tipo == "retiro":
+            return "Retiro en Pocitos"
+        if self.entrega_tipo == "montevideo":
+            return "Envio en Montevideo"
+        if self.entrega_tipo == "interior":
+            return "Envio al interior"
+        return ""
 
     def __repr__(self) -> str:
         return f"<Reserva {self.id}: {self.nombre} ({self.cantidad_discos} discos)>"
@@ -1265,6 +1287,10 @@ def _migrate_schema(app):
                 "total_cobrado_uyu": "FLOAT",
                 "metodo_pago": "VARCHAR(20)",
                 "comprobante_file": "VARCHAR(200)",
+                "entrega_tipo": "VARCHAR(20)",
+                "envio_costo_uyu": "FLOAT DEFAULT 0",
+                "envio_direccion": "VARCHAR(400)",
+                "envio_agencia": "VARCHAR(200)",
             }
             for _col, _ddl in _radds.items():
                 if _col not in _rcols:

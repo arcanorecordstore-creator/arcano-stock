@@ -91,6 +91,44 @@
                 <p class="form-field-hint" style="margin-top:10px;">&iquest;Todav&iacute;a no transferiste? Eleg&iacute; <strong>&laquo;Reservar y coordinar por mensaje&raquo;</strong> arriba y lo arreglamos por WhatsApp, sin apuro.</p>
             </div>
             {% endif %}
+
+            <div class="ck-entrega" id="ck-entrega" hidden>
+                <h2 class="pago-titulo" style="margin-top: 18px;">&iquest;C&oacute;mo la recib&iacute;s?</h2>
+                <div class="pago-metodos">
+                    <label class="pago-metodo">
+                        <input type="radio" name="entrega" value="retiro" {% if not form.entrega or form.entrega == 'retiro' %}checked{% endif %}>
+                        <span class="pago-metodo-body">
+                            <strong>Retiro en Pocitos</strong>
+                            <small>Coordinamos d&iacute;a y horario por WhatsApp. Sin costo.</small>
+                        </span>
+                    </label>
+                    <label class="pago-metodo">
+                        <input type="radio" name="entrega" value="montevideo" {% if form.entrega == 'montevideo' %}checked{% endif %}>
+                        <span class="pago-metodo-body">
+                            <strong>Env&iacute;o en Montevideo</strong>
+                            <small>$50 llevando 1 o 2 discos &middot; <strong>gratis desde 3</strong>.</small>
+                        </span>
+                    </label>
+                    <label class="pago-metodo">
+                        <input type="radio" name="entrega" value="interior" {% if form.entrega == 'interior' %}checked{% endif %}>
+                        <span class="pago-metodo-body">
+                            <strong>Env&iacute;o al interior</strong>
+                            <small>El env&iacute;o lo pag&aacute;s al recibir (lo cobra la agencia).</small>
+                        </span>
+                    </label>
+                </div>
+                <div class="entrega-direccion" id="entrega-direccion" hidden>
+                    <div class="form-field">
+                        <label for="envio_direccion" id="envio-direccion-label">Direcci&oacute;n de entrega</label>
+                        <input type="text" id="envio_direccion" name="envio_direccion" value="{{ form.envio_direccion or '' }}" placeholder="Calle, n&uacute;mero, apto, esquina">
+                    </div>
+                    <div class="form-field" id="entrega-agencia-field" hidden>
+                        <label for="envio_agencia">Agencia</label>
+                        <input type="text" id="envio_agencia" name="envio_agencia" value="{{ form.envio_agencia or '' }}" placeholder="DAC, Agencia Central, Nossar...">
+                    </div>
+                    <p class="entrega-nudge" id="entrega-nudge" hidden></p>
+                </div>
+            </div>
         </div>
 
         <aside class="ck-pedido">
@@ -124,18 +162,65 @@
         var s = document.querySelector('input[name="metodo"]:checked');
         return s ? s.value : '';
     }
+    function esCompra() {
+        var m = metodoSel();
+        return m === 'transferencia' || m === 'mercadopago';
+    }
+    function entregaSel() {
+        var s = document.querySelector('input[name="entrega"]:checked');
+        return s ? s.value : 'retiro';
+    }
+    function envioActual() {
+        // El envio SOLO se cobra en compra. Montevideo: $50 con 1-2 discos, gratis desde 3.
+        if (!esCompra() || entregaSel() !== 'montevideo') return 0;
+        return nDiscos >= 3 ? 0 : 50;
+    }
     function renderDesglose() {
         var cont = document.getElementById('checkout-desglose');
         if (!cont) return;
         var esMp = metodoSel() === 'mercadopago';
         var comision = esMp ? Math.round(subtotalActual * recargoPct / 100) : 0;
-        var total = subtotalActual + comision;
+        var envio = envioActual();
+        var total = subtotalActual + comision + envio;
         var h = '<div class="checkout-desglose-row"><span>Subtotal (' + nDiscos + ' disco' + (nDiscos !== 1 ? 's' : '') + ')</span><span>$ ' + subtotalActual.toLocaleString('es-UY') + '</span></div>';
         if (esMp) {
             h += '<div class="checkout-desglose-row"><span>Comisión de plataforma (' + recargoPct + '%)</span><span>$ ' + comision.toLocaleString('es-UY') + '</span></div>';
         }
+        if (esCompra()) {
+            var e = entregaSel(), envTxt;
+            if (e === 'retiro') envTxt = 'Gratis';
+            else if (e === 'interior') envTxt = 'Lo cobra la agencia';
+            else envTxt = envio > 0 ? ('$ ' + envio.toLocaleString('es-UY')) : 'Gratis';
+            var eLabel = e === 'retiro' ? 'Retiro en Pocitos' : e === 'interior' ? 'Envío al interior' : 'Envío en Montevideo';
+            h += '<div class="checkout-desglose-row"><span>' + eLabel + '</span><span>' + envTxt + '</span></div>';
+        }
         h += '<div class="checkout-desglose-row checkout-desglose-total"><span>Total</span><strong>$ ' + total.toLocaleString('es-UY') + '</strong></div>';
         cont.innerHTML = h;
+    }
+    function actualizarEntrega() {
+        var bloque = document.getElementById('ck-entrega');
+        if (bloque) bloque.hidden = !esCompra();
+        var e = entregaSel();
+        var mostrarDir = esCompra() && (e === 'montevideo' || e === 'interior');
+        var esInterior = esCompra() && e === 'interior';
+        var dir = document.getElementById('entrega-direccion');
+        var agField = document.getElementById('entrega-agencia-field');
+        var dirInput = document.getElementById('envio_direccion');
+        var agInput = document.getElementById('envio_agencia');
+        var dirLabel = document.getElementById('envio-direccion-label');
+        if (dir) dir.hidden = !mostrarDir;
+        if (agField) agField.hidden = !esInterior;
+        if (dirInput) dirInput.required = mostrarDir;
+        if (agInput) agInput.required = esInterior;
+        if (dirLabel) dirLabel.textContent = esInterior ? 'Localidad y dirección' : 'Dirección de entrega';
+        var nudge = document.getElementById('entrega-nudge');
+        if (nudge) {
+            if (esCompra() && e === 'montevideo' && nDiscos === 2) {
+                nudge.textContent = '¡Sumá 1 disco más y el envío en Montevideo te sale gratis!';
+                nudge.hidden = false;
+            } else { nudge.hidden = true; }
+        }
+        renderDesglose();
     }
 
     var ids = (idsField.value || '').split(',').filter(Boolean);
@@ -151,6 +236,11 @@
         document.getElementById('checkout-form').style.display = 'none';
         return;
     }
+
+    actualizarEntrega();  // mostrar el bloque de entrega segun el metodo por defecto
+    document.querySelectorAll('input[name="metodo"], input[name="entrega"]').forEach(function (r) {
+        r.addEventListener('change', actualizarEntrega);
+    });
 
     fetch('{{ url_for("api_discos_por_id") }}?ids=' + ids.join(','))
         .then(function (r) { return r.json(); })
@@ -178,10 +268,7 @@
             resumenEl.innerHTML = html;
             subtotalActual = total;
             nDiscos = discos.length;
-            renderDesglose();
-            document.querySelectorAll('input[name="metodo"]').forEach(function (r) {
-                r.addEventListener('change', renderDesglose);
-            });
+            actualizarEntrega();  // recalcular con el subtotal y la cantidad ya cargados
             if (window.arcanoGA) window.arcanoGA('begin_checkout', {
                 currency: 'UYU', value: total,
                 items: discos.map(function (d) { return { item_id: String(d.id), price: d.precio_uyu }; })

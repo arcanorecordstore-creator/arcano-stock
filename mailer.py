@@ -160,6 +160,23 @@ def send_reserva_notification(reserva, disc, comprobante_path=None) -> tuple[boo
         comp_txt = ""
         comp_html = ""
 
+    # Entrega / envio (solo compras). En "coordinar" queda vacio.
+    entrega_txt = ""
+    entrega_html = ""
+    if getattr(reserva, "entrega_tipo", None):
+        _et = reserva.entrega_label
+        _costo = getattr(reserva, "envio_costo_uyu", 0) or 0
+        if _costo > 0:
+            _et += f" - $ {_costo:,.0f} UYU de envio"
+        elif reserva.entrega_tipo == "interior":
+            _et += " - lo cobra la agencia"
+        _dir = (reserva.envio_direccion or "").strip()
+        if reserva.envio_agencia:
+            _dir = (_dir + f" - Agencia: {reserva.envio_agencia}").strip(" -")
+        entrega_txt = "ENTREGA\n  " + _et + "\n" + (f"  Direccion: {_dir}\n" if _dir else "")
+        entrega_html = ('<h3 style="color:#888;font-size:11px;text-transform:uppercase;letter-spacing:2px;">Entrega</h3>'
+                        f'<p><strong>{_e(_et)}</strong>' + (f'<br>&#128205; {_e(_dir)}' if _dir else '') + '</p>')
+
     body_text = f"""Hola Facundo,
 
 Nueva reserva en Arcano Record Store (#{reserva.id}):
@@ -176,7 +193,7 @@ CLIENTE
 PAGO
   Metodo:   {metodo_label}
 {('  ' + comp_txt) if comp_txt else ''}
-NOTA DEL CLIENTE
+{entrega_txt}NOTA DEL CLIENTE
 {reserva.nota or '(sin nota)'}
 
 Gestionar en: /admin/reservas/{reserva.id}
@@ -198,6 +215,8 @@ Email: {_e(reserva.email or '—')}</p>
 <h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 2px;">Pago</h3>
 <p>Metodo: <strong>{metodo_label}</strong></p>
 {comp_html}
+
+{entrega_html}
 
 {f'<h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 2px;">Nota</h3><p>{_e(reserva.nota)}</p>' if reserva.nota else ''}
 

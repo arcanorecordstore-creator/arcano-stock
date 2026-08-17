@@ -500,6 +500,19 @@ def compute_totals(discs):
     }
 
 
+# Reglas de envio (checkout). Montevideo: $50 con 1-2 discos, GRATIS con 3+.
+# Interior: $0 en la web (lo cobra la agencia). Retiro: $0.
+ENVIO_MVD_COSTO = 50
+ENVIO_MVD_GRATIS_DESDE = 3
+
+
+def _calcular_envio_uyu(entrega_tipo, n_discos):
+    """Costo del envio en UYU segun la zona y la cantidad de discos."""
+    if entrega_tipo == "montevideo":
+        return 0 if (n_discos or 0) >= ENVIO_MVD_GRATIS_DESDE else ENVIO_MVD_COSTO
+    return 0  # retiro / interior / desconocido -> sin costo en la web
+
+
 def _ga_purchase_items(reserva):
     """Lista de items para el evento 'purchase' de GA4/Meta (ecommerce).
     Usa los snapshots de la reserva asi funciona aunque el disco ya no exista."""
@@ -3110,6 +3123,41 @@ def register_routes(app: Flask) -> None:
                     mov.concepto = concepto
                     actualizados += 1
 
+        # --- ENVIOS (ingresos): el $50 del envio cobrado, cuando la venta se concreta ---
+        # Entra a la caja recien cuando hay plata de verdad: MP pagado o reserva
+        # Completada. Antes de eso NO cuenta (todavia no entro).
+        for r in Reserva.query.filter(Reserva.envio_costo_uyu > 0).all():
+            monto = round(r.envio_costo_uyu or 0, 2)
+            if monto <= 0:
+                continue
+            if not (bool(r.pagado) or r.estado == "Completada"):
+                continue  # todavia no entro la plata; la limpieza saca un mov viejo si lo hubiera
+            key = ("envio", r.id)
+            vigentes.add(key)
+            metodo = ("mercadopago" if (r.pagado or r.metodo_pago == "mercadopago")
+                      else ("transferencia" if r.metodo_pago == "transferencia" else None))
+            _fbase = r.fecha_actualizacion or r.fecha
+            fecha = _fbase.date() if hasattr(_fbase, "date") else _fbase
+            concepto = f"Envio (pedido #{r.id})"[:300]
+            mov = existentes.get(key)
+            if mov is None:
+                db.session.add(MovimientoCaja(
+                    fecha=fecha, tipo="ingreso", monto_uyu=monto,
+                    concepto=concepto, metodo=metodo, categoria="Envio",
+                    origen="envio", origen_id=r.id,
+                ))
+                creados += 1
+            elif not mov.manual_override:
+                if _difiere(mov.monto_uyu, monto) or mov.tipo != "ingreso" or mov.categoria != "Envio":
+                    mov.monto_uyu = monto
+                    mov.tipo = "ingreso"
+                    mov.categoria = "Envio"
+                    mov.concepto = concepto
+                    actualizados += 1
+                if metodo and not mov.metodo:
+                    mov.metodo = metodo
+                    actualizados += 1
+
         # --- LIMPIEZA: auto-movimientos cuyo origen ya no existe/aplica ---
         borrados = 0
         for clave, mov in existentes.items():
@@ -3233,6 +3281,8 @@ def register_routes(app: Flask) -> None:
         for m in movs_mostrados:
             if m.origen == "venta":
                 key, label, orden = "venta", "Ventas", 0
+            elif m.origen == "envio":
+                key, label, orden = "envio", "Envios", 0.5
             elif m.origen == "pedido":
                 key, label, orden = "pedido", "Pedidos", 1
             elif m.tipo == "ingreso" and m.es_aporte:
@@ -4559,6 +4609,12 @@ def register_routes(app: Flask) -> None:
                 "title": f"Recargo pago online ({mp.recargo_pct():.0f}%)",
                 "quantity": 1, "unit_price": float(recargo),
             })
+        envio = round(reserva.envio_costo_uyu or 0, 2)
+        if envio > 0:
+            items.append({
+                "title": "Envio en Montevideo",
+                "quantity": 1, "unit_price": float(envio),
+            })
         base = request.url_root.rstrip("/")
         back = f"{base}/mp/retorno?reserva={reserva.id}"
         try:
@@ -4573,7 +4629,7 @@ def register_routes(app: Flask) -> None:
             app.logger.warning(f"MP: no se pudo crear la preferencia: {ex}")
             return None
         reserva.mp_preference_id = str(pref.get("id") or "")
-        reserva.total_cobrado_uyu = subtotal + recargo
+        reserva.total_cobrado_uyu = subtotal + recargo + envio
         reserva.mp_status = "pending"
         db.session.commit()
         return mp.url_checkout(pref)
@@ -5543,13 +5599,38 @@ def register_routes(app: Flask) -> None:
             if ids and not disponibles:
                 errores.append("Ninguno de los discos del carrito esta disponible.")
 
+            # --- Entrega / envio: SOLO aplica en COMPRA (transferencia o Mercado Pago).
+            # Si el cliente "reserva y coordina", el envio no se toca (se arregla por WhatsApp).
+            _metodo_form = request.form.get("metodo", "coordinar")
+            es_compra = (
+                (_metodo_form == "transferencia" and Setting.get("transferencia_activa", "0") == "1")
+                or (_metodo_form == "mercadopago" and mp.activo())
+            )
+            entrega_tipo = (request.form.get("entrega") or "").strip().lower()
+            envio_direccion = (request.form.get("envio_direccion") or "").strip()[:400] or None
+            envio_agencia = (request.form.get("envio_agencia") or "").strip()[:200] or None
+            if es_compra:
+                if entrega_tipo not in ("retiro", "montevideo", "interior"):
+                    entrega_tipo = "retiro"  # por defecto: retiro, sin costo ni direccion
+                if entrega_tipo in ("montevideo", "interior") and not envio_direccion:
+                    errores.append("Para el envio necesitamos la direccion de entrega.")
+                if entrega_tipo == "interior" and not envio_agencia:
+                    errores.append("Para el envio al interior indicanos la agencia (DAC, Agencia Central, etc.).")
+            else:
+                entrega_tipo = None
+                envio_direccion = None
+                envio_agencia = None
+            envio_costo = _calcular_envio_uyu(entrega_tipo, len(disponibles)) if es_compra else 0
+
             if errores:
                 for e in errores:
                     flash(e, "error")
                 return render_template(
                     "public/checkout.html",
                     ids=ids_raw,
-                    form={"nombre": nombre, "whatsapp": whatsapp, "email": email, "nota": nota},
+                    form={"nombre": nombre, "whatsapp": whatsapp, "email": email, "nota": nota,
+                          "entrega": entrega_tipo, "envio_direccion": envio_direccion,
+                          "envio_agencia": envio_agencia},
                     **_public_context(),
                 )
 
@@ -5569,6 +5650,12 @@ def register_routes(app: Flask) -> None:
             )
             db.session.add(reserva)
             db.session.flush()
+
+            # Entrega / envio (solo compras; en "coordinar" queda todo en null / 0)
+            reserva.entrega_tipo = entrega_tipo
+            reserva.envio_costo_uyu = envio_costo
+            reserva.envio_direccion = envio_direccion
+            reserva.envio_agencia = envio_agencia
 
             for d in disponibles:
                 item = ReservaItem(

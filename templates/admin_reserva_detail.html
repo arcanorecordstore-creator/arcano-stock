@@ -60,6 +60,27 @@
                 {% endif %}
             </div>
             {% endif %}
+
+            {% if reserva.entrega_tipo %}
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-1);">
+                <span class="detail-meta-label">Entrega</span>
+                <p class="detail-meta-value" style="margin-top: 4px;">
+                    <strong>{{ reserva.entrega_label }}</strong>
+                    {% if reserva.envio_costo_uyu and reserva.envio_costo_uyu > 0 %}
+                    &middot; $ {{ '{:,.0f}'.format(reserva.envio_costo_uyu).replace(',', '.') }} de env&iacute;o
+                    {% elif reserva.entrega_tipo == 'interior' %}
+                    &middot; lo cobra la agencia
+                    {% elif reserva.entrega_tipo == 'montevideo' %}
+                    &middot; env&iacute;o gratis (3+ discos)
+                    {% endif %}
+                </p>
+                {% if reserva.envio_direccion %}
+                <p class="detail-notas" style="margin-top: 6px;">
+                    &#128205; {{ reserva.envio_direccion }}{% if reserva.envio_agencia %} &middot; Agencia: <strong>{{ reserva.envio_agencia }}</strong>{% endif %}
+                </p>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
 
         <div class="detail-actions">

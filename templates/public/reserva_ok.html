@@ -50,6 +50,14 @@
             <span class="public-reserve-ok-label">Tu celular</span>
             <span class="public-reserve-ok-value">{{ reserva.whatsapp }}</span>
         </div>
+        {% if reserva.entrega_tipo %}
+        <div class="public-reserve-ok-row">
+            <span class="public-reserve-ok-label">Entrega</span>
+            <span class="public-reserve-ok-value">
+                {{ reserva.entrega_label }}{% if reserva.envio_costo_uyu and reserva.envio_costo_uyu > 0 %} &middot; $ {{ '{:,.0f}'.format(reserva.envio_costo_uyu).replace(',', '.') }}{% elif reserva.entrega_tipo == 'interior' %} &middot; lo cobra la agencia{% endif %}
+            </span>
+        </div>
+        {% endif %}
         <div class="public-reserve-ok-row">
             <span class="public-reserve-ok-label">Reserva</span>
             <span class="public-reserve-ok-value">#{{ reserva.id }}</span>
