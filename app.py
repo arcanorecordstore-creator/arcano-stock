@@ -3483,18 +3483,23 @@ def register_routes(app: Flask) -> None:
         except (ValueError, TypeError):
             saldo_inicial = 0.0
 
-        total_ingresos = sum(m.monto_uyu or 0 for m in movs if m.tipo == "ingreso")
-        total_egresos = sum(m.monto_uyu or 0 for m in movs if m.tipo == "egreso")
+        # Los adelantos SALDADOS (MP ya pago y Facundo recupero su plata) son puentes
+        # CERRADOS: netean a cero (entro tu plata, salio cuando MP pago), no cuentan mas
+        # en el saldo ni en la lista. Se filtran de todos los calculos de plata.
+        movs_dinero = [m for m in movs if (m.adelanto_mp or "") != "saldado"]
+
+        total_ingresos = sum(m.monto_uyu or 0 for m in movs_dinero if m.tipo == "ingreso")
+        total_egresos = sum(m.monto_uyu or 0 for m in movs_dinero if m.tipo == "egreso")
         saldo_actual = saldo_inicial + total_ingresos - total_egresos
 
         # Capital aportado por Facundo (plata propia, no es facturacion). total_aportes
-        # incluye TODO (incl. adelantos) y se usa para separar ventas de aportes.
-        total_aportes = sum(m.monto_uyu or 0 for m in movs if m.tipo == "ingreso" and m.es_aporte)
+        # incluye los adelantos pendientes y se usa para separar ventas de aportes.
+        total_aportes = sum(m.monto_uyu or 0 for m in movs_dinero if m.tipo == "ingreso" and m.es_aporte)
         # Para MOSTRAR "Capital que pusiste": solo el capital PERMANENTE, sin los
         # adelantos de MP (que son plata temporal que Facundo recupera y ya se
         # muestran aparte en "Adelantos a recuperar"). Asi el capital no salta al adelantar.
         capital_permanente = sum(
-            m.monto_uyu or 0 for m in movs
+            m.monto_uyu or 0 for m in movs_dinero
             if m.tipo == "ingreso" and m.es_aporte and not (m.adelanto_mp or "")
         )
         # Ventas cobradas = ingresos que NO son aporte de capital
@@ -3502,22 +3507,24 @@ def register_routes(app: Flask) -> None:
 
         # Ventas cobradas agrupadas por metodo (excluye aportes de capital)
         por_metodo = {"mercadopago": 0.0, "transferencia": 0.0, "efectivo": 0.0, "otro": 0.0, "sin": 0.0}
-        for m in movs:
+        for m in movs_dinero:
             if m.tipo != "ingreso" or m.es_aporte:
                 continue
             k = m.metodo if m.metodo in ("mercadopago", "transferencia", "efectivo", "otro") else "sin"
             por_metodo[k] += (m.monto_uyu or 0)
 
-        # Plata todavia retenida en Mercado Pago: MP libera el dinero ~30 dias
-        # despues del cobro. Lo cobrado por MP en los ultimos 30 dias todavia no
-        # esta disponible; lo mas viejo ya se libero (cuenta como disponible).
+        # Plata todavia retenida en Mercado Pago: ventas por MP de los ultimos 30 dias,
+        # MENOS las que MP ya te pago (las que marcaste con "MP ya me pago" = adelantos
+        # saldados). Asi, al saldar un adelanto, la venta sale de MP (pasa al banco).
         from datetime import datetime as _dt2, timedelta as _td
         limite_mp = _dt2.utcnow().date() - _td(days=30)
-        mp_pendiente = sum(
+        mp_bruto = sum(
             (m.monto_uyu or 0) for m in movs
             if m.tipo == "ingreso" and not m.es_aporte
             and m.metodo == "mercadopago" and m.fecha and m.fecha > limite_mp
         )
+        mp_ya_pagado = sum(m.monto_uyu or 0 for m in movs if (m.adelanto_mp or "") == "saldado")
+        mp_pendiente = max(0.0, mp_bruto - mp_ya_pagado)
         # Adelantos de MP: aportes que Facundo hizo para tener la liquidez de MP
         # antes de que MP pague. Los 'pendiente' todavia esperan el pago de MP.
         adelantos_pendientes = [m for m in movs if (m.adelanto_mp or "") == "pendiente"]
@@ -3555,10 +3562,11 @@ def register_routes(app: Flask) -> None:
         mercaderia_uyu = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in mercaderia_discos)
         mercaderia_count = len(mercaderia_discos)
 
-        # Saldo corriente sobre TODOS los movimientos (cronologico)
+        # Saldo corriente sobre los movimientos de plata (los adelantos SALDADOS ya
+        # se cerraron y no cuentan; se ocultan de la lista).
         saldo = saldo_inicial
         filas = []
-        for m in movs:
+        for m in movs_dinero:
             saldo += (m.monto_uyu or 0) * (1 if m.tipo == "ingreso" else -1)
             dorigen = disc_origen.get(m.origen_id) if m.origen == "venta" else None
             filas.append({"mov": m, "saldo": round(saldo, 2), "disc_origen": dorigen})
@@ -4006,25 +4014,19 @@ def register_routes(app: Flask) -> None:
     @app.route("/admin/caja/movimiento/<int:mov_id>/saldar-adelanto", methods=["POST"])
     @auth.admin_required
     def caja_saldar_adelanto(mov_id):
-        """MP ya libero el dinero del adelanto: crea el retiro (Facundo recupera su
-        plata a lo personal) y marca el adelanto como saldado."""
+        """MP ya libero el dinero del adelanto. NO crea retiro ni cambia el numero de
+        la caja: al saldar, el adelanto (tu plata que ya estaba contada) se cierra y la
+        venta que estaba en MP pasa al banco — se compensan, el saldo NO cambia. Solo
+        marca el adelanto como saldado (sale de 'Adelantos a recuperar')."""
         from models import MovimientoCaja
-        from datetime import datetime as _dt
         m = MovimientoCaja.query.get_or_404(mov_id)
         if (m.adelanto_mp or "") != "pendiente":
             flash("Ese adelanto ya estaba saldado.", "warning")
             return redirect(url_for("caja"))
         monto = round(m.monto_uyu or 0, 2)
-        retiro = MovimientoCaja(
-            fecha=_dt.utcnow().date(), tipo="egreso", monto_uyu=monto,
-            concepto="Retiro: MP liberó el adelanto (recuperás tu plata)",
-            metodo=None, categoria="Retiro", es_aporte=False,
-            origen="manual", origen_id=None,
-        )
-        db.session.add(retiro)
         m.adelanto_mp = "saldado"
         db.session.commit()
-        flash(f"Registrado el retiro de ${monto:,.0f}. Tu adelanto quedó saldado.", "success")
+        flash(f"Listo, tu adelanto de ${monto:,.0f} quedó cerrado (MP te lo pagó). El saldo no cambia: recuperaste tu plata y la venta pasó al banco.", "success")
         return redirect(url_for("caja"))
 
     @app.route("/admin/caja/saldo-inicial", methods=["POST"])
