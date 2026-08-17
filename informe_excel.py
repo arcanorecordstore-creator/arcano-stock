@@ -146,14 +146,23 @@ def generar_excel(periodo="mes_actual", desde=None, hasta=None,
     fila = 4
     ws.cell(row=fila, column=1, value="RESULTADO DEL PERIODO").font = F_H2
     fila += 1
+    # El stock no vendido solo se RESTA en "Este mes"/"Todo" (stock_en_ganancia). En
+    # periodos pasados NO entra en la ecuacion (es foto de hoy) -> se muestra aparte
+    # abajo como informativo, para que la columna sume al total.
     resumen_rows = [
         ("Ingresos (ventas)", conta["ingresos_uyu"]),
         ("- Costo de los vendidos (Arcano)", -conta["costo_discos_uyu"]),
         ("= Ganancia bruta", conta["ganancia_bruta_uyu"]),
-        ("- Stock no vendido (Arcano)", -conta["costo_stock_no_vendido_uyu"]),
+    ]
+    if conta.get("stock_en_ganancia") and conta["costo_stock_no_vendido_uyu"]:
+        resumen_rows.append(("- Stock no vendido (Arcano)", -conta["costo_stock_no_vendido_uyu"]))
+    resumen_rows += [
         ("- Egresos (gastos)", -conta["egresos_uyu"]),
         ("= GANANCIA REAL", conta["ganancia_real_uyu"]),
     ]
+    if not conta.get("stock_en_ganancia") and conta["costo_stock_no_vendido_uyu"]:
+        resumen_rows.append(("Stock no vendido (Arcano), a hoy - informativo, no se resta",
+                             conta["costo_stock_no_vendido_uyu"]))
     for label, val in resumen_rows:
         c1 = ws.cell(row=fila, column=1, value=label)
         c2 = ws.cell(row=fila, column=2, value=_money(val))

@@ -49,7 +49,7 @@
         $ {{ fmt_uyu(conta.ganancia_real_uyu) }} <span class="conta-hero-cur">UYU</span>
     </span>
     <span class="conta-hero-foot">
-        Ventas menos costo de discos de Arcano (vendidos y en stock) menos gastos operativos
+        {% if conta.stock_en_ganancia %}Ventas menos costo de discos de Arcano (vendidos y en stock) menos gastos operativos{% else %}Ventas menos costo de lo vendido (Arcano) menos gastos operativos &mdash; el stock no vendido no se resta en periodos pasados{% endif %}
     </span>
     {% if conta.comparacion and conta.comparacion.var_ganancia_pct is not none %}
     <div class="conta-compare {% if conta.comparacion.mejoro %}up{% else %}down{% endif %}">
@@ -97,7 +97,10 @@
         <span class="conta-row-value">= {{ fmt_uyu(conta.ganancia_bruta_uyu) }}</span>
         <span class="conta-row-detail">Margen de los discos vendidos, antes de gastos</span>
     </div>
-    {% if conta.costo_stock_no_vendido_uyu > 0 %}
+    {# El stock no vendido es una FOTO "a hoy": solo se RESTA de la ganancia real en
+       "Este mes" y "Todo" (stock_en_ganancia). En periodos pasados se muestra aparte
+       como informativo, para que la cuenta cierre. #}
+    {% if conta.stock_en_ganancia and conta.costo_stock_no_vendido_uyu > 0 %}
     <div class="conta-row conta-row-egreso">
         <span class="conta-row-label">Costo de stock no vendido (Arcano)</span>
         <span class="conta-row-value">&minus; {{ fmt_uyu(conta.costo_stock_no_vendido_uyu) }}</span>
@@ -112,8 +115,15 @@
     <div class="conta-row conta-total">
         <span class="conta-row-label">Ganancia real</span>
         <span class="conta-row-value">= {{ fmt_uyu(conta.ganancia_real_uyu) }}</span>
-        <span class="conta-row-detail">Ventas menos costos de Arcano (vendido + stock) menos gastos</span>
+        <span class="conta-row-detail">{% if conta.stock_en_ganancia %}Ventas menos costos de Arcano (vendido + stock) menos gastos{% else %}Ventas menos costo de lo vendido menos gastos (resultado del periodo){% endif %}</span>
     </div>
+    {% if not conta.stock_en_ganancia and conta.costo_stock_no_vendido_uyu > 0 %}
+    <div class="conta-row" style="opacity:.72">
+        <span class="conta-row-label">Stock no vendido (Arcano), a hoy</span>
+        <span class="conta-row-value">{{ fmt_uyu(conta.costo_stock_no_vendido_uyu) }}</span>
+        <span class="conta-row-detail">Informativo: en periodos pasados no se resta (es una foto de hoy, no de ese periodo)</span>
+    </div>
+    {% endif %}
 </section>
 
 <!-- Egresos por categoria -->

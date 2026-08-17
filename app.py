@@ -350,7 +350,7 @@ def create_app() -> Flask:
 
         return {
             "reservas_pendientes_count": reservas_pendientes_count,
-            "now": datetime.utcnow(),
+            "now": now_uy(),
             "url_pagina": url_pagina,
             "sort_url": sort_url,
             "cliente_actual": cliente_actual,
@@ -1377,7 +1377,7 @@ def register_routes(app: Flask) -> None:
                 artista=_s("artista") or "Various", titulo=titulo, sello=_s("sello"),
                 anio=_i("anio"), formato=_s("formato") or "Vinyl", genero=_s("genero"),
                 tags=_s("catalogo"), precio_uyu=float(precio),
-                fecha_ingreso=_dt.utcnow(),
+                fecha_ingreso=now_uy(),
             )
             db.session.add(disc)
             db.session.flush()
@@ -1587,10 +1587,34 @@ def register_routes(app: Flask) -> None:
 
             covers_dir = app.config["COVERS_DIR"]
 
-            # Detectar duplicados existentes + buscar portada/anio en Deejay.de
+            # Buscar portada/anio en Deejay.de EN PARALELO con un tope de tiempo total.
+            # Antes era secuencial dentro del request (3 requests de red x disco); una
+            # factura grande podia pasar el timeout de Render (120s) -> 502 y se perdia
+            # todo el analisis (que ya se pago con IA). Ahora concurrente y con deadline:
+            # las que no lleguen quedan sin portada (se agregan a mano despues).
+            import time as _time  # noqa: F401
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            _cover_res = {}
+            _pairs = [(_i, (d.get("artista") or "").strip(), (d.get("titulo") or "").strip())
+                      for _i, d in enumerate(discos)]
+            _pairs = [(i, a, t) for (i, a, t) in _pairs if a and t]
+            if _pairs:
+                _ex = ThreadPoolExecutor(max_workers=6)
+                _futs = {_ex.submit(scraper.find_cover_and_year, a, t, covers_dir): i for (i, a, t) in _pairs}
+                try:
+                    for _f in as_completed(_futs, timeout=40):
+                        try:
+                            _cover_res[_futs[_f]] = _f.result()
+                        except Exception:
+                            pass
+                except Exception:
+                    pass  # se acabo el presupuesto de tiempo: seguimos con lo que haya
+                _ex.shutdown(wait=False, cancel_futures=True)
+
+            # Detectar duplicados existentes + armar los items
             items = []
             portadas_encontradas = 0
-            for d in discos:
+            for _idx, d in enumerate(discos):
                 artista = (d.get("artista") or "").strip()
                 titulo = (d.get("titulo") or "").strip()
                 existente = None
@@ -1600,19 +1624,16 @@ def register_routes(app: Flask) -> None:
                         db.func.lower(Disc.titulo) == titulo.lower(),
                     ).first()
 
-                # Buscar portada + anio en Deejay.de (al analizar, no al confirmar)
+                # Portada + anio: ya buscados en paralelo arriba
                 cover_local_auto = None
                 anio_auto = d.get("anio")
-                if artista and titulo:
-                    try:
-                        found = scraper.find_cover_and_year(artista, titulo, covers_dir)
-                        if found.get("cover_local"):
-                            cover_local_auto = found["cover_local"]
-                            portadas_encontradas += 1
-                        if not anio_auto and found.get("anio"):
-                            anio_auto = found["anio"]
-                    except Exception:
-                        pass
+                found = _cover_res.get(_idx)
+                if found:
+                    if found.get("cover_local"):
+                        cover_local_auto = found["cover_local"]
+                        portadas_encontradas += 1
+                    if not anio_auto and found.get("anio"):
+                        anio_auto = found["anio"]
 
                 items.append({
                     "artista": artista or None,
@@ -1725,7 +1746,7 @@ def register_routes(app: Flask) -> None:
                         existente.anio = anio
 
                     if estado and estado != existente.estado:
-                        ahora = datetime.utcnow()
+                        ahora = now_uy()
                         existente.estado = estado
                         evento = StatusHistory(
                             disc_id=existente.id,
@@ -2433,7 +2454,7 @@ def register_routes(app: Flask) -> None:
                 )
 
             if disc.estado != estado_anterior:
-                ahora = datetime.utcnow()
+                ahora = now_uy()
                 if disc.estado == "Reservado" and not disc.fecha_reserva:
                     disc.fecha_reserva = ahora
                 elif disc.estado == "Vendido" and not disc.fecha_venta:
@@ -2512,7 +2533,7 @@ def register_routes(app: Flask) -> None:
         nuevo.estado = "Disponible"
         nuevo.copias_vendidas = 0
         nuevo.fecha_venta = None
-        nuevo.fecha_ingreso = datetime.utcnow()
+        nuevo.fecha_ingreso = now_uy()
         db.session.add(nuevo)
         db.session.flush()  # para tener el id del nuevo
 
@@ -2727,7 +2748,7 @@ def register_routes(app: Flask) -> None:
         """Radar de demanda: rankea discos por interes relativo
         (reproducciones / dias disponible), cruzado con el estado. Separa los
         disponibles (accionables) de los vendidos (validacion del ojo)."""
-        ahora = datetime.utcnow()
+        ahora = now_uy()
         filas = []
         for d in Disc.query.filter(Disc.estado != "Descartado").all():
             plays = sum((t.play_count or 0) for t in d.tracks)
@@ -2870,7 +2891,7 @@ def register_routes(app: Flask) -> None:
 
         # Tendencia: facturado por dia (ultimos N dias del periodo, sin dibujar futuro).
         ndias = max(7, min(dur.days, 30))
-        base_fin = min(fin_dt.date(), _dt.utcnow().date() + _td(days=1))
+        base_fin = min(fin_dt.date(), today_uy() + _td(days=1))
         dias = [base_fin - _td(days=i + 1) for i in range(ndias)][::-1]
         tmap = {dd: 0.0 for dd in dias}
         for d in vendidos:
@@ -2969,7 +2990,7 @@ def register_routes(app: Flask) -> None:
             cliente_por_disc=cliente_res, dias_venta=dias_venta,
             canales=_CANALES_VENTA, metodos=_METODOS_VENTA,
             filtros={"canal": f_canal, "metodo": f_metodo, "q": f_q},
-            hoy=datetime.utcnow().date(),
+            hoy=today_uy(),
         )
 
     def _ventas_csv(lista, canal_de, metodo_de, cliente_res):
@@ -3040,9 +3061,9 @@ def register_routes(app: Flask) -> None:
             if metodo and metodo not in ("mercadopago", "transferencia", "efectivo", "otro"):
                 metodo = None
             try:
-                fecha_venta = datetime.strptime(fecha_str, "%Y-%m-%d") if fecha_str else datetime.utcnow()
+                fecha_venta = datetime.strptime(fecha_str, "%Y-%m-%d") if fecha_str else now_uy()
             except ValueError:
-                fecha_venta = datetime.utcnow()
+                fecha_venta = now_uy()
             discs = Disc.query.filter(Disc.id.in_(ids)).all() if ids else []
             if not discs:
                 flash("Elegí al menos un disco para cargar la venta.", "warning")
@@ -3071,7 +3092,7 @@ def register_routes(app: Flask) -> None:
         return render_template(
             "admin_venta_cargar.html",
             discos=disponibles,
-            hoy=datetime.utcnow().date().strftime("%Y-%m-%d"),
+            hoy=today_uy().strftime("%Y-%m-%d"),
         )
 
     @app.route("/admin/contabilidad")
@@ -3148,9 +3169,9 @@ def register_routes(app: Flask) -> None:
         descripcion = (request.form.get("descripcion") or "").strip()
         fecha_str = request.form.get("fecha") or ""
         try:
-            fecha = _dt.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else _dt.utcnow().date()
+            fecha = _dt.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else today_uy()
         except ValueError:
-            fecha = _dt.utcnow().date()
+            fecha = today_uy()
 
         if monto <= 0:
             flash("El monto debe ser mayor a 0.", "error")
@@ -3244,7 +3265,7 @@ def register_routes(app: Flask) -> None:
         Evita duplicar: no genera si ya hay un egreso de esa categoria+descripcion este mes."""
         from models import Egreso, EgresoRecurrente
         from datetime import datetime as _dt, date
-        hoy = date.today()
+        hoy = today_uy()
         inicio = date(hoy.year, hoy.month, 1)
         recurrentes = EgresoRecurrente.query.filter_by(activo=True).all()
         creados = 0
@@ -3283,6 +3304,7 @@ def register_routes(app: Flask) -> None:
         periodo = request.args.get("periodo", "mes_actual")
         desde = request.args.get("desde")
         hasta = request.args.get("hasta")
+        _sincronizar_caja()    # que la caja del informe coincida con la pantalla
         _rc = _resumen_caja()  # mismo numero que la pantalla de Caja
         buf = informe_excel.generar_excel(
             periodo, desde, hasta,
@@ -3302,6 +3324,7 @@ def register_routes(app: Flask) -> None:
         periodo = request.args.get("periodo", "mes_actual")
         desde = request.args.get("desde") or None
         hasta = request.args.get("hasta") or None
+        _sincronizar_caja()    # que la caja del informe coincida con la pantalla
         _rc = _resumen_caja()  # mismo numero que la pantalla de Caja
         buf = informe.generar_informe_pdf(
             periodo, desde, hasta,
@@ -3323,6 +3346,7 @@ def register_routes(app: Flask) -> None:
         periodo = request.args.get("periodo", "mes_actual")
         desde = request.args.get("desde") or None
         hasta = request.args.get("hasta") or None
+        _sincronizar_caja()         # que la caja del informe coincida con la pantalla
         resumen = _resumen_caja()  # foto de la caja a hoy
         buf = informe_ejecutivo.generar_pdf_ejecutivo(periodo, desde, hasta, resumen)
         stamp = datetime.utcnow().strftime("%Y%m%d")
@@ -3447,7 +3471,7 @@ def register_routes(app: Flask) -> None:
             if p.proveedor:
                 concepto += f" ({p.proveedor})"
             concepto = concepto[:300]
-            fecha = p.fecha or (p.creado.date() if p.creado else _dt.utcnow().date())
+            fecha = p.fecha or (p.creado.date() if p.creado else today_uy())
             monto = round(p.costo_total_uyu or 0, 2)
             mov = existentes.get(key)
             if mov is None:
@@ -3601,7 +3625,7 @@ def register_routes(app: Flask) -> None:
         # adelanto) y lo que MP ya pago (adelantos saldados). Cuando adelantaste todo,
         # queda 0: no hay nada de MP que no tengas ya en el banco.
         from datetime import datetime as _dt2, timedelta as _td
-        limite_mp = _dt2.utcnow().date() - _td(days=30)
+        limite_mp = today_uy() - _td(days=30)
         mp_bruto = sum(
             (m.monto_uyu or 0) for m in movs
             if m.tipo == "ingreso" and not m.es_aporte
@@ -3768,7 +3792,7 @@ def register_routes(app: Flask) -> None:
             origen_fijos=origen_fijos,
             origen_propias=origen_propias,
             labels_map=labels_map,
-            hoy=_dt.utcnow().date().isoformat(),
+            hoy=today_uy().isoformat(),
         )
 
     @app.route("/admin/caja/origen-fijo", methods=["POST"])
@@ -3884,9 +3908,9 @@ def register_routes(app: Flask) -> None:
         categoria = (request.form.get("categoria") or "").strip() or None
         fecha_str = request.form.get("fecha") or ""
         try:
-            fecha = _dt.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else _dt.utcnow().date()
+            fecha = _dt.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else today_uy()
         except ValueError:
-            fecha = _dt.utcnow().date()
+            fecha = today_uy()
         # Aporte de capital: solo aplica a ingresos
         es_aporte = bool(request.form.get("es_aporte")) and tipo == "ingreso"
         if monto <= 0:
@@ -4085,7 +4109,7 @@ def register_routes(app: Flask) -> None:
             flash("No hay nada nuevo para adelantar de Mercado Pago.", "warning")
             return redirect(url_for("caja"))
         mov = MovimientoCaja(
-            fecha=_dt.utcnow().date(), tipo="ingreso", monto_uyu=monto,
+            fecha=today_uy(), tipo="ingreso", monto_uyu=monto,
             concepto="Adelanto de Mercado Pago (tu plata; lo recuperás cuando MP pague)",
             metodo=None, categoria=None, es_aporte=True, adelanto_mp="pendiente",
             origen="manual", origen_id=None,
@@ -4142,7 +4166,7 @@ def register_routes(app: Flask) -> None:
         tipo = "ingreso" if diff > 0 else "egreso"
         monto = abs(diff)
         mov = MovimientoCaja(
-            fecha=_dt.utcnow().date(), tipo=tipo, monto_uyu=monto,
+            fecha=today_uy(), tipo=tipo, monto_uyu=monto,
             concepto="Ajuste de caja (cuadre a saldo real del banco)",
             metodo=None, categoria=None, es_aporte=False,
             origen="manual", origen_id=None,
@@ -4205,9 +4229,9 @@ def register_routes(app: Flask) -> None:
             costo_usd = 0
         fecha_str = request.form.get("fecha") or ""
         try:
-            fecha = _dt.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else _dt.utcnow().date()
+            fecha = _dt.strptime(fecha_str, "%Y-%m-%d").date() if fecha_str else today_uy()
         except ValueError:
-            fecha = _dt.utcnow().date()
+            fecha = today_uy()
         notas = (request.form.get("notas") or "").strip()
 
         def _opt_float(name):
@@ -4251,6 +4275,9 @@ def register_routes(app: Flask) -> None:
             ped.costo_uyu_manual = None
             db.session.commit()
             flash("Costo del pedido: vuelve al calculo automatico.", "success")
+        elif not any(c.isdigit() for c in raw):
+            # Texto sin ningun numero ("abc", pegado mal): NO guardar 0, rechazar.
+            flash("Monto invalido.", "error")
         else:
             val = _parse_monto_caja(raw)  # es-UY: puntos=miles, coma=decimal
             if val < 0:
@@ -4301,9 +4328,10 @@ def register_routes(app: Flask) -> None:
         raw = (request.form.get("costo_uyu_manual") or "").strip()
         if raw == "":
             ped.costo_uyu_manual = None
-        else:
+        elif any(c.isdigit() for c in raw):
             v = _parse_monto_caja(raw)
             ped.costo_uyu_manual = v if v >= 0 else None
+        # texto sin numeros: se ignora (no pisa el costo con 0)
 
         # Costos informativos (envio y servicio de la web, en EUR): no entran en ningun
         # calculo, solo se guardan. Vacio => None.
@@ -6152,15 +6180,17 @@ def register_routes(app: Flask) -> None:
                         nuevo_cliente.set_password(password_cuenta)
                         db.session.add(nuevo_cliente)
                         db.session.flush()
-                        # Adoptar esta reserva + otras anonimas con el mismo WhatsApp
+                        # Adoptar esta reserva + otras anonimas con el MISMO EMAIL de la
+                        # cuenta (no por WhatsApp: el numero se puede conocer sin ser el
+                        # dueno y permitia ver reservas ajenas). Comparacion sin distinguir
+                        # mayusculas para no perder las que se guardaron con otra caja.
                         reserva.cliente_id = nuevo_cliente.id
-                        if whatsapp:
-                            previas = Reserva.query.filter(
-                                Reserva.cliente_id.is_(None),
-                                Reserva.whatsapp == whatsapp,
-                            ).all()
-                            for r in previas:
-                                r.cliente_id = nuevo_cliente.id
+                        previas = Reserva.query.filter(
+                            Reserva.cliente_id.is_(None),
+                            db.func.lower(Reserva.email) == (email_norm or "").lower(),
+                        ).all()
+                        for r in previas:
+                            r.cliente_id = nuevo_cliente.id
                         db.session.commit()
                         auth.cliente_login(nuevo_cliente.id)
                         flash(f"Te creamos una cuenta, {nuevo_cliente.nombre}. Vas a poder seguir tus pedidos.", "success")

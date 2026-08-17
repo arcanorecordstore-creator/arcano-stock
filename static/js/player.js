@@ -81,7 +81,7 @@
         if (escucharTodoTimer) { clearTimeout(escucharTodoTimer); escucharTodoTimer = null; }
         if (playCountTimer) { clearTimeout(playCountTimer); playCountTimer = null; }
         if (engine) { try { engine.destroy(); } catch (e) {} engine = null; }
-        try { fpAudio.pause(); fpAudio.onended = null; fpAudio.ontimeupdate = null; fpAudio.onplay = null; fpAudio.onpause = null; fpAudio.removeAttribute('src'); fpAudio.load(); } catch (e) {}
+        try { fpAudio.pause(); fpAudio.onended = null; fpAudio.onerror = null; fpAudio.ontimeupdate = null; fpAudio.onplay = null; fpAudio.onpause = null; fpAudio.removeAttribute('src'); fpAudio.load(); } catch (e) {}
         fpSlot.innerHTML = '';
         if (fpFallback) fpFallback.hidden = true;
     }
@@ -90,6 +90,7 @@
         fpAudio.src = t.audioUrl; fpAudio.volume = volumen;
         fpAudio.ontimeupdate = function () { setProgress(fpAudio.currentTime, fpAudio.duration || 0); };
         fpAudio.onended = onEnded;
+        fpAudio.onerror = onEnded;  // sample roto (404, formato) -> saltar al siguiente en vez de colgar
         fpAudio.onplay = function () { setPlayingUI(true); };
         fpAudio.onpause = function () { setPlayingUI(false); };
         fpAudio.play().catch(function () {});
@@ -97,7 +98,7 @@
             toggle: function () { if (fpAudio.paused) fpAudio.play().catch(function () {}); else fpAudio.pause(); },
             seekPct: function (p) { if (fpAudio.duration) fpAudio.currentTime = p * fpAudio.duration; },
             setVolume: function (v) { fpAudio.volume = v; },
-            destroy: function () { fpAudio.onended = null; fpAudio.ontimeupdate = null; fpAudio.onplay = null; fpAudio.onpause = null; }
+            destroy: function () { fpAudio.onended = null; fpAudio.onerror = null; fpAudio.ontimeupdate = null; fpAudio.onplay = null; fpAudio.onpause = null; }
         };
     }
 
@@ -123,6 +124,7 @@
                 setProgress((e.currentPosition || 0) / 1000, dur);
             });
             w.bind(SC.Widget.Events.FINISH, onEnded);
+            try { w.bind(SC.Widget.Events.ERROR, onEnded); } catch (e) {}  // track roto -> saltar
         }
         return {
             toggle: function () { if (w) w.toggle(); },
@@ -152,7 +154,9 @@
                         if (ev.data === YT.PlayerState.PLAYING) setPlayingUI(true);
                         else if (ev.data === YT.PlayerState.PAUSED) setPlayingUI(false);
                         else if (ev.data === YT.PlayerState.ENDED) onEnded();
-                    }
+                    },
+                    // Video con embed deshabilitado / borrado / bloqueado (101, 150, 100, 2, 5)
+                    onError: function () { onEnded(); }
                 }
             });
         });

@@ -50,7 +50,15 @@ def kpis_de_discos(discs) -> dict:
     facturado, ganancia, margen % y ticket promedio ($/venta)."""
     unidades = sum(d.copias_facturadas for d in discs)
     facturado = sum((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in discs)
-    ganancia = sum((d.ganancia_uyu or 0) * d.copias_facturadas for d in discs)
+
+    # Ganancia con el MISMO criterio que Contabilidad: el costo de los discos de tu
+    # coleccion personal es 0 (no le costaron al negocio). Antes usaba d.ganancia_uyu,
+    # que resta el costo tambien a los personales -> no coincidia con Contabilidad.
+    def _gan(d):
+        precio = (d.precio_mostrar or d.precio_uyu or 0)
+        costo = 0 if (d.origen or "arcano") == "personal" else (d.costo_final_uyu or 0)
+        return precio - costo
+    ganancia = sum(_gan(d) * d.copias_facturadas for d in discs)
     ventas = contar_ventas(discs)
     return {
         "ventas": ventas,

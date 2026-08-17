@@ -167,9 +167,12 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None,
         signo = "subio" if comp["mejoro"] else "bajo"
         E.append(Paragraph("La ganancia real %s <b>%s%%</b> vs el periodo anterior (antes %s)."
                            % (signo, abs(comp["var_ganancia_pct"]), _money(comp["ganancia_real_ant"])), body))
-    E.append(Paragraph("Se vendieron <b>%d unidades</b> (%d titulos) en el periodo. La ganancia real descuenta el costo "
-                       "de los discos de Arcano (vendidos y en stock) y los gastos operativos."
-                       % (conta["unidades_vendidas"], conta["titulos_vendidos"]), small))
+    _stock_txt = ("La ganancia real descuenta el costo de los discos de Arcano (vendidos y en stock) y los gastos operativos."
+                  if conta.get("stock_en_ganancia")
+                  else "La ganancia real es el resultado operativo del periodo (ventas menos costo de lo vendido de Arcano menos gastos); "
+                       "el stock no vendido NO se resta en periodos pasados (es una foto de hoy).")
+    E.append(Paragraph("Se vendieron <b>%d unidades</b> (%d titulos) en el periodo. %s"
+                       % (conta["unidades_vendidas"], conta["titulos_vendidos"], _stock_txt), small))
 
     # Desglose por origen (Arcano vs coleccion personal)
     E.append(mrow([("Ingresos de Arcano", _money(conta["ingresos_arcano_uyu"])),
