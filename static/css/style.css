@@ -4001,19 +4001,57 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
 }
 
 .reserva-card {
-    display: block;
-    text-decoration: none;
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
     color: inherit;
     background-color: var(--bg-1);
     border: 1px solid var(--border-1);
     border-radius: 8px;
-    padding: 16px 20px;
     transition: border-color 0.15s;
 }
 
 .reserva-card:hover {
     border-color: var(--border-3);
 }
+
+.reserva-card-link {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    padding: 16px 20px;
+}
+
+.reserva-entrega-col {
+    flex-shrink: 0;
+    display: flex;
+    border-right: 1px solid var(--border-1);
+}
+.entrega-toggle {
+    width: 118px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 8px 6px;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+    text-align: center;
+    transition: background 0.12s;
+}
+.entrega-toggle .entrega-ico { font-size: 17px; line-height: 1; }
+.entrega-toggle.on { background: rgba(16, 185, 129, 0.12); color: #10b981; }
+.entrega-toggle.off { background: rgba(245, 158, 11, 0.12); color: #b7791f; }
+.entrega-toggle:hover { filter: brightness(0.96); }
+.badge-pagada { background-color: #10b981; color: #fff; border-color: #10b981; }
 
 .reserva-card.reserva-pending {
     border-left: 3px solid var(--status-reservado-border);

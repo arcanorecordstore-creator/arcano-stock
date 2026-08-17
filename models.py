@@ -765,6 +765,8 @@ class Reserva(db.Model):
     envio_costo_uyu = db.Column(db.Float, nullable=False, default=0.0)
     envio_direccion = db.Column(db.String(400), nullable=True)   # Mvd: direccion; Interior: direccion/localidad
     envio_agencia = db.Column(db.String(200), nullable=True)     # solo interior
+    # Estado de la ENTREGA fisica (aparte del pago): el cliente ya recibio el disco?
+    entregado = db.Column(db.Boolean, nullable=False, default=False)
 
     # Relacion (puede ser null si el disco se borro)
     disc = db.relationship("Disc", backref="reservas", foreign_keys=[disc_id])
@@ -1285,20 +1287,6 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE movimientos_caja ADD COLUMN origen_categoria VARCHAR(60)"))
                     conn.commit()
                 print("Migracion: columna origen_categoria agregada a movimientos_caja")
-            # Adelanto de MP ahora es un PUENTE (no cuenta en el saldo). Los retiros
-            # que saldaban adelantos viejos se etiquetan para excluirlos tambien, asi
-            # los adelantos ya cerrados no bajan el saldo. Idempotente.
-            try:
-                with db.engine.connect() as conn:
-                    conn.execute(text(
-                        "UPDATE movimientos_caja SET adelanto_mp='retiro' "
-                        "WHERE (adelanto_mp IS NULL OR adelanto_mp='') "
-                        "AND concepto LIKE 'Retiro: MP liber%adelanto%'"
-                    ))
-                    conn.commit()
-            except Exception:
-                pass
-
         # Campos de pago Mercado Pago en la tabla reservas
         if inspector.has_table("reservas"):
             _rcols = [c["name"] for c in inspector.get_columns("reservas")]
@@ -1314,6 +1302,7 @@ def _migrate_schema(app):
                 "envio_costo_uyu": "FLOAT DEFAULT 0",
                 "envio_direccion": "VARCHAR(400)",
                 "envio_agencia": "VARCHAR(200)",
+                "entregado": "BOOLEAN DEFAULT 0",
             }
             for _col, _ddl in _radds.items():
                 if _col not in _rcols:
