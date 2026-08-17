@@ -3198,18 +3198,23 @@ def register_routes(app: Flask) -> None:
         except (ValueError, TypeError):
             saldo_inicial = 0.0
 
-        total_ingresos = sum(m.monto_uyu or 0 for m in movs if m.tipo == "ingreso")
-        total_egresos = sum(m.monto_uyu or 0 for m in movs if m.tipo == "egreso")
+        # Los adelantos de MP (y los retiros que saldaban adelantos viejos) son un
+        # PUENTE de liquidez, no plata del negocio: NO cuentan en el saldo ni en la
+        # lista de movimientos. Se muestran aparte (recordatorio de adelantos).
+        movs_dinero = [m for m in movs if not (m.adelanto_mp or "")]
+
+        total_ingresos = sum(m.monto_uyu or 0 for m in movs_dinero if m.tipo == "ingreso")
+        total_egresos = sum(m.monto_uyu or 0 for m in movs_dinero if m.tipo == "egreso")
         saldo_actual = saldo_inicial + total_ingresos - total_egresos
 
         # Capital aportado por Facundo (plata propia, no es facturacion)
-        total_aportes = sum(m.monto_uyu or 0 for m in movs if m.tipo == "ingreso" and m.es_aporte)
+        total_aportes = sum(m.monto_uyu or 0 for m in movs_dinero if m.tipo == "ingreso" and m.es_aporte)
         # Ventas cobradas = ingresos que NO son aporte de capital
         total_ventas = total_ingresos - total_aportes
 
         # Ventas cobradas agrupadas por metodo (excluye aportes de capital)
         por_metodo = {"mercadopago": 0.0, "transferencia": 0.0, "efectivo": 0.0, "otro": 0.0, "sin": 0.0}
-        for m in movs:
+        for m in movs_dinero:
             if m.tipo != "ingreso" or m.es_aporte:
                 continue
             k = m.metodo if m.metodo in ("mercadopago", "transferencia", "efectivo", "otro") else "sin"
@@ -3221,19 +3226,19 @@ def register_routes(app: Flask) -> None:
         from datetime import datetime as _dt2, timedelta as _td
         limite_mp = _dt2.utcnow().date() - _td(days=30)
         mp_pendiente = sum(
-            (m.monto_uyu or 0) for m in movs
+            (m.monto_uyu or 0) for m in movs_dinero
             if m.tipo == "ingreso" and not m.es_aporte
             and m.metodo == "mercadopago" and m.fecha and m.fecha > limite_mp
         )
-        # Plata que ya podes tocar (todo menos lo retenido en MP)
-        disponible = saldo_actual - mp_pendiente
 
-        # Adelantos de MP: aportes que Facundo hizo para tener la liquidez de MP
-        # antes de que MP pague. Los 'pendiente' todavia esperan el pago de MP.
+        # Adelantos de MP: tu plata puesta para tener liquidez antes de que MP pague.
+        # Es un puente: NO suma al saldo, pero el efectivo que pusiste SI esta disponible.
         adelantos_pendientes = [m for m in movs if (m.adelanto_mp or "") == "pendiente"]
         adelanto_pendiente_total = sum(m.monto_uyu or 0 for m in adelantos_pendientes)
         # Lo que hay en MP y todavia no adelantaste (para no adelantar dos veces)
         por_adelantar = max(0.0, mp_pendiente - adelanto_pendiente_total)
+        # Plata que ya podes tocar: saldo real - retenido en MP + lo que ya adelantaste.
+        disponible = saldo_actual - mp_pendiente + adelanto_pendiente_total
 
         # Origen del disco (arcano / personal) de cada movimiento de venta
         from models import Disc
@@ -3259,10 +3264,11 @@ def register_routes(app: Flask) -> None:
         mercaderia_uyu = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in mercaderia_discos)
         mercaderia_count = len(mercaderia_discos)
 
-        # Saldo corriente sobre TODOS los movimientos (cronologico)
+        # Saldo corriente sobre los movimientos de PLATA (los adelantos de MP son
+        # un puente y no entran ni en la lista ni en el saldo corriente).
         saldo = saldo_inicial
         filas = []
-        for m in movs:
+        for m in movs_dinero:
             saldo += (m.monto_uyu or 0) * (1 if m.tipo == "ingreso" else -1)
             dorigen = disc_origen.get(m.origen_id) if m.origen == "venta" else None
             filas.append({"mov": m, "saldo": round(saldo, 2), "disc_origen": dorigen})
@@ -3699,25 +3705,18 @@ def register_routes(app: Flask) -> None:
     @app.route("/admin/caja/movimiento/<int:mov_id>/saldar-adelanto", methods=["POST"])
     @auth.admin_required
     def caja_saldar_adelanto(mov_id):
-        """MP ya libero el dinero del adelanto: crea el retiro (Facundo recupera su
-        plata a lo personal) y marca el adelanto como saldado."""
+        """MP ya libero el dinero del adelanto: como el adelanto es un PUENTE que no
+        cuenta en el saldo, saldarlo solo lo marca como cerrado (no hace falta
+        registrar un retiro; recuperas tu plata y la caja ya mostraba el numero real)."""
         from models import MovimientoCaja
-        from datetime import datetime as _dt
         m = MovimientoCaja.query.get_or_404(mov_id)
         if (m.adelanto_mp or "") != "pendiente":
             flash("Ese adelanto ya estaba saldado.", "warning")
             return redirect(url_for("caja"))
         monto = round(m.monto_uyu or 0, 2)
-        retiro = MovimientoCaja(
-            fecha=_dt.utcnow().date(), tipo="egreso", monto_uyu=monto,
-            concepto="Retiro: MP liberó el adelanto (recuperás tu plata)",
-            metodo=None, categoria="Retiro", es_aporte=False,
-            origen="manual", origen_id=None,
-        )
-        db.session.add(retiro)
         m.adelanto_mp = "saldado"
         db.session.commit()
-        flash(f"Registrado el retiro de ${monto:,.0f}. Tu adelanto quedó saldado.", "success")
+        flash(f"Listo, tu adelanto de ${monto:,.0f} quedó cerrado. Recuperaste tu plata; el saldo ya mostraba el número real.", "success")
         return redirect(url_for("caja"))
 
     @app.route("/admin/caja/saldo-inicial", methods=["POST"])

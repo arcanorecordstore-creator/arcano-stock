@@ -7192,6 +7192,7 @@ td.num,
 
 /* Barra de anuncio (envio gratis, etc.) arriba de toda la web */
 .public-anuncio-bar {
+    display: block;
     background: var(--accent, #10b981);
     color: #fff;
     text-align: center;
@@ -7199,7 +7200,11 @@ td.num,
     font-weight: 600;
     padding: 8px 16px;
     letter-spacing: 0.3px;
+    text-decoration: none;
+    cursor: pointer;
+    transition: filter 0.12s;
 }
+.public-anuncio-bar:hover { filter: brightness(1.06); }
 
 /* =========================================================================
    ADMIN RESPONSIVE — adaptacion para celular (<= 768px)

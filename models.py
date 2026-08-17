@@ -1275,6 +1275,19 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE movimientos_caja ADD COLUMN origen_categoria VARCHAR(60)"))
                     conn.commit()
                 print("Migracion: columna origen_categoria agregada a movimientos_caja")
+            # Adelanto de MP ahora es un PUENTE (no cuenta en el saldo). Los retiros
+            # que saldaban adelantos viejos se etiquetan para excluirlos tambien, asi
+            # los adelantos ya cerrados no bajan el saldo. Idempotente.
+            try:
+                with db.engine.connect() as conn:
+                    conn.execute(text(
+                        "UPDATE movimientos_caja SET adelanto_mp='retiro' "
+                        "WHERE (adelanto_mp IS NULL OR adelanto_mp='') "
+                        "AND concepto LIKE 'Retiro: MP liber%adelanto%'"
+                    ))
+                    conn.commit()
+            except Exception:
+                pass
 
         # Campos de pago Mercado Pago en la tabla reservas
         if inspector.has_table("reservas"):

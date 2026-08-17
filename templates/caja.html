@@ -83,12 +83,12 @@
                 <span class="caja-adelanto-fecha">Adelantado el {{ a.fecha.strftime('%d/%m/%y') if a.fecha else '—' }}</span>
             </div>
             <form method="post" action="{{ url_for('caja_saldar_adelanto', mov_id=a.id) }}">
-                <button type="submit" class="btn btn-ghost btn-sm">MP ya me pagó &rarr; retirar</button>
+                <button type="submit" class="btn btn-ghost btn-sm">MP ya me pagó &rarr; cerrar</button>
             </form>
         </div>
         {% endfor %}
     </div>
-    <p class="caja-hint">Cuando MP te deposite un adelanto, tocá «MP ya me pagó»: registra el retiro (recuperás tu plata) y deja la caja en el número real.</p>
+    <p class="caja-hint">El adelanto es tu plata puesta como puente: <strong>no suma al saldo</strong>, solo te da liquidez disponible. Cuando MP te deposite, tocá «MP ya me pagó» y el adelanto se cierra (recuperás tu plata; el saldo ya mostraba el número real).</p>
 </section>
 {% endif %}
 

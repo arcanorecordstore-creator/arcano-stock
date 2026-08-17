@@ -55,7 +55,7 @@
 <body class="public-body" data-logged-in="{% if cliente_actual %}1{% else %}0{% endif %}">
 
 {% if anuncio_texto %}
-<div class="public-anuncio-bar">{{ anuncio_texto }}</div>
+<a href="{{ url_for('home') }}" class="public-anuncio-bar" aria-label="Ir al catalogo">{{ anuncio_texto }}</a>
 {% endif %}
 
 <header class="public-topbar">
