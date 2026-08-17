@@ -84,12 +84,14 @@ MARGIN = 16 * mm
 CONTENT_W = PAGE_W - 2 * MARGIN   # ~178mm
 
 _styles = getSampleStyleSheet()
-H1    = ParagraphStyle("eH1", parent=_styles["Title"], fontName=FONT_B, fontSize=26, leading=28, textColor=INK, spaceAfter=0)
-LEAD  = ParagraphStyle("eLead", parent=_styles["Normal"], fontName=FONT, fontSize=11, leading=16, textColor=INK2)
-BODY  = ParagraphStyle("eBody", parent=_styles["Normal"], fontName=FONT, fontSize=9.5, leading=14, textColor=colors.HexColor("#1a1a1a"))
-SMALL = ParagraphStyle("eSmall", parent=_styles["Normal"], fontName=FONT, fontSize=8, leading=11.5, textColor=GREY)
-CARDL = ParagraphStyle("eCardL", parent=_styles["Normal"], fontName=FONT, fontSize=9, leading=12.5)
-NUMST = ParagraphStyle("eNum", parent=CARDL, alignment=1)  # 1 = centrado
+# autoLeading='max': cada renglon toma el interlineado del texto MAS GRANDE que tiene
+# (asi el numero grande de las tarjetas KPI no queda pegado a la etiqueta y al subtexto).
+H1    = ParagraphStyle("eH1", parent=_styles["Title"], fontName=FONT_B, fontSize=26, leading=31, textColor=INK, spaceAfter=0)
+LEAD  = ParagraphStyle("eLead", parent=_styles["Normal"], fontName=FONT, fontSize=11, leading=18, textColor=INK2)
+BODY  = ParagraphStyle("eBody", parent=_styles["Normal"], fontName=FONT, fontSize=9.5, leading=16, textColor=colors.HexColor("#1a1a1a"))
+SMALL = ParagraphStyle("eSmall", parent=_styles["Normal"], fontName=FONT, fontSize=8, leading=13, textColor=GREY)
+CARDL = ParagraphStyle("eCardL", parent=_styles["Normal"], fontName=FONT, fontSize=9, leading=14, autoLeading="max")
+NUMST = ParagraphStyle("eNum", parent=CARDL, alignment=1, autoLeading="off")  # 1 = centrado
 
 
 # ---------------------------------------------------------------------------
@@ -217,7 +219,7 @@ def dtable(header, rows, widths, aligns=None, color_map=None, zebra=True, fs=8.5
         ("FONT", (0, 0), (-1, 0), FONT_B, fs), ("BACKGROUND", (0, 0), (-1, 0), INK),
         ("TEXTCOLOR", (0, 0), (-1, 0), PAPER), ("FONT", (0, 1), (-1, -1), FONT, fs),
         ("TEXTCOLOR", (0, 1), (-1, -1), colors.HexColor("#1f1f1f")),
-        ("TOPPADDING", (0, 0), (-1, -1), 4.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 4.5),
+        ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
         ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
         ("LINEBELOW", (0, 0), (-1, -1), 0.4, LINE), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
     ]
@@ -583,7 +585,7 @@ def generar_pdf_ejecutivo(periodo="mes_actual", desde=None, hasta=None, resumen_
         # aclarar etiquetas: mostrar 1 de cada N para que no se amontonen
         step = max(1, len(tr) // 12)
         labels = [(dd.strftime("%d/%m") if i % step == 0 else "") for i, (dd, _) in enumerate(tr)]
-        E.append(bar_chart(labels, [[m for _, m in tr]], [GREEN], height=44 * mm))
+        E.append(bar_chart(labels, [[m for _, m in tr]], [GREEN], height=40 * mm))
         E.append(Spacer(1, 10))
 
     # Canal + metodo, lado a lado
@@ -607,8 +609,8 @@ def generar_pdf_ejecutivo(periodo="mes_actual", desde=None, hasta=None, resumen_
 
     # Top sellos / artistas
     if ventas["top_sellos"]:
-        ts = [[s["nombre"][:30], _n(s["u"]), _m(s["monto"])] for s in ventas["top_sellos"]]
-        ta = [[a["nombre"][:30], _n(a["u"]), _m(a["monto"])] for a in ventas["top_artistas"]]
+        ts = [[s["nombre"][:30], _n(s["u"]), _m(s["monto"])] for s in ventas["top_sellos"][:4]]
+        ta = [[a["nombre"][:30], _n(a["u"]), _m(a["monto"])] for a in ventas["top_artistas"][:4]]
         tsT = dtable(["Sello mas vendido", "Disc.", "Monto"], ts, [40 * mm, 14 * mm, 26 * mm],
                      aligns={1: "CENTER", 2: "RIGHT"})
         taT = dtable(["Artista mas vendido", "Disc.", "Monto"], ta, [40 * mm, 14 * mm, 26 * mm],
@@ -621,7 +623,7 @@ def generar_pdf_ejecutivo(periodo="mes_actual", desde=None, hasta=None, resumen_
 
     # Ultimas ventas (envuelto en KeepTogether para no dejar filas huerfanas)
     uv = [sub_h("Ultimas ventas del periodo"), Spacer(1, 4)]
-    vd = ventas["vendidos"][:8]
+    vd = ventas["vendidos"][:6]
     if vd:
         rows = []
         canal_lbl = dict(_CANALES)
@@ -676,7 +678,7 @@ def generar_pdf_ejecutivo(periodo="mes_actual", desde=None, hasta=None, resumen_
         E.append(Spacer(1, 4))
         labels = [m["label"] for m in seis_m]
         E.append(bar_chart(labels, [[round(m["ingresos_uyu"]) for m in seis_m],
-                                     [round(m["egresos_uyu"]) for m in seis_m]], [GREEN, RED], height=46 * mm))
+                                     [round(m["egresos_uyu"]) for m in seis_m]], [GREEN, RED], height=42 * mm))
         E.append(legend([(GREEN, "Ingresos"), (RED, "Egresos (con pedidos)")]))
         E.append(Spacer(1, 10))
 
@@ -732,7 +734,7 @@ def generar_pdf_ejecutivo(periodo="mes_actual", desde=None, hasta=None, resumen_
         E.append(Spacer(1, 12))
 
     # Ultimos movimientos
-    filas = (rc.get("filas") or [])[:14]
+    filas = (rc.get("filas") or [])[:10]
     if filas:
         E.append(sub_h("Ultimos movimientos"))
         E.append(Spacer(1, 4))
@@ -809,7 +811,7 @@ def generar_pdf_ejecutivo(periodo="mes_actual", desde=None, hasta=None, resumen_
         E.append(sub_h("Disponibles con mas interes (accionables)"))
         E.append(Spacer(1, 4))
         rows = []
-        for f in radar["disponibles"][:10]:
+        for f in radar["disponibles"][:8]:
             d = f["disc"]
             nombre = ("%s - %s" % (d.artista or "", d.titulo or ""))[:32]
             rows.append([nombre, (d.sello or "-")[:16], _n(f["plays"]), _n(f["dias"]),
@@ -823,7 +825,7 @@ def generar_pdf_ejecutivo(periodo="mes_actual", desde=None, hasta=None, resumen_
         E.append(sub_h("Vendidos con mas interes (te dieron la razon)"))
         E.append(Spacer(1, 4))
         rows = []
-        for f in radar["vendidos"][:8]:
+        for f in radar["vendidos"][:6]:
             d = f["disc"]
             nombre = ("%s - %s" % (d.artista or "", d.titulo or ""))[:40]
             rows.append([nombre, (d.sello or "-")[:16], _n(f["plays"]), "%.2f" % f["interes"]])
