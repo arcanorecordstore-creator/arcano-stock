@@ -26,6 +26,20 @@
         {% if resumen.adelanto_pendiente_total > 0 %}
         <span class="caja-hero-sub">Esto es lo que ten&eacute;s <strong>en el banco</strong> (ya incluye los <strong>$ {{ fmt_uyu(resumen.adelanto_pendiente_total) }}</strong> que adelantaste de tu plata). Cuando MP te pague, recuper&aacute;s ese adelanto &mdash; abajo en &laquo;Adelantos a recuperar&raquo;.</span>
         {% endif %}
+        <details class="caja-cuadrar">
+            <summary>&#9878;&#65039; &iquest;Tu banco marca otra cosa? Cuadrar la caja</summary>
+            <form method="post" action="{{ url_for('caja_cuadrar') }}" class="caja-cuadrar-form">
+                <label class="caja-cuadrar-lbl">Escrib&iacute; el saldo REAL de tu banco:</label>
+                <div class="caja-cuadrar-row">
+                    <span class="caja-cuadrar-cur">$</span>
+                    <input type="number" name="objetivo" step="1" min="0" inputmode="numeric"
+                           placeholder="10328" class="caja-cuadrar-input" required
+                           title="Sin puntos: escrib&iacute; 10328, no 10.328">
+                    <button type="submit" class="btn btn-primary btn-sm">Cuadrar</button>
+                </div>
+                <span class="caja-field-hint">Crea un solo ajuste por la diferencia contra los $ {{ fmt_uyu(resumen.disponible) }} de ahora. Escrib&iacute; el n&uacute;mero sin puntos (ej: 10328).</span>
+            </form>
+        </details>
     </div>
     <div class="caja-hero-desglose">
         <div class="caja-chip caja-chip-editable" id="caja-si-chip" title="Click para editar el saldo inicial" data-raw="{{ '%.0f'|format(resumen.saldo_inicial) }}">

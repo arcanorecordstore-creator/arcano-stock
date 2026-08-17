@@ -4041,6 +4041,38 @@ def register_routes(app: Flask) -> None:
         flash("Saldo inicial actualizado.", "success")
         return redirect(url_for("caja"))
 
+    @app.route("/admin/caja/cuadrar", methods=["POST"])
+    @auth.admin_required
+    def caja_cuadrar():
+        """Cuadra la caja a un numero: Facundo escribe el saldo REAL de su banco y el
+        sistema crea UN solo ajuste manual por la diferencia, para que 'Plata en caja
+        ahora' quede exacta. Evita tener que hacer la resta a mano cada vez que la caja
+        se despega del banco (plata que entro y no se cargo, redondeos, etc.)."""
+        from models import MovimientoCaja
+        from datetime import datetime as _dt
+        objetivo = round(_parse_monto_caja(request.form.get("objetivo")), 2)
+        if objetivo < 0:
+            flash("El saldo del banco no puede ser negativo.", "error")
+            return redirect(url_for("caja"))
+        actual = _resumen_caja()["disponible"]  # el numero grande de arriba
+        diff = round(objetivo - actual, 2)
+        if abs(diff) < 1:
+            flash(f"La caja ya marca ${objetivo:,.0f}. No hace falta ningún ajuste.", "success")
+            return redirect(url_for("caja"))
+        tipo = "ingreso" if diff > 0 else "egreso"
+        monto = abs(diff)
+        mov = MovimientoCaja(
+            fecha=_dt.utcnow().date(), tipo=tipo, monto_uyu=monto,
+            concepto="Ajuste de caja (cuadre a saldo real del banco)",
+            metodo=None, categoria=None, es_aporte=False,
+            origen="manual", origen_id=None,
+        )
+        db.session.add(mov)
+        db.session.commit()
+        signo = "+" if tipo == "ingreso" else "−"
+        flash(f"Caja cuadrada a ${objetivo:,.0f}. Se creó un ajuste de {signo}${monto:,.0f} (podés verlo/borrarlo en la lista de abajo).", "success")
+        return redirect(url_for("caja"))
+
     # ---- PEDIDOS (compras de stock) ----
     @app.route("/admin/pedidos")
     @auth.admin_required
