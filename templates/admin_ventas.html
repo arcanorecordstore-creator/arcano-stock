@@ -28,26 +28,46 @@
             <span class="ventas-dia-meta">{{ g.discos|length }} disco{{ 's' if g.discos|length != 1 else '' }} &middot; $ {{ '{:,.0f}'.format(g.subtotal).replace(',', '.') }}</span>
         </div>
         {% for d in g.discos %}
-        <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="venta-row">
+        {% set met = d.metodo_pago_venta or metodo_por_disc.get(d.id) %}
+        {% set canal = d.canal_venta or ('web' if d.id in disc_ids_web else '') %}
+        <div class="venta-row">
             {% if d.cover_local %}
-            <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="" class="venta-cover" loading="lazy">
+            <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="venta-cover-link">
+                <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="" class="venta-cover" loading="lazy">
+            </a>
             {% else %}
             <div class="venta-cover venta-cover-empty">&#9834;</div>
             {% endif %}
-            <div class="venta-info">
+            <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="venta-info">
                 <div class="venta-title"><strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}</div>
                 <div class="venta-sub">
                     {% if d.sello %}{{ d.sello }}{% endif %}
                     {% if d.origen == 'personal' %}<span class="venta-origen-personal">coleccion personal</span>{% endif %}
                     {% if d.copias_facturadas > 1 %}<span class="venta-copias">&times;{{ d.copias_facturadas }}</span>{% endif %}
                 </div>
+            </a>
+            <div class="venta-canal">
+                <span class="venta-col-label">Canal</span>
+                <select class="venta-select" data-disc-id="{{ d.id }}" data-campo="canal_venta" aria-label="Canal de venta">
+                    <option value="" {% if not canal %}selected{% endif %}>&mdash;</option>
+                    <option value="web" {% if canal == 'web' %}selected{% endif %}>Web</option>
+                    <option value="instagram" {% if canal == 'instagram' %}selected{% endif %}>Instagram</option>
+                    <option value="presencial" {% if canal == 'presencial' %}selected{% endif %}>Presencial</option>
+                    <option value="otro" {% if canal == 'otro' %}selected{% endif %}>Otro</option>
+                </select>
             </div>
             <div class="venta-metodo">
-                {% set met = metodo_por_disc.get(d.id) %}
-                {% if met %}<span class="reserva-metodo-chip">{{ met }}</span>{% else %}<span class="venta-metodo-na" title="Venta cargada a mano (sin reserva web)">&mdash;</span>{% endif %}
+                <span class="venta-col-label">M&eacute;todo</span>
+                <select class="venta-select" data-disc-id="{{ d.id }}" data-campo="metodo_pago_venta" aria-label="Metodo de pago">
+                    <option value="" {% if not met %}selected{% endif %}>&mdash;</option>
+                    <option value="mercadopago" {% if met == 'mercadopago' %}selected{% endif %}>Mercado Pago</option>
+                    <option value="transferencia" {% if met == 'transferencia' %}selected{% endif %}>Transferencia</option>
+                    <option value="efectivo" {% if met == 'efectivo' %}selected{% endif %}>Efectivo</option>
+                    <option value="otro" {% if met == 'otro' %}selected{% endif %}>Otro</option>
+                </select>
             </div>
             <div class="venta-precio">$ {{ '{:,.0f}'.format(d.precio_mostrar or d.precio_uyu or 0).replace(',', '.') }}</div>
-        </a>
+        </div>
         {% endfor %}
     </div>
     {% endfor %}
@@ -59,5 +79,30 @@
     <p>Cuando marques un disco como Vendido va a aparecer aca, con la fecha del dia.</p>
 </div>
 {% endif %}
+
+<script>
+(function () {
+    document.querySelectorAll('.venta-select').forEach(function (sel) {
+        sel.addEventListener('change', function () {
+            var id = sel.getAttribute('data-disc-id');
+            var campo = sel.getAttribute('data-campo');
+            sel.classList.remove('saved', 'error');
+            fetch('/admin/discs/' + id + '/quick-update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ campo: campo, valor: sel.value })
+            }).then(function (r) { return r.json(); })
+              .then(function (data) {
+                  sel.classList.add(data && data.ok ? 'saved' : 'error');
+                  setTimeout(function () { sel.classList.remove('saved', 'error'); }, 1300);
+              }).catch(function () {
+                  sel.classList.add('error');
+                  setTimeout(function () { sel.classList.remove('error'); }, 1300);
+              });
+        });
+    });
+})();
+</script>
 
 {% endblock %}

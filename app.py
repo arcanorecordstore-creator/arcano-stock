@@ -2651,6 +2651,22 @@ def register_routes(app: Flask) -> None:
                 "margen_pct": round(disc.margen_pct or 0, 1),
             })
 
+        elif campo == "metodo_pago_venta":
+            nuevo = (valor or "").strip().lower()
+            if nuevo and nuevo not in ("mercadopago", "transferencia", "efectivo", "otro"):
+                return jsonify({"ok": False, "error": "Metodo invalido"}), 400
+            disc.metodo_pago_venta = nuevo or None
+            db.session.commit()
+            return jsonify({"ok": True, "campo": campo, "valor": disc.metodo_pago_venta or ""})
+
+        elif campo == "canal_venta":
+            nuevo = (valor or "").strip().lower()
+            if nuevo and nuevo not in ("web", "instagram", "presencial", "otro"):
+                return jsonify({"ok": False, "error": "Canal invalido"}), 400
+            disc.canal_venta = nuevo or None
+            db.session.commit()
+            return jsonify({"ok": True, "campo": campo, "valor": disc.canal_venta or ""})
+
         return jsonify({"ok": False, "error": "Campo no editable"}), 400
 
     # ----------------------------------------------------------------------
@@ -2713,20 +2729,22 @@ def register_routes(app: Flask) -> None:
             .order_by(Disc.fecha_venta.desc(), Disc.id.desc())
             .all()
         )
-        # Metodo de pago por disco, desde las reservas (mismo criterio que la caja).
+        # Metodo de pago inferido desde la reserva (valor canonico) + set de discos
+        # que vinieron de una reserva web (para inferir el canal 'web').
         metodo_por_disc = {}
+        disc_ids_web = set()
         try:
             for r in Reserva.query.all():
                 met = None
                 if r.pagado or (r.mp_status == "approved") or (r.metodo_pago == "mercadopago"):
-                    met = "Mercado Pago"
+                    met = "mercadopago"
                 elif r.metodo_pago == "transferencia":
-                    met = "Transferencia"
-                if not met:
-                    continue
+                    met = "transferencia"
                 for it in r.items_efectivos:
-                    if it.disc_id and it.disc_id not in metodo_por_disc:
-                        metodo_por_disc[it.disc_id] = met
+                    if it.disc_id:
+                        disc_ids_web.add(it.disc_id)
+                        if met and it.disc_id not in metodo_por_disc:
+                            metodo_por_disc[it.disc_id] = met
         except Exception:
             pass
         total_unidades = sum(d.copias_facturadas for d in vendidos)
@@ -2747,6 +2765,7 @@ def register_routes(app: Flask) -> None:
             "admin_ventas.html",
             grupos=grupos,
             metodo_por_disc=metodo_por_disc,
+            disc_ids_web=disc_ids_web,
             total_unidades=total_unidades,
             total_recaudado=round(total_recaudado, 2),
             hoy=datetime.utcnow().date(),
@@ -3051,7 +3070,9 @@ def register_routes(app: Flask) -> None:
             monto = round((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas, 2)
             concepto = (f"Venta: {d.artista or ''} - {d.titulo or ''}".strip(" -") or "Venta")[:300]
             fecha = d.fecha_venta.date() if hasattr(d.fecha_venta, "date") else d.fecha_venta
-            metodo = metodo_por_disc.get(d.id)
+            # El metodo de la venta lo manda el disco (editable en el panel de Ventas);
+            # si no esta seteado, se infiere de la reserva web.
+            metodo = d.metodo_pago_venta or metodo_por_disc.get(d.id)
             mov = existentes.get(key)
             if mov is None:
                 db.session.add(MovimientoCaja(
@@ -3060,16 +3081,19 @@ def register_routes(app: Flask) -> None:
                     categoria=None, origen="venta", origen_id=d.id,
                 ))
                 creados += 1
-            elif not mov.manual_override:
-                # El origen manda: si cambio el precio/fecha, actualizamos la caja.
-                if _difiere(mov.monto_uyu, monto) or mov.fecha != fecha or mov.tipo != "ingreso":
-                    mov.monto_uyu = monto
-                    mov.fecha = fecha
-                    mov.tipo = "ingreso"
-                    mov.concepto = concepto
-                    actualizados += 1
-                # El metodo lo puede definir Facundo; solo lo completamos si falta.
-                if metodo and not mov.metodo:
+            else:
+                if not mov.manual_override:
+                    # El origen manda: si cambio el precio/fecha, actualizamos la caja.
+                    if _difiere(mov.monto_uyu, monto) or mov.fecha != fecha or mov.tipo != "ingreso":
+                        mov.monto_uyu = monto
+                        mov.fecha = fecha
+                        mov.tipo = "ingreso"
+                        mov.concepto = concepto
+                        actualizados += 1
+                # El metodo de una venta lo manda SIEMPRE el disco (fuente unica),
+                # aun con manual_override: asi la caja y el panel de Ventas quedan
+                # sincronizados en ambos sentidos.
+                if metodo and mov.metodo != metodo:
                     mov.metodo = metodo
                     actualizados += 1
 
@@ -3598,7 +3622,15 @@ def register_routes(app: Flask) -> None:
             m.concepto = (str(valor or "").strip())[:300] or None
         elif campo == "metodo":
             v = str(valor or "").strip()
-            m.metodo = v if v in ("mercadopago", "transferencia", "efectivo", "otro") else None
+            v = v if v in ("mercadopago", "transferencia", "efectivo", "otro") else None
+            m.metodo = v
+            # Si el movimiento es una VENTA, el metodo es del disco (fuente unica):
+            # lo escribimos ahi para que el panel de Ventas muestre lo mismo.
+            if m.origen == "venta" and m.origen_id:
+                from models import Disc as _Disc
+                _d = _Disc.query.get(m.origen_id)
+                if _d:
+                    _d.metodo_pago_venta = v
         elif campo == "categoria":
             m.categoria = (str(valor or "").strip()) or None
         elif campo == "origen_categoria":
@@ -3612,7 +3644,9 @@ def register_routes(app: Flask) -> None:
         else:
             return jsonify({"ok": False, "error": "Campo desconocido"}), 400
         # Editar a mano un movimiento automatico lo "toma": deja de sincronizarse.
-        if not m.es_manual:
+        # EXCEPCION: cambiar el metodo de una venta NO lo congela, porque el metodo
+        # viaja por el disco (se sincroniza solo con el panel de Ventas).
+        if not m.es_manual and not (campo == "metodo" and m.origen == "venta"):
             m.manual_override = True
         db.session.commit()
         resumen = _resumen_caja()
@@ -4664,6 +4698,11 @@ def register_routes(app: Flask) -> None:
                 if not getattr(d, "copias_vendidas", 0):
                     d.copias_vendidas = 1
                 d.stock = max(0, (d.stock or 1) - 1)
+                # Venta web pagada por MP: registrar canal y metodo (editables luego)
+                if not d.canal_venta:
+                    d.canal_venta = "web"
+                if not d.metodo_pago_venta:
+                    d.metodo_pago_venta = "mercadopago"
         db.session.commit()
         # Email de confirmacion (best-effort): pago por Mercado Pago -> "gracias por tu compra"
         if reserva.email and mailer.can_send():
@@ -5834,6 +5873,15 @@ def register_routes(app: Flask) -> None:
                                     disco, estado_disco,
                                     nota=f"Reserva #{reserva.id} -> {nuevo}"
                                 )
+                                # Venta web: registrar canal y metodo (editables luego)
+                                if estado_disco == "Vendido":
+                                    if not disco.canal_venta:
+                                        disco.canal_venta = "web"
+                                    if not disco.metodo_pago_venta:
+                                        if reserva.pagado or reserva.metodo_pago == "mercadopago":
+                                            disco.metodo_pago_venta = "mercadopago"
+                                        elif reserva.metodo_pago == "transferencia":
+                                            disco.metodo_pago_venta = "transferencia"
                                 cambios += 1
                         if cambios:
                             db.session.commit()

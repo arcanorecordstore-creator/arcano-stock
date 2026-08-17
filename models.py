@@ -111,6 +111,12 @@ class Disc(db.Model):
     # Pedido/compra al que pertenece este disco (para trackear inversion)
     pedido_id = db.Column(db.Integer, db.ForeignKey("pedidos.id"), nullable=True)
 
+    # Datos de la VENTA (se completan al vender; editables desde el panel de Ventas)
+    # canal_venta: de donde vino la venta (web / instagram / presencial / otro)
+    canal_venta = db.Column(db.String(20), nullable=True)
+    # metodo_pago_venta: como pago el cliente (mercadopago / transferencia / efectivo / otro)
+    metodo_pago_venta = db.Column(db.String(20), nullable=True)
+
     # Orden manual para la tienda (drag-and-drop en el dashboard).
     # Mayor = aparece primero. Los discos nuevos reciben el mayor (arriba de todo).
     orden = db.Column(db.Integer, nullable=True, index=True)
@@ -1445,6 +1451,16 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN audio_estado VARCHAR(20)"))
                     conn.commit()
                 print("Migracion: columna audio_estado agregada a discs")
+            if "canal_venta" not in dcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN canal_venta VARCHAR(20)"))
+                    conn.commit()
+                print("Migracion: columna canal_venta agregada a discs")
+            if "metodo_pago_venta" not in dcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN metodo_pago_venta VARCHAR(20)"))
+                    conn.commit()
+                print("Migracion: columna metodo_pago_venta agregada a discs")
             if "orden" not in dcols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN orden INTEGER"))
