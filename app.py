@@ -3483,10 +3483,13 @@ def register_routes(app: Flask) -> None:
         except (ValueError, TypeError):
             saldo_inicial = 0.0
 
-        # Los adelantos SALDADOS (MP ya pago y Facundo recupero su plata) son puentes
-        # CERRADOS: netean a cero (entro tu plata, salio cuando MP pago), no cuentan mas
-        # en el saldo ni en la lista. Se filtran de todos los calculos de plata.
-        movs_dinero = [m for m in movs if (m.adelanto_mp or "") != "saldado"]
+        # Los adelantos de MP son un PUENTE, no plata nueva: el adelanto y la venta por
+        # MP son la MISMA plata (vos adelantas lo que MP te va a pagar). Por eso el
+        # adelanto NO cuenta como ingreso en el saldo ni en la lista (si contara, esa
+        # plata quedaria contada dos veces: la venta + el adelanto). En cambio, adelantar
+        # "mueve" esa venta de Mercado Pago al banco (baja mp_pendiente). Se muestran
+        # aparte en "Adelantos a recuperar". Por eso el saldo de la lista = el numero grande.
+        movs_dinero = [m for m in movs if not (m.adelanto_mp or "")]
 
         total_ingresos = sum(m.monto_uyu or 0 for m in movs_dinero if m.tipo == "ingreso")
         total_egresos = sum(m.monto_uyu or 0 for m in movs_dinero if m.tipo == "egreso")
@@ -3513,9 +3516,10 @@ def register_routes(app: Flask) -> None:
             k = m.metodo if m.metodo in ("mercadopago", "transferencia", "efectivo", "otro") else "sin"
             por_metodo[k] += (m.monto_uyu or 0)
 
-        # Plata todavia retenida en Mercado Pago: ventas por MP de los ultimos 30 dias,
-        # MENOS las que MP ya te pago (las que marcaste con "MP ya me pago" = adelantos
-        # saldados). Asi, al saldar un adelanto, la venta sale de MP (pasa al banco).
+        # Plata todavia retenida en Mercado Pago = ventas por MP de los ultimos 30 dias
+        # MENOS lo que ya adelantaste (esas ventas ya las tenes en el banco via tu
+        # adelanto) y lo que MP ya pago (adelantos saldados). Cuando adelantaste todo,
+        # queda 0: no hay nada de MP que no tengas ya en el banco.
         from datetime import datetime as _dt2, timedelta as _td
         limite_mp = _dt2.utcnow().date() - _td(days=30)
         mp_bruto = sum(
@@ -3523,8 +3527,8 @@ def register_routes(app: Flask) -> None:
             if m.tipo == "ingreso" and not m.es_aporte
             and m.metodo == "mercadopago" and m.fecha and m.fecha > limite_mp
         )
-        mp_ya_pagado = sum(m.monto_uyu or 0 for m in movs if (m.adelanto_mp or "") == "saldado")
-        mp_pendiente = max(0.0, mp_bruto - mp_ya_pagado)
+        adelanto_todos = sum(m.monto_uyu or 0 for m in movs if (m.adelanto_mp or ""))
+        mp_pendiente = max(0.0, mp_bruto - adelanto_todos)
         # Adelantos de MP: aportes que Facundo hizo para tener la liquidez de MP
         # antes de que MP pague. Los 'pendiente' todavia esperan el pago de MP.
         adelantos_pendientes = [m for m in movs if (m.adelanto_mp or "") == "pendiente"]
