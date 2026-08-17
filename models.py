@@ -1391,16 +1391,14 @@ def _migrate_schema(app):
                 conn.commit()
                 if res.rowcount:
                     print(f"Migracion: {res.rowcount} discos 'En camino' pasados a estado 'Pre-order'")
-            # Los que estaban marcados es_preorder=1 con estado Disponible: pasarlos
-            # a estado Pre-order (antes el flag significaba "es pre-order")
-            with db.engine.connect() as conn:
-                res = conn.execute(text(
-                    "UPDATE discs SET estado = 'Pre-order' "
-                    "WHERE es_preorder = 1 AND estado = 'Disponible'"
-                ))
-                conn.commit()
-                if res.rowcount:
-                    print(f"Migracion: {res.rowcount} discos con flag pre-order pasados a estado 'Pre-order'")
+            # NOTA (v4.13): ACA habia una migracion que hacia
+            #   UPDATE discs SET estado='Pre-order' WHERE es_preorder=1 AND estado='Disponible'
+            # Era un arreglo de datos de UNA vez (cuando el flag es_preorder cambio de
+            # significado). Pero corria en CADA arranque y pisaba el estado: si marcabas
+            # un disco Pre-order (con el toggle es_preorder prendido) como Disponible, el
+            # proximo deploy lo devolvia a Pre-order. Hoy es_preorder solo significa
+            # "mostrar en el carrusel Pre-order" (solo aplica si estado==Pre-order), asi
+            # que el estado manda. SE ELIMINA: no volver a agregar esta migracion.
             if "origen" not in cols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN origen VARCHAR(20) DEFAULT 'arcano'"))
