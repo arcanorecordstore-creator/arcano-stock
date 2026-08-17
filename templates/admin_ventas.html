@@ -2,11 +2,20 @@
 
 {% block title %}Ventas &middot; Arcano admin{% endblock %}
 
-{% macro venta_fila(d) %}
+{% macro fmt(n) %}{{ '{:,.0f}'.format(n or 0).replace(',', '.') }}{% endmacro %}
+
+{% macro delta(v) %}
+{% if v is not none %}
+<span class="kpi-delta {{ 'up' if v >= 0 else 'down' }}">{{ '▲' if v >= 0 else '▼' }} {{ v|abs }}%</span>
+{% endif %}
+{% endmacro %}
+
+{% macro venta_fila(d, mostrar_cliente) %}
 {% set met = d.metodo_pago_venta or metodo_por_disc.get(d.id) %}
 {% set canal = d.canal_venta or ('web' if d.id in disc_ids_web else '') %}
+{% set cli = cliente_por_disc.get(d.id) %}
 <div class="venta-row">
-    <input type="checkbox" class="venta-check" value="{{ d.id }}" aria-label="Seleccionar para agrupar como una venta">
+    <input type="checkbox" class="venta-check" value="{{ d.id }}" aria-label="Seleccionar para agrupar">
     {% if d.cover_local %}
     <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="venta-cover-link">
         <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="" class="venta-cover" loading="lazy">
@@ -18,8 +27,9 @@
         <div class="venta-title"><strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}</div>
         <div class="venta-sub">
             {% if d.sello %}{{ d.sello }}{% endif %}
-            {% if d.origen == 'personal' %}<span class="venta-origen-personal">coleccion personal</span>{% endif %}
-            {% if d.copias_facturadas > 1 %}<span class="venta-copias">&times;{{ d.copias_facturadas }}</span>{% endif %}
+            {% if d.origen == 'personal' %}<span class="venta-origen-personal">colecci&oacute;n personal</span>{% endif %}
+            {% if dias_venta.get(d.id) is not none %}<span class="venta-rot">se vendi&oacute; en {{ dias_venta.get(d.id) }} d&iacute;a{{ 's' if dias_venta.get(d.id) != 1 else '' }}</span>{% endif %}
+            {% if mostrar_cliente and cli %}<span class="venta-cliente"><i>{{ cli.nombre }}</i> &middot; <a href="{{ url_for('admin_reserva_detail', reserva_id=cli.reserva_id) }}">reserva #{{ cli.reserva_id }}</a></span>{% endif %}
         </div>
     </a>
     <div class="venta-canal">
@@ -42,28 +52,111 @@
             <option value="otro" {% if met == 'otro' %}selected{% endif %}>Otro</option>
         </select>
     </div>
-    <div class="venta-precio">$ {{ '{:,.0f}'.format(d.precio_mostrar or d.precio_uyu or 0).replace(',', '.') }}</div>
+    <div class="venta-precio">
+        $ {{ fmt(d.precio_mostrar or d.precio_uyu or 0) }}
+        <span class="venta-gan">+$ {{ fmt((d.ganancia_uyu or 0) * d.copias_facturadas) }}</span>
+    </div>
 </div>
 {% endmacro %}
 
 {% block content %}
 
 <section class="page-head">
-    <div>
-        <h1 class="page-title">Ventas</h1>
-        <p class="page-sub">
-            <strong>{{ total_ventas }} venta{{ 's' if total_ventas != 1 else '' }}</strong>
-            &middot; {{ total_unidades }} disco{{ 's' if total_unidades != 1 else '' }}
-            &middot; recaudado <strong>$ {{ '{:,.0f}'.format(total_recaudado).replace(',', '.') }} UYU</strong>
-        </p>
-    </div>
+    <div><h1 class="page-title">Ventas</h1></div>
     <div class="page-actions">
-        <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Ir al stock &rarr;</a>
+        <a href="{{ url_for('ventas_panel', periodo=periodo, desde=desde, hasta=hasta, canal=filtros.canal, metodo=filtros.metodo, q=filtros.q, export='csv') }}" class="btn btn-ghost">&#8681; Exportar CSV</a>
+        <a href="{{ url_for('ventas_cargar') }}" class="btn btn-primary">+ Cargar venta</a>
     </div>
 </section>
 
+<div class="pv-periodos">
+    {% for key, label in periodos %}
+    <a href="{{ url_for('ventas_panel', periodo=key) }}" class="pv-tab {% if periodo == key %}on{% endif %}">{{ label }}</a>
+    {% endfor %}
+    <a href="{{ url_for('ventas_panel', periodo='custom') }}" class="pv-tab {% if periodo == 'custom' %}on{% endif %}">Rango</a>
+    {% if periodo == 'custom' %}
+    <form method="get" class="pv-rango-form">
+        <input type="hidden" name="periodo" value="custom">
+        <input type="date" name="desde" value="{{ desde }}" class="pv-inp">
+        <input type="date" name="hasta" value="{{ hasta }}" class="pv-inp">
+        <button type="submit" class="btn btn-ghost btn-sm">Ver</button>
+    </form>
+    {% endif %}
+</div>
+
+<div class="pv-kpis">
+    <div class="pv-kpi"><span class="l">Ventas</span><span class="v">{{ kpis.ventas }}</span><span class="dd">{{ delta(comp.ventas) }}</span></div>
+    <div class="pv-kpi"><span class="l">Discos</span><span class="v">{{ kpis.unidades }}</span></div>
+    <div class="pv-kpi"><span class="l">Facturado</span><span class="v">$ {{ fmt(kpis.facturado) }}</span><span class="dd">{{ delta(comp.facturado) }}</span></div>
+    <div class="pv-kpi"><span class="l">Ganancia</span><span class="v">$ {{ fmt(kpis.ganancia) }}</span><span class="dd muted">margen {{ kpis.margen }}%</span></div>
+    <div class="pv-kpi"><span class="l">Ticket promedio</span><span class="v">$ {{ fmt(kpis.ticket) }}</span><span class="dd muted">por venta</span></div>
+</div>
+
+<div class="pv-cols">
+    <div class="pv-card">
+        <h2 class="pv-card-title">Por canal</h2>
+        {% if por_canal %}
+        {% for c in por_canal %}
+        <div class="pv-bar-row">
+            <span class="pv-bar-nm">{{ c.label }}</span>
+            <span class="pv-track"><span class="pv-fill canal-{{ c.key }}" style="width: {{ c.pct }}%"></span></span>
+            <span class="pv-bar-amt">$ {{ fmt(c.monto) }} <small>{{ c.pct }}%</small></span>
+        </div>
+        {% endfor %}
+        {% else %}<p class="pv-empty">Sin ventas en el per&iacute;odo.</p>{% endif %}
+    </div>
+    <div class="pv-card">
+        <h2 class="pv-card-title">Por m&eacute;todo de pago</h2>
+        {% if por_metodo %}
+        {% for c in por_metodo %}
+        <div class="pv-bar-row">
+            <span class="pv-bar-nm">{{ c.label }}</span>
+            <span class="pv-track"><span class="pv-fill met-{{ c.key }}" style="width: {{ c.pct }}%"></span></span>
+            <span class="pv-bar-amt">$ {{ fmt(c.monto) }} <small>{{ c.pct }}%</small></span>
+        </div>
+        {% endfor %}
+        {% else %}<p class="pv-empty">Sin ventas en el per&iacute;odo.</p>{% endif %}
+    </div>
+</div>
+
+<div class="pv-card">
+    <div class="pv-card-head">
+        <h2 class="pv-card-title">Facturado por d&iacute;a</h2>
+        <div class="pv-tops">
+            {% if top_sello %}<span>Top sello: <strong>{{ top_sello.nombre }}</strong> ($ {{ fmt(top_sello.monto) }})</span>{% endif %}
+            {% if top_artista %}<span>Top artista: <strong>{{ top_artista.nombre }}</strong></span>{% endif %}
+        </div>
+    </div>
+    <div class="pv-trend">
+        {% for t in trend %}
+        <span class="pv-bar" style="height: {{ (t.monto / trend_max * 100)|round(1) }}%" title="{{ t.label }} · $ {{ fmt(t.monto) }}"></span>
+        {% endfor %}
+    </div>
+    <div class="pv-trend-labels"><span>{{ trend[0].label if trend }}</span><span>{{ trend[-1].label if trend }}</span></div>
+</div>
+
+<form method="get" class="pv-filters" id="pv-filters">
+    <input type="hidden" name="periodo" value="{{ periodo }}">
+    <input type="hidden" name="desde" value="{{ desde }}">
+    <input type="hidden" name="hasta" value="{{ hasta }}">
+    <input type="search" name="q" value="{{ filtros.q }}" placeholder="Buscar disco, sello o cliente..." class="pv-inp pv-search">
+    <select name="canal" class="pv-inp" onchange="this.form.submit()">
+        <option value="">Canal: todos</option>
+        {% for key, label in canales if key %}<option value="{{ key }}" {% if filtros.canal == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        <option value="sin" {% if filtros.canal == 'sin' %}selected{% endif %}>Sin definir</option>
+    </select>
+    <select name="metodo" class="pv-inp" onchange="this.form.submit()">
+        <option value="">M&eacute;todo: todos</option>
+        {% for key, label in metodos if key %}<option value="{{ key }}" {% if filtros.metodo == key %}selected{% endif %}>{{ label }}</option>{% endfor %}
+        <option value="sin" {% if filtros.metodo == 'sin' %}selected{% endif %}>Sin definir</option>
+    </select>
+    <button type="submit" class="btn btn-ghost btn-sm">Buscar</button>
+    {% if filtros.canal or filtros.metodo or filtros.q %}
+    <a href="{{ url_for('ventas_panel', periodo=periodo, desde=desde, hasta=hasta) }}" class="btn btn-ghost btn-sm">Limpiar</a>
+    {% endif %}
+</form>
+
 {% if grupos %}
-<p class="ventas-ayuda">&#128161; Si una persona se llev&oacute; varios discos en una sola venta, tild&aacute;los y toc&aacute; &laquo;Marcar como una sola venta&raquo;. Las ventas web se agrupan solas por pedido.</p>
 <div class="ventas-lista">
     {% for g in grupos %}
     <div class="ventas-dia">
@@ -71,22 +164,22 @@
             <span class="ventas-dia-fecha">
                 {% if g.fecha == hoy %}Hoy{% elif g.fecha %}{{ g.fecha.strftime('%d/%m/%Y') }}{% else %}Sin fecha{% endif %}
             </span>
-            <span class="ventas-dia-meta">{{ g.n_ventas }} venta{{ 's' if g.n_ventas != 1 else '' }} &middot; {{ g.discos|length }} disco{{ 's' if g.discos|length != 1 else '' }} &middot; $ {{ '{:,.0f}'.format(g.subtotal).replace(',', '.') }}</span>
+            <span class="ventas-dia-meta">{{ g.n_ventas }} venta{{ 's' if g.n_ventas != 1 else '' }} &middot; {{ g.discos|length }} disco{{ 's' if g.discos|length != 1 else '' }} &middot; $ {{ fmt(g.subtotal) }}</span>
         </div>
         {% for t in g.transacciones %}
         {% if t.multi %}
         <div class="venta-trans">
             <div class="venta-trans-head">
-                <span class="venta-trans-label">&#128230; Una venta &middot; {{ t.discos|length }} discos &middot; $ {{ '{:,.0f}'.format(t.subtotal).replace(',', '.') }}</span>
+                <span class="venta-trans-label">&#128230; Una venta &middot; {{ t.discos|length }} discos{% if t.cliente %} &middot; {{ t.cliente.nombre }} &middot; <a href="{{ url_for('admin_reserva_detail', reserva_id=t.cliente.reserva_id) }}">reserva #{{ t.cliente.reserva_id }}</a>{% endif %} &middot; $ {{ fmt(t.subtotal) }} &middot; <span class="venta-gan">+$ {{ fmt(t.ganancia) }}</span></span>
                 <form method="post" action="{{ url_for('ventas_desagrupar') }}" onsubmit="return confirm('¿Desagrupar esta venta? Cada disco vuelve a contar por separado.');">
                     <input type="hidden" name="grupo" value="{{ t.grupo }}">
                     <button type="submit" class="venta-desagrupar">Desagrupar</button>
                 </form>
             </div>
-            {% for d in t.discos %}{{ venta_fila(d) }}{% endfor %}
+            {% for d in t.discos %}{{ venta_fila(d, false) }}{% endfor %}
         </div>
         {% else %}
-        {{ venta_fila(t.discos[0]) }}
+        {{ venta_fila(t.discos[0], true) }}
         {% endif %}
         {% endfor %}
     </div>
@@ -102,14 +195,13 @@
 {% else %}
 <div class="empty-state">
     <div class="empty-icon">&#128176;</div>
-    <h2>Sin ventas todavia</h2>
-    <p>Cuando marques un disco como Vendido va a aparecer aca, con la fecha del dia.</p>
+    <h2>Sin ventas {{ 'con esos filtros' if (filtros.q or filtros.canal or filtros.metodo) else 'en este per&iacute;odo' }}</h2>
+    <p>Prob&aacute; otro per&iacute;odo, limpi&aacute; los filtros, o toc&aacute; &laquo;Cargar venta&raquo; para registrar una.</p>
 </div>
 {% endif %}
 
 <script>
 (function () {
-    // Guardar canal / metodo al toque
     document.querySelectorAll('.venta-select').forEach(function (sel) {
         sel.addEventListener('change', function () {
             var id = sel.getAttribute('data-disc-id');
@@ -131,16 +223,13 @@
         });
     });
 
-    // Seleccionar discos para agruparlos como una sola venta
     var checks = document.querySelectorAll('.venta-check');
     var bar = document.getElementById('agrupar-form');
     var count = document.getElementById('agrupar-count');
     var idsField = document.getElementById('agrupar-ids');
     var btn = document.getElementById('agrupar-btn');
     var cancelar = document.getElementById('agrupar-cancelar');
-    function seleccionados() {
-        return Array.prototype.filter.call(checks, function (c) { return c.checked; });
-    }
+    function seleccionados() { return Array.prototype.filter.call(checks, function (c) { return c.checked; }); }
     function refrescar() {
         var sel = seleccionados();
         if (!bar) return;
@@ -148,22 +237,16 @@
             bar.hidden = false;
             count.textContent = sel.length + ' seleccionado' + (sel.length !== 1 ? 's' : '');
             if (btn) btn.disabled = sel.length < 2;
-        } else {
-            bar.hidden = true;
-        }
+        } else { bar.hidden = true; }
     }
     checks.forEach(function (c) { c.addEventListener('change', refrescar); });
-    if (bar) {
-        bar.addEventListener('submit', function () {
-            idsField.value = seleccionados().map(function (c) { return c.value; }).join(',');
-        });
-    }
-    if (cancelar) {
-        cancelar.addEventListener('click', function () {
-            checks.forEach(function (c) { c.checked = false; });
-            refrescar();
-        });
-    }
+    if (bar) bar.addEventListener('submit', function () {
+        idsField.value = seleccionados().map(function (c) { return c.value; }).join(',');
+    });
+    if (cancelar) cancelar.addEventListener('click', function () {
+        checks.forEach(function (c) { c.checked = false; });
+        refrescar();
+    });
 })();
 </script>
 

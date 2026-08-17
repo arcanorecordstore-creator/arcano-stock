@@ -33,6 +33,35 @@ def contar_ventas(discs) -> int:
     return len(grupos) + sueltos
 
 
+def _rango_ventas(periodo: str, desde: str = None, hasta: str = None):
+    """(inicio, fin) como date para el panel de Ventas. Suma 'hoy' y '7dias' a los
+    periodos de _rango_periodo (mes_actual/mes_pasado/anio/todo/custom)."""
+    from datetime import date, timedelta
+    hoy = date.today()
+    if periodo == "hoy":
+        return hoy, hoy + timedelta(days=1)
+    if periodo == "7dias":
+        return hoy - timedelta(days=6), hoy + timedelta(days=1)
+    return _rango_periodo(periodo, desde, hasta)
+
+
+def kpis_de_discos(discs) -> dict:
+    """KPIs de una lista de discos vendidos: ventas (transacciones), unidades,
+    facturado, ganancia, margen % y ticket promedio ($/venta)."""
+    unidades = sum(d.copias_facturadas for d in discs)
+    facturado = sum((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in discs)
+    ganancia = sum((d.ganancia_uyu or 0) * d.copias_facturadas for d in discs)
+    ventas = contar_ventas(discs)
+    return {
+        "ventas": ventas,
+        "unidades": unidades,
+        "facturado": round(facturado, 2),
+        "ganancia": round(ganancia, 2),
+        "margen": round(ganancia / facturado * 100, 1) if facturado else 0,
+        "ticket": round(facturado / ventas) if ventas else 0,
+    }
+
+
 def kpis_principales() -> dict:
     """KPIs principales del negocio."""
 

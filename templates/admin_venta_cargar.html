@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Cargar venta &middot; Arcano admin{% endblock %}
+
+{% block content %}
+
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Cargar venta</h1>
+        <p class="page-sub">Eleg&iacute; los discos de esta venta. Se marcan Vendidos con el canal y el m&eacute;todo; si eleg&iacute;s varios, quedan como una sola venta.</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('ventas_panel') }}" class="btn btn-ghost">&larr; Volver a Ventas</a>
+    </div>
+</section>
+
+<form method="post" action="{{ url_for('ventas_cargar') }}" id="cargar-form">
+    <div class="cargar-top">
+        <div class="form-field">
+            <label for="canal">Canal</label>
+            <select id="canal" name="canal">
+                <option value="instagram" selected>Instagram</option>
+                <option value="presencial">Presencial</option>
+                <option value="web">Web</option>
+                <option value="otro">Otro</option>
+            </select>
+        </div>
+        <div class="form-field">
+            <label for="metodo">M&eacute;todo de pago</label>
+            <select id="metodo" name="metodo">
+                <option value="">&mdash; sin definir</option>
+                <option value="mercadopago">Mercado Pago</option>
+                <option value="transferencia">Transferencia</option>
+                <option value="efectivo">Efectivo</option>
+                <option value="otro">Otro</option>
+            </select>
+        </div>
+        <div class="form-field">
+            <label for="fecha">Fecha de la venta</label>
+            <input type="date" id="fecha" name="fecha" value="{{ hoy }}">
+        </div>
+    </div>
+
+    <div class="cargar-buscar">
+        <input type="search" id="cargar-filtro" placeholder="Buscar disco por artista, t&iacute;tulo o sello..." class="pv-inp">
+        <span class="cargar-sel-count" id="cargar-count">0 elegidos</span>
+    </div>
+
+    {% if discos %}
+    <div class="cargar-lista">
+        {% for d in discos %}
+        <label class="cargar-item" data-buscar="{{ (d.artista ~ ' ' ~ d.titulo ~ ' ' ~ (d.sello or ''))|lower }}">
+            <input type="checkbox" class="cargar-check" name="disc_ids" value="{{ d.id }}">
+            {% if d.cover_local %}
+            <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="" class="cargar-cover" loading="lazy">
+            {% else %}
+            <div class="cargar-cover cargar-cover-empty">&#9834;</div>
+            {% endif %}
+            <div class="cargar-info">
+                <div class="cargar-title"><strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}</div>
+                <div class="cargar-sub">
+                    {% if d.sello %}{{ d.sello }} &middot; {% endif %}{{ d.estado }}
+                    {% if d.origen == 'personal' %}&middot; <span class="venta-origen-personal">personal</span>{% endif %}
+                </div>
+            </div>
+            <div class="cargar-precio">$ {{ '{:,.0f}'.format(d.precio_mostrar or d.precio_uyu or 0).replace(',', '.') }}</div>
+        </label>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">&#128191;</div>
+        <h2>No hay discos para vender</h2>
+        <p>Todos est&aacute;n vendidos o descartados. Cargá discos nuevos primero.</p>
+    </div>
+    {% endif %}
+
+    <div class="cargar-submit">
+        <button type="submit" class="btn btn-primary" id="cargar-btn" disabled>Marcar como vendidos</button>
+    </div>
+</form>
+
+<script>
+(function () {
+    var checks = document.querySelectorAll('.cargar-check');
+    var count = document.getElementById('cargar-count');
+    var btn = document.getElementById('cargar-btn');
+    var filtro = document.getElementById('cargar-filtro');
+    function refrescar() {
+        var n = Array.prototype.filter.call(checks, function (c) { return c.checked; }).length;
+        count.textContent = n + ' elegido' + (n !== 1 ? 's' : '');
+        if (btn) btn.disabled = n === 0;
+    }
+    checks.forEach(function (c) { c.addEventListener('change', refrescar); });
+    if (filtro) filtro.addEventListener('input', function () {
+        var q = filtro.value.toLowerCase().trim();
+        document.querySelectorAll('.cargar-item').forEach(function (it) {
+            it.style.display = (!q || it.getAttribute('data-buscar').indexOf(q) !== -1) ? '' : 'none';
+        });
+    });
+    refrescar();
+})();
+</script>
+
+{% endblock %}

@@ -2728,40 +2728,66 @@ def register_routes(app: Flask) -> None:
         Setting.set("venta_grupo_seq", str(n))
         return f"g{n}"
 
+    _PERIODOS_VENTAS = [
+        ("hoy", "Hoy"), ("7dias", "7 dias"), ("mes_actual", "Este mes"),
+        ("mes_pasado", "Mes pasado"), ("anio", "Este ano"), ("todo", "Todo"),
+    ]
+    _CANALES_VENTA = [("web", "Web"), ("instagram", "Instagram"),
+                      ("presencial", "Presencial"), ("otro", "Otro"), (None, "Sin definir")]
+    _METODOS_VENTA = [("mercadopago", "Mercado Pago"), ("transferencia", "Transferencia"),
+                      ("efectivo", "Efectivo"), ("otro", "Otro"), (None, "Sin definir")]
+
+    def _ventas_maps():
+        """Mapas desde las reservas: discos web, metodo y cliente por disco."""
+        web_ids, metodo_res, cliente_res, reserva_discs = set(), {}, {}, {}
+        try:
+            for r in Reserva.query.all():
+                met = ("mercadopago" if (r.pagado or r.mp_status == "approved" or r.metodo_pago == "mercadopago")
+                       else ("transferencia" if r.metodo_pago == "transferencia" else None))
+                for it in r.items_efectivos:
+                    if it.disc_id:
+                        web_ids.add(it.disc_id)
+                        reserva_discs.setdefault(r.id, []).append(it.disc_id)
+                        if met:
+                            metodo_res.setdefault(it.disc_id, met)
+                        cliente_res.setdefault(it.disc_id, {"nombre": r.nombre, "reserva_id": r.id})
+        except Exception:
+            pass
+        return web_ids, metodo_res, cliente_res, reserva_discs
+
     @app.route("/admin/ventas")
     @auth.admin_required
     def ventas_panel():
-        """Panel de ventas: discos vendidos, mas recientes primero, agrupados por
-        dia y — dentro de cada dia — por TRANSACCION (venta_grupo). Cuenta ventas
-        (transacciones) aparte de unidades (discos)."""
-        vendidos = (
-            Disc.query
-            .filter(Disc.estado == "Vendido")
-            .order_by(Disc.fecha_venta.desc(), Disc.id.desc())
-            .all()
-        )
-        # Metodo inferido desde la reserva + discos que vinieron de reserva web +
-        # mapa reserva -> discos (para agrupar ventas web por reserva).
-        metodo_por_disc = {}
-        disc_ids_web = set()
-        reserva_discs = {}
-        try:
-            for r in Reserva.query.all():
-                met = None
-                if r.pagado or (r.mp_status == "approved") or (r.metodo_pago == "mercadopago"):
-                    met = "mercadopago"
-                elif r.metodo_pago == "transferencia":
-                    met = "transferencia"
-                for it in r.items_efectivos:
-                    if it.disc_id:
-                        disc_ids_web.add(it.disc_id)
-                        reserva_discs.setdefault(r.id, []).append(it.disc_id)
-                        if met and it.disc_id not in metodo_por_disc:
-                            metodo_por_disc[it.disc_id] = met
-        except Exception:
-            pass
+        """Panel de ventas profesional: KPIs con comparacion vs periodo anterior,
+        desglose por canal y metodo, tendencia diaria y lista por transaccion."""
+        from datetime import datetime as _dt, timedelta as _td
+        periodo = request.args.get("periodo", "mes_actual")
+        desde = request.args.get("desde") or None
+        hasta = request.args.get("hasta") or None
+        f_canal = (request.args.get("canal") or "").strip()
+        f_metodo = (request.args.get("metodo") or "").strip()
+        f_q = (request.args.get("q") or "").strip()
 
-        # Backfill: reservas con 2+ discos vendidos y sin grupo -> agrupar por reserva.
+        inicio, fin = metrics._rango_ventas(periodo, desde, hasta)
+        inicio_dt = _dt(inicio.year, inicio.month, inicio.day)
+        fin_dt = _dt(fin.year, fin.month, fin.day)
+        dur = fin_dt - inicio_dt
+        inicio_prev_dt, fin_prev_dt = inicio_dt - dur, inicio_dt
+
+        web_ids, metodo_res, cliente_res, reserva_discs = _ventas_maps()
+
+        def canal_de(d):
+            return d.canal_venta or ("web" if d.id in web_ids else None)
+
+        def metodo_de(d):
+            return d.metodo_pago_venta or metodo_res.get(d.id)
+
+        vendidos = (
+            Disc.query.filter(Disc.estado == "Vendido")
+            .filter(Disc.fecha_venta >= inicio_dt, Disc.fecha_venta < fin_dt)
+            .order_by(Disc.fecha_venta.desc(), Disc.id.desc()).all()
+        )
+        # Backfill venta_grupo por reserva (2+ discos), idempotente.
         by_id = {d.id: d for d in vendidos}
         cambios = False
         for rid, dids in reserva_discs.items():
@@ -2774,15 +2800,78 @@ def register_routes(app: Flask) -> None:
         if cambios:
             db.session.commit()
 
-        total_unidades = sum(d.copias_facturadas for d in vendidos)
-        total_ventas = metrics.contar_ventas(vendidos)
-        total_recaudado = sum(
-            (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in vendidos
+        kpis = metrics.kpis_de_discos(vendidos)
+        vendidos_prev = (
+            Disc.query.filter(Disc.estado == "Vendido")
+            .filter(Disc.fecha_venta >= inicio_prev_dt, Disc.fecha_venta < fin_prev_dt).all()
         )
-        # Agrupar por dia; dentro de cada dia, por transaccion (venta_grupo).
-        grupos = []
-        actual = None
+        kpis_prev = metrics.kpis_de_discos(vendidos_prev)
+
+        def _delta(cur, prev):
+            return round((cur - prev) / prev * 100) if prev else None
+        comp = {k: _delta(kpis[k], kpis_prev[k]) for k in ("ventas", "facturado", "ganancia")}
+
+        def _agrupar(keyfn, defs):
+            acc = {}
+            for d in vendidos:
+                k = keyfn(d)
+                a = acc.setdefault(k, {"discos": 0, "monto": 0.0})
+                a["discos"] += d.copias_facturadas
+                a["monto"] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+            total = sum(a["monto"] for a in acc.values()) or 1
+            out = [{"key": k or "sin", "label": label, "discos": acc[k]["discos"],
+                    "monto": round(acc[k]["monto"], 2), "pct": round(acc[k]["monto"] / total * 100)}
+                   for k, label in defs if k in acc]
+            return sorted(out, key=lambda x: x["monto"], reverse=True)
+        por_canal = _agrupar(canal_de, _CANALES_VENTA)
+        por_metodo = _agrupar(metodo_de, _METODOS_VENTA)
+
+        # Tendencia: facturado por dia (ultimos N dias del periodo, sin dibujar futuro).
+        ndias = max(7, min(dur.days, 30))
+        base_fin = min(fin_dt.date(), _dt.utcnow().date() + _td(days=1))
+        dias = [base_fin - _td(days=i + 1) for i in range(ndias)][::-1]
+        tmap = {dd: 0.0 for dd in dias}
         for d in vendidos:
+            fv = d.fecha_venta.date() if d.fecha_venta else None
+            if fv in tmap:
+                tmap[fv] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+        trend = [{"label": dd.strftime("%d/%m"), "monto": round(tmap[dd])} for dd in dias]
+        trend_max = max((t["monto"] for t in trend), default=0) or 1
+
+        def _top(attr):
+            acc = {}
+            for d in vendidos:
+                k = (getattr(d, attr) or "").strip()
+                if k:
+                    acc[k] = acc.get(k, 0) + (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+            if not acc:
+                return None
+            k = max(acc, key=acc.get)
+            return {"nombre": k, "monto": round(acc[k])}
+        top_sello, top_artista = _top("sello"), _top("artista")
+
+        # Lista filtrada (canal / metodo / buscador)
+        ql = f_q.lower()
+
+        def _pasa(d):
+            if f_canal and (canal_de(d) or "sin") != f_canal:
+                return False
+            if f_metodo and (metodo_de(d) or "sin") != f_metodo:
+                return False
+            if ql:
+                cli = (cliente_res.get(d.id) or {}).get("nombre", "")
+                blob = f"{d.artista or ''} {d.titulo or ''} {d.sello or ''} {cli}".lower()
+                if ql not in blob:
+                    return False
+            return True
+        lista = [d for d in vendidos if _pasa(d)]
+
+        if request.args.get("export") == "csv":
+            return _ventas_csv(lista, canal_de, metodo_de, cliente_res)
+
+        # dia -> transaccion
+        grupos, actual = [], None
+        for d in lista:
             fv = d.fecha_venta.date() if d.fecha_venta else None
             if actual is None or actual["fecha"] != fv:
                 actual = {"fecha": fv, "discos": [], "subtotal": 0.0}
@@ -2790,32 +2879,65 @@ def register_routes(app: Flask) -> None:
             actual["discos"].append(d)
             actual["subtotal"] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
         for g in grupos:
-            trans = {}
-            orden = []
+            trans, orden = {}, []
             for d in g["discos"]:
                 key = d.venta_grupo or ("s%d" % d.id)
                 if key not in trans:
-                    trans[key] = {"grupo": d.venta_grupo, "discos": [], "subtotal": 0.0}
+                    trans[key] = {"grupo": d.venta_grupo, "discos": [], "subtotal": 0.0,
+                                  "ganancia": 0.0, "cliente": None}
                     orden.append(key)
                 trans[key]["discos"].append(d)
                 trans[key]["subtotal"] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
-            g["transacciones"] = [
-                {"grupo": trans[k]["grupo"], "discos": trans[k]["discos"],
-                 "subtotal": trans[k]["subtotal"], "multi": len(trans[k]["discos"]) > 1}
-                for k in orden
-            ]
+                trans[key]["ganancia"] += (d.ganancia_uyu or 0) * d.copias_facturadas
+                if not trans[key]["cliente"] and cliente_res.get(d.id):
+                    trans[key]["cliente"] = cliente_res.get(d.id)
+            g["transacciones"] = [{**trans[k], "multi": len(trans[k]["discos"]) > 1} for k in orden]
             g["n_ventas"] = len(orden)
+
+        dias_venta = {d.id: max((d.fecha_venta - d.fecha_ingreso).days, 0)
+                      for d in lista if d.fecha_ingreso and d.fecha_venta}
+        periodo_label = dict(_PERIODOS_VENTAS).get(periodo, "Este mes")
 
         return render_template(
             "admin_ventas.html",
+            periodo=periodo, periodo_label=periodo_label, periodos=_PERIODOS_VENTAS,
+            desde=desde or "", hasta=hasta or "",
+            kpis=kpis, comp=comp,
+            por_canal=por_canal, por_metodo=por_metodo,
+            trend=trend, trend_max=trend_max,
+            top_sello=top_sello, top_artista=top_artista,
             grupos=grupos,
-            metodo_por_disc=metodo_por_disc,
-            disc_ids_web=disc_ids_web,
-            total_unidades=total_unidades,
-            total_ventas=total_ventas,
-            total_recaudado=round(total_recaudado, 2),
+            metodo_por_disc=metodo_res, disc_ids_web=web_ids,
+            cliente_por_disc=cliente_res, dias_venta=dias_venta,
+            canales=_CANALES_VENTA, metodos=_METODOS_VENTA,
+            filtros={"canal": f_canal, "metodo": f_metodo, "q": f_q},
             hoy=datetime.utcnow().date(),
         )
+
+    def _ventas_csv(lista, canal_de, metodo_de, cliente_res):
+        """Exporta la lista de ventas filtrada como CSV."""
+        import csv as _csv
+        import io as _io
+        buf = _io.StringIO()
+        w = _csv.writer(buf)
+        w.writerow(["Fecha venta", "Artista", "Titulo", "Sello", "Origen",
+                    "Canal", "Metodo", "Cliente", "Precio UYU", "Ganancia UYU", "Grupo"])
+        _canal_lbl = dict(_CANALES_VENTA)
+        _met_lbl = dict(_METODOS_VENTA)
+        for d in lista:
+            cli = (cliente_res.get(d.id) or {}).get("nombre", "")
+            w.writerow([
+                d.fecha_venta.strftime("%Y-%m-%d") if d.fecha_venta else "",
+                d.artista or "", d.titulo or "", d.sello or "",
+                "personal" if d.origen == "personal" else "arcano",
+                _canal_lbl.get(canal_de(d), ""), _met_lbl.get(metodo_de(d), ""),
+                cli, round(d.precio_mostrar or d.precio_uyu or 0),
+                round((d.ganancia_uyu or 0) * d.copias_facturadas),
+                d.venta_grupo or "",
+            ])
+        from flask import Response as _Resp
+        return _Resp(buf.getvalue(), mimetype="text/csv",
+                     headers={"Content-Disposition": "attachment; filename=ventas_arcano.csv"})
 
     @app.route("/admin/ventas/agrupar", methods=["POST"])
     @auth.admin_required
@@ -2844,6 +2966,55 @@ def register_routes(app: Flask) -> None:
             db.session.commit()
             flash("Venta desagrupada: cada disco cuenta por separado.", "success")
         return redirect(url_for("ventas_panel"))
+
+    @app.route("/admin/ventas/cargar", methods=["GET", "POST"])
+    @auth.admin_required
+    def ventas_cargar():
+        """Carga una venta manual (tipica de Instagram) en UN paso: elegis discos y
+        se marcan Vendidos + canal + metodo + agrupados como una sola venta."""
+        if request.method == "POST":
+            ids = [int(x) for x in request.form.getlist("disc_ids") if str(x).isdigit()]
+            canal = (request.form.get("canal") or "instagram").strip().lower()
+            metodo = (request.form.get("metodo") or "").strip().lower()
+            fecha_str = (request.form.get("fecha") or "").strip()
+            if canal not in ("web", "instagram", "presencial", "otro"):
+                canal = "instagram"
+            if metodo and metodo not in ("mercadopago", "transferencia", "efectivo", "otro"):
+                metodo = None
+            try:
+                fecha_venta = datetime.strptime(fecha_str, "%Y-%m-%d") if fecha_str else datetime.utcnow()
+            except ValueError:
+                fecha_venta = datetime.utcnow()
+            discs = Disc.query.filter(Disc.id.in_(ids)).all() if ids else []
+            if not discs:
+                flash("Elegí al menos un disco para cargar la venta.", "warning")
+                return redirect(url_for("ventas_cargar"))
+            grupo = _nuevo_venta_grupo() if len(discs) > 1 else None
+            for d in discs:
+                register_status_change(d, "Vendido", nota="Venta manual cargada")
+                d.fecha_venta = fecha_venta
+                d.stock = max(0, (d.stock or 1) - 1)
+                d.canal_venta = canal
+                if metodo:
+                    d.metodo_pago_venta = metodo
+                if grupo:
+                    d.venta_grupo = grupo
+            db.session.commit()
+            n = len(discs)
+            flash(f"Venta cargada: {n} disco{'s' if n != 1 else ''}" + (" (como una sola venta)." if grupo else "."), "success")
+            return redirect(url_for("ventas_panel"))
+
+        # GET: discos que todavia se pueden vender
+        disponibles = (
+            Disc.query
+            .filter(Disc.estado.in_(["Disponible", "Reservado", "Pre-order", "Apartado para mi"]))
+            .order_by(Disc.artista.asc(), Disc.titulo.asc()).all()
+        )
+        return render_template(
+            "admin_venta_cargar.html",
+            discos=disponibles,
+            hoy=datetime.utcnow().date().strftime("%Y-%m-%d"),
+        )
 
     @app.route("/admin/contabilidad")
     @auth.admin_required
