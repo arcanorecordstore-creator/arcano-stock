@@ -719,3 +719,22 @@ window.arcanoGA = function (name, params) {
 
     window.ArcanoCartDrawer = { open: abrir, close: cerrar };
 })();
+
+/* Barra de anuncio -> baja al catalogo.
+   Listener a nivel document (una sola vez): sobrevive a los cambios de pagina pjax.
+   - Si estamos en el home (existe #catalogo): scroll SUAVE hasta el catalogo, sin
+     recargar. preventDefault() hace que pjax (que corre despues) lo ignore.
+   - Si estamos en otra pagina (no hay #catalogo): no hacemos nada y el link navega
+     normal a /#catalogo; pjax al cargar el home baja solo al ancla (scrollIntoView). */
+(function () {
+    'use strict';
+    document.addEventListener('click', function (e) {
+        var bar = e.target && e.target.closest ? e.target.closest('.public-anuncio-bar') : null;
+        if (!bar) return;
+        var target = document.getElementById('catalogo');
+        if (!target) return;  // otra pagina: que el link navegue a /#catalogo
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (history.replaceState) { try { history.replaceState(null, '', '#catalogo'); } catch (x) {} }
+    });
+})();

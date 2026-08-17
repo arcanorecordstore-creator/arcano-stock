@@ -7482,6 +7482,8 @@ td.num,
     transition: filter 0.12s;
 }
 .public-anuncio-bar:hover { filter: brightness(1.06); }
+/* Al bajar al catalogo (desde la barra de anuncio), dejar aire para el header sticky */
+#catalogo { scroll-margin-top: 90px; }
 
 /* =========================================================================
    ADMIN RESPONSIVE — adaptacion para celular (<= 768px)
