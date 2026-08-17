@@ -20,11 +20,11 @@
 <section class="caja-hero">
     <div class="caja-hero-main">
         <span class="caja-hero-label">Plata en caja ahora</span>
-        <span class="caja-hero-value {% if resumen.saldo_actual < 0 %}negativo{% endif %}">
-            $ {{ fmt_uyu(resumen.saldo_actual) }} <span class="caja-hero-cur">UYU</span>
+        <span class="caja-hero-value {% if resumen.disponible < 0 %}negativo{% endif %}">
+            $ {{ fmt_uyu(resumen.disponible) }} <span class="caja-hero-cur">UYU</span>
         </span>
         {% if resumen.mp_pendiente > 0 %}
-        <span class="caja-hero-sub">De esto, en el banco ten&eacute;s <strong>$ {{ fmt_uyu(resumen.disponible) }}</strong> y en Mercado Pago hay <strong>$ {{ fmt_uyu(resumen.mp_pendiente) }}</strong> (te lo depositan en ~30 d&iacute;as).</span>
+        <span class="caja-hero-sub">Esto es lo que ten&eacute;s <strong>en el banco</strong>. Aparte hay <strong>$ {{ fmt_uyu(resumen.mp_pendiente) }}</strong> en Mercado Pago que es tuyo (lo recuper&aacute;s cuando MP te pague el adelanto).</span>
         {% endif %}
     </div>
     <div class="caja-hero-desglose">
