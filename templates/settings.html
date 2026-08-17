@@ -123,6 +123,27 @@
 
     <section class="settings-card">
         <header class="settings-card-head">
+            <h2 class="settings-card-title">Informe ejecutivo (PDF)</h2>
+            <p class="settings-card-sub">Un PDF prolijo, listo para presentar, con TODA la gesti&oacute;n: resumen, Ventas, Contabilidad, Caja, Pedidos y Radar &mdash; con tarjetas, gr&aacute;ficos y descripciones de la situaci&oacute;n.</p>
+        </header>
+        <form method="get" action="{{ url_for('informe_ejecutivo_pdf') }}" target="_blank"
+              style="display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; padding: 4px 0 8px;">
+            <label style="display: flex; flex-direction: column; gap: 4px; font-size: 13px;">
+                <span class="settings-card-sub" style="margin: 0;">Per&iacute;odo del informe</span>
+                <select name="periodo" style="min-width: 180px;">
+                    <option value="mes_actual">Este mes</option>
+                    <option value="mes_pasado">Mes pasado</option>
+                    <option value="anio">Este a&ntilde;o</option>
+                    <option value="todo" selected>Todo el historial</option>
+                </select>
+            </label>
+            <button type="submit" class="btn btn-primary">&#8595; Descargar informe ejecutivo</button>
+        </form>
+        <p class="settings-card-sub" style="margin-top: 6px;">Las secciones de Ventas y Contabilidad son del per&iacute;odo elegido; la Caja, la mercader&iacute;a y los Pedidos son la foto de hoy. Se abre en una pesta&ntilde;a nueva.</p>
+    </section>
+
+    <section class="settings-card">
+        <header class="settings-card-head">
             <h2 class="settings-card-title">Backup</h2>
             <p class="settings-card-sub">Descarga una copia completa de tus datos. Recomendado: todos los viernes.</p>
         </header>

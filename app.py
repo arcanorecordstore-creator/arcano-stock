@@ -3265,6 +3265,26 @@ def register_routes(app: Flask) -> None:
             headers={"Content-Disposition": f"attachment; filename={filename}"},
         )
 
+    @app.route("/admin/informe-ejecutivo.pdf")
+    @auth.admin_required
+    def informe_ejecutivo_pdf():
+        """PDF ejecutivo con TODA la gestion: resumen + Ventas + Contabilidad + Caja +
+        Pedidos + Radar, con tarjetas, graficos y descripciones. Diseno de presentacion."""
+        import informe_ejecutivo
+        from flask import Response
+        periodo = request.args.get("periodo", "mes_actual")
+        desde = request.args.get("desde") or None
+        hasta = request.args.get("hasta") or None
+        resumen = _resumen_caja()  # foto de la caja a hoy
+        buf = informe_ejecutivo.generar_pdf_ejecutivo(periodo, desde, hasta, resumen)
+        stamp = datetime.utcnow().strftime("%Y%m%d")
+        filename = f"arcano_informe_ejecutivo_{stamp}.pdf"
+        return Response(
+            buf.getvalue(),
+            mimetype="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+
     # ---- CAJA / BANCO (libro de movimientos de plata) ----
     def _parse_monto_caja(raw):
         """Convierte un texto de monto a float. Tolera coma decimal es-UY."""
