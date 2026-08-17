@@ -1208,6 +1208,17 @@ def _disc_asignar_orden(mapper, connection, target):
         pass
 
 
+@_sa_event.listens_for(Disc, "before_insert")
+@_sa_event.listens_for(Disc, "before_update")
+def _disc_autofecha_venta(mapper, connection, target):
+    """Si el disco queda en estado 'Vendido' sin fecha de venta, se la ponemos
+    sola (la del momento). Cubre TODOS los caminos: form manual, quick-edit,
+    bulk, completar reserva, venta manual de IG. Si ya tiene fecha, se respeta
+    (Facundo puede fijar una fecha distinta a mano)."""
+    if getattr(target, "estado", None) == "Vendido" and not getattr(target, "fecha_venta", None):
+        target.fecha_venta = datetime.utcnow()
+
+
 def _migrate_schema(app):
     """Aplicar migraciones idempotentes a la DB existente.
     

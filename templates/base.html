@@ -39,10 +39,11 @@
                     {% endif %}
                 </a>
 
-                {% set gestion_activo = ep == 'contabilidad' or ep.startswith('caja') or ep == 'pedidos' or ep == 'radar_demanda' %}
+                {% set gestion_activo = ep == 'contabilidad' or ep == 'ventas_panel' or ep.startswith('caja') or ep == 'pedidos' or ep == 'radar_demanda' %}
                 <div class="nav-group">
                     <button type="button" class="nav-link nav-group-btn {% if gestion_activo %}active{% endif %}" aria-haspopup="true" aria-expanded="false">Gesti&oacute;n <span class="nav-caret">&#9662;</span></button>
                     <div class="nav-group-menu">
+                        <a href="{{ url_for('ventas_panel') }}" class="nav-link {% if ep == 'ventas_panel' %}active{% endif %}">Ventas</a>
                         <a href="{{ url_for('contabilidad') }}" class="nav-link {% if ep == 'contabilidad' %}active{% endif %}">Contabilidad</a>
                         <a href="{{ url_for('caja') }}" class="nav-link {% if ep.startswith('caja') %}active{% endif %}">Caja</a>
                         <a href="{{ url_for('pedidos') }}" class="nav-link {% if ep == 'pedidos' %}active{% endif %}">Pedidos</a>
@@ -101,7 +102,7 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v3.92 &middot; FIX tracking: el evento Purchase de GA4 y Meta ahora SI dispara en la confirmacion de compra (esperaba a que cargara arcanoGA); solo en compras reales (transferencia/MP), con value+currency UYU, transaction_id e items</span>
+            <span class="footer-version">v3.93 &middot; Nuevo panel de Ventas (Gestion &rarr; Ventas): ultimos discos vendidos agrupados por dia, con metodo de pago y total. Ademas: al pasar un disco a Vendido se carga sola la fecha del dia (todos los caminos)</span>
         </footer>
     </div>
 

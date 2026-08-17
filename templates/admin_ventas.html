@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Ventas &middot; Arcano admin{% endblock %}
+
+{% block content %}
+
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Ventas</h1>
+        <p class="page-sub">
+            {{ total_unidades }} unidad{{ 'es' if total_unidades != 1 else '' }} vendida{{ 's' if total_unidades != 1 else '' }}
+            &middot; recaudado <strong>$ {{ '{:,.0f}'.format(total_recaudado).replace(',', '.') }} UYU</strong>
+        </p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Ir al stock &rarr;</a>
+    </div>
+</section>
+
+{% if grupos %}
+<div class="ventas-lista">
+    {% for g in grupos %}
+    <div class="ventas-dia">
+        <div class="ventas-dia-head">
+            <span class="ventas-dia-fecha">
+                {% if g.fecha == hoy %}Hoy{% elif g.fecha %}{{ g.fecha.strftime('%d/%m/%Y') }}{% else %}Sin fecha{% endif %}
+            </span>
+            <span class="ventas-dia-meta">{{ g.discos|length }} disco{{ 's' if g.discos|length != 1 else '' }} &middot; $ {{ '{:,.0f}'.format(g.subtotal).replace(',', '.') }}</span>
+        </div>
+        {% for d in g.discos %}
+        <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="venta-row">
+            {% if d.cover_local %}
+            <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="" class="venta-cover" loading="lazy">
+            {% else %}
+            <div class="venta-cover venta-cover-empty">&#9834;</div>
+            {% endif %}
+            <div class="venta-info">
+                <div class="venta-title"><strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}</div>
+                <div class="venta-sub">
+                    {% if d.sello %}{{ d.sello }}{% endif %}
+                    {% if d.origen == 'personal' %}<span class="venta-origen-personal">coleccion personal</span>{% endif %}
+                    {% if d.copias_facturadas > 1 %}<span class="venta-copias">&times;{{ d.copias_facturadas }}</span>{% endif %}
+                </div>
+            </div>
+            <div class="venta-metodo">
+                {% set met = metodo_por_disc.get(d.id) %}
+                {% if met %}<span class="reserva-metodo-chip">{{ met }}</span>{% else %}<span class="venta-metodo-na" title="Venta cargada a mano (sin reserva web)">&mdash;</span>{% endif %}
+            </div>
+            <div class="venta-precio">$ {{ '{:,.0f}'.format(d.precio_mostrar or d.precio_uyu or 0).replace(',', '.') }}</div>
+        </a>
+        {% endfor %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">&#128176;</div>
+    <h2>Sin ventas todavia</h2>
+    <p>Cuando marques un disco como Vendido va a aparecer aca, con la fecha del dia.</p>
+</div>
+{% endif %}
+
+{% endblock %}

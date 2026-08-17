@@ -2688,6 +2688,57 @@ def register_routes(app: Flask) -> None:
             total_discos=len(filas),
         )
 
+    @app.route("/admin/ventas")
+    @auth.admin_required
+    def ventas_panel():
+        """Panel de ventas: los discos vendidos, mas recientes primero, agrupados
+        por dia. Muestra cuando se vendio cada uno, a que precio, origen y — si la
+        venta vino de una reserva web — el metodo de pago."""
+        vendidos = (
+            Disc.query
+            .filter(Disc.estado == "Vendido")
+            .order_by(Disc.fecha_venta.desc(), Disc.id.desc())
+            .all()
+        )
+        # Metodo de pago por disco, desde las reservas (mismo criterio que la caja).
+        metodo_por_disc = {}
+        try:
+            for r in Reserva.query.all():
+                met = None
+                if r.pagado or (r.mp_status == "approved") or (r.metodo_pago == "mercadopago"):
+                    met = "Mercado Pago"
+                elif r.metodo_pago == "transferencia":
+                    met = "Transferencia"
+                if not met:
+                    continue
+                for it in r.items_efectivos:
+                    if it.disc_id and it.disc_id not in metodo_por_disc:
+                        metodo_por_disc[it.disc_id] = met
+        except Exception:
+            pass
+        total_unidades = sum(d.copias_facturadas for d in vendidos)
+        total_recaudado = sum(
+            (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in vendidos
+        )
+        # Agrupar por dia (mas reciente primero) para el "cuando".
+        grupos = []
+        actual = None
+        for d in vendidos:
+            fv = d.fecha_venta.date() if d.fecha_venta else None
+            if actual is None or actual["fecha"] != fv:
+                actual = {"fecha": fv, "discos": [], "subtotal": 0.0}
+                grupos.append(actual)
+            actual["discos"].append(d)
+            actual["subtotal"] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+        return render_template(
+            "admin_ventas.html",
+            grupos=grupos,
+            metodo_por_disc=metodo_por_disc,
+            total_unidades=total_unidades,
+            total_recaudado=round(total_recaudado, 2),
+            hoy=datetime.utcnow().date(),
+        )
+
     @app.route("/admin/contabilidad")
     @auth.admin_required
     def contabilidad():

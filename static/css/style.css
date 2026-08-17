@@ -1589,6 +1589,114 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
     overflow-y: auto;
 }
 
+/* --- Panel de ventas (/admin/ventas) --- */
+.ventas-lista {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.ventas-dia {
+    border: 1px solid var(--border-1);
+    border-radius: 12px;
+    overflow: hidden;
+    background: var(--bg-1);
+}
+.ventas-dia-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    background: var(--bg-2);
+    border-bottom: 1px solid var(--border-1);
+}
+.ventas-dia-fecha {
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--text-1);
+    text-transform: capitalize;
+}
+.ventas-dia-meta {
+    font-size: 12px;
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+}
+.venta-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 14px;
+    text-decoration: none;
+    color: inherit;
+    border-bottom: 1px solid var(--border-1);
+    transition: background 0.12s;
+}
+.venta-row:last-child { border-bottom: none; }
+.venta-row:hover { background: var(--bg-2); }
+.venta-cover {
+    width: 46px;
+    height: 46px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: var(--bg-3);
+}
+.venta-cover-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-5);
+    font-size: 20px;
+}
+.venta-info {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+.venta-title {
+    font-size: 13px;
+    color: var(--text-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.venta-sub {
+    font-size: 12px;
+    color: var(--text-3);
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.venta-origen-personal {
+    color: var(--accent-2, #6ea8fe);
+    font-size: 11px;
+}
+.venta-copias {
+    font-weight: 700;
+    color: var(--text-2);
+}
+.venta-metodo {
+    flex-shrink: 0;
+}
+.venta-metodo-na {
+    color: var(--text-5);
+}
+.venta-precio {
+    flex-shrink: 0;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--gain, var(--text-1));
+    font-variant-numeric: tabular-nums;
+    min-width: 84px;
+    text-align: right;
+}
+@media (max-width: 560px) {
+    .venta-cover { width: 40px; height: 40px; }
+    .venta-precio { min-width: 64px; font-size: 13px; }
+    .venta-metodo { display: none; }
+}
+
 .badge-lg {
     font-size: 13px;
     padding: 6px 14px;
