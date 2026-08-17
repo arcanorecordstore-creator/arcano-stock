@@ -3487,9 +3487,16 @@ def register_routes(app: Flask) -> None:
         total_egresos = sum(m.monto_uyu or 0 for m in movs if m.tipo == "egreso")
         saldo_actual = saldo_inicial + total_ingresos - total_egresos
 
-        # Capital aportado por Facundo (plata propia, no es facturacion). Incluye los
-        # adelantos de MP: son plata suya puesta en la caja, cuentan como capital.
+        # Capital aportado por Facundo (plata propia, no es facturacion). total_aportes
+        # incluye TODO (incl. adelantos) y se usa para separar ventas de aportes.
         total_aportes = sum(m.monto_uyu or 0 for m in movs if m.tipo == "ingreso" and m.es_aporte)
+        # Para MOSTRAR "Capital que pusiste": solo el capital PERMANENTE, sin los
+        # adelantos de MP (que son plata temporal que Facundo recupera y ya se
+        # muestran aparte en "Adelantos a recuperar"). Asi el capital no salta al adelantar.
+        capital_permanente = sum(
+            m.monto_uyu or 0 for m in movs
+            if m.tipo == "ingreso" and m.es_aporte and not (m.adelanto_mp or "")
+        )
         # Ventas cobradas = ingresos que NO son aporte de capital
         total_ventas = total_ingresos - total_aportes
 
@@ -3597,6 +3604,7 @@ def register_routes(app: Flask) -> None:
             "total_ingresos": round(total_ingresos, 2),
             "total_egresos": round(total_egresos, 2),
             "total_aportes": round(total_aportes, 2),
+            "capital_permanente": round(capital_permanente, 2),
             "total_ventas": round(total_ventas, 2),
             "saldo_actual": round(saldo_actual, 2),
             "mp_pendiente": round(mp_pendiente, 2),

@@ -40,10 +40,10 @@
             <span class="caja-chip-label">Salió (egresos)</span>
             <span class="caja-chip-val">&minus; $ {{ fmt_uyu(resumen.total_egresos) }}</span>
         </div>
-        {% if resumen.total_aportes > 0 %}
+        {% if resumen.capital_permanente > 0 %}
         <div class="caja-chip cap">
             <span class="caja-chip-label">Capital que pusiste</span>
-            <span class="caja-chip-val">$ {{ fmt_uyu(resumen.total_aportes) }}</span>
+            <span class="caja-chip-val">$ {{ fmt_uyu(resumen.capital_permanente) }}</span>
         </div>
         {% endif %}
     </div>
