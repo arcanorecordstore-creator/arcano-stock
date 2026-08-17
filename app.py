@@ -2717,22 +2717,34 @@ def register_routes(app: Flask) -> None:
             total_discos=len(filas),
         )
 
+    def _nuevo_venta_grupo():
+        """Id incremental para una venta manual agrupada ('g1', 'g2', ...)."""
+        n = 0
+        try:
+            n = int(Setting.get("venta_grupo_seq", "0") or 0)
+        except (ValueError, TypeError):
+            n = 0
+        n += 1
+        Setting.set("venta_grupo_seq", str(n))
+        return f"g{n}"
+
     @app.route("/admin/ventas")
     @auth.admin_required
     def ventas_panel():
-        """Panel de ventas: los discos vendidos, mas recientes primero, agrupados
-        por dia. Muestra cuando se vendio cada uno, a que precio, origen y — si la
-        venta vino de una reserva web — el metodo de pago."""
+        """Panel de ventas: discos vendidos, mas recientes primero, agrupados por
+        dia y — dentro de cada dia — por TRANSACCION (venta_grupo). Cuenta ventas
+        (transacciones) aparte de unidades (discos)."""
         vendidos = (
             Disc.query
             .filter(Disc.estado == "Vendido")
             .order_by(Disc.fecha_venta.desc(), Disc.id.desc())
             .all()
         )
-        # Metodo de pago inferido desde la reserva (valor canonico) + set de discos
-        # que vinieron de una reserva web (para inferir el canal 'web').
+        # Metodo inferido desde la reserva + discos que vinieron de reserva web +
+        # mapa reserva -> discos (para agrupar ventas web por reserva).
         metodo_por_disc = {}
         disc_ids_web = set()
+        reserva_discs = {}
         try:
             for r in Reserva.query.all():
                 met = None
@@ -2743,15 +2755,31 @@ def register_routes(app: Flask) -> None:
                 for it in r.items_efectivos:
                     if it.disc_id:
                         disc_ids_web.add(it.disc_id)
+                        reserva_discs.setdefault(r.id, []).append(it.disc_id)
                         if met and it.disc_id not in metodo_por_disc:
                             metodo_por_disc[it.disc_id] = met
         except Exception:
             pass
+
+        # Backfill: reservas con 2+ discos vendidos y sin grupo -> agrupar por reserva.
+        by_id = {d.id: d for d in vendidos}
+        cambios = False
+        for rid, dids in reserva_discs.items():
+            vend = [by_id[i] for i in dids if i in by_id]
+            if len(vend) >= 2:
+                for d in vend:
+                    if not d.venta_grupo:
+                        d.venta_grupo = f"r{rid}"
+                        cambios = True
+        if cambios:
+            db.session.commit()
+
         total_unidades = sum(d.copias_facturadas for d in vendidos)
+        total_ventas = metrics.contar_ventas(vendidos)
         total_recaudado = sum(
             (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in vendidos
         )
-        # Agrupar por dia (mas reciente primero) para el "cuando".
+        # Agrupar por dia; dentro de cada dia, por transaccion (venta_grupo).
         grupos = []
         actual = None
         for d in vendidos:
@@ -2761,15 +2789,61 @@ def register_routes(app: Flask) -> None:
                 grupos.append(actual)
             actual["discos"].append(d)
             actual["subtotal"] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+        for g in grupos:
+            trans = {}
+            orden = []
+            for d in g["discos"]:
+                key = d.venta_grupo or ("s%d" % d.id)
+                if key not in trans:
+                    trans[key] = {"grupo": d.venta_grupo, "discos": [], "subtotal": 0.0}
+                    orden.append(key)
+                trans[key]["discos"].append(d)
+                trans[key]["subtotal"] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+            g["transacciones"] = [
+                {"grupo": trans[k]["grupo"], "discos": trans[k]["discos"],
+                 "subtotal": trans[k]["subtotal"], "multi": len(trans[k]["discos"]) > 1}
+                for k in orden
+            ]
+            g["n_ventas"] = len(orden)
+
         return render_template(
             "admin_ventas.html",
             grupos=grupos,
             metodo_por_disc=metodo_por_disc,
             disc_ids_web=disc_ids_web,
             total_unidades=total_unidades,
+            total_ventas=total_ventas,
             total_recaudado=round(total_recaudado, 2),
             hoy=datetime.utcnow().date(),
         )
+
+    @app.route("/admin/ventas/agrupar", methods=["POST"])
+    @auth.admin_required
+    def ventas_agrupar():
+        """Marca varios discos vendidos como UNA sola venta (comparten venta_grupo).
+        Si alguno ya estaba en un grupo, se suman a ese grupo."""
+        ids = [int(x) for x in (request.form.get("ids") or "").split(",") if x.strip().isdigit()]
+        discs = Disc.query.filter(Disc.id.in_(ids), Disc.estado == "Vendido").all() if ids else []
+        if len(discs) < 2:
+            flash("Elegí al menos 2 discos vendidos para marcarlos como una sola venta.", "warning")
+            return redirect(url_for("ventas_panel"))
+        grupo = next((d.venta_grupo for d in discs if d.venta_grupo), None) or _nuevo_venta_grupo()
+        for d in discs:
+            d.venta_grupo = grupo
+        db.session.commit()
+        flash(f"Listo: {len(discs)} discos quedaron como una sola venta.", "success")
+        return redirect(url_for("ventas_panel"))
+
+    @app.route("/admin/ventas/desagrupar", methods=["POST"])
+    @auth.admin_required
+    def ventas_desagrupar():
+        """Deshace una agrupacion: cada disco del grupo vuelve a contar por separado."""
+        grupo = (request.form.get("grupo") or "").strip()
+        if grupo:
+            Disc.query.filter_by(venta_grupo=grupo).update({"venta_grupo": None})
+            db.session.commit()
+            flash("Venta desagrupada: cada disco cuenta por separado.", "success")
+        return redirect(url_for("ventas_panel"))
 
     @app.route("/admin/contabilidad")
     @auth.admin_required
@@ -4703,6 +4777,9 @@ def register_routes(app: Flask) -> None:
                     d.canal_venta = "web"
                 if not d.metodo_pago_venta:
                     d.metodo_pago_venta = "mercadopago"
+                # Agrupar como UNA venta (todos los discos de esta reserva)
+                if not d.venta_grupo:
+                    d.venta_grupo = f"r{reserva.id}"
         db.session.commit()
         # Email de confirmacion (best-effort): pago por Mercado Pago -> "gracias por tu compra"
         if reserva.email and mailer.can_send():
@@ -5882,6 +5959,9 @@ def register_routes(app: Flask) -> None:
                                             disco.metodo_pago_venta = "mercadopago"
                                         elif reserva.metodo_pago == "transferencia":
                                             disco.metodo_pago_venta = "transferencia"
+                                    # Agrupar como UNA venta (los discos de esta reserva)
+                                    if not disco.venta_grupo:
+                                        disco.venta_grupo = f"r{reserva.id}"
                                 cambios += 1
                         if cambios:
                             db.session.commit()

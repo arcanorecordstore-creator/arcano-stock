@@ -19,6 +19,20 @@ def _month_bounds(year: int, month: int) -> tuple[datetime, datetime]:
     return inicio, fin
 
 
+def contar_ventas(discs) -> int:
+    """Cuenta TRANSACCIONES (no unidades): los discos con el mismo `venta_grupo`
+    son una sola venta; los sueltos (sin grupo) cuentan de a uno."""
+    grupos = set()
+    sueltos = 0
+    for d in discs:
+        g = getattr(d, "venta_grupo", None)
+        if g:
+            grupos.add(g)
+        else:
+            sueltos += 1
+    return len(grupos) + sueltos
+
+
 def kpis_principales() -> dict:
     """KPIs principales del negocio."""
 
@@ -91,7 +105,7 @@ def kpis_mes_actual() -> dict:
     return {
         "mes_label": hoy.strftime("%B %Y"),
         "mes_inicio": inicio.strftime("%d/%m/%Y"),
-        "ventas_count": len(vendidos_mes),
+        "ventas_count": contar_ventas(vendidos_mes),
         "unidades": unidades,
         "facturado_uyu": round(facturado, 2),
         "ganancia_uyu": round(ganancia, 2),

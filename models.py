@@ -116,6 +116,10 @@ class Disc(db.Model):
     canal_venta = db.Column(db.String(20), nullable=True)
     # metodo_pago_venta: como pago el cliente (mercadopago / transferencia / efectivo / otro)
     metodo_pago_venta = db.Column(db.String(20), nullable=True)
+    # venta_grupo: identificador de la TRANSACCION (varios discos vendidos juntos).
+    # Web: se agrupa solo por reserva ('r<id>'). Instagram/manual: se agrupa a mano
+    # desde el panel de Ventas ('g<n>'). Null = venta suelta (1 disco = 1 venta).
+    venta_grupo = db.Column(db.String(40), nullable=True, index=True)
 
     # Orden manual para la tienda (drag-and-drop en el dashboard).
     # Mayor = aparece primero. Los discos nuevos reciben el mayor (arriba de todo).
@@ -1461,6 +1465,28 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN metodo_pago_venta VARCHAR(20)"))
                     conn.commit()
                 print("Migracion: columna metodo_pago_venta agregada a discs")
+            if "venta_grupo" not in dcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN venta_grupo VARCHAR(40)"))
+                    conn.commit()
+                print("Migracion: columna venta_grupo agregada a discs")
+            # Backfill (una vez): si una venta ya tiene metodo en la caja pero el
+            # disco todavia no, copiar ese metodo al disco -> aparece en Ventas. Idempotente.
+            try:
+                with db.engine.connect() as conn:
+                    conn.execute(text(
+                        "UPDATE discs SET metodo_pago_venta = ("
+                        "  SELECT m.metodo FROM movimientos_caja m"
+                        "  WHERE m.origen='venta' AND m.origen_id=discs.id"
+                        "    AND m.metodo IS NOT NULL AND m.metodo != '' LIMIT 1) "
+                        "WHERE estado='Vendido' AND (metodo_pago_venta IS NULL OR metodo_pago_venta='') "
+                        "AND EXISTS (SELECT 1 FROM movimientos_caja m2 "
+                        "  WHERE m2.origen='venta' AND m2.origen_id=discs.id"
+                        "    AND m2.metodo IS NOT NULL AND m2.metodo != '')"
+                    ))
+                    conn.commit()
+            except Exception:
+                pass
             if "orden" not in dcols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN orden INTEGER"))

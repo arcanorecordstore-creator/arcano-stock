@@ -2,13 +2,58 @@
 
 {% block title %}Ventas &middot; Arcano admin{% endblock %}
 
+{% macro venta_fila(d) %}
+{% set met = d.metodo_pago_venta or metodo_por_disc.get(d.id) %}
+{% set canal = d.canal_venta or ('web' if d.id in disc_ids_web else '') %}
+<div class="venta-row">
+    <input type="checkbox" class="venta-check" value="{{ d.id }}" aria-label="Seleccionar para agrupar como una venta">
+    {% if d.cover_local %}
+    <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="venta-cover-link">
+        <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="" class="venta-cover" loading="lazy">
+    </a>
+    {% else %}
+    <div class="venta-cover venta-cover-empty">&#9834;</div>
+    {% endif %}
+    <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="venta-info">
+        <div class="venta-title"><strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}</div>
+        <div class="venta-sub">
+            {% if d.sello %}{{ d.sello }}{% endif %}
+            {% if d.origen == 'personal' %}<span class="venta-origen-personal">coleccion personal</span>{% endif %}
+            {% if d.copias_facturadas > 1 %}<span class="venta-copias">&times;{{ d.copias_facturadas }}</span>{% endif %}
+        </div>
+    </a>
+    <div class="venta-canal">
+        <span class="venta-col-label">Canal</span>
+        <select class="venta-select" data-disc-id="{{ d.id }}" data-campo="canal_venta" aria-label="Canal de venta">
+            <option value="" {% if not canal %}selected{% endif %}>&mdash;</option>
+            <option value="web" {% if canal == 'web' %}selected{% endif %}>Web</option>
+            <option value="instagram" {% if canal == 'instagram' %}selected{% endif %}>Instagram</option>
+            <option value="presencial" {% if canal == 'presencial' %}selected{% endif %}>Presencial</option>
+            <option value="otro" {% if canal == 'otro' %}selected{% endif %}>Otro</option>
+        </select>
+    </div>
+    <div class="venta-metodo">
+        <span class="venta-col-label">M&eacute;todo</span>
+        <select class="venta-select" data-disc-id="{{ d.id }}" data-campo="metodo_pago_venta" aria-label="Metodo de pago">
+            <option value="" {% if not met %}selected{% endif %}>&mdash;</option>
+            <option value="mercadopago" {% if met == 'mercadopago' %}selected{% endif %}>Mercado Pago</option>
+            <option value="transferencia" {% if met == 'transferencia' %}selected{% endif %}>Transferencia</option>
+            <option value="efectivo" {% if met == 'efectivo' %}selected{% endif %}>Efectivo</option>
+            <option value="otro" {% if met == 'otro' %}selected{% endif %}>Otro</option>
+        </select>
+    </div>
+    <div class="venta-precio">$ {{ '{:,.0f}'.format(d.precio_mostrar or d.precio_uyu or 0).replace(',', '.') }}</div>
+</div>
+{% endmacro %}
+
 {% block content %}
 
 <section class="page-head">
     <div>
         <h1 class="page-title">Ventas</h1>
         <p class="page-sub">
-            {{ total_unidades }} unidad{{ 'es' if total_unidades != 1 else '' }} vendida{{ 's' if total_unidades != 1 else '' }}
+            <strong>{{ total_ventas }} venta{{ 's' if total_ventas != 1 else '' }}</strong>
+            &middot; {{ total_unidades }} disco{{ 's' if total_unidades != 1 else '' }}
             &middot; recaudado <strong>$ {{ '{:,.0f}'.format(total_recaudado).replace(',', '.') }} UYU</strong>
         </p>
     </div>
@@ -18,6 +63,7 @@
 </section>
 
 {% if grupos %}
+<p class="ventas-ayuda">&#128161; Si una persona se llev&oacute; varios discos en una sola venta, tild&aacute;los y toc&aacute; &laquo;Marcar como una sola venta&raquo;. Las ventas web se agrupan solas por pedido.</p>
 <div class="ventas-lista">
     {% for g in grupos %}
     <div class="ventas-dia">
@@ -25,53 +71,34 @@
             <span class="ventas-dia-fecha">
                 {% if g.fecha == hoy %}Hoy{% elif g.fecha %}{{ g.fecha.strftime('%d/%m/%Y') }}{% else %}Sin fecha{% endif %}
             </span>
-            <span class="ventas-dia-meta">{{ g.discos|length }} disco{{ 's' if g.discos|length != 1 else '' }} &middot; $ {{ '{:,.0f}'.format(g.subtotal).replace(',', '.') }}</span>
+            <span class="ventas-dia-meta">{{ g.n_ventas }} venta{{ 's' if g.n_ventas != 1 else '' }} &middot; {{ g.discos|length }} disco{{ 's' if g.discos|length != 1 else '' }} &middot; $ {{ '{:,.0f}'.format(g.subtotal).replace(',', '.') }}</span>
         </div>
-        {% for d in g.discos %}
-        {% set met = d.metodo_pago_venta or metodo_por_disc.get(d.id) %}
-        {% set canal = d.canal_venta or ('web' if d.id in disc_ids_web else '') %}
-        <div class="venta-row">
-            {% if d.cover_local %}
-            <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="venta-cover-link">
-                <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="" class="venta-cover" loading="lazy">
-            </a>
-            {% else %}
-            <div class="venta-cover venta-cover-empty">&#9834;</div>
-            {% endif %}
-            <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="venta-info">
-                <div class="venta-title"><strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}</div>
-                <div class="venta-sub">
-                    {% if d.sello %}{{ d.sello }}{% endif %}
-                    {% if d.origen == 'personal' %}<span class="venta-origen-personal">coleccion personal</span>{% endif %}
-                    {% if d.copias_facturadas > 1 %}<span class="venta-copias">&times;{{ d.copias_facturadas }}</span>{% endif %}
-                </div>
-            </a>
-            <div class="venta-canal">
-                <span class="venta-col-label">Canal</span>
-                <select class="venta-select" data-disc-id="{{ d.id }}" data-campo="canal_venta" aria-label="Canal de venta">
-                    <option value="" {% if not canal %}selected{% endif %}>&mdash;</option>
-                    <option value="web" {% if canal == 'web' %}selected{% endif %}>Web</option>
-                    <option value="instagram" {% if canal == 'instagram' %}selected{% endif %}>Instagram</option>
-                    <option value="presencial" {% if canal == 'presencial' %}selected{% endif %}>Presencial</option>
-                    <option value="otro" {% if canal == 'otro' %}selected{% endif %}>Otro</option>
-                </select>
+        {% for t in g.transacciones %}
+        {% if t.multi %}
+        <div class="venta-trans">
+            <div class="venta-trans-head">
+                <span class="venta-trans-label">&#128230; Una venta &middot; {{ t.discos|length }} discos &middot; $ {{ '{:,.0f}'.format(t.subtotal).replace(',', '.') }}</span>
+                <form method="post" action="{{ url_for('ventas_desagrupar') }}" onsubmit="return confirm('¿Desagrupar esta venta? Cada disco vuelve a contar por separado.');">
+                    <input type="hidden" name="grupo" value="{{ t.grupo }}">
+                    <button type="submit" class="venta-desagrupar">Desagrupar</button>
+                </form>
             </div>
-            <div class="venta-metodo">
-                <span class="venta-col-label">M&eacute;todo</span>
-                <select class="venta-select" data-disc-id="{{ d.id }}" data-campo="metodo_pago_venta" aria-label="Metodo de pago">
-                    <option value="" {% if not met %}selected{% endif %}>&mdash;</option>
-                    <option value="mercadopago" {% if met == 'mercadopago' %}selected{% endif %}>Mercado Pago</option>
-                    <option value="transferencia" {% if met == 'transferencia' %}selected{% endif %}>Transferencia</option>
-                    <option value="efectivo" {% if met == 'efectivo' %}selected{% endif %}>Efectivo</option>
-                    <option value="otro" {% if met == 'otro' %}selected{% endif %}>Otro</option>
-                </select>
-            </div>
-            <div class="venta-precio">$ {{ '{:,.0f}'.format(d.precio_mostrar or d.precio_uyu or 0).replace(',', '.') }}</div>
+            {% for d in t.discos %}{{ venta_fila(d) }}{% endfor %}
         </div>
+        {% else %}
+        {{ venta_fila(t.discos[0]) }}
+        {% endif %}
         {% endfor %}
     </div>
     {% endfor %}
 </div>
+
+<form method="post" action="{{ url_for('ventas_agrupar') }}" id="agrupar-form" class="ventas-bulkbar" hidden>
+    <input type="hidden" name="ids" id="agrupar-ids">
+    <span id="agrupar-count">0 seleccionados</span>
+    <button type="submit" class="btn btn-primary btn-sm" id="agrupar-btn">Marcar como una sola venta</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="agrupar-cancelar">Cancelar</button>
+</form>
 {% else %}
 <div class="empty-state">
     <div class="empty-icon">&#128176;</div>
@@ -82,6 +109,7 @@
 
 <script>
 (function () {
+    // Guardar canal / metodo al toque
     document.querySelectorAll('.venta-select').forEach(function (sel) {
         sel.addEventListener('change', function () {
             var id = sel.getAttribute('data-disc-id');
@@ -102,6 +130,40 @@
               });
         });
     });
+
+    // Seleccionar discos para agruparlos como una sola venta
+    var checks = document.querySelectorAll('.venta-check');
+    var bar = document.getElementById('agrupar-form');
+    var count = document.getElementById('agrupar-count');
+    var idsField = document.getElementById('agrupar-ids');
+    var btn = document.getElementById('agrupar-btn');
+    var cancelar = document.getElementById('agrupar-cancelar');
+    function seleccionados() {
+        return Array.prototype.filter.call(checks, function (c) { return c.checked; });
+    }
+    function refrescar() {
+        var sel = seleccionados();
+        if (!bar) return;
+        if (sel.length > 0) {
+            bar.hidden = false;
+            count.textContent = sel.length + ' seleccionado' + (sel.length !== 1 ? 's' : '');
+            if (btn) btn.disabled = sel.length < 2;
+        } else {
+            bar.hidden = true;
+        }
+    }
+    checks.forEach(function (c) { c.addEventListener('change', refrescar); });
+    if (bar) {
+        bar.addEventListener('submit', function () {
+            idsField.value = seleccionados().map(function (c) { return c.value; }).join(',');
+        });
+    }
+    if (cancelar) {
+        cancelar.addEventListener('click', function () {
+            checks.forEach(function (c) { c.checked = false; });
+            refrescar();
+        });
+    }
 })();
 </script>
 
