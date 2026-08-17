@@ -68,17 +68,37 @@
     <a href="{{ url_for('home') }}" class="public-reserve-ok-back">Volver al catalogo</a>
 </section>
 
+{% if medir_compra %}
 <script>
 (function () {
-    // Conversion del embudo: reserva confirmada (Google Analytics)
-    if (window.arcanoGA) {
-        window.arcanoGA('purchase', {
-            transaction_id: 'reserva-{{ reserva.id }}',
-            value: {{ reserva.total_uyu or 0 }},
-            currency: 'UYU'
-        });
+    // Conversion del embudo: COMPRA concretada (transferencia con comprobante).
+    // GA4 'purchase' + Meta 'Purchase' via arcanoGA.
+    // OJO: este script vive en el <body>, pero arcanoGA (public_anim.js) se carga
+    // al final del body -> hay que esperar a que exista o el evento no dispara.
+    var payload = {
+        transaction_id: 'reserva-{{ reserva.id }}',
+        value: {{ reserva.total_uyu or 0 }},
+        currency: 'UYU',
+        items: {{ purchase_items|tojson }}
+    };
+    var enviado = false;
+    function fire() {
+        if (enviado) return true;
+        if (typeof window.arcanoGA === 'function') {
+            enviado = true;
+            try { window.arcanoGA('purchase', payload); } catch (e) {}
+            return true;
+        }
+        return false;
+    }
+    if (!fire()) {
+        document.addEventListener('DOMContentLoaded', fire);
+        var n = 0, iv = setInterval(function () {
+            if (fire() || ++n > 60) clearInterval(iv);
+        }, 100);
     }
 })();
 </script>
+{% endif %}
 
 {% endblock %}

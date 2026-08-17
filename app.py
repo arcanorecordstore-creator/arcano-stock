@@ -500,6 +500,24 @@ def compute_totals(discs):
     }
 
 
+def _ga_purchase_items(reserva):
+    """Lista de items para el evento 'purchase' de GA4/Meta (ecommerce).
+    Usa los snapshots de la reserva asi funciona aunque el disco ya no exista."""
+    items = []
+    try:
+        for it in reserva.items_efectivos:
+            nombre = f"{it.artista_snap or ''} - {it.titulo_snap or ''}".strip(" -")
+            items.append({
+                "item_id": str(it.disc_id or ""),
+                "item_name": nombre or "Disco",
+                "price": round(it.precio_uyu_snap or 0, 2),
+                "quantity": 1,
+            })
+    except Exception:
+        pass
+    return items
+
+
 def get_sellos_unicos():
     rows = (
         db.session.query(Disc.sello)
@@ -4633,6 +4651,7 @@ def register_routes(app: Flask) -> None:
             reserva=reserva,
             estado_mp=estado_mp,
             medir_compra=medir_compra,
+            purchase_items=_ga_purchase_items(reserva) if reserva else [],
             **_public_context(),
         )
 
@@ -5159,11 +5178,17 @@ def register_routes(app: Flask) -> None:
             # snapshots guardados en el item y no necesita el objeto Disc).
             if disc is None:
                 multi = True
+        # Medir 'purchase' SOLO en compras reales (transferencia con comprobante).
+        # "Reservar y coordinar" es un lead, no una venta: no debe inflar los ingresos.
+        # (El pago por Mercado Pago se mide aparte en /mp/retorno cuando se confirma.)
+        medir_compra = (reserva.metodo_pago == "transferencia")
         return render_template(
             "public/reserva_ok.html",
             reserva=reserva,
             disc=disc,
             multi=multi,
+            medir_compra=medir_compra,
+            purchase_items=_ga_purchase_items(reserva),
             **_public_context(),
         )
 
