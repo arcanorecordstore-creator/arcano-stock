@@ -9456,6 +9456,13 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 }
 .caja-hero-value.negativo { color: #ef4444; }
 .caja-hero-cur { font-size: 20px; font-weight: 500; opacity: 0.6; }
+.caja-hero-sub {
+    font-size: 12.5px;
+    color: var(--text-4);
+    max-width: 520px;
+    line-height: 1.45;
+    margin-top: 2px;
+}
 .caja-hero-desglose { display: flex; flex-wrap: wrap; gap: 10px; }
 .caja-chip {
     display: flex;

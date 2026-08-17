@@ -20,9 +20,12 @@
 <section class="caja-hero">
     <div class="caja-hero-main">
         <span class="caja-hero-label">Plata en caja ahora</span>
-        <span class="caja-hero-value {% if resumen.saldo_actual < 0 %}negativo{% endif %}">
-            $ {{ fmt_uyu(resumen.saldo_actual) }} <span class="caja-hero-cur">UYU</span>
+        <span class="caja-hero-value {% if resumen.disponible < 0 %}negativo{% endif %}">
+            $ {{ fmt_uyu(resumen.disponible) }} <span class="caja-hero-cur">UYU</span>
         </span>
+        {% if resumen.saldo_actual != resumen.disponible %}
+        <span class="caja-hero-sub">Lo que ten&eacute;s en la mano. En la contabilidad hay $ {{ fmt_uyu(resumen.saldo_actual) }}, pero $ {{ fmt_uyu(resumen.saldo_actual - resumen.disponible) }} todav&iacute;a est&aacute; en Mercado Pago sin cobrar.</span>
+        {% endif %}
     </div>
     <div class="caja-hero-desglose">
         <div class="caja-chip caja-chip-editable" id="caja-si-chip" title="Click para editar el saldo inicial" data-raw="{{ '%.0f'|format(resumen.saldo_inicial) }}">

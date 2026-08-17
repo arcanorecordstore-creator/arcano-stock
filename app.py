@@ -3511,15 +3511,16 @@ def register_routes(app: Flask) -> None:
             if m.tipo == "ingreso" and not m.es_aporte
             and m.metodo == "mercadopago" and m.fecha and m.fecha > limite_mp
         )
-        # Plata que ya podes tocar (todo menos lo retenido en MP)
-        disponible = saldo_actual - mp_pendiente
-
         # Adelantos de MP: aportes que Facundo hizo para tener la liquidez de MP
         # antes de que MP pague. Los 'pendiente' todavia esperan el pago de MP.
         adelantos_pendientes = [m for m in movs if (m.adelanto_mp or "") == "pendiente"]
         adelanto_pendiente_total = sum(m.monto_uyu or 0 for m in adelantos_pendientes)
         # Lo que hay en MP y todavia no adelantaste (para no adelantar dos veces)
         por_adelantar = max(0.0, mp_pendiente - adelanto_pendiente_total)
+        # PLATA EN LA MANO HOY = saldo - lo retenido en MP (que todavia no cobraste)
+        # + lo que ya adelantaste de tu bolsillo (ese efectivo SI lo tenes).
+        # Ej: saldo 11.528 - MP 3.900 + adelanto 2.700 = 10.328 en la mano.
+        disponible = saldo_actual - mp_pendiente + adelanto_pendiente_total
 
         # Origen del disco (arcano / personal) de cada movimiento de venta
         from models import Disc
