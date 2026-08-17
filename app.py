@@ -3517,10 +3517,12 @@ def register_routes(app: Flask) -> None:
         adelanto_pendiente_total = sum(m.monto_uyu or 0 for m in adelantos_pendientes)
         # Lo que hay en MP y todavia no adelantaste (para no adelantar dos veces)
         por_adelantar = max(0.0, mp_pendiente - adelanto_pendiente_total)
-        # PLATA EN LA MANO HOY = saldo - lo retenido en MP (que todavia no cobraste)
-        # + lo que ya adelantaste de tu bolsillo (ese efectivo SI lo tenes).
-        # Ej: saldo 11.528 - MP 3.900 + adelanto 2.700 = 10.328 en la mano.
-        disponible = saldo_actual - mp_pendiente + adelanto_pendiente_total
+        # PLATA EN LA MANO HOY = saldo - lo que todavia esta retenido en Mercado Pago.
+        # La venta por MP NO se cuenta como plata en mano hasta que MP la deposita
+        # (modelo confirmado por Facundo). El adelanto que pusiste ya esta en el saldo
+        # como tu plata; NO se suma de nuevo (eso era contar dos veces la misma plata).
+        # Ej: saldo 12.728 - MP 3.900 = 8.828 en la mano.
+        disponible = saldo_actual - mp_pendiente
 
         # Origen del disco (arcano / personal) de cada movimiento de venta
         from models import Disc
