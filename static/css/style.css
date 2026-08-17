@@ -1886,6 +1886,22 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
 .venta-gan { color: var(--gain, #16a34a); font-size: 12px; font-weight: 500; }
 .venta-rot { color: var(--text-4); font-size: 11px; }
 .venta-cliente { color: var(--text-3); font-size: 11px; }
+.venta-fecha-chip {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-2);
+    background: var(--bg-3);
+    border-radius: 5px;
+    padding: 1px 6px;
+    margin-right: 2px;
+}
+.venta-multidia {
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-4);
+    font-style: italic;
+}
 .venta-cliente a, .venta-trans-label a { color: var(--accent, #10b981); }
 .venta-precio .venta-gan { display: block; text-align: right; }
 

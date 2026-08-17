@@ -2869,30 +2869,46 @@ def register_routes(app: Flask) -> None:
         if request.args.get("export") == "csv":
             return _ventas_csv(lista, canal_de, metodo_de, cliente_res)
 
-        # dia -> transaccion
-        grupos, actual = [], None
+        # 1) Agrupar por TRANSACCION primero (misma reserva/grupo = una venta), aunque
+        #    sus discos se hayan vendido en dias distintos. La fecha de la venta = la
+        #    de su ultima entrega. Asi no se parte una venta en varios dias.
+        trans_map, orden = {}, []
         for d in lista:
+            key = d.venta_grupo or ("s%d" % d.id)
+            if key not in trans_map:
+                trans_map[key] = {"grupo": d.venta_grupo, "discos": [], "subtotal": 0.0,
+                                  "ganancia": 0.0, "cliente": None, "fecha": None}
+                orden.append(key)
+            t = trans_map[key]
+            t["discos"].append(d)
+            t["subtotal"] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+            t["ganancia"] += (d.ganancia_uyu or 0) * d.copias_facturadas
+            if not t["cliente"] and cliente_res.get(d.id):
+                t["cliente"] = cliente_res.get(d.id)
             fv = d.fecha_venta.date() if d.fecha_venta else None
-            if actual is None or actual["fecha"] != fv:
-                actual = {"fecha": fv, "discos": [], "subtotal": 0.0}
+            if fv and (t["fecha"] is None or fv > t["fecha"]):
+                t["fecha"] = fv
+        from datetime import date as _date
+        transacciones = []
+        for k in orden:
+            t = trans_map[k]
+            fechas = {d.fecha_venta.date() for d in t["discos"] if d.fecha_venta}
+            t["multi"] = len(t["discos"]) > 1
+            t["multidia"] = len(fechas) > 1
+            transacciones.append(t)
+        transacciones.sort(key=lambda t: (t["fecha"] or _date.min), reverse=True)
+
+        # 2) Ubicar cada transaccion en el dia de su fecha (la ultima entrega).
+        grupos, actual = [], None
+        for t in transacciones:
+            if actual is None or actual["fecha"] != t["fecha"]:
+                actual = {"fecha": t["fecha"], "transacciones": [], "subtotal": 0.0,
+                          "n_ventas": 0, "n_discos": 0}
                 grupos.append(actual)
-            actual["discos"].append(d)
-            actual["subtotal"] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
-        for g in grupos:
-            trans, orden = {}, []
-            for d in g["discos"]:
-                key = d.venta_grupo or ("s%d" % d.id)
-                if key not in trans:
-                    trans[key] = {"grupo": d.venta_grupo, "discos": [], "subtotal": 0.0,
-                                  "ganancia": 0.0, "cliente": None}
-                    orden.append(key)
-                trans[key]["discos"].append(d)
-                trans[key]["subtotal"] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
-                trans[key]["ganancia"] += (d.ganancia_uyu or 0) * d.copias_facturadas
-                if not trans[key]["cliente"] and cliente_res.get(d.id):
-                    trans[key]["cliente"] = cliente_res.get(d.id)
-            g["transacciones"] = [{**trans[k], "multi": len(trans[k]["discos"]) > 1} for k in orden]
-            g["n_ventas"] = len(orden)
+            actual["transacciones"].append(t)
+            actual["subtotal"] += t["subtotal"]
+            actual["n_ventas"] += 1
+            actual["n_discos"] += len(t["discos"])
 
         dias_venta = {d.id: max((d.fecha_venta - d.fecha_ingreso).days, 0)
                       for d in lista if d.fecha_ingreso and d.fecha_venta}

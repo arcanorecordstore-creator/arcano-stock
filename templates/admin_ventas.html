@@ -10,7 +10,7 @@
 {% endif %}
 {% endmacro %}
 
-{% macro venta_fila(d, mostrar_cliente) %}
+{% macro venta_fila(d, mostrar_cliente, mostrar_fecha) %}
 {% set met = d.metodo_pago_venta or metodo_por_disc.get(d.id) %}
 {% set canal = d.canal_venta or ('web' if d.id in disc_ids_web else '') %}
 {% set cli = cliente_por_disc.get(d.id) %}
@@ -26,6 +26,7 @@
     <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="venta-info">
         <div class="venta-title"><strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}</div>
         <div class="venta-sub">
+            {% if mostrar_fecha and d.fecha_venta %}<span class="venta-fecha-chip">{{ d.fecha_venta.strftime('%d/%m') }}</span>{% endif %}
             {% if d.sello %}{{ d.sello }}{% endif %}
             {% if d.origen == 'personal' %}<span class="venta-origen-personal">colecci&oacute;n personal</span>{% endif %}
             {% if dias_venta.get(d.id) is not none %}<span class="venta-rot">se vendi&oacute; en {{ dias_venta.get(d.id) }} d&iacute;a{{ 's' if dias_venta.get(d.id) != 1 else '' }}</span>{% endif %}
@@ -164,22 +165,22 @@
             <span class="ventas-dia-fecha">
                 {% if g.fecha == hoy %}Hoy{% elif g.fecha %}{{ g.fecha.strftime('%d/%m/%Y') }}{% else %}Sin fecha{% endif %}
             </span>
-            <span class="ventas-dia-meta">{{ g.n_ventas }} venta{{ 's' if g.n_ventas != 1 else '' }} &middot; {{ g.discos|length }} disco{{ 's' if g.discos|length != 1 else '' }} &middot; $ {{ fmt(g.subtotal) }}</span>
+            <span class="ventas-dia-meta">{{ g.n_ventas }} venta{{ 's' if g.n_ventas != 1 else '' }} &middot; {{ g.n_discos }} disco{{ 's' if g.n_discos != 1 else '' }} &middot; $ {{ fmt(g.subtotal) }}</span>
         </div>
         {% for t in g.transacciones %}
         {% if t.multi %}
         <div class="venta-trans">
             <div class="venta-trans-head">
-                <span class="venta-trans-label">&#128230; Una venta &middot; {{ t.discos|length }} discos{% if t.cliente %} &middot; {{ t.cliente.nombre }} &middot; <a href="{{ url_for('admin_reserva_detail', reserva_id=t.cliente.reserva_id) }}">reserva #{{ t.cliente.reserva_id }}</a>{% endif %} &middot; $ {{ fmt(t.subtotal) }} &middot; <span class="venta-gan">+$ {{ fmt(t.ganancia) }}</span></span>
+                <span class="venta-trans-label">&#128230; Una venta &middot; {{ t.discos|length }} discos{% if t.cliente %} &middot; {{ t.cliente.nombre }} &middot; <a href="{{ url_for('admin_reserva_detail', reserva_id=t.cliente.reserva_id) }}">reserva #{{ t.cliente.reserva_id }}</a>{% endif %} &middot; $ {{ fmt(t.subtotal) }} &middot; <span class="venta-gan">+$ {{ fmt(t.ganancia) }}</span>{% if t.multidia %} <span class="venta-multidia">entregada en varios d&iacute;as</span>{% endif %}</span>
                 <form method="post" action="{{ url_for('ventas_desagrupar') }}" onsubmit="return confirm('¿Desagrupar esta venta? Cada disco vuelve a contar por separado.');">
                     <input type="hidden" name="grupo" value="{{ t.grupo }}">
                     <button type="submit" class="venta-desagrupar">Desagrupar</button>
                 </form>
             </div>
-            {% for d in t.discos %}{{ venta_fila(d, false) }}{% endfor %}
+            {% for d in t.discos %}{{ venta_fila(d, false, t.multidia) }}{% endfor %}
         </div>
         {% else %}
-        {{ venta_fila(t.discos[0], true) }}
+        {{ venta_fila(t.discos[0], true, false) }}
         {% endif %}
         {% endfor %}
     </div>
