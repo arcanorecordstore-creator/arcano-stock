@@ -80,6 +80,13 @@
         .then(function (data) {
             loading.hidden = true;
             var discos = (data && data.discos) || [];
+            // Podar IDs muertos: dejar en el carrito solo los discos que el server
+            // devolvio (saca los borrados/descartados para que el contador no infle).
+            var validos = discos.map(function (d) { return String(d.id); });
+            if (validos.length !== ids.length) {
+                setCart(validos);
+                if (window.ArcanoCart && window.ArcanoCart.rebind) window.ArcanoCart.rebind();
+            }
             if (!discos.length) {
                 mostrarVacio();
                 return;

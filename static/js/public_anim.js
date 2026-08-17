@@ -251,6 +251,9 @@ window.arcanoGA = function (name, params) {
                 // Al agregar: abrir el menu lateral. Al quitar: solo un toast.
                 if (added) {
                     var card = btn.closest('.public-card') || btn.closest('.carrusel-card') || btn.closest('.public-disc-layout') || document;
+                    // Animacion "vuela al carrito" (solo al agregar)
+                    var _flyImg = card.querySelector('.public-card-cover img') || card.querySelector('.carrusel-cover img') || card.querySelector('.public-disc-cover img');
+                    if (window.ArcanoFlyToCart) window.ArcanoFlyToCart(_flyImg);
                     var tit = ((card.querySelector('.public-card-title') || card.querySelector('.carrusel-title-disc') || card.querySelector('.public-disc-title') || {}).textContent || '').trim();
                     var art = ((card.querySelector('.public-card-artist') || card.querySelector('.carrusel-artist') || card.querySelector('.public-disc-artist') || {}).textContent || '').trim();
                     if (window.arcanoGA) window.arcanoGA('add_to_cart', { currency: 'UYU', items: [{ item_id: String(id), item_name: (art ? art + ' - ' : '') + tit }] });
@@ -528,8 +531,16 @@ window.arcanoGA = function (name, params) {
                     } else {
                         el.href = '/?q=' + encodeURIComponent(item.texto);
                     }
-                    el.innerHTML = '<span class="suggestion-text">' + item.texto +
-                        '</span><span class="suggestion-type">' + (tipoLabel[item.tipo] || '') + '</span>';
+                    // Usar textContent (NO innerHTML) para no ejecutar HTML que venga
+                    // en el texto del disco (artista/sello/titulo del scraper o la IA).
+                    var _t = document.createElement('span');
+                    _t.className = 'suggestion-text';
+                    _t.textContent = item.texto;
+                    var _ty = document.createElement('span');
+                    _ty.className = 'suggestion-type';
+                    _ty.textContent = tipoLabel[item.tipo] || '';
+                    el.appendChild(_t);
+                    el.appendChild(_ty);
                     box.appendChild(el);
                 });
                 box.hidden = false;
@@ -640,17 +651,10 @@ window.arcanoGA = function (name, params) {
             });
         }, 660);
     }
-    document.addEventListener('click', function (e) {
-        var btn = e.target.closest('.cart-btn');
-        if (!btn) return;
-        // Solo animar cuando AGREGA (no cuando ya estaba en el carrito)
-        if (btn.classList.contains('in-cart')) return;
-        var card = btn.closest('.public-card') || btn.closest('.carrusel-card') || btn.closest('.public-disc-layout') || document;
-        var img = card.querySelector('.public-card-cover img') ||
-                  card.querySelector('.carrusel-cover img') ||
-                  card.querySelector('.public-disc-cover img');
-        volarAlCarrito(img);
-    });
+    // La animacion la dispara el handler del boton (ArcanoCart), que SI sabe si fue
+    // agregar o quitar. El listener global de antes usaba una clase mal escrita
+    // ('in-cart' en vez de 'is-in-cart'), asi que volaba tambien al quitar.
+    window.ArcanoFlyToCart = volarAlCarrito;
 })();
 
 /* Menu lateral que aparece al agregar un disco al carrito */

@@ -35,6 +35,8 @@ from models import (
     AUDIO_ESTADOS,
     ESTADOS_RESERVA,
     CONDICIONES_DISCO,
+    now_uy,
+    today_uy,
 )
 import vision
 import scraper
@@ -744,16 +746,25 @@ def register_status_change(disc: Disc, nuevo_estado: str, nota: str | None = Non
     if nuevo_estado not in ESTADOS_DISCO:
         raise ValueError(f"Estado invalido: {nuevo_estado}")
 
-    ahora = datetime.utcnow()
+    ahora = now_uy()
     disc.estado = nuevo_estado
 
     if nuevo_estado == "Reservado" and not disc.fecha_reserva:
         disc.fecha_reserva = ahora
-    elif nuevo_estado == "Vendido" and not disc.fecha_venta:
-        disc.fecha_venta = ahora
+    if nuevo_estado == "Vendido":
+        if not disc.fecha_venta:
+            disc.fecha_venta = ahora
         # Si no se registraron copias vendidas, asumir al menos 1
         if not getattr(disc, "copias_vendidas", 0):
             disc.copias_vendidas = 1
+    else:
+        # Al salir de Vendido, limpiar los datos de venta: si no, una re-venta futura
+        # hereda la fecha vieja y la venta cae en el mes equivocado (todo filtra por
+        # fecha_venta). Cubre el caso "lo marque Vendido por error y lo revierto".
+        if disc.fecha_venta is not None:
+            disc.fecha_venta = None
+        if getattr(disc, "copias_vendidas", 0):
+            disc.copias_vendidas = 0
 
     evento = StatusHistory(
         disc_id=disc.id,
@@ -1207,12 +1218,40 @@ def register_routes(app: Flask) -> None:
             api_key_set=api_key_set,
         )
 
+    def _sweep_samples_huerfanos(max_horas=24):
+        """Borra samples viejos (>max_horas) que ningun Track referencia: limpia los
+        archivos que quedan de sesiones de 'desde video' abandonadas (no se completo la
+        alta). Solo samples: los covers se dejan porque ahi tambien vive el banner/hero.
+        Corre como mucho 1 vez al dia. Best-effort: cualquier error se ignora."""
+        import time
+        try:
+            if Setting.get("last_sweep_samples") == today_uy().isoformat():
+                return
+            Setting.set("last_sweep_samples", today_uy().isoformat())
+            samples_dir = app.config.get("SAMPLES_DIR")
+            if not samples_dir or not os.path.isdir(samples_dir):
+                return
+            limite = time.time() - max_horas * 3600
+            for fname in os.listdir(samples_dir):
+                path = os.path.join(samples_dir, fname)
+                try:
+                    if not os.path.isfile(path) or os.path.getmtime(path) > limite:
+                        continue  # muy reciente: puede ser una sesion en curso
+                    if Track.query.filter_by(sample_local=fname).first() is not None:
+                        continue  # en uso
+                    os.remove(path)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
     @app.route("/admin/discs/new/from-video", methods=["GET", "POST"])
     @auth.admin_required
     def disc_new_from_video():
         """Sube uno o varios videos del disco (los de Instagram). Cada video =
         un track y queda como su sample. De la placa saca los datos del disco."""
         api_key_set = bool(config.ANTHROPIC_API_KEY)
+        _sweep_samples_huerfanos()  # limpieza diaria de samples de sesiones abandonadas
         if request.method == "POST":
             if not api_key_set:
                 flash("La API key de Anthropic no esta configurada.", "error")
@@ -1653,14 +1692,17 @@ def register_routes(app: Flask) -> None:
                 costo_eur = _parse_float(request.form.get(prefix + "costo_eur"), 0.0)
                 envio_eur = _parse_float(request.form.get(prefix + "envio_eur"), 0.0)
                 precio_uyu = _parse_float(request.form.get(prefix + "precio_uyu"), 0.0)
-                estado = _str_or_none(request.form.get(prefix + "estado")) or "En camino"
+                # Los discos de una factura estan viajando desde Europa: por defecto
+                # entran como Pre-order (no vendibles), NO como Disponible. El estado
+                # viejo "En camino" ya no existe.
+                estado = _str_or_none(request.form.get(prefix + "estado")) or "Pre-order"
                 stock_nuevo = _parse_int(request.form.get(prefix + "stock"), 1) or 1
                 duplicado_id = _parse_int(request.form.get(prefix + "duplicado_id"))
                 # Portada (ya buscada al analizar, o subida manualmente en la revision)
                 final_cover_local = _str_or_none(request.form.get(prefix + "cover_local"))
 
                 if estado not in ESTADOS_DISCO:
-                    estado = "En camino"
+                    estado = "Pre-order"
 
                 tc_actual = Setting.get_tc()
 
@@ -3241,7 +3283,10 @@ def register_routes(app: Flask) -> None:
         periodo = request.args.get("periodo", "mes_actual")
         desde = request.args.get("desde")
         hasta = request.args.get("hasta")
-        buf = informe_excel.generar_excel(periodo, desde, hasta)
+        _rc = _resumen_caja()  # mismo numero que la pantalla de Caja
+        buf = informe_excel.generar_excel(
+            periodo, desde, hasta,
+            caja_disponible=_rc.get("disponible"), mercaderia_uyu=_rc.get("mercaderia_uyu"))
         filename = f"arcano_contabilidad_{periodo}.xlsx"
         return send_file(
             buf, as_attachment=True, download_name=filename,
@@ -3257,7 +3302,10 @@ def register_routes(app: Flask) -> None:
         periodo = request.args.get("periodo", "mes_actual")
         desde = request.args.get("desde") or None
         hasta = request.args.get("hasta") or None
-        buf = informe.generar_informe_pdf(periodo, desde, hasta)
+        _rc = _resumen_caja()  # mismo numero que la pantalla de Caja
+        buf = informe.generar_informe_pdf(
+            periodo, desde, hasta,
+            caja_disponible=_rc.get("disponible"), mercaderia_uyu=_rc.get("mercaderia_uyu"))
         filename = f"arcano_informe_{periodo}.pdf"
         return Response(
             buf.getvalue(),
@@ -3287,13 +3335,25 @@ def register_routes(app: Flask) -> None:
 
     # ---- CAJA / BANCO (libro de movimientos de plata) ----
     def _parse_monto_caja(raw):
-        """Convierte un texto de monto a float. Tolera coma decimal es-UY."""
+        """Convierte un texto de monto a float, en formato es-UY (punto=miles, coma=decimal).
+        Ej: '12.345' -> 12345 · '1.234.567' -> 1234567 · '1.500,50' -> 1500.5 · '1500,50' -> 1500.5
+        Ojo con el caso ambiguo de UN solo punto sin coma: si tiene 3 digitos despues es
+        separador de miles ('12.345' = 12345); si no, se toma como decimal ('1500.50' = 1500.5)."""
         s = (raw or "").strip().replace(" ", "").replace("$", "")
         if not s:
             return 0.0
-        # Si hay coma, se asume formato es-UY (puntos=miles, coma=decimal)
         if "," in s:
+            # coma = decimal; los puntos son miles
             s = s.replace(".", "").replace(",", ".")
+        elif s.count(".") > 1:
+            # varios puntos sin coma: todos son miles (1.234.567)
+            s = s.replace(".", "")
+        elif "." in s:
+            ent, _, dec = s.partition(".")
+            if len(dec) == 3 and dec.isdigit():
+                # 12.345 -> separador de miles es-UY
+                s = ent + dec
+            # si no (1500.50, 0.5): se deja como decimal
         try:
             return float(s)
         except ValueError:
@@ -4185,22 +4245,20 @@ def register_routes(app: Flask) -> None:
         """Setea (o limpia) el costo real en UYU del pedido (lo que debito el banco)."""
         from models import Pedido
         ped = Pedido.query.get_or_404(pedido_id)
-        raw = (request.form.get("costo_uyu_manual") or "").strip().replace(".", "").replace(",", ".")
+        raw = (request.form.get("costo_uyu_manual") or "").strip()
         if raw == "":
             # Vacio => volver al calculo automatico
             ped.costo_uyu_manual = None
             db.session.commit()
             flash("Costo del pedido: vuelve al calculo automatico.", "success")
         else:
-            try:
-                val = float(raw)
-                if val < 0:
-                    raise ValueError()
+            val = _parse_monto_caja(raw)  # es-UY: puntos=miles, coma=decimal
+            if val < 0:
+                flash("Monto invalido.", "error")
+            else:
                 ped.costo_uyu_manual = val
                 db.session.commit()
                 flash(f"Costo real del pedido guardado: {val:,.0f} UYU.".replace(",", "."), "success")
-            except (ValueError, TypeError):
-                flash("Monto invalido.", "error")
         return redirect(url_for("pedidos"))
 
     @app.route("/admin/pedidos/<int:pedido_id>/editar", methods=["POST"])
@@ -4238,15 +4296,14 @@ def register_routes(app: Flask) -> None:
                 pass
 
         # Costo real UYU (manual): vacio => None (vuelve al calculo automatico).
-        raw = (request.form.get("costo_uyu_manual") or "").strip().replace(",", ".")
+        # Mismo parseo es-UY que el boton rapido (_parse_monto_caja): puntos=miles,
+        # coma=decimal. Antes esta ruta tomaba "12.345" como 12,3 (1000x de error).
+        raw = (request.form.get("costo_uyu_manual") or "").strip()
         if raw == "":
             ped.costo_uyu_manual = None
         else:
-            try:
-                v = float(raw)
-                ped.costo_uyu_manual = v if v >= 0 else None
-            except (ValueError, TypeError):
-                pass
+            v = _parse_monto_caja(raw)
+            ped.costo_uyu_manual = v if v >= 0 else None
 
         # Costos informativos (envio y servicio de la web, en EUR): no entran en ningun
         # calculo, solo se guardan. Vacio => None.
@@ -4999,11 +5056,25 @@ def register_routes(app: Flask) -> None:
         db.session.commit()
         return mp.url_checkout(pref)
 
-    def _mp_completar_reserva(reserva, payment_id=None, status="approved"):
+    def _mp_completar_reserva(reserva, payment_id=None, status="approved", amount=None):
         """Marca la reserva como pagada/completada y sus discos como Vendido.
         A prueba de carreras: un UPDATE condicional atomico 'reclama' la reserva.
         Si otra llamada (webhook + retorno, o dos webhooks) ya la reclamo, corta
         aca para no vender dos veces ni mandar dos mails."""
+        # Defensa en profundidad: el monto que pago MP debe cubrir el total de la
+        # reserva. En el flujo normal el monto lo fija la preferencia del server, asi
+        # que esto solo actua si llega un pago por menos (bug/preferencia reusada).
+        try:
+            _total_esperado = float(reserva.total_cobrado_uyu or 0)
+        except (TypeError, ValueError):
+            _total_esperado = 0
+        if amount is not None and _total_esperado > 0 and float(amount) < _total_esperado * 0.99:
+            reserva.mp_status = status
+            reserva.mp_payment_id = str(payment_id) if payment_id else reserva.mp_payment_id
+            _nota = "[ATENCION: pago MP de $%.0f por debajo del total $%.0f. Revisar antes de entregar.]" % (float(amount), _total_esperado)
+            reserva.nota = ((reserva.nota + " ") if reserva.nota else "") + _nota
+            db.session.commit()
+            return
         reclamada = (
             db.session.query(Reserva)
             .filter(Reserva.id == reserva.id, Reserva.pagado == False)  # noqa: E712
@@ -5020,10 +5091,17 @@ def register_routes(app: Flask) -> None:
         db.session.commit()
         if not reclamada:
             return  # otra llamada ya completo esta reserva
-        ahora = datetime.utcnow()
+        ahora = now_uy()
+        conflicto = []  # discos que YA estaban Vendidos por otra via (posible doble cobro)
         for item in reserva.items_efectivos:
             d = Disc.query.get(item.disc_id) if getattr(item, "disc_id", None) else None
-            if d and d.estado != "Vendido":
+            if not d:
+                continue
+            if d.estado == "Vendido" and (d.venta_grupo or "") != f"r{reserva.id}":
+                # Ya vendido por otra via (otro cliente por MP, o venta manual/IG)
+                conflicto.append(d)
+                continue
+            if d.estado != "Vendido":
                 d.estado = "Vendido"
                 if not d.fecha_venta:
                     d.fecha_venta = ahora
@@ -5038,7 +5116,22 @@ def register_routes(app: Flask) -> None:
                 # Agrupar como UNA venta (todos los discos de esta reserva)
                 if not d.venta_grupo:
                     d.venta_grupo = f"r{reserva.id}"
+        if conflicto:
+            # Cobraste por MP un disco que YA se habia vendido por otra via. Dejar
+            # constancia en la reserva para que la revises/reembolses.
+            _nombres = ", ".join((("%s - %s" % (d.artista or "", d.titulo or "")).strip(" -")) for d in conflicto)
+            _nota = "[ATENCION: pago por MP de disco(s) ya vendido(s) por otra via: %s. Revisar/reembolsar.]" % _nombres
+            reserva.nota = ((reserva.nota + " ") if reserva.nota else "") + _nota
         db.session.commit()
+        # Si hubo conflicto (disco ya vendido): avisar al admin y NO mandar "gracias por
+        # tu compra" al cliente (primero hay que resolver el reembolso).
+        if conflicto:
+            if mailer.is_configured():
+                try:
+                    mailer.send_reserva_notification(reserva, conflicto[0])
+                except Exception:
+                    pass
+            return
         # Email de confirmacion (best-effort): pago por Mercado Pago -> "gracias por tu compra"
         if reserva.email and mailer.can_send():
             try:
@@ -5088,7 +5181,8 @@ def register_routes(app: Flask) -> None:
         reserva = Reserva.query.get(int(ref)) if ref and str(ref).isdigit() else None
         if reserva:
             if estado == "approved":
-                _mp_completar_reserva(reserva, payment_id=payment_id, status=estado)
+                _mp_completar_reserva(reserva, payment_id=payment_id, status=estado,
+                                      amount=pago.get("transaction_amount"))
             else:
                 reserva.mp_status = estado
                 reserva.mp_payment_id = str(payment_id)
@@ -5113,7 +5207,8 @@ def register_routes(app: Flask) -> None:
             pago = mp.obtener_pago(payment_id)
             if (pago and pago.get("status") == "approved"
                     and str(pago.get("external_reference")) == str(reserva.id)):
-                _mp_completar_reserva(reserva, payment_id=payment_id, status="approved")
+                _mp_completar_reserva(reserva, payment_id=payment_id, status="approved",
+                                      amount=pago.get("transaction_amount"))
         if not estado_mp and reserva:
             estado_mp = reserva.mp_status
         # Medir la compra en el pixel/GA SOLO si el pago esta confirmado del lado
@@ -5724,14 +5819,16 @@ def register_routes(app: Flask) -> None:
             db.session.add(cliente)
             db.session.flush()
 
-            # Adoptar reservas anonimas previas con el mismo WhatsApp
-            if whatsapp:
-                previas = Reserva.query.filter(
-                    Reserva.cliente_id.is_(None),
-                    Reserva.whatsapp == whatsapp,
-                ).all()
-                for r in previas:
-                    r.cliente_id = cliente.id
+            # Adoptar reservas anonimas previas hechas con el MISMO EMAIL de esta cuenta.
+            # Antes se adoptaban por WhatsApp: como el numero se puede conocer sin ser el
+            # dueno (una historia, un contacto), permitia registrarse con el celu ajeno y
+            # ver las reservas de esa persona. El email es la identidad de la cuenta.
+            previas = Reserva.query.filter(
+                Reserva.cliente_id.is_(None),
+                Reserva.email == email,
+            ).all()
+            for r in previas:
+                r.cliente_id = cliente.id
 
             db.session.commit()
             auth.cliente_login(cliente.id)

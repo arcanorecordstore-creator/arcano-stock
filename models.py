@@ -1,8 +1,24 @@
 """Modelos de base de datos para Arcano Stock."""
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask_sqlalchemy import SQLAlchemy
 
 db = SQLAlchemy()
+
+# Uruguay esta en UTC-3 todo el ano (sin horario de verano desde 2015). El server
+# corre en UTC, asi que para la "fecha de negocio" (cuando se vendio, cortes de mes)
+# usamos estos helpers en vez de utcnow()/today(), que meten las ventas de la noche
+# en el dia siguiente.
+_UY_OFFSET = timedelta(hours=3)
+
+
+def now_uy():
+    """Fecha y hora actual en Uruguay (UTC-3)."""
+    return datetime.utcnow() - _UY_OFFSET
+
+
+def today_uy():
+    """Fecha de hoy en Uruguay (UTC-3)."""
+    return now_uy().date()
 
 
 # ---------------------------------------------------------------------------
@@ -1250,7 +1266,7 @@ def _disc_autofecha_venta(mapper, connection, target):
     bulk, completar reserva, venta manual de IG. Si ya tiene fecha, se respeta
     (Facundo puede fijar una fecha distinta a mano)."""
     if getattr(target, "estado", None) == "Vendido" and not getattr(target, "fecha_venta", None):
-        target.fecha_venta = datetime.utcnow()
+        target.fecha_venta = now_uy()
 
 
 def _migrate_schema(app):
@@ -1452,28 +1468,30 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN metodo_pago_venta VARCHAR(20)"))
                     conn.commit()
                 print("Migracion: columna metodo_pago_venta agregada a discs")
+                # Backfill UNA SOLA VEZ (recien creada la columna): copiar el metodo de
+                # la caja al disco. IMPORTANTE: esto va ADENTRO del if de creacion, NO en
+                # cada arranque; si no, revierte un blanqueo manual del metodo hecho en el
+                # panel de Ventas (mismo tipo de bug que la migracion de Pre-order de v4.13).
+                try:
+                    with db.engine.connect() as conn:
+                        conn.execute(text(
+                            "UPDATE discs SET metodo_pago_venta = ("
+                            "  SELECT m.metodo FROM movimientos_caja m"
+                            "  WHERE m.origen='venta' AND m.origen_id=discs.id"
+                            "    AND m.metodo IS NOT NULL AND m.metodo != '' LIMIT 1) "
+                            "WHERE estado='Vendido' AND (metodo_pago_venta IS NULL OR metodo_pago_venta='') "
+                            "AND EXISTS (SELECT 1 FROM movimientos_caja m2 "
+                            "  WHERE m2.origen='venta' AND m2.origen_id=discs.id"
+                            "    AND m2.metodo IS NOT NULL AND m2.metodo != '')"
+                        ))
+                        conn.commit()
+                except Exception:
+                    pass
             if "venta_grupo" not in dcols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN venta_grupo VARCHAR(40)"))
                     conn.commit()
                 print("Migracion: columna venta_grupo agregada a discs")
-            # Backfill (una vez): si una venta ya tiene metodo en la caja pero el
-            # disco todavia no, copiar ese metodo al disco -> aparece en Ventas. Idempotente.
-            try:
-                with db.engine.connect() as conn:
-                    conn.execute(text(
-                        "UPDATE discs SET metodo_pago_venta = ("
-                        "  SELECT m.metodo FROM movimientos_caja m"
-                        "  WHERE m.origen='venta' AND m.origen_id=discs.id"
-                        "    AND m.metodo IS NOT NULL AND m.metodo != '' LIMIT 1) "
-                        "WHERE estado='Vendido' AND (metodo_pago_venta IS NULL OR metodo_pago_venta='') "
-                        "AND EXISTS (SELECT 1 FROM movimientos_caja m2 "
-                        "  WHERE m2.origen='venta' AND m2.origen_id=discs.id"
-                        "    AND m2.metodo IS NOT NULL AND m2.metodo != '')"
-                    ))
-                    conn.commit()
-            except Exception:
-                pass
             if "orden" not in dcols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN orden INTEGER"))

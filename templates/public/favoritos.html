@@ -61,6 +61,12 @@
         .then(function (data) {
             loading.hidden = true;
             var discos = (data && data.discos) || [];
+            // Podar IDs muertos para que el contador de favoritos no quede inflado
+            var validos = discos.map(function (d) { return String(d.id); });
+            if (validos.length !== ids.length) {
+                setFavs(validos);
+                if (window.ArcanoFavs && window.ArcanoFavs.rebind) window.ArcanoFavs.rebind();
+            }
             if (!discos.length) {
                 empty.hidden = false;
                 return;

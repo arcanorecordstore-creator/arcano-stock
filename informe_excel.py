@@ -89,7 +89,8 @@ def _fila_datos(ws, fila, valores, money_cols=(), zebra=False):
     return fila + 1
 
 
-def generar_excel(periodo="mes_actual", desde=None, hasta=None):
+def generar_excel(periodo="mes_actual", desde=None, hasta=None,
+                  caja_disponible=None, mercaderia_uyu=None):
     conta = metrics.contabilidad(periodo, desde, hasta)
     data = metrics.get_all_metrics()
     kpis = data["kpis"]
@@ -103,23 +104,31 @@ def generar_excel(periodo="mes_actual", desde=None, hasta=None):
     inicio_dt = datetime(inicio.year, inicio.month, inicio.day)
     fin_dt = datetime(fin.year, fin.month, fin.day)
 
-    # Caja actual (saldo)
-    movs = MovimientoCaja.query.all()
-    try:
-        saldo_ini = float(Setting.get("caja_saldo_inicial") or 0)
-    except (TypeError, ValueError):
-        saldo_ini = 0.0
-    ing_c = sum(m.monto_uyu or 0 for m in movs if m.tipo == "ingreso")
-    egr_c = sum(m.monto_uyu or 0 for m in movs if m.tipo == "egreso")
-    saldo = saldo_ini + ing_c - egr_c
+    # Caja actual: usar el MISMO numero que la pantalla de Caja (disponible) que pasa
+    # el route. Antes recalculaba a mano (sumaba adelantos MP, no descontaba lo retenido
+    # en MP) y no coincidia con la Caja.
+    if caja_disponible is not None:
+        saldo = caja_disponible
+    else:
+        movs = MovimientoCaja.query.all()
+        try:
+            saldo_ini = float(Setting.get("caja_saldo_inicial") or 0)
+        except (TypeError, ValueError):
+            saldo_ini = 0.0
+        ing_c = sum(m.monto_uyu or 0 for m in movs if m.tipo == "ingreso")
+        egr_c = sum(m.monto_uyu or 0 for m in movs if m.tipo == "egreso")
+        saldo = saldo_ini + ing_c - egr_c
 
-    stock = (
-        Disc.query
-        .filter((Disc.estado == "Disponible") | ((Disc.estado == "Pre-order") & (Disc.pedido_id.isnot(None))))
-        .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
-        .all()
-    )
-    mercaderia = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in stock)
+    if mercaderia_uyu is not None:
+        mercaderia = mercaderia_uyu
+    else:
+        stock = (
+            Disc.query
+            .filter((Disc.estado == "Disponible") | ((Disc.estado == "Pre-order") & (Disc.pedido_id.isnot(None))))
+            .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
+            .all()
+        )
+        mercaderia = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in stock)
 
     wb = Workbook()
 

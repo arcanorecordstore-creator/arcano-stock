@@ -243,6 +243,22 @@
         return p;
     }
     fpProgress.addEventListener('click', function (ev) { if (engine && engine.seekPct) engine.seekPct(pctFromEvent(ev)); });
+    // Accesibilidad: la barra se anuncia como slider; que responda al teclado.
+    fpProgress.addEventListener('keydown', function (ev) {
+        if (!engine || !engine.seekPct) return;
+        var cur = parseFloat(fpFill.style.width) || 0;  // 0..100
+        var p;
+        switch (ev.key) {
+            case 'ArrowRight': case 'ArrowUp': p = Math.min(100, cur + 5); break;
+            case 'ArrowLeft': case 'ArrowDown': p = Math.max(0, cur - 5); break;
+            case 'Home': p = 0; break;
+            case 'End': p = 100; break;
+            default: return;
+        }
+        ev.preventDefault();
+        engine.seekPct(p / 100);
+        fpProgress.setAttribute('aria-valuenow', Math.round(p));
+    });
 
     function cerrar() {
         destruirEngine();

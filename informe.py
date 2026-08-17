@@ -83,7 +83,8 @@ def _grafico_barras(labels, series, colores, ancho_mm=174, alto=130):
     return d
 
 
-def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None):
+def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None,
+                        caja_disponible=None, mercaderia_uyu=None):
     conta = metrics.contabilidad(periodo, desde, hasta)
     recup = metrics.recuperacion_inversion()
     frenado = metrics.stock_frenado()
@@ -94,22 +95,31 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None):
     arc_per = metrics.arcano_vs_personal_6m()
     pedidos = Pedido.query.order_by(Pedido.fecha.desc()).all()
 
-    movs = MovimientoCaja.query.all()
-    try:
-        si = float(Setting.get("caja_saldo_inicial") or 0)
-    except (TypeError, ValueError):
-        si = 0.0
-    ing_c = sum(m.monto_uyu or 0 for m in movs if m.tipo == "ingreso")
-    egr_c = sum(m.monto_uyu or 0 for m in movs if m.tipo == "egreso")
-    saldo = si + ing_c - egr_c
+    # "Plata en caja": usar el MISMO numero que la pantalla de Caja (_resumen_caja
+    # -> disponible), que el route pasa aca. Antes se recalculaba a mano sumando los
+    # adelantos de MP y sin descontar lo retenido en MP -> sobreestimaba el saldo.
+    if caja_disponible is not None:
+        saldo = caja_disponible
+    else:
+        movs = MovimientoCaja.query.all()
+        try:
+            si = float(Setting.get("caja_saldo_inicial") or 0)
+        except (TypeError, ValueError):
+            si = 0.0
+        ing_c = sum(m.monto_uyu or 0 for m in movs if m.tipo == "ingreso")
+        egr_c = sum(m.monto_uyu or 0 for m in movs if m.tipo == "egreso")
+        saldo = si + ing_c - egr_c
 
-    stock = (
-        Disc.query
-        .filter((Disc.estado == "Disponible") | ((Disc.estado == "Pre-order") & (Disc.pedido_id.isnot(None))))
-        .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
-        .all()
-    )
-    merc = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in stock)
+    if mercaderia_uyu is not None:
+        merc = mercaderia_uyu
+    else:
+        stock = (
+            Disc.query
+            .filter((Disc.estado == "Disponible") | ((Disc.estado == "Pre-order") & (Disc.pedido_id.isnot(None))))
+            .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
+            .all()
+        )
+        merc = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in stock)
 
     chequeos = _chequeos()
     hay_problemas = any(n > 0 and "sin descuento" not in nombre for nombre, n in chequeos)

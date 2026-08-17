@@ -6,7 +6,7 @@ para renderizar.
 from datetime import datetime, timedelta
 from sqlalchemy import func, case
 
-from models import db, Disc, StatusHistory, Egreso
+from models import db, Disc, StatusHistory, Egreso, now_uy, today_uy
 
 
 def _month_bounds(year: int, month: int) -> tuple[datetime, datetime]:
@@ -37,7 +37,7 @@ def _rango_ventas(periodo: str, desde: str = None, hasta: str = None):
     """(inicio, fin) como date para el panel de Ventas. Suma 'hoy' y '7dias' a los
     periodos de _rango_periodo (mes_actual/mes_pasado/anio/todo/custom)."""
     from datetime import date, timedelta
-    hoy = date.today()
+    hoy = today_uy()
     if periodo == "hoy":
         return hoy, hoy + timedelta(days=1)
     if periodo == "7dias":
@@ -115,7 +115,7 @@ def kpis_principales() -> dict:
 
 def kpis_mes_actual() -> dict:
     """Ventas del mes en curso (segun fecha_venta)."""
-    hoy = datetime.utcnow()
+    hoy = now_uy()
     inicio, fin = _month_bounds(hoy.year, hoy.month)
 
     vendidos_mes = (
@@ -170,31 +170,32 @@ def top_sellos_inversion(limit: int = 5) -> list[dict]:
 
 
 def top_sellos_rotacion(limit: int = 5) -> list[dict]:
-    """Top sellos por rotacion (cantidad vendida)."""
-    rows = (
-        db.session.query(
-            Disc.sello,
-            func.count(Disc.id).label("titulos"),
-            func.sum(Disc.copias_vendidas).label("unidades"),
-            func.sum(Disc.precio_uyu * Disc.copias_vendidas).label("facturado"),
-        )
+    """Top sellos por rotacion (cantidad vendida). Se calcula en Python para usar las
+    mismas properties que el resto del sistema (copias_facturadas y precio_mostrar, que
+    respetan precio de oferta y el minimo de 1 copia), en vez de columnas crudas."""
+    vendidos = (
+        Disc.query
         .filter(Disc.estado == "Vendido")
         .filter(Disc.sello.isnot(None))
         .filter(Disc.sello != "")
-        .group_by(Disc.sello)
-        .order_by(func.count(Disc.id).desc())
-        .limit(limit)
         .all()
     )
-    return [
+    acc = {}
+    for d in vendidos:
+        a = acc.setdefault(d.sello, {"titulos": 0, "unidades": 0, "facturado": 0.0})
+        a["titulos"] += 1
+        a["unidades"] += d.copias_facturadas
+        a["facturado"] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+    out = [
         {
-            "sello": r.sello,
-            "titulos_vendidos": r.titulos,
-            "unidades_vendidas": int(r.unidades or 0),
-            "facturado_uyu": round(float(r.facturado or 0), 2),
+            "sello": s,
+            "titulos_vendidos": v["titulos"],
+            "unidades_vendidas": int(v["unidades"]),
+            "facturado_uyu": round(v["facturado"], 2),
         }
-        for r in rows
+        for s, v in acc.items()
     ]
+    return sorted(out, key=lambda x: x["titulos_vendidos"], reverse=True)[:limit]
 
 
 def top_discos_rentables(limit: int = 5) -> list[dict]:
@@ -227,7 +228,7 @@ def ventas_ultimos_6_meses() -> list[dict]:
 
     Resultado en orden cronologico (mes mas antiguo primero, mas reciente al final).
     """
-    hoy = datetime.utcnow()
+    hoy = now_uy()
     # Calcular el mes de inicio (5 meses atras)
     year = hoy.year
     month = hoy.month
@@ -265,7 +266,7 @@ def ventas_ultimos_6_meses() -> list[dict]:
             "year": y,
             "month": m,
             "label": f"{nombres_es[m]} {str(y)[-2:]}",
-            "ventas": len(vendidos),
+            "ventas": contar_ventas(vendidos),
             "unidades": unidades,
             "facturado_uyu": round(facturado, 2),
             "ganancia_uyu": round(ganancia, 2),
@@ -295,7 +296,7 @@ def _rango_periodo(periodo: str, desde: str = None, hasta: str = None):
     periodo: 'mes_actual', 'mes_pasado', 'anio', 'todo', 'custom'.
     Para 'custom' se usan desde/hasta (formato YYYY-MM-DD)."""
     from datetime import date, datetime as _dt, timedelta
-    hoy = date.today()
+    hoy = today_uy()
     if periodo == "custom" and desde and hasta:
         try:
             inicio = _dt.strptime(desde, "%Y-%m-%d").date()
@@ -385,8 +386,14 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
     # Ganancia bruta: solo sobre los discos de Arcano (los personales no restan costo
     # pero su ingreso ya esta contado; el margen "de Arcano" los excluye del costo).
     ganancia_bruta = ingresos_uyu - costo_discos_uyu       # margen de los discos vendidos
-    # Ganancia real: descontar tambien el stock no vendido de arcano y los gastos.
-    ganancia_real = ganancia_bruta - costo_stock_no_vendido_uyu - egresos_uyu
+    # Ganancia real: descontar los gastos y (solo cuando tiene sentido) el stock no
+    # vendido de arcano. El stock es una FOTO "a hoy": restarlo en periodos PASADOS
+    # (mes pasado, este ano, custom) mezcla ese stock actual con ingresos viejos y da
+    # numeros muy negativos y confusos. Por eso el stock solo se resta en "Este mes" y
+    # "Todo" (donde el corte incluye el hoy); en el resto la ganancia real es el flujo
+    # operativo del periodo. El costo del stock igual se devuelve y se muestra aparte.
+    incluir_stock = periodo in ("mes_actual", "todo")
+    ganancia_real = ganancia_bruta - egresos_uyu - (costo_stock_no_vendido_uyu if incluir_stock else 0)
 
     # --- COMPARACION con periodo anterior ---
     comparacion = None
@@ -432,13 +439,14 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
         "titulos_personal": len(vendidos_personal),
         "costo_stock_no_vendido_uyu": round(costo_stock_no_vendido_uyu, 2),
         "stock_no_vendido_titulos": len(disponibles_arcano),
+        "stock_en_ganancia": incluir_stock,
     }
 
 
 def _periodo_anterior(periodo: str):
     """Devuelve (inicio, fin) del periodo INMEDIATAMENTE anterior al dado."""
     from datetime import date
-    hoy = date.today()
+    hoy = today_uy()
     if periodo == "mes_actual":
         # anterior = mes pasado
         if hoy.month == 1:
@@ -512,7 +520,7 @@ def ingresos_vs_egresos_6m() -> list:
     contable (el costo del pedido se cuenta al vender cada disco)."""
     from datetime import date
     from models import Pedido
-    hoy = date.today()
+    hoy = today_uy()
     nombres_es = ["", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
     y, m = hoy.year, hoy.month
     lista = []
@@ -550,7 +558,7 @@ def stock_frenado(dias_umbral: int = 45) -> dict:
     cuanto tiempo llevan en stock (los mas viejos primero). Sirve para ver que
     plata esta quieta y que conviene rematar o empujar."""
     from datetime import date
-    hoy = date.today()
+    hoy = today_uy()
     discos = (
         Disc.query
         .filter(Disc.estado == "Disponible")
@@ -610,7 +618,7 @@ def arcano_vs_personal_6m() -> list:
     """Por mes (ultimos 6): ventas de stock de Arcano vs ventas de tu coleccion
     personal. Muestra cuanto se sostiene el negocio por si solo."""
     from datetime import date
-    hoy = date.today()
+    hoy = today_uy()
     nombres_es = ["", "Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
     y, m = hoy.year, hoy.month
     lista = []

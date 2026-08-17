@@ -126,12 +126,12 @@
                 inp.addEventListener('input', function () {
                     clearTimeout(timer);
                     timer = setTimeout(function () {
-                        saveField(trackId, inp.dataset.field, inp.value);
+                        saveField(trackId, inp.dataset.field, inp.value, inp);
                     }, 500);
                 });
                 inp.addEventListener('blur', function () {
                     clearTimeout(timer);
-                    saveField(trackId, inp.dataset.field, inp.value);
+                    saveField(trackId, inp.dataset.field, inp.value, inp);
                 });
             });
 
@@ -290,13 +290,30 @@
         });
     }
 
-    function saveField(trackId, field, value) {
+    function markSave(inp, ok) {
+        if (!inp) {
+            if (!ok) alert('No se pudo guardar el cambio del track. Revisa la conexion e intenta de nuevo.');
+            return;
+        }
+        inp.style.transition = 'border-color .2s';
+        inp.style.borderColor = ok ? '#10b981' : '#ef4444';
+        if (ok) { inp.removeAttribute('title'); }
+        else { inp.title = 'No se guardo. Revisa la conexion e intenta de nuevo.'; }
+        setTimeout(function () { inp.style.borderColor = ''; }, ok ? 900 : 2500);
+    }
+
+    function saveField(trackId, field, value, inp) {
         var fd = new FormData();
         fd.append(field, value);
         fetch(url('/tracks/' + trackId), {
             method: 'POST',
             headers: { 'X-Requested-With': 'XMLHttpRequest' },
             body: fd
+        }).then(function (r) {
+            if (!r.ok) throw new Error('status ' + r.status);
+            markSave(inp, true);
+        }).catch(function () {
+            markSave(inp, false);
         });
     }
 

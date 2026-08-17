@@ -158,7 +158,7 @@
                         <label>Estado</label>
                         <select name="item_{{ loop.index0 }}_estado">
                             {% for e in estados %}
-                                <option value="{{ e }}" {% if e == 'En camino' %}selected{% endif %}>{{ e }}</option>
+                                <option value="{{ e }}" {% if e == 'Pre-order' %}selected{% endif %}>{{ e }}</option>
                             {% endfor %}
                         </select>
                     </div>

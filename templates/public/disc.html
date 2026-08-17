@@ -24,18 +24,24 @@
 {% block canonical %}{{ url_for('public_disc', disc_id=disc.id, _external=True) }}{% endblock %}
 
 {% block structured_data %}
+{# Valores generados con | tojson: producen literales JSON validos y escapados
+   (comillas de 12", & de "R & S Records", etc.). Antes se armaban a mano y Jinja
+   los escapaba como HTML, rompiendo el dato estructurado. #}
+{% set _sellopart = '' %}
+{% if disc.sello %}{% set _sellopart = ' (' ~ disc.sello ~ (', ' ~ (disc.anio|string) if disc.anio else '') ~ ')' %}{% endif %}
+{% set _desc = disc.artista ~ ' - ' ~ disc.titulo ~ _sellopart ~ '. Vinilo disponible en Arcano Record Store, Montevideo.' %}
 <script type="application/ld+json">
 {
     "@context": "https://schema.org/",
     "@type": "Product",
-    "name": "{{ disc.artista }} - {{ disc.titulo }}",
-    {% if disc.cover_local %}"image": "{{ url_for('serve_cover', filename=disc.cover_local, _external=True) }}",{% elif disc.cover_url %}"image": "{{ disc.cover_url }}",{% endif %}
-    "description": "{{ disc.artista }} - {{ disc.titulo }}{% if disc.sello %} ({{ disc.sello }}{% if disc.anio %}, {{ disc.anio }}{% endif %}){% endif %}. Vinilo disponible en Arcano Record Store, Montevideo.",
-    {% if disc.sello %}"brand": { "@type": "Brand", "name": "{{ disc.sello }}" },{% endif %}
-    "category": "{% if disc.genero %}{{ disc.genero }}{% else %}Musica electronica{% endif %}",
+    "name": {{ (disc.artista ~ ' - ' ~ disc.titulo) | tojson }},
+    {% if disc.cover_local %}"image": {{ url_for('serve_cover', filename=disc.cover_local, _external=True) | tojson }},{% elif disc.cover_url %}"image": {{ disc.cover_url | tojson }},{% endif %}
+    "description": {{ _desc | tojson }},
+    {% if disc.sello %}"brand": { "@type": "Brand", "name": {{ disc.sello | tojson }} },{% endif %}
+    "category": {{ (disc.genero if disc.genero else 'Musica electronica') | tojson }},
     "offers": {
         "@type": "Offer",
-        "url": "{{ url_for('public_disc', disc_id=disc.id, _external=True) }}",
+        "url": {{ url_for('public_disc', disc_id=disc.id, _external=True) | tojson }},
         "priceCurrency": "UYU",
         "price": "{{ disc.precio_uyu | int }}",
         "availability": "{% if disc.stock > 0 and disc.estado == 'Disponible' %}https://schema.org/InStock{% else %}https://schema.org/OutOfStock{% endif %}",
