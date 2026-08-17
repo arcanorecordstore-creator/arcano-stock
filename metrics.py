@@ -400,7 +400,12 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
     # numeros muy negativos y confusos. Por eso el stock solo se resta en "Este mes" y
     # "Todo" (donde el corte incluye el hoy); en el resto la ganancia real es el flujo
     # operativo del periodo. El costo del stock igual se devuelve y se muestra aparte.
-    incluir_stock = periodo in ("mes_actual", "todo")
+    # El stock no vendido es una FOTO "a hoy": solo se resta si el periodo LLEGA hasta hoy
+    # (lo incluye). Eso cubre "Este mes", "Este ano" y "Todo" (y custom que termine hoy o
+    # despues), porque su rango termina despues de hoy. Un periodo que cerro en el pasado
+    # (mes pasado, custom viejo) NO lo resta. Antes usaba una lista fija que dejaba "Este
+    # ano" afuera por error, dando distinto que "Todo" aunque para Arcano son lo mismo.
+    incluir_stock = fin > today_uy()
     ganancia_real = ganancia_bruta - egresos_uyu - (costo_stock_no_vendido_uyu if incluir_stock else 0)
 
     # --- COMPARACION con periodo anterior ---
