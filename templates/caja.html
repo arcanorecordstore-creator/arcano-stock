@@ -23,8 +23,8 @@
         <span class="caja-hero-value {% if resumen.disponible < 0 %}negativo{% endif %}">
             $ {{ fmt_uyu(resumen.disponible) }} <span class="caja-hero-cur">UYU</span>
         </span>
-        {% if resumen.mp_pendiente > 0 %}
-        <span class="caja-hero-sub">Esto es lo que ten&eacute;s <strong>en el banco</strong>. Aparte hay <strong>$ {{ fmt_uyu(resumen.mp_pendiente) }}</strong> en Mercado Pago que es tuyo (lo recuper&aacute;s cuando MP te pague el adelanto).</span>
+        {% if resumen.adelanto_pendiente_total > 0 %}
+        <span class="caja-hero-sub">Esto es lo que ten&eacute;s <strong>en el banco</strong> (ya incluye los <strong>$ {{ fmt_uyu(resumen.adelanto_pendiente_total) }}</strong> que adelantaste de tu plata). Cuando MP te pague, recuper&aacute;s ese adelanto &mdash; abajo en &laquo;Adelantos a recuperar&raquo;.</span>
         {% endif %}
     </div>
     <div class="caja-hero-desglose">
@@ -54,9 +54,9 @@
      ============================================================ -->
 <section class="caja-liquidez">
     <div class="caja-liq-card mp">
-        <span class="caja-liq-label">En Mercado Pago</span>
-        <span class="caja-liq-val">$ {{ fmt_uyu(resumen.mp_pendiente) }}</span>
-        <span class="caja-liq-foot">Cobrado por MP en los últimos 30 días. MP lo libera a los ~30 días del cobro.</span>
+        <span class="caja-liq-label">En Mercado Pago (sin adelantar)</span>
+        <span class="caja-liq-val">$ {{ fmt_uyu(resumen.por_adelantar) }}</span>
+        <span class="caja-liq-foot">Ventas por MP que MP todav&iacute;a no liber&oacute; y que vos <strong>no adelantaste</strong>. Lo que ya adelantaste es tuyo y lo ves abajo en &laquo;Adelantos a recuperar&raquo;.</span>
         {% if resumen.por_adelantar > 0 %}
         <form method="post" action="{{ url_for('caja_adelantar_mp') }}" class="caja-adelantar-form">
             <button type="submit" class="btn btn-primary btn-sm">Adelantar $ {{ fmt_uyu(resumen.por_adelantar) }} con mi plata</button>
