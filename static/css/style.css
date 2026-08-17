@@ -3096,6 +3096,7 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
     text-align: center;
     border-bottom: 1px solid var(--border-1);
     margin-bottom: 32px;
+    cursor: pointer;   /* al tocar el banner baja al catalogo (ver public_anim.js) */
 }
 
 .public-hero-title {
