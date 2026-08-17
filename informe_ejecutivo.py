@@ -244,9 +244,16 @@ def bar_chart(labels, series, series_colors, width=CONTENT_W, height=46 * mm):
     bc.data = series
     bc.groupSpacing = 4
     bc.barSpacing = 0.4
-    bc.valueAxis.valueMin = 0
-    maxv = max((max(s) for s in series if s), default=0) or 1
-    bc.valueAxis.valueMax = maxv * 1.15
+    # Escala robusta: contempla valores NEGATIVOS (ej: margen de pedido en perdida).
+    # Antes valueMin era fijo en 0 y las barras negativas se iban de la caja del grafico.
+    allvals = [v for s in series for v in (s or [])] or [0]
+    maxv, minv = max(allvals), min(allvals)
+    top = maxv * 1.15 if maxv > 0 else 0
+    bot = minv * 1.15 if minv < 0 else 0
+    if top == bot:  # todo cero
+        top = 1
+    bc.valueAxis.valueMax = top
+    bc.valueAxis.valueMin = bot
     bc.valueAxis.strokeColor = LINE
     bc.valueAxis.labels.fontName = FONT
     bc.valueAxis.labels.fontSize = 6.5
@@ -612,10 +619,9 @@ def generar_pdf_ejecutivo(periodo="mes_actual", desde=None, hasta=None, resumen_
         E.append(dual2)
         E.append(Spacer(1, 12))
 
-    # Ultimas ventas
-    E.append(sub_h("Ultimas ventas del periodo"))
-    E.append(Spacer(1, 4))
-    vd = ventas["vendidos"][:10]
+    # Ultimas ventas (envuelto en KeepTogether para no dejar filas huerfanas)
+    uv = [sub_h("Ultimas ventas del periodo"), Spacer(1, 4)]
+    vd = ventas["vendidos"][:8]
     if vd:
         rows = []
         canal_lbl = dict(_CANALES)
@@ -625,11 +631,12 @@ def generar_pdf_ejecutivo(periodo="mes_actual", desde=None, hasta=None, resumen_
             canal = canal_lbl.get(ventas["canal_de"](d), "-")
             rows.append([d.fecha_venta.strftime("%d/%m") if d.fecha_venta else "-", nombre,
                          (cli or "-")[:18], canal, _m(d.precio_mostrar or d.precio_uyu or 0)])
-        E.append(dtable(["Fecha", "Disco", "Cliente", "Canal", "Precio"], rows,
-                        [15 * mm, 66 * mm, 34 * mm, 26 * mm, 27 * mm],
-                        aligns={4: "RIGHT"}))
+        uv.append(dtable(["Fecha", "Disco", "Cliente", "Canal", "Precio"], rows,
+                         [15 * mm, 66 * mm, 34 * mm, 26 * mm, 27 * mm],
+                         aligns={4: "RIGHT"}))
     else:
-        E.append(Paragraph("No hubo ventas en este periodo.", BODY))
+        uv.append(Paragraph("No hubo ventas en este periodo.", BODY))
+    E.append(KeepTogether(uv))
 
     # =====================================================================
     # 2. CONTABILIDAD
