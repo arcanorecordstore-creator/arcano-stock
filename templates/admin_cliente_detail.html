@@ -98,12 +98,20 @@
         {% if compras %}
         <div class="cli-compras">
             {% for e in compras %}
-            {% if e.disc_id %}<a href="{{ url_for('disc_detail', disc_id=e.disc_id) }}" class="cli-compra">{% else %}<div class="cli-compra">{% endif %}
+            <div class="cli-compra">
                 <span class="cli-compra-fecha">{{ e.fecha.strftime('%d/%m/%y') if e.fecha else '' }}</span>
-                <span class="cli-compra-disc"><strong>{{ e.artista }}</strong> &mdash; {{ e.titulo }}</span>
-                <span class="cli-compra-canal">{{ e.canal }}</span>
+                {% if e.disc_id %}<a href="{{ url_for('disc_detail', disc_id=e.disc_id) }}" class="cli-compra-disc"><strong>{{ e.artista }}</strong> &mdash; {{ e.titulo }}</a>{% else %}<span class="cli-compra-disc"><strong>{{ e.artista }}</strong> &mdash; {{ e.titulo }}</span>{% endif %}
+                {% if e.disc_id %}
+                <select class="cli-compra-canal-sel" data-disc-id="{{ e.disc_id }}" title="Canal de esta venta (se guarda solo)">
+                    <option value="" {% if not e.canal %}selected{% endif %}>&mdash; canal</option>
+                    <option value="web" {% if (e.canal or '')|lower == 'web' %}selected{% endif %}>Web</option>
+                    <option value="instagram" {% if (e.canal or '')|lower == 'instagram' %}selected{% endif %}>Instagram</option>
+                    <option value="presencial" {% if (e.canal or '')|lower == 'presencial' %}selected{% endif %}>Presencial</option>
+                    <option value="otro" {% if (e.canal or '')|lower == 'otro' %}selected{% endif %}>Otro</option>
+                </select>
+                {% else %}<span class="cli-compra-canal">{{ e.canal }}</span>{% endif %}
                 <span class="cli-compra-precio">{{ money(e.precio) }}</span>
-            {% if e.disc_id %}</a>{% else %}</div>{% endif %}
+            </div>
             {% endfor %}
         </div>
         {% else %}
@@ -163,8 +171,11 @@
 .cli-compra:last-child{border-bottom:none;}
 .cli-compra:hover{background:var(--bg-2,#1e1e1e);}
 .cli-compra-fecha{color:var(--text-3,#888);font-size:12px;white-space:nowrap;flex:0 0 54px;}
-.cli-compra-disc{flex:1 1 auto;}
+.cli-compra-disc{flex:1 1 auto;color:var(--text-1,#eee);text-decoration:none;}
+.cli-compra-disc:hover{text-decoration:underline;}
 .cli-compra-canal{color:var(--text-3,#888);font-size:11px;text-transform:capitalize;}
+.cli-compra-canal-sel{font-size:12px;padding:3px 6px;border-radius:6px;background:var(--bg-1,#161616);color:var(--text-2,#bbb);border:1px solid var(--border-1,#2a2a2a);cursor:pointer;}
+.cli-compra-canal-sel:hover{border-color:var(--accent,#10b981);}
 .cli-compra-precio{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600;}
 .cli-empty{color:var(--text-3,#888);font-size:14px;}
 .cli-danger{margin-top:16px;border-color:rgba(192,52,30,.35);}
@@ -191,5 +202,29 @@
 .cli-premio-tag.muted{color:var(--text-3,#888);font-weight:500;}
 .btn-sm{padding:6px 12px;font-size:13px;}
 </style>
+
+<script>
+// Canal de cada compra: se guarda solo al cambiarlo (mismo campo que el panel de Ventas).
+(function () {
+    document.querySelectorAll('.cli-compra-canal-sel').forEach(function (sel) {
+        sel.addEventListener('change', function () {
+            var id = sel.getAttribute('data-disc-id');
+            var prev = sel.getAttribute('data-prev') || '';
+            var body = new URLSearchParams({ canal: sel.value });
+            fetch('/admin/compra/' + id + '/canal', {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: body
+            }).then(function (r) { return r.json(); }).then(function (res) {
+                sel.style.borderColor = (res && res.ok) ? '#10b981' : '#c0341e';
+                setTimeout(function () { sel.style.borderColor = ''; }, 900);
+            }).catch(function () {
+                sel.style.borderColor = '#c0341e';
+                setTimeout(function () { sel.style.borderColor = ''; }, 900);
+            });
+        });
+    });
+})();
+</script>
 
 {% endblock %}

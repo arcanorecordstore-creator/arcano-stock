@@ -4907,8 +4907,8 @@ def register_routes(app: Flask) -> None:
             clientes_con_email=Cliente.query.filter(Cliente.email.isnot(None), Cliente.email != "").count(),
             # Lealtad
             lealtad_activa=Setting.get("lealtad_activa", "0") == "1",
-            lealtad_umbral1=Setting.get("lealtad_umbral1", "10000"),
-            lealtad_umbral2=Setting.get("lealtad_umbral2", "20000"),
+            lealtad_umbral1=Setting.get("lealtad_umbral1", "15000"),
+            lealtad_umbral2=Setting.get("lealtad_umbral2", "30000"),
             lealtad_premio1=Setting.get("lealtad_premio1", "Un vale de regalo"),
             lealtad_premio2=Setting.get("lealtad_premio2", "Un disco sorpresa de regalo"),
             public_banner_url=Setting.get("public_banner_url", ""),
@@ -6896,7 +6896,7 @@ def register_routes(app: Flask) -> None:
                     n = int(float(value or 0))
                     value = str(max(1, n))
                 except (ValueError, TypeError):
-                    value = "10000" if key == "lealtad_umbral1" else "20000"
+                    value = "15000" if key == "lealtad_umbral1" else "30000"
             Setting.set(key, value)
         flash("Textos publicos actualizados.", "success")
         return redirect(url_for("settings_page"))
@@ -7046,8 +7046,8 @@ def register_routes(app: Flask) -> None:
                 return d
         return {
             "activa": Setting.get("lealtad_activa", "0") == "1",
-            "u1": max(1, _int("lealtad_umbral1", 10000)),
-            "u2": max(1, _int("lealtad_umbral2", 20000)),
+            "u1": max(1, _int("lealtad_umbral1", 15000)),
+            "u2": max(1, _int("lealtad_umbral2", 30000)),
             "premio1": (Setting.get("lealtad_premio1", "") or "Un vale de regalo").strip(),
             "premio2": (Setting.get("lealtad_premio2", "") or "Un disco sorpresa de regalo").strip(),
         }
@@ -7155,6 +7155,19 @@ def register_routes(app: Flask) -> None:
         db.session.commit()
         flash(f"Cliente '{cli.nombre}' agregado.", "success")
         return redirect(url_for("admin_cliente_detail", cliente_id=cli.id))
+
+    @app.route("/admin/compra/<int:disc_id>/canal", methods=["POST"])
+    @auth.admin_required
+    def compra_set_canal(disc_id):
+        """Marca el canal (Web/Instagram/...) de una compra desde la ficha del cliente.
+        Es el MISMO campo disc.canal_venta que edita el panel de Ventas (quedan sincro)."""
+        d = Disc.query.get_or_404(disc_id)
+        canal = (request.form.get("canal") or "").strip().lower()
+        if canal and canal not in ("web", "instagram", "presencial", "otro"):
+            return jsonify({"ok": False, "error": "canal invalido"}), 400
+        d.canal_venta = canal or None
+        db.session.commit()
+        return jsonify({"ok": True, "canal": d.canal_venta or ""})
 
     @app.route("/admin/clientes/<int:cliente_id>")
     @auth.admin_required
