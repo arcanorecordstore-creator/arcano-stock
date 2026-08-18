@@ -35,8 +35,13 @@
         </div>
         {% endif %}
         <div class="form-field">
-            <label for="nombre">Tu nombre</label>
-            <input type="text" id="nombre" name="nombre" required value="{{ form.nombre or '' }}" autofocus placeholder="Como te llamas">
+            <label for="nombre">Nombre</label>
+            <input type="text" id="nombre" name="nombre" required minlength="2" value="{{ form.nombre or '' }}" autofocus placeholder="Tu nombre">
+        </div>
+
+        <div class="form-field">
+            <label for="apellido">Apellido</label>
+            <input type="text" id="apellido" name="apellido" required minlength="2" value="{{ form.apellido or '' }}" placeholder="Tu apellido">
         </div>
 
         <div class="form-field">

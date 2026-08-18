@@ -18,15 +18,22 @@
             <p class="checkout-logged-note">&#10003; Completamos tus datos porque iniciaste sesi&oacute;n como <strong>{{ cliente_actual.nombre }}</strong>. Revisalos y confirm&aacute;.</p>
             {% endif %}
 
+            {% set _cn = (cliente_actual.nombre if cliente_actual else '') or '' %}
+            {% set _cnp = _cn.split(' ', 1) %}
             <div class="checkout-row">
                 <div class="form-field">
-                    <label for="nombre">Tu nombre</label>
-                    <input type="text" id="nombre" name="nombre" required value="{{ form.nombre or (cliente_actual.nombre if cliente_actual else '') }}" {% if not cliente_actual %}autofocus{% endif %} placeholder="Como te llamas">
+                    <label for="nombre">Nombre</label>
+                    <input type="text" id="nombre" name="nombre" required minlength="2" value="{{ form.nombre or _cnp[0] }}" {% if not cliente_actual %}autofocus{% endif %} placeholder="Tu nombre">
                 </div>
                 <div class="form-field">
-                    <label for="whatsapp">Celular</label>
-                    <input type="tel" id="whatsapp" name="whatsapp" required value="{{ form.whatsapp or (cliente_actual.whatsapp if cliente_actual else '') }}" placeholder="+598 99 123 456">
+                    <label for="apellido">Apellido</label>
+                    <input type="text" id="apellido" name="apellido" required minlength="2" value="{{ form.apellido or (_cnp[1] if _cnp|length > 1 else '') }}" placeholder="Tu apellido">
                 </div>
+            </div>
+
+            <div class="form-field">
+                <label for="whatsapp">Celular</label>
+                <input type="tel" id="whatsapp" name="whatsapp" required value="{{ form.whatsapp or (cliente_actual.whatsapp if cliente_actual else '') }}" placeholder="+598 99 123 456">
             </div>
 
             <div class="form-field">

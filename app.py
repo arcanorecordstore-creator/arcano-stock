@@ -5754,14 +5754,18 @@ def register_routes(app: Flask) -> None:
                 flash("Recibimos muchas reservas desde tu conexion en poco tiempo. Espera un rato o escribinos por Instagram/WhatsApp.", "error")
                 return render_template("public/reservar.html", disc=disc, form={}, **_public_context()), 429
 
-            nombre = (request.form.get("nombre") or "").strip()[:120]
+            nombre_pila = (request.form.get("nombre") or "").strip()[:60]
+            apellido = (request.form.get("apellido") or "").strip()[:60]
+            nombre = (nombre_pila + " " + apellido).strip()[:120]
             whatsapp = (request.form.get("whatsapp") or "").strip()[:40]
             email = ((request.form.get("email") or "").strip()[:200]) or None
             nota = ((request.form.get("nota") or "").strip()[:1000]) or None
 
             errores = []
-            if len(nombre) < 2:
+            if len(nombre_pila) < 2:
                 errores.append("Ingresa tu nombre.")
+            if len(apellido) < 2:
+                errores.append("Ingresa tu apellido.")
             if sum(c.isdigit() for c in whatsapp) < 7:
                 errores.append("Ingresa un celular valido (ej: 099 123 456).")
             if not email:
@@ -5775,7 +5779,8 @@ def register_routes(app: Flask) -> None:
                 return render_template(
                     "public/reservar.html",
                     disc=disc,
-                    form={"nombre": nombre, "whatsapp": whatsapp, "email": email, "nota": nota},
+                    form={"nombre": nombre_pila, "apellido": apellido, "whatsapp": whatsapp,
+                          "email": email, "nota": nota},
                     **_public_context(),
                 )
 
@@ -5828,11 +5833,14 @@ def register_routes(app: Flask) -> None:
         if auth.cliente_actual_id():
             cliente = Cliente.query.get(auth.cliente_actual_id())
 
+        _cn = (cliente.nombre if cliente else "") or ""
+        _cnp = _cn.split(" ", 1)
         return render_template(
             "public/reservar.html",
             disc=disc,
             form={
-                "nombre": cliente.nombre if cliente else "",
+                "nombre": _cnp[0] if _cnp else "",
+                "apellido": _cnp[1] if len(_cnp) > 1 else "",
                 "email": cliente.email if cliente else "",
                 "whatsapp": cliente.whatsapp if cliente else "",
             },
@@ -6129,7 +6137,9 @@ def register_routes(app: Flask) -> None:
                 flash("Recibimos muchas reservas desde tu conexion en poco tiempo. Espera un rato o escribinos por Instagram/WhatsApp.", "error")
                 return render_template("public/checkout.html", ids=ids_raw, form={}, **_public_context()), 429
 
-            nombre = (request.form.get("nombre") or "").strip()[:120]
+            nombre_pila = (request.form.get("nombre") or "").strip()[:60]
+            apellido = (request.form.get("apellido") or "").strip()[:60]
+            nombre = (nombre_pila + " " + apellido).strip()[:120]
             whatsapp = (request.form.get("whatsapp") or "").strip()[:40]
             email = ((request.form.get("email") or "").strip()[:200]) or None
             nota = ((request.form.get("nota") or "").strip()[:1000]) or None
@@ -6138,8 +6148,10 @@ def register_routes(app: Flask) -> None:
             errores = []
             if not ids:
                 errores.append("El carrito esta vacio.")
-            if len(nombre) < 2:
+            if len(nombre_pila) < 2:
                 errores.append("Ingresa tu nombre.")
+            if len(apellido) < 2:
+                errores.append("Ingresa tu apellido.")
             if sum(c.isdigit() for c in whatsapp) < 7:
                 errores.append("Ingresa un celular valido (ej: 099 123 456).")
             if not email:
@@ -6206,7 +6218,8 @@ def register_routes(app: Flask) -> None:
                 return render_template(
                     "public/checkout.html",
                     ids=ids_raw,
-                    form={"nombre": nombre, "whatsapp": whatsapp, "email": email, "nota": nota,
+                    form={"nombre": nombre_pila, "apellido": apellido, "whatsapp": whatsapp,
+                          "email": email, "nota": nota,
                           "entrega": entrega_tipo, "envio_direccion": envio_direccion,
                           "envio_agencia": envio_agencia},
                     **_public_context(),
