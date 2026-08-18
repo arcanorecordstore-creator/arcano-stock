@@ -6369,10 +6369,14 @@ def register_routes(app: Flask) -> None:
             if estado_disco:
                 grupo = f"r{reserva.id}"
                 for d in discs:
-                    if d.estado != estado_disco:
+                    # Ojo: NO bajar de Vendido un disco que ya vendiste a mano (no lo
+                    # "des-vendemos" ni le pisamos la fecha_venta original).
+                    if d.estado != estado_disco and d.estado != "Vendido":
                         register_status_change(d, estado_disco,
                                                nota=f"Reserva manual #{reserva.id} -> {estado}")
-                    if estado_disco == "Vendido":
+                    # Si la reserva es una venta (Completada), registrar canal/metodo/grupo
+                    # aunque el disco ya estuviera Vendido (lo marcaste antes de la reserva).
+                    if estado == "Completada":
                         if not d.canal_venta:
                             d.canal_venta = canal
                         if metodo and not d.metodo_pago_venta:
@@ -6384,16 +6388,18 @@ def register_routes(app: Flask) -> None:
             flash(f"Reserva manual #{reserva.id} creada.", "success")
             return redirect(url_for("admin_reserva_detail", reserva_id=reserva.id))
 
-        # GET: formulario con el picker de discos (los que se pueden reservar/vender)
+        # GET: formulario con el picker de discos. Incluye los VENDIDOS a proposito:
+        # el flujo de Facundo es marcar el disco Vendido a mano al vender por IG y despues
+        # crear la reserva como registro. Solo se excluyen los descartados.
         discs = (
             Disc.query
-            .filter(~Disc.estado.in_(["Vendido", "Descartado"]))
+            .filter(Disc.estado != "Descartado")
             .order_by(Disc.artista.asc(), Disc.titulo.asc())
             .all()
         )
         return render_template(
             "admin_reserva_nueva.html",
-            discs=discs, estados=ESTADOS_RESERVA,
+            discos=discs, estados=ESTADOS_RESERVA,
             canales=_CANALES_RESERVA, metodos=_METODOS_RESERVA,
         )
 
