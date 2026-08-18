@@ -6700,18 +6700,83 @@ def register_routes(app: Flask) -> None:
     # =====================================================================
     # BASE DE CLIENTES
     # =====================================================================
+    def _compras_de_cliente(cli):
+        """Lista de compras de un cliente. La historia real vive en las RESERVAS
+        Completadas (via sus items); ademas se suman las ventas de IG que quedaron
+        atadas directo al disco (disc.cliente_id) y no pasaron por una reserva. Se
+        deduplica por disco. Devuelve entradas {artista, titulo, precio, fecha, canal,
+        disc_id}."""
+        entradas = []
+        vistos = set()
+        # 1) Reservas Completadas del cliente -> sus discos (con precio pagado)
+        reservas = (Reserva.query
+                    .filter(Reserva.cliente_id == cli.id, Reserva.estado == "Completada")
+                    .all())
+        for r in reservas:
+            for it in r.items_efectivos:
+                did = it.disc_id
+                if did and did in vistos:
+                    continue
+                if did:
+                    vistos.add(did)
+                d = it.disco
+                entradas.append({
+                    "disc_id": did,
+                    "artista": (d.artista if d else it.artista_snap) or "",
+                    "titulo": (d.titulo if d else it.titulo_snap) or "",
+                    "precio": (it.precio_uyu_snap or (d.precio_mostrar if d else 0) or 0),
+                    "fecha": (d.fecha_venta if (d and d.fecha_venta) else r.fecha),
+                    "canal": (d.canal_venta if d else (r.canal or "web")) or "",
+                })
+        # 2) Discos vendidos atados directo a este cliente (venta rapida IG) no contados
+        for d in (Disc.query
+                  .filter(Disc.estado == "Vendido", Disc.cliente_id == cli.id)
+                  .all()):
+            if d.id in vistos:
+                continue
+            vistos.add(d.id)
+            entradas.append({
+                "disc_id": d.id, "artista": d.artista or "", "titulo": d.titulo or "",
+                "precio": (d.precio_mostrar or d.precio_uyu or 0),
+                "fecha": d.fecha_venta, "canal": d.canal_venta or "",
+            })
+        entradas.sort(key=lambda e: (e["fecha"] or datetime.min), reverse=True)
+        return entradas
+
     def _clientes_agregados():
-        """Devuelve dicts {cliente_id: {compras, total, ultima}} y {cliente_id: reservas
-        activas} para pintar la lista sin N+1."""
-        compras = {}
+        """Agregados de compras por cliente (mismo criterio que _compras_de_cliente pero
+        en bloque, para la lista): reservas Completadas + ventas IG directas, deduplicado
+        por disco. Devuelve {cliente_id: {n, total, ultima}} y {cliente_id: reservas activas}."""
+        agg = {}   # cid -> {"discs": set, "sueltos": int, "total": float, "ultima": dt}
+
+        def _add(cid, disc_id, precio, fecha):
+            if not cid:
+                return
+            a = agg.setdefault(cid, {"discs": set(), "sueltos": 0, "total": 0.0, "ultima": None})
+            if disc_id:
+                if disc_id in a["discs"]:
+                    return
+                a["discs"].add(disc_id)
+            else:
+                a["sueltos"] += 1  # disco borrado: no se puede deduplicar, cuenta igual
+            a["total"] += (precio or 0)
+            if fecha and (not a["ultima"] or fecha > a["ultima"]):
+                a["ultima"] = fecha
+
+        # 1) Reservas Completadas -> sus items (la historia real de compras)
+        for r in (Reserva.query
+                  .filter(Reserva.cliente_id.isnot(None), Reserva.estado == "Completada")
+                  .all()):
+            for it in r.items_efectivos:
+                _add(r.cliente_id, it.disc_id, (it.precio_uyu_snap or 0), r.fecha)
+        # 2) Ventas directas (IG) atadas al disco, no contadas arriba
         for d in (Disc.query
                   .filter(Disc.estado == "Vendido", Disc.cliente_id.isnot(None))
                   .all()):
-            a = compras.setdefault(d.cliente_id, {"n": 0, "total": 0.0, "ultima": None})
-            a["n"] += 1
-            a["total"] += (d.precio_mostrar or d.precio_uyu or 0)
-            if d.fecha_venta and (not a["ultima"] or d.fecha_venta > a["ultima"]):
-                a["ultima"] = d.fecha_venta
+            _add(d.cliente_id, d.id, (d.precio_mostrar or d.precio_uyu or 0), d.fecha_venta)
+
+        compras = {cid: {"n": len(a["discs"]) + a["sueltos"], "total": a["total"], "ultima": a["ultima"]}
+                   for cid, a in agg.items()}
         activas = {}
         for r in (Reserva.query
                   .filter(Reserva.cliente_id.isnot(None),
@@ -6725,12 +6790,15 @@ def register_routes(app: Flask) -> None:
     def admin_clientes():
         from models import Cliente
         q = (request.args.get("q") or "").strip().lower()
-        clientes = Cliente.query.order_by(Cliente.nombre.asc()).all()
+        clientes = Cliente.query.all()
         if q:
             clientes = [c for c in clientes if q in " ".join(filter(None, [
                 (c.nombre or "").lower(), (c.email or "").lower(),
                 (c.whatsapp or "").lower(), (c.instagram or "").lower()])).lower()]
         compras, activas = _clientes_agregados()
+        # Los que mas gastaron primero (los que no compraron quedan al final)
+        clientes.sort(key=lambda c: (-(compras.get(c.id, {}).get("total", 0) or 0),
+                                     (c.nombre or "").lower()))
         return render_template(
             "admin_clientes.html", clientes=clientes, compras=compras,
             activas=activas, q=q, total=Cliente.query.count(),
@@ -6789,14 +6857,12 @@ def register_routes(app: Flask) -> None:
     def admin_cliente_detail(cliente_id):
         from models import Cliente
         cli = Cliente.query.get_or_404(cliente_id)
-        compras = (Disc.query
-                   .filter(Disc.cliente_id == cli.id, Disc.estado == "Vendido")
-                   .order_by(Disc.fecha_venta.desc()).all())
+        compras = _compras_de_cliente(cli)  # desde las reservas Completadas + ventas IG
         reservas_activas = (Reserva.query
                             .filter(Reserva.cliente_id == cli.id,
                                     Reserva.estado.in_(["Pendiente", "Confirmada"]))
                             .order_by(Reserva.fecha.desc()).all())
-        total = sum((d.precio_mostrar or d.precio_uyu or 0) for d in compras)
+        total = sum(e["precio"] for e in compras)
         otros = (Cliente.query.filter(Cliente.id != cli.id)
                  .order_by(Cliente.nombre.asc()).all())
         return render_template(

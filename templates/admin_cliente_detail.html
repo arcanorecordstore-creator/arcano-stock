@@ -22,7 +22,7 @@
 <div class="cli-stats">
     <div class="cli-stat"><div class="n">{{ compras|length }}</div><div class="l">Compras</div></div>
     <div class="cli-stat"><div class="n">{{ money(total) }}</div><div class="l">Total gastado</div></div>
-    <div class="cli-stat"><div class="n">{{ (compras[0].fecha_venta.strftime('%d/%m/%y') if compras and compras[0].fecha_venta else '&mdash;') | safe }}</div><div class="l">&Uacute;ltima compra</div></div>
+    <div class="cli-stat"><div class="n">{{ (compras[0].fecha.strftime('%d/%m/%y') if compras and compras[0].fecha else '&mdash;') | safe }}</div><div class="l">&Uacute;ltima compra</div></div>
     <div class="cli-stat"><div class="n">{{ reservas_activas|length }}</div><div class="l">Reservas activas</div></div>
 </div>
 
@@ -49,13 +49,13 @@
         <h2 class="cli-panel-title">Discos que compr&oacute; ({{ compras|length }})</h2>
         {% if compras %}
         <div class="cli-compras">
-            {% for d in compras %}
-            <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="cli-compra">
-                <span class="cli-compra-fecha">{{ d.fecha_venta.strftime('%d/%m/%y') if d.fecha_venta else '' }}</span>
-                <span class="cli-compra-disc"><strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}</span>
-                <span class="cli-compra-canal">{{ d.canal_venta or '' }}</span>
-                <span class="cli-compra-precio">{{ money(d.precio_mostrar or d.precio_uyu or 0) }}</span>
-            </a>
+            {% for e in compras %}
+            {% if e.disc_id %}<a href="{{ url_for('disc_detail', disc_id=e.disc_id) }}" class="cli-compra">{% else %}<div class="cli-compra">{% endif %}
+                <span class="cli-compra-fecha">{{ e.fecha.strftime('%d/%m/%y') if e.fecha else '' }}</span>
+                <span class="cli-compra-disc"><strong>{{ e.artista }}</strong> &mdash; {{ e.titulo }}</span>
+                <span class="cli-compra-canal">{{ e.canal }}</span>
+                <span class="cli-compra-precio">{{ money(e.precio) }}</span>
+            {% if e.disc_id %}</a>{% else %}</div>{% endif %}
             {% endfor %}
         </div>
         {% else %}
