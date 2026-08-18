@@ -38,8 +38,14 @@ def activo() -> bool:
 
 
 def calcular_recargo(subtotal: float) -> float:
-    """Monto del recargo (comision que paga el cliente), redondeado a pesos."""
-    return round(subtotal * recargo_pct() / 100.0)
+    """Monto del recargo (comision que paga el cliente), redondeado a pesos.
+
+    Usa redondeo 'medio para arriba' (int(x+0.5)) a proposito, para que coincida
+    EXACTO con el Math.round() del JS que le muestra el total al cliente en el
+    checkout. Con el round() de Python (redondeo bancario: round(52.5)==52) el
+    cliente veia $53 y MP cobraba $52 en los casos .5 -> descuadre de $1.
+    """
+    return float(int(subtotal * recargo_pct() / 100.0 + 0.5))
 
 
 def crear_preferencia(items, back_urls, notification_url, external_reference,
