@@ -871,6 +871,28 @@ def _backfill_ventas_sin_cliente(app):
                     if d and d.estado == "Vendido" and not getattr(d, "cliente_id", None):
                         d.cliente_id = r.cliente_id
                         cambios += 1
+            # (3) Discos agrupados como UNA venta (mismo venta_grupo): si alguno del
+            # grupo ya tiene comprador (o el grupo es de una reserva 'r<id>'), los
+            # demas del grupo heredan ese comprador. Cubre "agrupe un disco a la venta
+            # de un cliente" desde el panel de Ventas.
+            from collections import defaultdict as _dd
+            grupos = _dd(list)
+            for d in Disc.query.filter(Disc.estado == "Vendido",
+                                       Disc.venta_grupo.isnot(None)).all():
+                grupos[d.venta_grupo].append(d)
+            for grupo, ds in grupos.items():
+                cli = next((x.cliente_id for x in ds if getattr(x, "cliente_id", None)), None)
+                if not cli and grupo.startswith("r"):
+                    try:
+                        _rr = Reserva.query.get(int(grupo[1:]))
+                        cli = _rr.cliente_id if _rr else None
+                    except (ValueError, TypeError):
+                        cli = None
+                if cli:
+                    for x in ds:
+                        if not getattr(x, "cliente_id", None):
+                            x.cliente_id = cli
+                            cambios += 1
             if cambios:
                 db.session.commit()
                 print(f"Backfill: {cambios} venta(s)/reserva(s) atadas a su cliente")
@@ -3136,8 +3158,20 @@ def register_routes(app: Flask) -> None:
             flash("Elegí al menos 2 discos vendidos para marcarlos como una sola venta.", "warning")
             return redirect(url_for("ventas_panel"))
         grupo = next((d.venta_grupo for d in discs if d.venta_grupo), None) or _nuevo_venta_grupo()
+        # El comprador del grupo: el de algun disco que ya lo tenga, o el de la reserva
+        # si el grupo es 'r<id>'. Al agrupar, los discos sin comprador lo heredan, asi
+        # el panel de Clientes (que atribuye por disco) suma la venta al cliente correcto.
+        cli_id = next((d.cliente_id for d in discs if getattr(d, "cliente_id", None)), None)
+        if not cli_id and grupo.startswith("r"):
+            try:
+                _r = Reserva.query.get(int(grupo[1:]))
+                cli_id = _r.cliente_id if _r else None
+            except (ValueError, TypeError):
+                cli_id = None
         for d in discs:
             d.venta_grupo = grupo
+            if cli_id and not getattr(d, "cliente_id", None):
+                d.cliente_id = cli_id
         db.session.commit()
         flash(f"Listo: {len(discs)} discos quedaron como una sola venta.", "success")
         return redirect(url_for("ventas_panel"))
