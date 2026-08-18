@@ -6595,9 +6595,16 @@ def register_routes(app: Flask) -> None:
                     artista_snap=d.artista, titulo_snap=d.titulo,
                     precio_uyu_snap=(d.precio_mostrar or d.precio_uyu or 0),
                 ))
-            # Cliente: buscar/crear con los datos y linkear la reserva a su ficha
-            cli = _buscar_o_crear_cliente(nombre, whatsapp, email, instagram,
-                                          origen=("web" if canal == "web" else "manual"))
+            # Cliente: si elegiste uno ya cargado (selector), usá ese directo; si no,
+            # buscá/creá por los datos escritos.
+            cli = None
+            _cid = request.form.get("cliente_id")
+            if _cid and str(_cid).isdigit():
+                from models import Cliente as _Cli
+                cli = _Cli.query.get(int(_cid))
+            if cli is None:
+                cli = _buscar_o_crear_cliente(nombre, whatsapp, email, instagram,
+                                              origen=("web" if canal == "web" else "manual"))
             if cli:
                 reserva.cliente_id = cli.id
             db.session.commit()
@@ -6639,10 +6646,13 @@ def register_routes(app: Flask) -> None:
             .order_by(Disc.artista.asc(), Disc.titulo.asc())
             .all()
         )
+        from models import Cliente
+        clientes = Cliente.query.order_by(Cliente.nombre.asc()).all()
         return render_template(
             "admin_reserva_nueva.html",
             discos=discs, estados=ESTADOS_RESERVA,
             canales=_CANALES_RESERVA, metodos=_METODOS_RESERVA,
+            clientes=clientes,
         )
 
     @app.route("/admin/reservas/<int:reserva_id>/toggle-entrega", methods=["POST"])

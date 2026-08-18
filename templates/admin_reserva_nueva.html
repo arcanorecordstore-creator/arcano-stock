@@ -16,6 +16,22 @@
 
 <form method="post" action="{{ url_for('admin_reserva_nueva') }}" id="reserva-form">
 
+    <!-- Elegir un cliente YA cargado (o dejar en "nuevo" y escribir abajo) -->
+    <input type="hidden" name="cliente_id" id="cliente-id" value="">
+    <div class="form-field" style="margin-bottom: 12px;">
+        <label for="cliente-picker">Cliente ya cargado <span class="form-field-hint">(opcional &mdash; eleg&iacute; uno y se completan sus datos; o dejá &laquo;nuevo&raquo; y escrib&iacute; abajo)</span></label>
+        <select id="cliente-picker">
+            <option value="">&mdash; Cliente nuevo (lo escribo abajo)</option>
+            {% for c in clientes %}
+            <option value="{{ c.id }}"
+                    data-nombre="{{ c.nombre|e }}"
+                    data-whatsapp="{{ c.whatsapp or '' }}"
+                    data-instagram="{{ ('@' ~ c.instagram) if c.instagram else '' }}"
+                    data-email="{{ c.email or '' }}">{{ c.nombre }}{% if c.instagram %} &middot; @{{ c.instagram }}{% elif c.whatsapp %} &middot; {{ c.whatsapp }}{% endif %}</option>
+            {% endfor %}
+        </select>
+    </div>
+
     <!-- Datos del cliente -->
     <div class="cargar-top">
         <div class="form-field">
@@ -162,6 +178,22 @@
     if (estado && hint) estado.addEventListener('change', function () {
         hint.textContent = HINTS[estado.value] || '';
     });
+    // Elegir un cliente ya cargado: completa los datos y guarda su id (asi se ata
+    // directo a esa ficha, sin adivinar por email/celular).
+    var picker = document.getElementById('cliente-picker');
+    var hidId = document.getElementById('cliente-id');
+    if (picker && hidId) {
+        picker.addEventListener('change', function () {
+            var o = picker.options[picker.selectedIndex];
+            hidId.value = picker.value || '';
+            if (picker.value) {
+                document.getElementById('nombre').value = o.getAttribute('data-nombre') || '';
+                document.getElementById('whatsapp').value = o.getAttribute('data-whatsapp') || '';
+                document.getElementById('instagram').value = o.getAttribute('data-instagram') || '';
+                document.getElementById('email').value = o.getAttribute('data-email') || '';
+            }
+        });
+    }
     refrescar();
 })();
 </script>
