@@ -7794,21 +7794,29 @@ td.num,
     white-space: nowrap;
     color: var(--text-2);
 }
-/* En mobile la cuenta ya vive en la bottom-nav: no duplicarla en el topbar */
+.public-topbar-cart .topbar-cart-label {
+    font-size: 10px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--text-2);
+}
+/* En mobile la cuenta ya vive en la bottom-nav: no duplicarla en el topbar.
+   El carrito queda solo como icono compacto (sin el texto "Carrito"). */
 @media (max-width: 700px) {
     .public-topbar-account { display: none; }
+    .public-topbar-cart .topbar-cart-label { display: none; }
 }
 .public-topbar-cart {
     display: flex;
+    flex-direction: column;
     position: relative;
     align-items: center;
     justify-content: center;
-    width: 42px;
-    height: 42px;
-    margin-left: 8px;
+    gap: 3px;
+    padding: 2px 8px;
     text-decoration: none;
     color: var(--text-1);
-    font-size: 22px;
     transition: opacity 0.15s ease;
 }
 .public-topbar-cart:hover { opacity: 0.7; }
