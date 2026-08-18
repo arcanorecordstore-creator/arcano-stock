@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}Nueva reserva manual &middot; Arcano admin{% endblock %}
+
+{% block content %}
+
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Nueva reserva manual</h1>
+        <p class="page-sub">Cargá una reserva que te lleg&oacute; por fuera de la web (Instagram, presencial). Segun el estado que elijas, el disco queda apartado (Confirmada) o vendido (Completada). El canal se refleja en el panel de Ventas.</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('admin_reservas') }}" class="btn btn-ghost">&larr; Volver a Reservas</a>
+    </div>
+</section>
+
+<form method="post" action="{{ url_for('admin_reserva_nueva') }}" id="reserva-form">
+
+    <!-- Datos del cliente -->
+    <div class="cargar-top">
+        <div class="form-field">
+            <label for="nombre">Nombre del cliente *</label>
+            <input type="text" id="nombre" name="nombre" required maxlength="200" placeholder="Nombre y apellido">
+        </div>
+        <div class="form-field">
+            <label for="whatsapp">WhatsApp</label>
+            <input type="text" id="whatsapp" name="whatsapp" maxlength="50" placeholder="099 123 456">
+        </div>
+        <div class="form-field">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" maxlength="200" placeholder="opcional">
+        </div>
+    </div>
+
+    <!-- Canal / estado / metodo -->
+    <div class="cargar-top">
+        <div class="form-field">
+            <label for="canal">Canal</label>
+            <select id="canal" name="canal">
+                {% for val, lbl in canales %}
+                <option value="{{ val }}" {% if val == 'instagram' %}selected{% endif %}>{{ lbl }}</option>
+                {% endfor %}
+            </select>
+            <span class="form-field-hint">De d&oacute;nde vino. Aparece as&iacute; en Ventas cuando se venda.</span>
+        </div>
+        <div class="form-field">
+            <label for="estado">Estado</label>
+            <select id="estado" name="estado">
+                {% for e in estados %}
+                <option value="{{ e }}" {% if e == 'Pendiente' %}selected{% endif %}>{{ e }}</option>
+                {% endfor %}
+            </select>
+            <span class="form-field-hint" id="estado-hint">Pendiente = solo anotar (no toca el disco).</span>
+        </div>
+        <div class="form-field">
+            <label for="metodo_pago">M&eacute;todo de pago</label>
+            <select id="metodo_pago" name="metodo_pago">
+                {% for val, lbl in metodos %}
+                <option value="{{ val }}">{{ lbl }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <!-- Entrega -->
+    <div class="cargar-top">
+        <div class="form-field">
+            <label for="entrega_tipo">Entrega</label>
+            <select id="entrega_tipo" name="entrega_tipo">
+                <option value="">&mdash; sin definir</option>
+                <option value="retiro">Retiro en Pocitos</option>
+                <option value="montevideo">Env&iacute;o en Montevideo</option>
+                <option value="interior">Env&iacute;o al interior</option>
+            </select>
+        </div>
+        <div class="form-field">
+            <label for="envio_direccion">Direcci&oacute;n</label>
+            <input type="text" id="envio_direccion" name="envio_direccion" maxlength="400" placeholder="opcional">
+        </div>
+        <div class="form-field">
+            <label for="envio_agencia">Agencia (interior)</label>
+            <input type="text" id="envio_agencia" name="envio_agencia" maxlength="200" placeholder="opcional">
+        </div>
+    </div>
+
+    <div class="form-field" style="margin-bottom: 14px;">
+        <label for="nota">Nota</label>
+        <textarea id="nota" name="nota" rows="2" placeholder="Lo que necesites recordar de este pedido"></textarea>
+    </div>
+
+    <!-- Picker de discos -->
+    <div class="cargar-buscar">
+        <input type="search" id="cargar-filtro" placeholder="Buscar disco por artista, t&iacute;tulo o sello..." class="pv-inp">
+        <span class="cargar-sel-count" id="cargar-count">0 elegidos</span>
+    </div>
+
+    {% if discos %}
+    <div class="cargar-lista">
+        {% for d in discos %}
+        <label class="cargar-item" data-buscar="{{ (d.artista ~ ' ' ~ d.titulo ~ ' ' ~ (d.sello or ''))|lower }}">
+            <input type="checkbox" class="cargar-check" name="disc_ids" value="{{ d.id }}">
+            {% if d.cover_local %}
+            <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="" class="cargar-cover" loading="lazy">
+            {% else %}
+            <div class="cargar-cover cargar-cover-empty">&#9834;</div>
+            {% endif %}
+            <div class="cargar-info">
+                <div class="cargar-title"><strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}</div>
+                <div class="cargar-sub">
+                    {% if d.sello %}{{ d.sello }} &middot; {% endif %}{{ d.estado }}
+                    {% if d.origen == 'personal' %}&middot; <span class="venta-origen-personal">personal</span>{% endif %}
+                </div>
+            </div>
+            <div class="cargar-precio">$ {{ '{:,.0f}'.format(d.precio_mostrar or d.precio_uyu or 0).replace(',', '.') }}</div>
+        </label>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <div class="empty-icon">&#128191;</div>
+        <h2>No hay discos para reservar</h2>
+        <p>Todos est&aacute;n vendidos o descartados. Carg&aacute; discos nuevos primero.</p>
+    </div>
+    {% endif %}
+
+    <div class="cargar-submit">
+        <button type="submit" class="btn btn-primary" id="cargar-btn" disabled>Crear reserva</button>
+    </div>
+</form>
+
+<script>
+(function () {
+    var checks = document.querySelectorAll('.cargar-check');
+    var count = document.getElementById('cargar-count');
+    var btn = document.getElementById('cargar-btn');
+    var filtro = document.getElementById('cargar-filtro');
+    function refrescar() {
+        var n = Array.prototype.filter.call(checks, function (c) { return c.checked; }).length;
+        count.textContent = n + ' elegido' + (n !== 1 ? 's' : '');
+        if (btn) btn.disabled = n === 0;
+    }
+    checks.forEach(function (c) { c.addEventListener('change', refrescar); });
+    if (filtro) filtro.addEventListener('input', function () {
+        var q = filtro.value.toLowerCase().trim();
+        document.querySelectorAll('.cargar-item').forEach(function (it) {
+            it.style.display = (!q || it.getAttribute('data-buscar').indexOf(q) !== -1) ? '' : 'none';
+        });
+    });
+    // Ayuda dinamica segun el estado elegido
+    var estado = document.getElementById('estado');
+    var hint = document.getElementById('estado-hint');
+    var HINTS = {
+        'Pendiente': 'Pendiente = solo anotar (no toca el disco).',
+        'Confirmada': 'Confirmada = aparta el disco (pasa a Reservado).',
+        'Completada': 'Completada = vende el disco (con el canal y metodo elegidos).',
+        'Cancelada': 'Cancelada = el disco vuelve a Disponible.'
+    };
+    if (estado && hint) estado.addEventListener('change', function () {
+        hint.textContent = HINTS[estado.value] || '';
+    });
+    refrescar();
+})();
+</script>
+
+{% endblock %}

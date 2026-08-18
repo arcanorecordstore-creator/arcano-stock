@@ -16,6 +16,9 @@
             {{ contadores.Cancelada }} canceladas
         </p>
     </div>
+    <div class="page-actions">
+        <a href="{{ url_for('admin_reserva_nueva') }}" class="btn btn-primary">+ Nueva reserva manual</a>
+    </div>
 </section>
 
 <div class="reserva-filters">
@@ -50,6 +53,12 @@
             {% else %}
             <span class="badge badge-{{ 'reservado' if r.estado == 'Pendiente' else 'disponible' if r.estado == 'Confirmada' else 'descartado' }}">{{ r.estado }}</span>
             {% endif %}
+            <span class="reserva-metodo-chip" title="Canal de la reserva">
+                {%- if r.canal == 'instagram' %}&#9673; Instagram
+                {%- elif r.canal == 'presencial' %}&#9673; Presencial
+                {%- elif r.canal == 'otro' %}&#9673; Otro
+                {%- else %}&#9673; Web{% endif %}
+            </span>
             {% if r.metodo_pago %}
             <span class="reserva-metodo-chip">
                 {%- if r.metodo_pago == 'transferencia' %}Transferencia

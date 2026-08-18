@@ -783,6 +783,10 @@ class Reserva(db.Model):
     envio_agencia = db.Column(db.String(200), nullable=True)     # solo interior
     # Estado de la ENTREGA fisica (aparte del pago): el cliente ya recibio el disco?
     entregado = db.Column(db.Boolean, nullable=False, default=False)
+    # Canal por el que llego la reserva: web (automatica) / instagram / presencial / otro.
+    # Al vender los discos de la reserva, este canal se copia a Disc.canal_venta -> aparece
+    # en el panel de Ventas por ese canal. Las reservas web quedan en 'web'.
+    canal = db.Column(db.String(20), nullable=False, default="web")
 
     # Relacion (puede ser null si el disco se borro)
     disc = db.relationship("Disc", backref="reservas", foreign_keys=[disc_id])
@@ -1319,6 +1323,7 @@ def _migrate_schema(app):
                 "envio_direccion": "VARCHAR(400)",
                 "envio_agencia": "VARCHAR(200)",
                 "entregado": "BOOLEAN DEFAULT 0",
+                "canal": "VARCHAR(20) DEFAULT 'web'",
             }
             for _col, _ddl in _radds.items():
                 if _col not in _rcols:

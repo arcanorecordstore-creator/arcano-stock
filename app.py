@@ -6303,6 +6303,100 @@ def register_routes(app: Flask) -> None:
             tc=Setting.get_tc(),
         )
 
+    _CANALES_RESERVA = [("web", "Web"), ("instagram", "Instagram"),
+                        ("presencial", "Presencial"), ("otro", "Otro")]
+    _METODOS_RESERVA = [("", "A coordinar"), ("transferencia", "Transferencia"),
+                        ("mercadopago", "Mercado Pago"), ("efectivo", "Efectivo")]
+
+    @app.route("/admin/reservas/nueva", methods=["GET", "POST"])
+    @auth.admin_required
+    def admin_reserva_nueva():
+        """Alta MANUAL de una reserva (ej: un pedido que te llego por Instagram). Se
+        llenan los mismos campos que la reserva web + el canal, y segun el estado elegido
+        el/los discos quedan Reservado (Confirmada) o Vendido (Completada)."""
+        if request.method == "POST":
+            nombre = (request.form.get("nombre") or "").strip()[:200]
+            whatsapp = (request.form.get("whatsapp") or "").strip()[:50]
+            email = (request.form.get("email") or "").strip()[:200] or None
+            nota = (request.form.get("nota") or "").strip() or None
+            canal = (request.form.get("canal") or "instagram").strip()
+            if canal not in ("web", "instagram", "presencial", "otro"):
+                canal = "instagram"
+            estado = (request.form.get("estado") or "Pendiente").strip()
+            if estado not in ESTADOS_RESERVA:
+                estado = "Pendiente"
+            metodo = (request.form.get("metodo_pago") or "").strip() or None
+            entrega_tipo = (request.form.get("entrega_tipo") or "").strip() or None
+            if entrega_tipo not in ("retiro", "montevideo", "interior"):
+                entrega_tipo = None
+            envio_direccion = (request.form.get("envio_direccion") or "").strip() or None
+            envio_agencia = (request.form.get("envio_agencia") or "").strip() or None
+            disc_ids = [int(x) for x in request.form.getlist("disc_ids") if str(x).isdigit()]
+
+            if not nombre:
+                flash("Poné al menos el nombre del cliente.", "error")
+                return redirect(url_for("admin_reserva_nueva"))
+            discs = Disc.query.filter(Disc.id.in_(disc_ids)).all() if disc_ids else []
+            if not discs:
+                flash("Elegí al menos un disco para la reserva.", "error")
+                return redirect(url_for("admin_reserva_nueva"))
+
+            envio_costo = _calcular_envio_uyu(entrega_tipo, len(discs)) if entrega_tipo else 0.0
+            total_discos = sum((d.precio_mostrar or d.precio_uyu or 0) for d in discs)
+
+            reserva = Reserva(
+                nombre=nombre, whatsapp=whatsapp, email=email, nota=nota,
+                canal=canal, estado=estado, metodo_pago=metodo,
+                entrega_tipo=entrega_tipo, envio_costo_uyu=envio_costo,
+                envio_direccion=envio_direccion, envio_agencia=envio_agencia,
+                fecha=now_uy(), pagado=(estado == "Completada"),
+                total_cobrado_uyu=round(total_discos + envio_costo, 2),
+            )
+            db.session.add(reserva)
+            db.session.flush()
+            for d in discs:
+                db.session.add(ReservaItem(
+                    reserva_id=reserva.id, disc_id=d.id,
+                    artista_snap=d.artista, titulo_snap=d.titulo,
+                    precio_uyu_snap=(d.precio_mostrar or d.precio_uyu or 0),
+                ))
+            db.session.commit()
+
+            # Aplicar el estado elegido a los discos (misma logica que el detalle):
+            # Confirmada -> Reservado | Completada -> Vendido | Cancelada -> Disponible.
+            estado_disco = {"Confirmada": "Reservado", "Completada": "Vendido",
+                            "Cancelada": "Disponible"}.get(estado)
+            if estado_disco:
+                grupo = f"r{reserva.id}"
+                for d in discs:
+                    if d.estado != estado_disco:
+                        register_status_change(d, estado_disco,
+                                               nota=f"Reserva manual #{reserva.id} -> {estado}")
+                    if estado_disco == "Vendido":
+                        if not d.canal_venta:
+                            d.canal_venta = canal
+                        if metodo and not d.metodo_pago_venta:
+                            d.metodo_pago_venta = metodo
+                        if len(discs) > 1 and not d.venta_grupo:
+                            d.venta_grupo = grupo
+                db.session.commit()
+
+            flash(f"Reserva manual #{reserva.id} creada.", "success")
+            return redirect(url_for("admin_reserva_detail", reserva_id=reserva.id))
+
+        # GET: formulario con el picker de discos (los que se pueden reservar/vender)
+        discs = (
+            Disc.query
+            .filter(~Disc.estado.in_(["Vendido", "Descartado"]))
+            .order_by(Disc.artista.asc(), Disc.titulo.asc())
+            .all()
+        )
+        return render_template(
+            "admin_reserva_nueva.html",
+            discs=discs, estados=ESTADOS_RESERVA,
+            canales=_CANALES_RESERVA, metodos=_METODOS_RESERVA,
+        )
+
     @app.route("/admin/reservas/<int:reserva_id>/toggle-entrega", methods=["POST"])
     @auth.admin_required
     def reserva_toggle_entrega(reserva_id: int):
@@ -6347,10 +6441,10 @@ def register_routes(app: Flask) -> None:
                                     disco, estado_disco,
                                     nota=f"Reserva #{reserva.id} -> {nuevo}"
                                 )
-                                # Venta web: registrar canal y metodo (editables luego)
+                                # Al vender: registrar canal (de la reserva) y metodo
                                 if estado_disco == "Vendido":
                                     if not disco.canal_venta:
-                                        disco.canal_venta = "web"
+                                        disco.canal_venta = reserva.canal or "web"
                                     if not disco.metodo_pago_venta:
                                         if reserva.pagado or reserva.metodo_pago == "mercadopago":
                                             disco.metodo_pago_venta = "mercadopago"
