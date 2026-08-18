@@ -23,6 +23,41 @@ from email.utils import formataddr
 import config
 
 
+def _money(n) -> str:
+    """Formatea un monto en pesos estilo uruguayo (punto de miles): 1.500, 2.000.000."""
+    return f"{(n or 0):,.0f}".replace(",", ".")
+
+
+def _lineas_pedido(reserva, discs):
+    """(total, lineas_texto, filas_html) con los precios REALES que paga el
+    cliente: los snapshots de la reserva (Fire Sale/oferta ya aplicados). Cae a
+    los discos (precio_mostrar) solo si la reserva no tiene items (reservas viejas)."""
+    items = list(getattr(reserva, "items_efectivos", []) or [])
+    if items:
+        total = sum((it.precio_uyu_snap or 0) for it in items)
+        lineas = "\n".join(
+            f"  - {it.artista_snap or ''} - {it.titulo_snap or ''} ($ {_money(it.precio_uyu_snap)} UYU)"
+            for it in items
+        )
+        filas_html = "".join(
+            f'<p style="margin:4px 0;"><strong>{_e(it.artista_snap or "")}</strong> - {_e(it.titulo_snap or "")} '
+            f'<span style="color:#10b981;">$ {_money(it.precio_uyu_snap)} UYU</span></p>'
+            for it in items
+        )
+        return total, lineas, filas_html
+    total = sum((d.precio_mostrar or 0) for d in discs)
+    lineas = "\n".join(
+        f"  - {d.artista} - {d.titulo} ($ {_money(d.precio_mostrar)} UYU)"
+        for d in discs
+    )
+    filas_html = "".join(
+        f'<p style="margin:4px 0;"><strong>{_e(d.artista or "")}</strong> - {_e(d.titulo or "")} '
+        f'<span style="color:#10b981;">$ {_money(d.precio_mostrar)} UYU</span></p>'
+        for d in discs
+    )
+    return total, lineas, filas_html
+
+
 def _adjuntar_archivo(msg, path):
     """Adjunta un archivo (imagen o PDF) al mensaje. Silencioso si el archivo no existe."""
     if not path or not os.path.isfile(path):
@@ -325,11 +360,7 @@ def send_reserva_confirmacion_cliente_multi(reserva, discs) -> tuple[bool, str]:
     if not reserva.email:
         return False, "El cliente no dejo email"
 
-    total = sum((d.precio_mostrar or 0) for d in discs)
-    lineas = "\n".join(
-        f"  - {d.artista} - {d.titulo} ($ {(d.precio_mostrar or 0):,.0f} UYU)"
-        for d in discs
-    )
+    total, lineas, filas_html = _lineas_pedido(reserva, discs)
     subject = f"Confirmamos tu reserva - {len(discs)} disco(s)"
     body_text = f"""Hola {reserva.nombre},
 
@@ -337,7 +368,7 @@ Recibimos tu reserva en Arcano Record Store. Estos son los discos:
 
 {lineas}
 
-TOTAL: $ {total:,.0f} UYU
+TOTAL: $ {_money(total)} UYU
 
 Nos vamos a contactar con vos por WhatsApp ({reserva.whatsapp}) para
 coordinar el pago y la entrega o retiro.
@@ -348,17 +379,12 @@ Arcano Record Store
 Montevideo, Uruguay
 """
 
-    filas_html = "".join(
-        f'<p style="margin:4px 0;"><strong>{_e(d.artista or "")}</strong> - {_e(d.titulo or "")} '
-        f'<span style="color:#10b981;">$ {(d.precio_mostrar or 0):,.0f} UYU</span></p>'
-        for d in discs
-    )
     body_html = f"""<html><body style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; background: #0a0a0a; color: #fff;">
 <h1 style="letter-spacing: 4px; font-weight: 300;">ARCANO</h1>
 <h2 style="color: #10b981; font-size: 16px;">Confirmamos tu reserva</h2>
 <p>Hola <strong>{_e(reserva.nombre or '')}</strong>, recibimos tu reserva de estos discos:</p>
 {filas_html}
-<p style="margin-top:12px;"><strong>Total: $ {total:,.0f} UYU</strong></p>
+<p style="margin-top:12px;"><strong>Total: $ {_money(total)} UYU</strong></p>
 <p>Nos vamos a contactar con vos por WhatsApp (<strong>{_e(reserva.whatsapp or '')}</strong>) para coordinar el pago y la entrega o retiro.</p>
 <p style="margin-top: 24px;">Gracias por elegir Arcano.</p>
 <hr style="border: none; border-top: 1px solid #333; margin: 30px 0;">
@@ -375,11 +401,7 @@ def send_compra_confirmacion_cliente(reserva, discs, metodo="mercadopago") -> tu
     if not reserva.email:
         return False, "El cliente no dejo email"
 
-    total = sum((d.precio_mostrar or 0) for d in discs)
-    lineas = "\n".join(
-        f"  - {d.artista} - {d.titulo} ($ {(d.precio_mostrar or 0):,.0f} UYU)"
-        for d in discs
-    )
+    total, lineas, filas_html = _lineas_pedido(reserva, discs)
     if metodo == "transferencia":
         pago_txt = "Recibimos tu comprobante de transferencia. En cuanto lo verifiquemos, coordinamos la entrega."
         pago_html = "Recibimos tu <strong>comprobante de transferencia</strong>. En cuanto lo verifiquemos, coordinamos la entrega."
@@ -394,7 +416,7 @@ Gracias por comprar en Arcano Record Store!
 
 {lineas}
 
-TOTAL: $ {total:,.0f} UYU
+TOTAL: $ {_money(total)} UYU
 
 {pago_txt}
 Nos contactamos por WhatsApp ({reserva.whatsapp}) para coordinar la entrega o el retiro
@@ -406,17 +428,12 @@ Arcano Record Store
 Montevideo, Uruguay
 """
 
-    filas_html = "".join(
-        f'<p style="margin:4px 0;"><strong>{_e(d.artista or "")}</strong> - {_e(d.titulo or "")} '
-        f'<span style="color:#10b981;">$ {(d.precio_mostrar or 0):,.0f} UYU</span></p>'
-        for d in discs
-    )
     body_html = f"""<html><body style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; background: #0a0a0a; color: #fff;">
 <h1 style="letter-spacing: 4px; font-weight: 300;">ARCANO</h1>
 <h2 style="color: #10b981; font-size: 16px;">&iexcl;Gracias por tu compra!</h2>
 <p>Hola <strong>{_e(reserva.nombre or '')}</strong>, gracias por comprar en Arcano Record Store. Esto es lo que llevaste:</p>
 {filas_html}
-<p style="margin-top:12px;"><strong>Total: $ {total:,.0f} UYU</strong></p>
+<p style="margin-top:12px;"><strong>Total: $ {_money(total)} UYU</strong></p>
 <p>{pago_html}</p>
 <p>Nos contactamos por WhatsApp (<strong>{_e(reserva.whatsapp or '')}</strong>) para coordinar la entrega o el retiro (env&iacute;o a todo Uruguay o pick up en Pocitos).</p>
 <p style="margin-top: 24px;">Gracias por elegir Arcano.</p>

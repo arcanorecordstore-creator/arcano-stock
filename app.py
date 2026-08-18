@@ -6355,6 +6355,16 @@ def register_routes(app: Flask) -> None:
             if metodo == "transferencia" and Setting.get("transferencia_activa", "0") == "1":
                 reserva.metodo_pago = "transferencia"
                 _guardar_comprobante(reserva, request.files.get("comprobante"))
+                # El cliente subio comprobante: apartamos los discos (Reservado)
+                # automaticamente para que nadie mas los compre. NO se marcan
+                # Vendido ni entran a la caja hasta que Facundo confirme que la
+                # plata llego (marca la reserva Completada). El comprobante es una
+                # foto del cliente, no una confirmacion real del banco.
+                for d in disponibles:
+                    if d.estado == "Disponible":
+                        register_status_change(
+                            d, "Reservado",
+                            nota=f"Reserva #{reserva.id} - transferencia (comprobante subido)")
                 db.session.commit()
             elif metodo == "mercadopago" and mp.activo():
                 reserva.metodo_pago = "mercadopago"
