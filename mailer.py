@@ -115,6 +115,48 @@ def send_email(subject: str, body_text: str, body_html: str = None, to: str = No
         return False, f"Error inesperado: {type(e).__name__}: {e}"
 
 
+def send_bulk(recipients, subject: str, body_text: str, body_html: str = None) -> tuple[int, int]:
+    """Envia el MISMO mail a varios destinatarios, cada uno en su propio 'To'
+    (no se exponen entre si, no hay BCC visible). Abre una sola conexion SMTP.
+    Best-effort. Devuelve (enviados, fallidos)."""
+    if not can_send():
+        return 0, 0
+    # Limpiar/deduplicar destinatarios validos (sin header-injection)
+    limpios, vistos = [], set()
+    for r in recipients or []:
+        r = (r or "").strip()
+        low = r.lower()
+        if (r and "@" in r and low not in vistos
+                and not any(c in r for c in ("\r", "\n"))):
+            vistos.add(low)
+            limpios.append(r)
+    if not limpios:
+        return 0, 0
+
+    subject = (subject or "").replace("\r", " ").replace("\n", " ")
+    enviados = fallidos = 0
+    try:
+        with smtplib.SMTP(config.SMTP_HOST, config.SMTP_PORT, timeout=30) as server:
+            server.starttls()
+            server.login(config.SMTP_USER, config.SMTP_PASS)
+            for dest in limpios:
+                try:
+                    cuerpo = MIMEMultipart("alternative")
+                    cuerpo.attach(MIMEText(body_text, "plain", "utf-8"))
+                    if body_html:
+                        cuerpo.attach(MIMEText(body_html, "html", "utf-8"))
+                    cuerpo["Subject"] = subject
+                    cuerpo["From"] = formataddr(("Arcano Record Store", config.SMTP_FROM))
+                    cuerpo["To"] = dest
+                    server.sendmail(config.SMTP_FROM, [dest], cuerpo.as_string())
+                    enviados += 1
+                except Exception:
+                    fallidos += 1
+    except Exception:
+        fallidos += len(limpios) - enviados
+    return enviados, fallidos
+
+
 def send_reserva_notification(reserva, disc, comprobante_path=None) -> tuple[bool, str]:
     """Envia notificacion de nueva reserva al admin, con el comprobante adjunto si lo hay."""
     # Lista de discos del pedido (soporta carrito con varios)

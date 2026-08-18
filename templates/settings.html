@@ -376,9 +376,64 @@
                 </div>
             </div>
 
+            <!-- ===================== FIRE SALE ===================== -->
+            <div class="form-field" style="margin-top: 22px; border-top: 1px solid var(--border-2, #333); padding-top: 18px;">
+                <label class="carrusel-toggle" style="font-size: 15px;">
+                    <input type="checkbox" name="fire_sale_activa" value="1" {% if fire_sale_activa %}checked{% endif %}>
+                    <span><strong>&#128293; Fire Sale</strong> (descuento exclusivo para clientes con cuenta)</span>
+                </label>
+                <p class="form-field-hint" style="margin-top: 6px;">
+                    Prendido: los discos elegidos muestran un precio con descuento y un <strong>candado</strong>. Solo quien inici&oacute; sesi&oacute;n puede comprarlos a ese precio. El que no tiene cuenta ve el precio Fire Sale pero no puede comprar: lo empuja a registrarse.
+                </p>
+
+                {% if fire_sale_cfg and fire_sale_cfg.vigente %}
+                <p class="mp-info-ok" style="margin-top:8px;">&#10003; Fire Sale <strong>activo ahora</strong> ({{ fire_sale_cfg.pct }}% OFF{% if fire_sale_cfg.alcance == 'todo' %}, toda la tienda{% else %}, {{ fire_sale_discos_sel }} disco(s) elegidos{% endif %}){% if fire_sale_cfg.fin %} &middot; termina el {{ fire_sale_cfg.fin.strftime('%d/%m %H:%M') }}{% endif %}.</p>
+                {% elif fire_sale_activa %}
+                <p class="form-field-hint" style="margin-top:8px; color: var(--loss, #e0685a);">El toggle est&aacute; prendido pero el Fire Sale NO est&aacute; vigente (revis&aacute; el porcentaje &gt; 0 y que el reloj no haya vencido).</p>
+                {% endif %}
+
+                <div class="form-row" style="margin-top: 12px;">
+                    <div class="form-field">
+                        <label for="fire_sale_pct">Descuento (%)</label>
+                        <input type="number" id="fire_sale_pct" name="fire_sale_pct" min="1" max="90" step="1" value="{{ fire_sale_pct or '10' }}">
+                    </div>
+                    <div class="form-field">
+                        <label for="fire_sale_fin">Termina el <span class="form-field-hint">(opcional: reloj de cuenta atr&aacute;s)</span></label>
+                        <input type="datetime-local" id="fire_sale_fin" name="fire_sale_fin" value="{{ fire_sale_fin or '' }}">
+                    </div>
+                </div>
+
+                <div class="form-field" style="margin-top: 10px;">
+                    <label>&iquest;A qu&eacute; discos aplica?</label>
+                    <label class="carrusel-toggle" style="font-weight:400; margin-top:4px;">
+                        <input type="radio" name="fire_sale_alcance" value="todo" {% if fire_sale_alcance != 'seleccion' %}checked{% endif %}>
+                        <span>A <strong>toda la tienda</strong></span>
+                    </label>
+                    <label class="carrusel-toggle" style="font-weight:400; margin-top:4px;">
+                        <input type="radio" name="fire_sale_alcance" value="seleccion" {% if fire_sale_alcance == 'seleccion' %}checked{% endif %}>
+                        <span>Solo a los discos <strong>elegidos</strong> ({{ fire_sale_discos_sel }} marcados hoy)</span>
+                    </label>
+                    <p class="form-field-hint" style="margin-top: 6px;">Para elegir discos: en el Dashboard, seleccionalos con el tilde y en la barra de acciones eleg&iacute; <em>Fire Sale (seleccion) &rarr; Activar</em>.</p>
+                </div>
+
+                <div class="form-field" style="margin-top: 10px;">
+                    <label for="fire_sale_mensaje">Mensaje del cartel <span class="form-field-hint">(opcional; aparece en la web y en el mail)</span></label>
+                    <input type="text" id="fire_sale_mensaje" name="fire_sale_mensaje" maxlength="160" value="{{ fire_sale_mensaje or '' }}" placeholder="Ej: 48hs de Fire Sale para clientes. Aprovechalo!">
+                </div>
+            </div>
+
             <div class="form-footer">
                 <button type="submit" class="btn btn-primary">Guardar textos publicos</button>
                 <a href="{{ url_for('home') }}" target="_blank" class="btn btn-ghost">Ver tienda &nearr;</a>
+            </div>
+        </form>
+
+        <!-- Avisar del Fire Sale por mail (form aparte para no anidar) -->
+        <form method="post" action="{{ url_for('fire_sale_avisar') }}" class="settings-form" style="margin-top: 12px;"
+              data-confirm="Enviar el aviso de Fire Sale por mail a {{ clientes_con_email }} cliente(s)?">
+            <div class="form-field" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+                <button type="submit" class="btn btn-ghost">&#9993; Avisar del Fire Sale por mail</button>
+                <span class="form-field-hint">Le manda el aviso a los <strong>{{ clientes_con_email }}</strong> cliente(s) con email cargado. Activ&aacute; y guard&aacute; el Fire Sale antes de avisar.</span>
             </div>
         </form>
 

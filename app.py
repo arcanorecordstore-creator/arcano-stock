@@ -37,6 +37,7 @@ from models import (
     CONDICIONES_DISCO,
     now_uy,
     today_uy,
+    fire_sale_config,
 )
 import vision
 import scraper
@@ -2186,7 +2187,7 @@ def register_routes(app: Flask) -> None:
             # Cambio masivo de un parametro booleano o el cartel Nuevo
             campo = (request.form.get("campo") or "").strip()
             valor = (request.form.get("valor") or "").strip()
-            campos_bool = ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado", "es_preorder", "es_tip")
+            campos_bool = ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado", "es_preorder", "es_tip", "en_fire_sale")
             cambios = 0
             if campo in campos_bool:
                 nuevo_val = valor in ("1", "true", "on", "si")
@@ -2197,7 +2198,7 @@ def register_routes(app: Flask) -> None:
                 etiquetas = {
                     "destacado": "Destacado", "en_nuevos": "Nuevos ingresos", "es_tip": "Tip",
                     "cartel_ultima": "Ultima copia", "mostrar_agotado": "Agotado visible",
-                    "es_preorder": "Carrusel Pre-order",
+                    "es_preorder": "Carrusel Pre-order", "en_fire_sale": "Fire Sale",
                 }
                 estado_txt = "activado" if nuevo_val else "desactivado"
                 flash(f"{cambios} disco(s): {etiquetas.get(campo, campo)} {estado_txt}.", "success")
@@ -2730,7 +2731,7 @@ def register_routes(app: Flask) -> None:
             db.session.commit()
             return jsonify({"ok": True, "campo": campo, "valor": disc.pedido_id or ""})
 
-        elif campo in ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado", "es_preorder", "es_tip"):
+        elif campo in ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado", "es_preorder", "es_tip", "en_fire_sale"):
             # valor viene como "1"/"0" o true/false
             nuevo = str(valor) in ("1", "true", "True", "on")
             setattr(disc, campo, nuevo)
@@ -4817,6 +4818,15 @@ def register_routes(app: Flask) -> None:
             mp_sandbox=mp.es_sandbox(),
             transferencia_activa=Setting.get("transferencia_activa", "0") == "1",
             transferencia_datos=Setting.get("transferencia_datos", ""),
+            # Fire Sale
+            fire_sale_activa=Setting.get("fire_sale_activa", "0") == "1",
+            fire_sale_pct=Setting.get("fire_sale_pct", "10"),
+            fire_sale_alcance=Setting.get("fire_sale_alcance", "todo"),
+            fire_sale_fin=Setting.get("fire_sale_fin", ""),
+            fire_sale_mensaje=Setting.get("fire_sale_mensaje", ""),
+            fire_sale_cfg=fire_sale_config(),
+            fire_sale_discos_sel=Disc.query.filter_by(en_fire_sale=True).count(),
+            clientes_con_email=Cliente.query.filter(Cliente.email.isnot(None), Cliente.email != "").count(),
             public_banner_url=Setting.get("public_banner_url", ""),
             public_hero_title=Setting.get("public_hero_title", ""),
             public_hero_subtitle=Setting.get("public_hero_subtitle", ""),
@@ -5054,7 +5064,10 @@ def register_routes(app: Flask) -> None:
 
     def _public_context():
         """Contexto comun para todas las paginas publicas."""
+        _fs = fire_sale_config()
         return {
+            "fire_sale": _fs,
+            "fire_sale_mensaje": Setting.get("fire_sale_mensaje", "") or "",
             "tagline": Setting.get("public_tagline", ""),
             "about": Setting.get("public_about", ""),
             "about_curaduria": Setting.get("public_about_curaduria", ""),
@@ -5083,6 +5096,20 @@ def register_routes(app: Flask) -> None:
             "transferencia_activa": Setting.get("transferencia_activa", "0") == "1",
             "transferencia_datos": Setting.get("transferencia_datos", ""),
         }
+
+    def _precio_a_cobrar(disc):
+        """Precio real a cobrar por un disco: el de Fire Sale si esta vigente para
+        el, si no el precio normal (precio_mostrar)."""
+        if disc.en_fire_sale_activo:
+            return disc.precio_fire_sale
+        return disc.precio_mostrar
+
+    def _fire_sale_bloquea(discs):
+        """True si en la lista hay algun disco en Fire Sale y el visitante NO tiene
+        cuenta iniciada (los discos en Fire Sale son exclusivos para clientes)."""
+        if auth.cliente_actual_id():
+            return False
+        return any(getattr(d, "en_fire_sale_activo", False) for d in discs)
 
     def _guardar_comprobante(reserva, file):
         """Guarda el comprobante de transferencia (imagen o PDF), si vino uno."""
@@ -5773,6 +5800,10 @@ def register_routes(app: Flask) -> None:
             elif not _email_valido(email):
                 errores.append("El email no parece valido.")
 
+            # Fire Sale: exclusivo para clientes con cuenta
+            if _fire_sale_bloquea([disc]):
+                errores.append("Este disco esta en Fire Sale: es exclusivo para clientes con cuenta. Inicia sesion o crea tu cuenta para reservarlo.")
+
             if errores:
                 for e in errores:
                     flash(e, "error")
@@ -5801,7 +5832,7 @@ def register_routes(app: Flask) -> None:
                 disc_id=disc.id,
                 artista_snap=disc.artista,
                 titulo_snap=disc.titulo,
-                precio_uyu_snap=disc.precio_mostrar,
+                precio_uyu_snap=_precio_a_cobrar(disc),
             )
             db.session.add(item)
             db.session.commit()
@@ -6102,7 +6133,9 @@ def register_routes(app: Flask) -> None:
                     "titulo": d.titulo,
                     "sello": d.sello,
                     "anio": d.anio,
-                    "precio_uyu": d.precio_mostrar or 0,
+                    "precio_uyu": _precio_a_cobrar(d) or 0,
+                    "en_fire_sale": bool(d.en_fire_sale_activo),
+                    "fire_sale_pct": d.fire_sale_pct,
                     "cover": cover,
                     "estado": d.estado,
                     "disponible": not d.esta_agotado,
@@ -6189,6 +6222,11 @@ def register_routes(app: Flask) -> None:
             if ids and not disponibles:
                 errores.append("Ninguno de los discos del carrito esta disponible.")
 
+            # Fire Sale: los discos con descuento son exclusivos para clientes con
+            # cuenta. Si el visitante no inicio sesion, no puede comprarlos.
+            if _fire_sale_bloquea(disponibles):
+                errores.append("Hay discos en Fire Sale en tu carrito: son exclusivos para clientes con cuenta. Inicia sesion o crea tu cuenta para comprarlos.")
+
             # --- Entrega / envio: SOLO aplica en COMPRA (transferencia o Mercado Pago).
             # Si el cliente "reserva y coordina", el envio no se toca (se arregla por WhatsApp).
             _metodo_form = request.form.get("metodo", "coordinar")
@@ -6254,7 +6292,7 @@ def register_routes(app: Flask) -> None:
                     disc_id=d.id,
                     artista_snap=d.artista,
                     titulo_snap=d.titulo,
-                    precio_uyu_snap=d.precio_mostrar,
+                    precio_uyu_snap=_precio_a_cobrar(d),
                 )
                 db.session.add(item)
 
@@ -6672,10 +6710,16 @@ def register_routes(app: Flask) -> None:
             "mp_recargo_pct",
             "transferencia_activa",
             "transferencia_datos",
+            "fire_sale_activa",
+            "fire_sale_pct",
+            "fire_sale_alcance",
+            "fire_sale_fin",
+            "fire_sale_mensaje",
         ]
         carrusel_keys = ("carrusel_preorder", "carrusel_tips", "carrusel_escuchados",
                          "carrusel_destacados", "carrusel_nuevos")
-        checkbox_keys = carrusel_keys + ("mercadopago_activo", "transferencia_activa")
+        checkbox_keys = carrusel_keys + ("mercadopago_activo", "transferencia_activa",
+                                         "fire_sale_activa")
         for key in keys:
             # Toggles/checkboxes: presente = "1", ausente = "0"
             if key in checkbox_keys:
@@ -6706,8 +6750,74 @@ def register_routes(app: Flask) -> None:
             elif key == "meta_pixel_id":
                 import re as _re
                 value = _re.sub(r"\D", "", value)[:20]
+            # Fire Sale: porcentaje entre 1 y 90
+            elif key == "fire_sale_pct":
+                try:
+                    n = int(float(value or 0))
+                    value = str(max(1, min(n, 90)))
+                except (ValueError, TypeError):
+                    value = "10"
+            # Fire Sale: alcance solo puede ser "todo" o "seleccion"
+            elif key == "fire_sale_alcance":
+                value = "seleccion" if value == "seleccion" else "todo"
+            # Fire Sale: fecha/hora de fin (datetime-local). Se valida que parsee;
+            # si no, se guarda vacio (sin reloj).
+            elif key == "fire_sale_fin":
+                if value:
+                    try:
+                        datetime.fromisoformat(value)
+                    except (ValueError, TypeError):
+                        value = ""
             Setting.set(key, value)
         flash("Textos publicos actualizados.", "success")
+        return redirect(url_for("settings_page"))
+
+    @app.route("/admin/fire-sale/avisar", methods=["POST"])
+    @auth.admin_required
+    def fire_sale_avisar():
+        """Manda el mail de aviso del Fire Sale a todos los clientes con email."""
+        if not mailer.can_send():
+            flash("El correo no esta configurado: no se pudo enviar el aviso.", "error")
+            return redirect(url_for("settings_page"))
+        cfg = fire_sale_config()
+        pct = cfg.get("pct") or int(float(Setting.get("fire_sale_pct", "10") or 10))
+        emails = [c.email for c in Cliente.query
+                  .filter(Cliente.email.isnot(None), Cliente.email != "").all()]
+        if not emails:
+            flash("No hay clientes con email para avisar.", "warning")
+            return redirect(url_for("settings_page"))
+
+        import html as _html
+        mensaje = (Setting.get("fire_sale_mensaje", "") or "").strip()
+        url_tienda = url_for("home", _external=True)
+        asunto = f"Fire Sale en Arcano: {pct}% de descuento para clientes"
+        texto = (
+            f"Activamos un Fire Sale con {pct}% de descuento, exclusivo para clientes con cuenta.\n\n"
+            + (mensaje + "\n\n" if mensaje else "")
+            + "Entra a la tienda e inicia sesion para ver los precios con descuento:\n"
+            + url_tienda + "\n\nArcano Record Store"
+        )
+        msg_html = ("<p>" + _html.escape(mensaje).replace("\n", "<br>") + "</p>") if mensaje else ""
+        html = (
+            '<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;'
+            'background:#0A0A0A;color:#EDEDED;padding:28px 24px;border-radius:12px;">'
+            '<h1 style="font-size:22px;letter-spacing:2px;margin:0 0 4px;">ARCANO &middot; FIRE SALE</h1>'
+            f'<p style="font-size:34px;font-weight:800;color:#ff5a3c;margin:8px 0 16px;">{pct}% OFF</p>'
+            '<p style="font-size:15px;line-height:1.5;margin:0 0 12px;">Descuento <b>exclusivo para clientes con cuenta</b>. '
+            'Inicia sesion en la tienda para ver los precios con el descuento aplicado.</p>'
+            + msg_html +
+            f'<p style="margin:22px 0;"><a href="{url_tienda}" '
+            'style="background:#ff5a3c;color:#fff;text-decoration:none;padding:12px 22px;'
+            'border-radius:8px;font-weight:700;display:inline-block;">Ver el Fire Sale &rarr;</a></p>'
+            '<p style="font-size:12px;color:#888;margin-top:20px;">Arcano Record Store &middot; Montevideo</p>'
+            '</div>'
+        )
+        enviados, fallidos = mailer.send_bulk(emails, asunto, texto, html)
+        if enviados:
+            extra = f" ({fallidos} no salieron)" if fallidos else ""
+            flash(f"Aviso de Fire Sale enviado a {enviados} cliente(s).{extra}", "success")
+        else:
+            flash("No se pudo enviar el aviso (revisa la configuracion de correo).", "error")
         return redirect(url_for("settings_page"))
 
     # =====================================================================

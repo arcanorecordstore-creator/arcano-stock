@@ -165,7 +165,20 @@
             {% if disc.mostrar_preorder %}
                 <div class="public-disc-preorder-notice">&#128337; Pre-order &middot; reservalo ahora y te lo aseguramos cuando llegue</div>
                 {% if disc.precio_uyu > 0 %}
-                {% if disc.en_oferta %}
+                {% if disc.en_fire_sale_activo %}
+                    {% if cliente_actual %}
+                    <div class="public-disc-price public-disc-price-fire">
+                        <span class="precio-tachado">$ {{ '{:,.0f}'.format(disc.precio_mostrar).replace(',', '.') }}</span>
+                        <span class="precio-fire">$ {{ '{:,.0f}'.format(disc.precio_fire_sale).replace(',', '.') }} <span>UYU</span></span>
+                        <span class="public-disc-fire-badge">&#128293; Fire Sale -{{ disc.fire_sale_pct }}%</span>
+                    </div>
+                    {% else %}
+                    <div class="public-disc-price public-disc-price-fire is-locked">
+                        <span class="precio-fire">$ {{ '{:,.0f}'.format(disc.precio_fire_sale).replace(',', '.') }} <span>UYU</span></span>
+                        <span class="public-disc-fire-lock">&#128274; Inici&aacute; sesi&oacute;n para este precio</span>
+                    </div>
+                    {% endif %}
+                {% elif disc.en_oferta %}
                 <div class="public-disc-price public-disc-price-oferta">
                     <span class="precio-tachado">$ {{ '{:,.0f}'.format(disc.precio_uyu).replace(',', '.') }}</span>
                     <span class="precio-oferta">$ {{ '{:,.0f}'.format(disc.precio_mostrar).replace(',', '.') }} <span>UYU</span></span>
@@ -178,10 +191,14 @@
                 <div class="public-disc-price public-disc-price-tba">Precio a consultar</div>
                 {% endif %}
                 {% if disc.precio_uyu > 0 %}
+                {% if disc.en_fire_sale_activo and not cliente_actual %}
+                <a href="{{ url_for('cliente_login_page') }}" class="btn btn-primary cart-btn-full public-fire-login-btn">&#128274; Inici&aacute; sesi&oacute;n para el pre-order Fire Sale</a>
+                {% else %}
                 <button type="button" class="btn btn-primary cart-btn cart-btn-full" data-cart-id="{{ disc.id }}">
                     <span class="cart-label-add">&#43; Agregar al carrito (pre-order)</span>
                     <span class="cart-label-in">&#10003; En el carrito</span>
                 </button>
+                {% endif %}
                 {% elif whatsapp %}
                 <a href="https://wa.me/{{ whatsapp }}?text={{ ('Hola! Queria consultar el precio del pre-order ' ~ disc.artista ~ ' - ' ~ disc.titulo ~ '.')|urlencode }}"
                    target="_blank" rel="noopener" class="btn btn-primary public-wsp-btn">
@@ -204,7 +221,20 @@
                 <div class="public-disc-urgency">&#9888; Ultima copia disponible</div>
                 {% endif %}
                 {% if disc.precio_uyu > 0 %}
-                {% if disc.en_oferta %}
+                {% if disc.en_fire_sale_activo %}
+                    {% if cliente_actual %}
+                    <div class="public-disc-price public-disc-price-fire">
+                        <span class="precio-tachado">$ {{ '{:,.0f}'.format(disc.precio_mostrar).replace(',', '.') }}</span>
+                        <span class="precio-fire">$ {{ '{:,.0f}'.format(disc.precio_fire_sale).replace(',', '.') }} <span>UYU</span></span>
+                        <span class="public-disc-fire-badge">&#128293; Fire Sale -{{ disc.fire_sale_pct }}%</span>
+                    </div>
+                    {% else %}
+                    <div class="public-disc-price public-disc-price-fire is-locked">
+                        <span class="precio-fire">$ {{ '{:,.0f}'.format(disc.precio_fire_sale).replace(',', '.') }} <span>UYU</span></span>
+                        <span class="public-disc-fire-lock">&#128274; Inici&aacute; sesi&oacute;n para este precio</span>
+                    </div>
+                    {% endif %}
+                {% elif disc.en_oferta %}
                 <div class="public-disc-price public-disc-price-oferta">
                     <span class="precio-tachado">$ {{ '{:,.0f}'.format(disc.precio_uyu).replace(',', '.') }}</span>
                     <span class="precio-oferta">$ {{ '{:,.0f}'.format(disc.precio_mostrar).replace(',', '.') }} <span>UYU</span></span>
@@ -217,8 +247,11 @@
                 <div class="public-disc-price public-disc-price-tba">Precio a consultar</div>
                 {% endif %}
                 {% if disc.precio_uyu > 0 %}
+                {% if disc.en_fire_sale_activo and not cliente_actual %}
+                <a href="{{ url_for('cliente_login_page') }}" class="btn btn-primary cart-btn-full public-fire-login-btn">&#128274; Inici&aacute; sesi&oacute;n para comprar en Fire Sale</a>
+                {% else %}
                 <button type="button" class="btn btn-primary cart-btn cart-btn-full" data-cart-id="{{ disc.id }}">
-                    <span class="cart-label-add">&#43; Agregar al carrito</span>
+                    <span class="cart-label-add">&#43; Agregar al carrito{% if disc.en_fire_sale_activo %} (Fire Sale){% endif %}</span>
                     <span class="cart-label-in">&#10003; En el carrito</span>
                 </button>
                 {% if whatsapp %}
@@ -226,6 +259,7 @@
                    target="_blank" rel="noopener" class="btn btn-ghost public-wsp-btn">
                     Consultar por WhatsApp
                 </a>
+                {% endif %}
                 {% endif %}
                 {% elif whatsapp %}
                 <a href="https://wa.me/{{ whatsapp }}?text={{ ('Hola! Queria consultar el precio y disponibilidad de ' ~ disc.artista ~ ' - ' ~ disc.titulo ~ '.')|urlencode }}"

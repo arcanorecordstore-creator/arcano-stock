@@ -58,6 +58,15 @@
 <a href="{{ url_for('home') }}#catalogo" class="public-anuncio-bar" aria-label="Ir al catalogo">{{ anuncio_texto }}</a>
 {% endif %}
 
+{% if fire_sale and fire_sale.vigente %}
+<a href="{{ url_for('home') }}#catalogo" class="public-firesale-bar" aria-label="Ir al Fire Sale"
+   {% if fire_sale.segundos_restantes %}data-fs-end="{{ fire_sale.segundos_restantes }}"{% endif %}>
+    <span class="fs-flame">&#128293;</span>
+    <span class="fs-text"><strong>FIRE SALE</strong> &middot; {{ fire_sale.pct }}% OFF{% if fire_sale_mensaje %} &middot; {{ fire_sale_mensaje }}{% elif not cliente_actual %} &middot; inici&aacute; sesi&oacute;n para aprovecharlo{% endif %}</span>
+    {% if fire_sale.segundos_restantes %}<span class="fs-countdown" id="fs-countdown" aria-live="off">--:--:--</span>{% endif %}
+</a>
+{% endif %}
+
 <header class="public-topbar">
     <div class="public-topbar-inner">
         <button type="button" class="public-hamburger" id="public-hamburger" aria-label="Abrir menu" aria-expanded="false">
@@ -300,6 +309,28 @@
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
 <script src="{{ url_for('static', filename='js/public_anim.js') }}"></script>
 <script src="{{ url_for('static', filename='js/pjax.js') }}"></script>
+<script>
+// Cuenta atras del Fire Sale (si la barra trae data-fs-end = segundos restantes).
+(function () {
+    var bar = document.querySelector('.public-firesale-bar[data-fs-end]');
+    var out = document.getElementById('fs-countdown');
+    if (!bar || !out) return;
+    var restan = parseInt(bar.getAttribute('data-fs-end'), 10);
+    if (isNaN(restan) || restan <= 0) return;
+    function dos(n) { return (n < 10 ? '0' : '') + n; }
+    function pintar() {
+        if (restan <= 0) { out.textContent = '00:00:00'; bar.classList.add('fs-ended'); return; }
+        var d = Math.floor(restan / 86400);
+        var h = Math.floor((restan % 86400) / 3600);
+        var m = Math.floor((restan % 3600) / 60);
+        var s = restan % 60;
+        out.textContent = (d > 0 ? d + 'd ' : '') + dos(h) + ':' + dos(m) + ':' + dos(s);
+        restan -= 1;
+    }
+    pintar();
+    setInterval(pintar, 1000);
+})();
+</script>
 {% block scripts %}{% endblock %}
 
 </body>

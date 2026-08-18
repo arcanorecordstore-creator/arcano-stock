@@ -110,6 +110,9 @@ class Disc(db.Model):
     # Precio de oferta (opcional). Si esta seteado y es menor al precio, se
     # muestra el precio tachado con el de oferta al lado (SALE).
     precio_oferta = db.Column(db.Float, nullable=True, default=None)
+    # Fire Sale: marca manual para incluir este disco cuando el alcance del
+    # Fire Sale es "seleccion" (si el alcance es "todo", este flag se ignora).
+    en_fire_sale = db.Column(db.Boolean, nullable=False, default=False)
     # Mostrar en el catalogo aunque este agotado/vendido (con sello "Agotado")
     mostrar_agotado = db.Column(db.Boolean, nullable=False, default=False)
     # Badge de recomendacion del curador (etiqueta editable en Ajustes, default "Tip").
@@ -220,6 +223,33 @@ class Disc(db.Model):
         if not self.en_oferta:
             return 0
         return round((1 - (self.precio_oferta / self.precio_uyu)) * 100)
+
+    @property
+    def en_fire_sale_activo(self) -> bool:
+        """True si este disco esta AHORA en Fire Sale vigente (segun la config
+        global + su alcance + el reloj). Los agotados no entran."""
+        cfg = fire_sale_config()
+        if not cfg["vigente"] or self.esta_agotado:
+            return False
+        if cfg["alcance"] == "todo":
+            return True
+        return bool(getattr(self, "en_fire_sale", False))
+
+    @property
+    def precio_fire_sale(self) -> float:
+        """Precio con el descuento del Fire Sale aplicado sobre el precio normal
+        a cobrar (precio_mostrar). Redondeado a peso entero."""
+        cfg = fire_sale_config()
+        base = self.precio_mostrar or self.precio_uyu or 0
+        pct = cfg["pct"] or 0
+        return round(base * (1 - pct / 100.0))
+
+    @property
+    def fire_sale_pct(self) -> int:
+        """Porcentaje de descuento del Fire Sale vigente (0 si no aplica a este disco)."""
+        if not self.en_fire_sale_activo:
+            return 0
+        return int(fire_sale_config()["pct"] or 0)
 
     @property
     def esta_agotado(self) -> bool:
@@ -378,6 +408,10 @@ class Setting(db.Model):
                 cache = getattr(g, "_settings_cache", None)
                 if cache is not None:
                     cache[key] = value
+                # Si cambia algo del Fire Sale, tirar su cache calculado
+                if key.startswith("fire_sale"):
+                    if hasattr(g, "_fire_sale_cfg"):
+                        delattr(g, "_fire_sale_cfg")
         except Exception:
             pass
 
@@ -421,6 +455,58 @@ class Setting(db.Model):
         extras = [c.strip() for c in extra.split(",") if c.strip()]
         extras.append(nombre)
         cls.set("categorias_egreso_extra", ",".join(extras))
+
+
+def fire_sale_config() -> dict:
+    """Lee la configuracion del Fire Sale una sola vez por request.
+
+    Devuelve un dict con:
+      - activa: el toggle esta prendido
+      - pct: porcentaje de descuento (int)
+      - alcance: 'todo' | 'seleccion'
+      - fin: datetime de fin (hora local UY) o None si no tiene reloj
+      - vigente: activa Y pct>0 Y (sin reloj o el reloj todavia no vencio)
+      - segundos_restantes: cuanto falta para que termine (o None)
+    """
+    from flask import g, has_request_context
+    if has_request_context():
+        cached = getattr(g, "_fire_sale_cfg", None)
+        if cached is not None:
+            return cached
+
+    activa = Setting.get("fire_sale_activa", "0") == "1"
+    try:
+        pct = int(float(Setting.get("fire_sale_pct", "0") or 0))
+    except (TypeError, ValueError):
+        pct = 0
+    alcance = Setting.get("fire_sale_alcance", "todo") or "todo"
+    fin_raw = (Setting.get("fire_sale_fin", "") or "").strip()
+
+    fin = None
+    segundos = None
+    reloj_vencido = False
+    if fin_raw:
+        try:
+            fin = datetime.fromisoformat(fin_raw)
+            ahora = now_uy()
+            delta = (fin - ahora).total_seconds()
+            segundos = int(delta)
+            reloj_vencido = delta <= 0
+        except (TypeError, ValueError):
+            fin = None
+
+    vigente = bool(activa and pct > 0 and not reloj_vencido)
+    cfg = {
+        "activa": activa,
+        "pct": pct,
+        "alcance": alcance,
+        "fin": fin,
+        "vigente": vigente,
+        "segundos_restantes": segundos if (vigente and segundos and segundos > 0) else None,
+    }
+    if has_request_context():
+        g._fire_sale_cfg = cfg
+    return cfg
 
 
 # ---------------------------------------------------------------------------
@@ -1413,6 +1499,11 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN mostrar_agotado BOOLEAN DEFAULT 0"))
                     conn.commit()
                 print("Migracion: columna mostrar_agotado agregada a discs")
+            if "en_fire_sale" not in cols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN en_fire_sale BOOLEAN DEFAULT 0"))
+                    conn.commit()
+                print("Migracion: columna en_fire_sale agregada a discs")
             if "es_preorder" not in cols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN es_preorder BOOLEAN DEFAULT 0"))
