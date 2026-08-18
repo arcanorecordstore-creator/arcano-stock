@@ -38,10 +38,17 @@
 </form>
 
 {% if clientes %}
+<form method="post" action="{{ url_for('admin_clientes_eliminar_multiple') }}" id="cli-bulk-form"
+      onsubmit="return confirm('¿Eliminar los clientes seleccionados? Las ventas NO se borran, solo se desvinculan.');">
+<div class="cli-bulkbar" id="cli-bulkbar" hidden>
+    <span><strong id="cli-bulk-n">0</strong> seleccionado(s)</span>
+    <button type="submit" class="btn btn-danger btn-sm">Eliminar seleccionados</button>
+</div>
 <div class="cli-table-wrap">
 <table class="cli-table">
     <thead>
         <tr>
+            <th class="chk"><input type="checkbox" id="cli-all" title="Seleccionar todos"></th>
             <th>Cliente</th><th>Contacto</th><th class="num">Compras</th>
             <th class="num">Gastado</th><th>&Uacute;ltima</th><th class="num">Reservas</th>
         </tr>
@@ -50,6 +57,9 @@
         {% for c in clientes %}
         {% set ag = compras.get(c.id, {}) %}
         <tr onclick="location.href='{{ url_for('admin_cliente_detail', cliente_id=c.id) }}'">
+            <td class="chk" onclick="event.stopPropagation();">
+                <input type="checkbox" class="cli-chk" name="ids" value="{{ c.id }}">
+            </td>
             <td>
                 <a href="{{ url_for('admin_cliente_detail', cliente_id=c.id) }}" class="cli-name">{{ c.nombre }}</a>
                 <span class="cli-origen {{ 'web' if c.origen == 'web' else 'manual' }}">{{ 'Web' if c.origen == 'web' else 'Manual' }}</span>
@@ -68,6 +78,7 @@
     </tbody>
 </table>
 </div>
+</form>
 {% else %}
 <div class="empty-state">
     <div class="empty-icon">&#128100;</div>
@@ -100,6 +111,30 @@
 .cli-contacto{display:flex;flex-direction:column;gap:2px;font-size:12.5px;color:var(--text-2,#bbb);}
 .cli-contacto .cli-email{color:var(--text-3,#888);}
 .cli-activa{background:rgba(192,52,30,.16);color:#e08a78;font-weight:700;padding:2px 8px;border-radius:999px;font-size:12px;}
+.cli-bulkbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg-2,#1e1e1e);border:1px solid rgba(192,52,30,.4);border-radius:10px;padding:10px 14px;margin-bottom:10px;}
+.cli-table th.chk,.cli-table td.chk{width:38px;text-align:center;}
+.cli-chk,#cli-all{cursor:pointer;width:16px;height:16px;}
 </style>
+<script>
+(function(){
+    var all = document.getElementById('cli-all');
+    var chks = document.querySelectorAll('.cli-chk');
+    var bar = document.getElementById('cli-bulkbar');
+    var nEl = document.getElementById('cli-bulk-n');
+    if(!bar) return;
+    function refresh(){
+        var n = 0;
+        chks.forEach(function(c){ if(c.checked) n++; });
+        nEl.textContent = n;
+        bar.hidden = (n === 0);
+        if(all) all.checked = (n === chks.length && n > 0);
+    }
+    if(all) all.addEventListener('change', function(){
+        chks.forEach(function(c){ c.checked = all.checked; });
+        refresh();
+    });
+    chks.forEach(function(c){ c.addEventListener('change', refresh); });
+})();
+</script>
 
 {% endblock %}

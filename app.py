@@ -6934,6 +6934,23 @@ def register_routes(app: Flask) -> None:
         flash(f"Cliente '{nombre}' eliminado.", "success")
         return redirect(url_for("admin_clientes"))
 
+    @app.route("/admin/clientes/eliminar-multiple", methods=["POST"])
+    @auth.admin_required
+    def admin_clientes_eliminar_multiple():
+        """Borra varios clientes de una (para limpiar los que solo testearon la web).
+        Las ventas NO se borran: los discos/reservas quedan sin ese cliente."""
+        from models import Cliente
+        ids = [int(x) for x in request.form.getlist("ids") if str(x).isdigit()]
+        if not ids:
+            flash("No elegiste ningún cliente.", "warning")
+            return redirect(url_for("admin_clientes"))
+        Disc.query.filter(Disc.cliente_id.in_(ids)).update({"cliente_id": None}, synchronize_session=False)
+        Reserva.query.filter(Reserva.cliente_id.in_(ids)).update({"cliente_id": None}, synchronize_session=False)
+        n = Cliente.query.filter(Cliente.id.in_(ids)).delete(synchronize_session=False)
+        db.session.commit()
+        flash(f"{n} cliente(s) eliminado(s). Las ventas no se borran, solo se desvinculan.", "success")
+        return redirect(url_for("admin_clientes"))
+
     @app.route("/admin/settings/legal", methods=["POST"])
     @auth.admin_required
     def settings_update_legal():
