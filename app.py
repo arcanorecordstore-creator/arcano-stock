@@ -758,6 +758,11 @@ def register_status_change(disc: Disc, nuevo_estado: str, nota: str | None = Non
         # Si no se registraron copias vendidas, asumir al menos 1
         if not getattr(disc, "copias_vendidas", 0):
             disc.copias_vendidas = 1
+        # Registrar el precio realmente cobrado (si no vino de una venta web con
+        # snapshot, que lo setea aparte). Aca precio_mostrar todavia devuelve el
+        # precio de lista/oferta porque precio_venta_uyu sigue en None.
+        if getattr(disc, "precio_venta_uyu", None) is None:
+            disc.precio_venta_uyu = disc.precio_mostrar
     else:
         # Al salir de Vendido, limpiar los datos de venta: si no, una re-venta futura
         # hereda la fecha vieja y la venta cae en el mes equivocado (todo filtra por
@@ -766,6 +771,8 @@ def register_status_change(disc: Disc, nuevo_estado: str, nota: str | None = Non
             disc.fecha_venta = None
         if getattr(disc, "copias_vendidas", 0):
             disc.copias_vendidas = 0
+        if getattr(disc, "precio_venta_uyu", None) is not None:
+            disc.precio_venta_uyu = None
 
     evento = StatusHistory(
         disc_id=disc.id,
@@ -5145,16 +5152,17 @@ def register_routes(app: Flask) -> None:
     def _mp_iniciar_pago(reserva, discos):
         """Crea la preferencia de Mercado Pago para una reserva y devuelve la URL
         de pago (o None si algo falla; el caller cae al flujo normal de reserva)."""
-        # Usar precio_mostrar (con oferta) para cobrar lo mismo que ve el cliente en
-        # el checkout/mail, y descartar los sin precio (un unit_price 0 rompe la preferencia).
-        discos_cobrables = [d for d in discos if (d.precio_mostrar or d.precio_uyu or 0) > 0]
-        subtotal = sum((d.precio_mostrar or d.precio_uyu or 0) for d in discos_cobrables)
+        # Usar el precio REAL a cobrar (Fire Sale u oferta si aplica) para cobrar lo
+        # mismo que ve el cliente en el checkout/mail, y descartar los sin precio
+        # (un unit_price 0 rompe la preferencia).
+        discos_cobrables = [d for d in discos if (_precio_a_cobrar(d) or 0) > 0]
+        subtotal = sum((_precio_a_cobrar(d) or 0) for d in discos_cobrables)
         if subtotal <= 0:
             return None
         recargo = mp.calcular_recargo(subtotal)
         items = [
             {"title": f"{d.artista} - {d.titulo}", "quantity": 1,
-             "unit_price": float(d.precio_mostrar or d.precio_uyu or 0)}
+             "unit_price": float(_precio_a_cobrar(d) or 0)}
             for d in discos_cobrables
         ]
         if recargo > 0:
@@ -5247,6 +5255,10 @@ def register_routes(app: Flask) -> None:
                 if not getattr(d, "copias_vendidas", 0):
                     d.copias_vendidas = 1
                 d.stock = max(0, (d.stock or 1) - 1)
+                # Guardar el precio realmente cobrado (el snapshot = Fire Sale/oferta
+                # si aplico) para que caja y contabilidad cuenten lo que entro de verdad.
+                if getattr(item, "precio_uyu_snap", None):
+                    d.precio_venta_uyu = item.precio_uyu_snap
                 # Venta web pagada por MP: registrar canal y metodo (editables luego)
                 if not d.canal_venta:
                     d.canal_venta = "web"
@@ -6611,6 +6623,10 @@ def register_routes(app: Flask) -> None:
                             # Al vender: registrar canal (de la reserva), metodo, grupo y
                             # comprador — aunque el disco ya estuviera Vendido.
                             if estado_disco == "Vendido":
+                                # Precio realmente cobrado = el snapshot de la reserva
+                                # (Fire Sale/oferta si aplico), no el precio de lista.
+                                if getattr(item, "precio_uyu_snap", None):
+                                    disco.precio_venta_uyu = item.precio_uyu_snap
                                 if not disco.canal_venta:
                                     disco.canal_venta = reserva.canal or "web"
                                 if not disco.metodo_pago_venta:

@@ -113,6 +113,11 @@ class Disc(db.Model):
     # Fire Sale: marca manual para incluir este disco cuando el alcance del
     # Fire Sale es "seleccion" (si el alcance es "todo", este flag se ignora).
     en_fire_sale = db.Column(db.Boolean, nullable=False, default=False)
+    # Precio REALMENTE cobrado al venderse (se fija al pasar a Vendido). Para las
+    # ventas web con Fire Sale/oferta, guarda lo que pago el cliente (el snapshot
+    # de la reserva), asi la caja y la contabilidad cuentan la plata que entro de
+    # verdad y no el precio de lista. Null en ventas viejas -> cae a precio_mostrar.
+    precio_venta_uyu = db.Column(db.Float, nullable=True, default=None)
     # Mostrar en el catalogo aunque este agotado/vendido (con sello "Agotado")
     mostrar_agotado = db.Column(db.Boolean, nullable=False, default=False)
     # Badge de recomendacion del curador (etiqueta editable en Ajustes, default "Tip").
@@ -214,7 +219,14 @@ class Disc(db.Model):
 
     @property
     def precio_mostrar(self) -> float:
-        """Precio a cobrar: el de oferta si aplica, si no el normal."""
+        """Precio a cobrar: el de oferta si aplica, si no el normal.
+
+        Para un disco YA VENDIDO que guardo su precio de venta real
+        (precio_venta_uyu), devuelve ese: asi la caja y la contabilidad cuentan
+        lo que efectivamente entro (con Fire Sale/oferta), no el precio de lista.
+        """
+        if self.estado == "Vendido" and getattr(self, "precio_venta_uyu", None) is not None:
+            return self.precio_venta_uyu
         return self.precio_oferta if self.en_oferta else self.precio_uyu
 
     @property
@@ -1510,6 +1522,11 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN en_fire_sale BOOLEAN DEFAULT 0"))
                     conn.commit()
                 print("Migracion: columna en_fire_sale agregada a discs")
+            if "precio_venta_uyu" not in cols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN precio_venta_uyu FLOAT"))
+                    conn.commit()
+                print("Migracion: columna precio_venta_uyu agregada a discs")
             if "es_preorder" not in cols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN es_preorder BOOLEAN DEFAULT 0"))
