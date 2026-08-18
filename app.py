@@ -308,6 +308,7 @@ def create_app() -> Flask:
         return send_from_directory(app.config["COMPROBANTES_DIR"], filename)
 
     init_db(app)
+    _backfill_ventas_sin_cliente(app)
     register_routes(app)
 
     # Context processor: vars disponibles en todos los templates
@@ -843,6 +844,42 @@ def _atribuir_compra(discs, nombre=None, whatsapp=None, email=None, instagram=No
             if not getattr(d, "cliente_id", None):
                 d.cliente_id = cli.id
     return cli
+
+
+def _backfill_ventas_sin_cliente(app):
+    """Al arrancar (idempotente): re-ata a su cliente las ventas viejas que quedaron
+    sueltas. (1) Reservas Completada sin cliente -> busca/crea el cliente por sus datos
+    (email/celular/IG) y la linkea. (2) Discos Vendido de reservas Completada ya
+    linkeadas que no tengan comprador -> les pone el comprador de la reserva. Nunca
+    pisa lo que ya esta atado, asi que correrlo de nuevo no cambia nada."""
+    try:
+        with app.app_context():
+            cambios = 0
+            for r in Reserva.query.filter(Reserva.estado == "Completada",
+                                          Reserva.cliente_id.is_(None)).all():
+                cli = _buscar_o_crear_cliente(
+                    r.nombre, r.whatsapp, r.email,
+                    origen=("web" if (r.canal or "web") == "web" else "manual"))
+                if cli:
+                    r.cliente_id = cli.id
+                    cambios += 1
+            db.session.flush()
+            for r in Reserva.query.filter(Reserva.estado == "Completada",
+                                          Reserva.cliente_id.isnot(None)).all():
+                for it in r.items_efectivos:
+                    d = getattr(it, "disco", None)
+                    if d and d.estado == "Vendido" and not getattr(d, "cliente_id", None):
+                        d.cliente_id = r.cliente_id
+                        cambios += 1
+            if cambios:
+                db.session.commit()
+                print(f"Backfill: {cambios} venta(s)/reserva(s) atadas a su cliente")
+    except Exception as e:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        print(f"Backfill clientes: se omitio por un error: {e}")
 
 
 # ---------------------------------------------------------------------------
