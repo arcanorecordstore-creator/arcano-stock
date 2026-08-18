@@ -26,6 +26,54 @@
     <div class="cli-stat"><div class="n">{{ reservas_activas|length }}</div><div class="l">Reservas activas</div></div>
 </div>
 
+{% if lealtad and lealtad.activa %}
+<section class="cli-panel cli-lealtad">
+    <div class="cli-lealtad-head">
+        <h2 class="cli-panel-title" style="margin:0;">&#127873; Lealtad</h2>
+        {% if lealtad.tiene_premio %}<span class="cli-premio-badge">&#9873; Premio para entregar</span>{% endif %}
+    </div>
+    <div class="cli-lealtad-bar" role="img" aria-label="Progreso {{ lealtad.pct }}%">
+        <div class="cli-lealtad-fill" style="width: {{ lealtad.pct }}%;"></div>
+        <div class="cli-lealtad-mark" style="left: {{ lealtad.pct_u1 }}%;" title="Meta 1"></div>
+    </div>
+    <div class="cli-lealtad-scale">
+        <span>$0</span>
+        <span>Meta 1 &middot; {{ money(lealtad.u1) }}</span>
+        <span>Meta 2 &middot; {{ money(lealtad.u2) }}</span>
+    </div>
+    <p class="cli-lealtad-info">
+        Progreso del ciclo: <strong>{{ money(lealtad.progreso) }}</strong>
+        {% if lealtad.base %}<span class="form-field-hint">(gast&oacute; {{ money(lealtad.total) }} en total; el ciclo arranca de {{ money(lealtad.base) }})</span>{% endif %}
+        {% if lealtad.progreso < lealtad.u2 %} &middot; le faltan <strong>{{ money(lealtad.falta) }}</strong> para {{ 'la meta 1' if lealtad.progreso < lealtad.u1 else 'la meta 2' }}.{% endif %}
+    </p>
+    <div class="cli-premios">
+        <div class="cli-premio {% if lealtad.premio1_disponible %}is-ready{% elif lealtad.premio1_cobrado %}is-done{% endif %}">
+            <div class="cli-premio-txt">
+                <strong>Meta 1 &middot; {{ money(lealtad.u1) }}</strong>
+                <div class="form-field-hint">{{ lealtad.premio1_desc }}</div>
+            </div>
+            {% if lealtad.premio1_disponible %}
+            <form method="post" action="{{ url_for('admin_cliente_premio', cliente_id=cli.id, hito=1) }}" onsubmit="return confirm('¿Marcar el premio 1 como entregado?');">
+                <button type="submit" class="btn btn-primary btn-sm">Marcar entregado</button>
+            </form>
+            {% elif lealtad.premio1_cobrado %}<span class="cli-premio-tag done">&#10003; Entregado</span>
+            {% else %}<span class="cli-premio-tag muted">Falta llegar</span>{% endif %}
+        </div>
+        <div class="cli-premio {% if lealtad.premio2_disponible %}is-ready{% endif %}">
+            <div class="cli-premio-txt">
+                <strong>Meta 2 &middot; {{ money(lealtad.u2) }}</strong>
+                <div class="form-field-hint">{{ lealtad.premio2_desc }}</div>
+            </div>
+            {% if lealtad.premio2_disponible %}
+            <form method="post" action="{{ url_for('admin_cliente_premio', cliente_id=cli.id, hito=2) }}" onsubmit="return confirm('¿Entregar el premio 2 y REINICIAR la barra? El excedente queda a favor del cliente.');">
+                <button type="submit" class="btn btn-primary btn-sm">Entregar y reiniciar</button>
+            </form>
+            {% else %}<span class="cli-premio-tag muted">Falta llegar</span>{% endif %}
+        </div>
+    </div>
+</section>
+{% endif %}
+
 <div class="cli-cols">
     <!-- Datos editables -->
     <section class="cli-panel">
@@ -123,6 +171,25 @@
 .cli-merge{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
 .cli-merge-lbl{font-size:13px;color:var(--text-2,#bbb);}
 .cli-merge select{flex:1 1 220px;}
+/* Lealtad */
+.cli-lealtad{margin-bottom:16px;}
+.cli-lealtad-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
+.cli-premio-badge{background:rgba(214,169,69,.18);color:#e0b352;font-weight:800;font-size:12px;padding:3px 10px;border-radius:999px;}
+.cli-lealtad-bar{position:relative;height:14px;background:var(--bg-2,#1e1e1e);border:1px solid var(--border-1,#2a2a2a);border-radius:999px;overflow:hidden;}
+.cli-lealtad-fill{position:absolute;top:0;left:0;height:100%;background:linear-gradient(90deg,#d6a945,#e0b352);border-radius:999px;transition:width .4s;}
+.cli-lealtad-mark{position:absolute;top:-3px;width:2px;height:20px;background:var(--text-2,#bbb);opacity:.6;}
+.cli-lealtad-scale{display:flex;justify-content:space-between;font-size:11px;color:var(--text-3,#888);margin-top:6px;}
+.cli-lealtad-info{font-size:13.5px;color:var(--text-2,#bbb);margin:10px 0 12px;}
+.cli-premios{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+@media(max-width:640px){.cli-premios{grid-template-columns:1fr;}}
+.cli-premio{display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--bg-2,#1e1e1e);border:1px solid var(--border-1,#2a2a2a);border-radius:10px;padding:12px 14px;}
+.cli-premio.is-ready{border-color:#d6a945;background:rgba(214,169,69,.10);}
+.cli-premio.is-done{opacity:.7;}
+.cli-premio-txt strong{font-size:14px;color:var(--text-1,#eee);}
+.cli-premio-tag{font-size:12px;font-weight:700;white-space:nowrap;}
+.cli-premio-tag.done{color:#5bbd7a;}
+.cli-premio-tag.muted{color:var(--text-3,#888);font-weight:500;}
+.btn-sm{padding:6px 12px;font-size:13px;}
 </style>
 
 {% endblock %}

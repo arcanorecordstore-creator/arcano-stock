@@ -4827,6 +4827,12 @@ def register_routes(app: Flask) -> None:
             fire_sale_cfg=fire_sale_config(),
             fire_sale_discos_sel=Disc.query.filter_by(en_fire_sale=True).count(),
             clientes_con_email=Cliente.query.filter(Cliente.email.isnot(None), Cliente.email != "").count(),
+            # Lealtad
+            lealtad_activa=Setting.get("lealtad_activa", "0") == "1",
+            lealtad_umbral1=Setting.get("lealtad_umbral1", "10000"),
+            lealtad_umbral2=Setting.get("lealtad_umbral2", "20000"),
+            lealtad_premio1=Setting.get("lealtad_premio1", "Un vale de regalo"),
+            lealtad_premio2=Setting.get("lealtad_premio2", "Un disco sorpresa de regalo"),
             public_banner_url=Setting.get("public_banner_url", ""),
             public_hero_title=Setting.get("public_hero_title", ""),
             public_hero_subtitle=Setting.get("public_hero_subtitle", ""),
@@ -6041,11 +6047,15 @@ def register_routes(app: Flask) -> None:
         ]
         fav_by_id = {d.id: d for d in Disc.query.filter(Disc.id.in_(fav_ids)).all()} if fav_ids else {}
         favoritos = [fav_by_id[i] for i in fav_ids if i in fav_by_id]
+        # Programa de lealtad: barra de progreso hacia los premios
+        _total = sum(e["precio"] for e in _compras_de_cliente(cliente))
+        lealtad = _lealtad_estado(cliente, _total)
         return render_template(
             "public/cliente_cuenta.html",
             cliente=cliente,
             reservas=reservas,
             favoritos=favoritos,
+            lealtad=lealtad,
             **_public_context(),
         )
 
@@ -6715,11 +6725,16 @@ def register_routes(app: Flask) -> None:
             "fire_sale_alcance",
             "fire_sale_fin",
             "fire_sale_mensaje",
+            "lealtad_activa",
+            "lealtad_umbral1",
+            "lealtad_umbral2",
+            "lealtad_premio1",
+            "lealtad_premio2",
         ]
         carrusel_keys = ("carrusel_preorder", "carrusel_tips", "carrusel_escuchados",
                          "carrusel_destacados", "carrusel_nuevos")
         checkbox_keys = carrusel_keys + ("mercadopago_activo", "transferencia_activa",
-                                         "fire_sale_activa")
+                                         "fire_sale_activa", "lealtad_activa")
         for key in keys:
             # Toggles/checkboxes: presente = "1", ausente = "0"
             if key in checkbox_keys:
@@ -6768,6 +6783,13 @@ def register_routes(app: Flask) -> None:
                         datetime.fromisoformat(value)
                     except (ValueError, TypeError):
                         value = ""
+            # Lealtad: umbrales enteros positivos (en pesos)
+            elif key in ("lealtad_umbral1", "lealtad_umbral2"):
+                try:
+                    n = int(float(value or 0))
+                    value = str(max(1, n))
+                except (ValueError, TypeError):
+                    value = "10000" if key == "lealtad_umbral1" else "20000"
             Setting.set(key, value)
         flash("Textos publicos actualizados.", "success")
         return redirect(url_for("settings_page"))
@@ -6908,6 +6930,49 @@ def register_routes(app: Flask) -> None:
             activas[r.cliente_id] = activas.get(r.cliente_id, 0) + 1
         return compras, activas
 
+    def _lealtad_config():
+        """Config del programa de lealtad (barra de premios)."""
+        def _int(k, d):
+            try:
+                return int(float(Setting.get(k, str(d)) or d))
+            except (TypeError, ValueError):
+                return d
+        return {
+            "activa": Setting.get("lealtad_activa", "0") == "1",
+            "u1": max(1, _int("lealtad_umbral1", 10000)),
+            "u2": max(1, _int("lealtad_umbral2", 20000)),
+            "premio1": (Setting.get("lealtad_premio1", "") or "Un vale de regalo").strip(),
+            "premio2": (Setting.get("lealtad_premio2", "") or "Un disco sorpresa de regalo").strip(),
+        }
+
+    def _lealtad_estado(cli, total_gastado):
+        """Estado del programa de lealtad para un cliente, dado su gasto total real.
+
+        Ciclo de u2: dos hitos (u1 y u2). progreso = gasto_total - lealtad_base.
+        Al cobrar el premio del 2do hito, la base sube u2 (deja el excedente a favor).
+        El premio del 1er hito se entrega en el camino (no reinicia)."""
+        cfg = _lealtad_config()
+        u1, u2 = cfg["u1"], cfg["u2"]
+        base = int(getattr(cli, "lealtad_base", 0) or 0)
+        total = int(round(total_gastado or 0))
+        progreso = max(0, total - base)
+        p1_cobrado = bool(getattr(cli, "premio1_cobrado", False))
+        premio1_disp = progreso >= u1 and not p1_cobrado
+        premio2_disp = progreso >= u2
+        proximo = u1 if progreso < u1 else u2
+        pct = min(100, round(progreso / u2 * 100)) if u2 > 0 else 0
+        pct_u1 = min(100, round(u1 / u2 * 100)) if u2 > 0 else 50
+        return {
+            "activa": cfg["activa"], "u1": u1, "u2": u2,
+            "premio1_desc": cfg["premio1"], "premio2_desc": cfg["premio2"],
+            "base": base, "total": total, "progreso": progreso,
+            "premio1_cobrado": p1_cobrado,
+            "premio1_disponible": premio1_disp, "premio2_disponible": premio2_disp,
+            "tiene_premio": premio1_disp or premio2_disp,
+            "proximo_umbral": proximo, "falta": max(0, proximo - progreso),
+            "pct": pct, "pct_u1": pct_u1,
+        }
+
     @app.route("/admin/clientes")
     @auth.admin_required
     def admin_clientes():
@@ -6922,9 +6987,18 @@ def register_routes(app: Flask) -> None:
         # Los que mas gastaron primero (los que no compraron quedan al final)
         clientes.sort(key=lambda c: (-(compras.get(c.id, {}).get("total", 0) or 0),
                                      (c.nombre or "").lower()))
+        # Lealtad: quienes cruzaron un umbral y tienen premio para entregar
+        lcfg = _lealtad_config()
+        premios = {}
+        if lcfg["activa"]:
+            for c in Cliente.query.all():
+                est = _lealtad_estado(c, compras.get(c.id, {}).get("total", 0))
+                if est["tiene_premio"]:
+                    premios[c.id] = est
         return render_template(
             "admin_clientes.html", clientes=clientes, compras=compras,
             activas=activas, q=q, total=Cliente.query.count(),
+            lealtad_activa=lcfg["activa"], premios=premios,
         )
 
     @app.route("/admin/clientes/export.csv")
@@ -6988,10 +7062,35 @@ def register_routes(app: Flask) -> None:
         total = sum(e["precio"] for e in compras)
         otros = (Cliente.query.filter(Cliente.id != cli.id)
                  .order_by(Cliente.nombre.asc()).all())
+        lealtad = _lealtad_estado(cli, total)
         return render_template(
             "admin_cliente_detail.html", cli=cli, compras=compras,
             reservas_activas=reservas_activas, total=total, otros=otros,
+            lealtad=lealtad,
         )
+
+    @app.route("/admin/clientes/<int:cliente_id>/premio/<int:hito>", methods=["POST"])
+    @auth.admin_required
+    def admin_cliente_premio(cliente_id, hito):
+        """Marca un premio de lealtad como ENTREGADO.
+        hito 1: solo marca el premio del 1er umbral como cobrado (no reinicia).
+        hito 2: entrega el premio del 2do umbral y REINICIA el ciclo (base += u2),
+                dejando el excedente a favor. Tambien limpia el flag del 1er premio."""
+        from models import Cliente
+        cli = Cliente.query.get_or_404(cliente_id)
+        cfg = _lealtad_config()
+        if hito == 1:
+            cli.premio1_cobrado = True
+            db.session.commit()
+            flash(f"Premio 1 marcado como entregado a {cli.nombre}.", "success")
+        elif hito == 2:
+            cli.lealtad_base = int(getattr(cli, "lealtad_base", 0) or 0) + cfg["u2"]
+            cli.premio1_cobrado = False
+            db.session.commit()
+            flash(f"Premio 2 entregado a {cli.nombre}: el ciclo se reinicia y el excedente queda a favor.", "success")
+        else:
+            flash("Hito invalido.", "error")
+        return redirect(url_for("admin_cliente_detail", cliente_id=cli.id))
 
     @app.route("/admin/clientes/<int:cliente_id>/editar", methods=["POST"])
     @auth.admin_required

@@ -15,6 +15,30 @@
         </form>
     </div>
 
+    {% if lealtad and lealtad.activa %}
+    <section class="cuenta-lealtad">
+        <div class="cuenta-lealtad-top">
+            <h2 class="cuenta-lealtad-title">&#127873; Tus premios Arcano</h2>
+            {% if lealtad.tiene_premio %}<span class="cuenta-lealtad-win">&#127881; &iexcl;Ten&eacute;s un premio! Coordinamos por Instagram</span>{% endif %}
+        </div>
+        <div class="cuenta-lealtad-bar">
+            <div class="cuenta-lealtad-fill" style="width: {{ lealtad.pct }}%;"></div>
+            <div class="cuenta-lealtad-ms {% if lealtad.progreso >= lealtad.u1 %}reached{% endif %}" style="left: {{ lealtad.pct_u1 }}%;"></div>
+        </div>
+        <div class="cuenta-lealtad-scale">
+            <span class="ms-start">$0</span>
+            <span class="ms-1 {% if lealtad.progreso >= lealtad.u1 %}on{% endif %}">$ {{ '{:,.0f}'.format(lealtad.u1).replace(',', '.') }}<small>{{ lealtad.premio1_desc }}</small></span>
+            <span class="ms-2 {% if lealtad.progreso >= lealtad.u2 %}on{% endif %}">$ {{ '{:,.0f}'.format(lealtad.u2).replace(',', '.') }}<small>{{ lealtad.premio2_desc }}</small></span>
+        </div>
+        <p class="cuenta-lealtad-msg">
+            {% if lealtad.premio2_disponible %}&#127881; &iexcl;Llegaste a la meta grande! Te espera <strong>{{ lealtad.premio2_desc }}</strong>. Te escribimos para coordinarlo.
+            {% elif lealtad.premio1_disponible %}&#127881; &iexcl;Desbloqueaste <strong>{{ lealtad.premio1_desc }}</strong>! Segu&iacute; sumando para el premio grande.
+            {% else %}Llev&aacute;s <strong>$ {{ '{:,.0f}'.format(lealtad.progreso).replace(',', '.') }}</strong> &middot; te faltan <strong>$ {{ '{:,.0f}'.format(lealtad.falta).replace(',', '.') }}</strong> para {% if lealtad.progreso < lealtad.u1 %}{{ lealtad.premio1_desc }}{% else %}{{ lealtad.premio2_desc }}{% endif %}.
+            {% endif %}
+        </p>
+    </section>
+    {% endif %}
+
     <h2 class="public-cuenta-subtitle">Mis pedidos</h2>
 
     {% if reservas %}

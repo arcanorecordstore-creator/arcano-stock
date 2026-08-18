@@ -10036,3 +10036,45 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 }
 .public-fire-login-btn { background: var(--fire) !important; border-color: var(--fire) !important; color: #fff !important; }
 .public-fire-login-btn:hover { filter: brightness(1.06); }
+
+/* ============================================================
+   PROGRAMA DE LEALTAD (v4.29) — barra de premios en "Mi cuenta"
+   ============================================================ */
+:root { --gold: #d6a945; --gold-2: #e7c063; }
+.cuenta-lealtad {
+    background: var(--surface-2, rgba(214,169,69,.06));
+    border: 1px solid rgba(214,169,69,.35);
+    border-radius: 14px; padding: 18px 20px; margin: 18px 0 26px;
+}
+.cuenta-lealtad-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.cuenta-lealtad-title { font-size: 17px; margin: 0; }
+.cuenta-lealtad-win {
+    background: var(--gold); color: #1a1206; font-weight: 800; font-size: 12.5px;
+    padding: 4px 12px; border-radius: 999px;
+}
+.cuenta-lealtad-bar {
+    position: relative; height: 16px; border-radius: 999px;
+    background: rgba(128,128,128,.18); overflow: hidden;
+}
+.cuenta-lealtad-fill {
+    position: absolute; top: 0; left: 0; height: 100%;
+    background: linear-gradient(90deg, var(--gold), var(--gold-2));
+    border-radius: 999px; transition: width .5s ease;
+}
+.cuenta-lealtad-ms {
+    position: absolute; top: 50%; width: 12px; height: 12px; margin-left: -6px;
+    transform: translateY(-50%); border-radius: 50%;
+    background: var(--bg-1, #fff); border: 2px solid rgba(128,128,128,.5); z-index: 2;
+}
+.cuenta-lealtad-ms.reached { border-color: var(--gold); background: var(--gold); }
+.cuenta-lealtad-scale { display: flex; justify-content: space-between; margin-top: 10px; gap: 8px; }
+.cuenta-lealtad-scale > span {
+    display: flex; flex-direction: column; font-weight: 700; font-size: 13px;
+    color: var(--text-2, #666); flex: 1 1 0; text-align: center;
+}
+.cuenta-lealtad-scale > span:first-child { text-align: left; flex: 0 0 auto; }
+.cuenta-lealtad-scale > span:last-child { text-align: right; }
+.cuenta-lealtad-scale small { font-weight: 500; font-size: 11px; color: var(--text-3, #999); margin-top: 2px; }
+.cuenta-lealtad-scale .on { color: var(--gold); }
+.cuenta-lealtad-scale .on small { color: var(--gold); }
+.cuenta-lealtad-msg { margin: 14px 0 0; font-size: 14.5px; color: var(--text-2, #555); line-height: 1.5; }

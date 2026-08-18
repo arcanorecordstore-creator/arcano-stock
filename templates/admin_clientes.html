@@ -16,6 +16,15 @@
     </div>
 </section>
 
+{% if lealtad_activa and premios %}
+<div class="cli-premios-alerta">
+    <span class="cli-premios-tit">&#127873; {{ premios|length }} cliente(s) con premio para entregar:</span>
+    <span class="cli-premios-chips">
+        {% for c in clientes %}{% if premios.get(c.id) %}<a href="{{ url_for('admin_cliente_detail', cliente_id=c.id) }}" class="cli-premio-chip">{{ c.nombre }}{% if premios[c.id].premio1_disponible and premios[c.id].premio2_disponible %} (2){% endif %}</a>{% endif %}{% endfor %}
+    </span>
+</div>
+{% endif %}
+
 <!-- Alta manual -->
 <details class="cli-nuevo">
     <summary class="btn btn-primary" style="display:inline-block;">+ Nuevo cliente</summary>
@@ -114,6 +123,11 @@
 .cli-bulkbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg-2,#1e1e1e);border:1px solid rgba(192,52,30,.4);border-radius:10px;padding:10px 14px;margin-bottom:10px;}
 .cli-table th.chk,.cli-table td.chk{width:38px;text-align:center;}
 .cli-chk,#cli-all{cursor:pointer;width:16px;height:16px;}
+.cli-premios-alerta{background:rgba(214,169,69,.12);border:1px solid rgba(214,169,69,.4);border-radius:10px;padding:12px 14px;margin:0 0 14px;display:flex;flex-direction:column;gap:8px;}
+.cli-premios-tit{font-weight:800;color:#e0b352;}
+.cli-premios-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.cli-premio-chip{background:var(--bg-2,#1e1e1e);border:1px solid rgba(214,169,69,.4);color:var(--text-1,#eee);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:999px;}
+.cli-premio-chip:hover{background:rgba(214,169,69,.18);}
 </style>
 <script>
 (function(){

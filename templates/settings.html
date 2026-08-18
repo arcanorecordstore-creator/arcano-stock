@@ -422,6 +422,38 @@
                 </div>
             </div>
 
+            <!-- ===================== PROGRAMA DE LEALTAD ===================== -->
+            <div class="form-field" style="margin-top: 22px; border-top: 1px solid var(--border-2, #333); padding-top: 18px;">
+                <label class="carrusel-toggle" style="font-size: 15px;">
+                    <input type="checkbox" name="lealtad_activa" value="1" {% if lealtad_activa %}checked{% endif %}>
+                    <span><strong>&#127873; Programa de lealtad</strong> (barra de premios en "Mi cuenta")</span>
+                </label>
+                <p class="form-field-hint" style="margin-top: 6px;">
+                    Prendido: cada cliente con cuenta ve una barra que se llena con lo que gasta. Al llegar a cada meta desbloquea un premio y a vos te avisa (en Clientes). La entrega la hac&eacute;s vos a mano; nada autom&aacute;tico.
+                </p>
+                <div class="form-row" style="margin-top: 12px;">
+                    <div class="form-field">
+                        <label for="lealtad_umbral1">Meta 1 (pesos)</label>
+                        <input type="number" id="lealtad_umbral1" name="lealtad_umbral1" min="1" step="500" value="{{ lealtad_umbral1 or '10000' }}">
+                    </div>
+                    <div class="form-field">
+                        <label for="lealtad_premio1">Premio de la meta 1</label>
+                        <input type="text" id="lealtad_premio1" name="lealtad_premio1" maxlength="120" value="{{ lealtad_premio1 or '' }}" placeholder="Ej: Un vale de $1.000">
+                    </div>
+                </div>
+                <div class="form-row" style="margin-top: 10px;">
+                    <div class="form-field">
+                        <label for="lealtad_umbral2">Meta 2 (pesos) <span class="form-field-hint">(al cobrarla, la barra se reinicia)</span></label>
+                        <input type="number" id="lealtad_umbral2" name="lealtad_umbral2" min="1" step="500" value="{{ lealtad_umbral2 or '20000' }}">
+                    </div>
+                    <div class="form-field">
+                        <label for="lealtad_premio2">Premio de la meta 2</label>
+                        <input type="text" id="lealtad_premio2" name="lealtad_premio2" maxlength="120" value="{{ lealtad_premio2 or '' }}" placeholder="Ej: Un disco sorpresa de regalo">
+                    </div>
+                </div>
+                <p class="form-field-hint" style="margin-top: 8px;">Cuenta lo que el cliente <strong>ya compr&oacute;</strong> (pagos confirmados). Si al cobrar la meta 2 se pas&oacute; (ej: lleg&oacute; a $21.000 con meta en $20.000), el excedente ($1.000) le queda a favor en el nuevo ciclo.</p>
+            </div>
+
             <div class="form-footer">
                 <button type="submit" class="btn btn-primary">Guardar textos publicos</button>
                 <a href="{{ url_for('home') }}" target="_blank" class="btn btn-ghost">Ver tienda &nearr;</a>

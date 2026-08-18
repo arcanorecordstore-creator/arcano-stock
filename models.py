@@ -775,6 +775,12 @@ class Cliente(db.Model):
     origen = db.Column(db.String(20), nullable=False, default="web")  # web / manual
     password_hash = db.Column(db.String(255), nullable=True)
     fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    # Programa de lealtad (barra de premios). lealtad_base = gasto acumulado al
+    # inicio del ciclo actual (el progreso = gasto_total - lealtad_base). Al
+    # cobrar el premio del 2do hito, base += umbral2 (deja el excedente a favor).
+    lealtad_base = db.Column(db.Integer, nullable=False, default=0)
+    # Si ya se le entrego el premio del 1er hito en el ciclo actual.
+    premio1_cobrado = db.Column(db.Boolean, nullable=False, default=False)
 
     def set_password(self, raw: str) -> None:
         from werkzeug.security import generate_password_hash
@@ -1685,6 +1691,20 @@ def _migrate_schema(app):
                     print("Migracion: tabla clientes reconstruida (email/password opcionales + instagram/notas/origen)")
                 finally:
                     raw.close()
+
+        # Columnas del programa de lealtad en clientes (ALTER simple, idempotente)
+        if inspector.has_table("clientes"):
+            _ccols2 = [c["name"] for c in inspector.get_columns("clientes")]
+            if "lealtad_base" not in _ccols2:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE clientes ADD COLUMN lealtad_base INTEGER DEFAULT 0"))
+                    conn.commit()
+                print("Migracion: columna lealtad_base agregada a clientes")
+            if "premio1_cobrado" not in _ccols2:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE clientes ADD COLUMN premio1_cobrado BOOLEAN DEFAULT 0"))
+                    conn.commit()
+                print("Migracion: columna premio1_cobrado agregada a clientes")
 
         # Columna cliente_id en reservas (para cuentas de cliente)
         if inspector.has_table("reservas"):
