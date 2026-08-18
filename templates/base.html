@@ -39,11 +39,12 @@
                     {% endif %}
                 </a>
 
-                {% set gestion_activo = ep == 'contabilidad' or ep == 'ventas_panel' or ep.startswith('caja') or ep == 'pedidos' or ep == 'radar_demanda' %}
+                {% set gestion_activo = ep == 'contabilidad' or ep == 'ventas_panel' or ep.startswith('caja') or ep == 'pedidos' or ep == 'radar_demanda' or ep.startswith('admin_cliente') %}
                 <div class="nav-group">
                     <button type="button" class="nav-link nav-group-btn {% if gestion_activo %}active{% endif %}" aria-haspopup="true" aria-expanded="false">Gesti&oacute;n <span class="nav-caret">&#9662;</span></button>
                     <div class="nav-group-menu">
                         <a href="{{ url_for('ventas_panel') }}" class="nav-link {% if ep == 'ventas_panel' %}active{% endif %}">Ventas</a>
+                        <a href="{{ url_for('admin_clientes') }}" class="nav-link {% if ep.startswith('admin_cliente') %}active{% endif %}">Clientes</a>
                         <a href="{{ url_for('contabilidad') }}" class="nav-link {% if ep == 'contabilidad' %}active{% endif %}">Contabilidad</a>
                         <a href="{{ url_for('caja') }}" class="nav-link {% if ep.startswith('caja') %}active{% endif %}">Caja</a>
                         <a href="{{ url_for('pedidos') }}" class="nav-link {% if ep == 'pedidos' %}active{% endif %}">Pedidos</a>
@@ -102,7 +103,7 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v4.21 &middot; Reserva manual: arreglado el picker que aparec&iacute;a vac&iacute;o, y ahora deja elegir discos ya Vendidos (para cargar la reserva de una venta de IG que ya marcaste) sin des-venderlos.</span>
+            <span class="footer-version">v4.22 &middot; Base de clientes (Gesti&oacute;n &rarr; Clientes): se guardan solos con las ventas web y los carg&aacute;s a mano (Instagram/nombre/celular/mail). Cada ficha muestra qu&eacute; compr&oacute;, total gastado y reservas; se pueden fusionar duplicados y exportar a CSV.</span>
         </footer>
     </div>
 

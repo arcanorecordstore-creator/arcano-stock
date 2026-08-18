@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}{{ cli.nombre }} &middot; Clientes &middot; Arcano{% endblock %}
+
+{% macro money(n) -%}$ {{ '{:,.0f}'.format(n or 0).replace(',', '.') }}{%- endmacro %}
+
+{% block content %}
+
+<section class="page-head">
+    <div>
+        <h1 class="page-title">{{ cli.nombre }}</h1>
+        <p class="page-sub">
+            <span class="cli-origen {{ 'web' if cli.origen == 'web' else 'manual' }}">{{ 'Cuenta web' if cli.origen == 'web' else 'Cargado a mano' }}</span>
+            &middot; cliente desde {{ cli.fecha_registro.strftime('%d/%m/%Y') if cli.fecha_registro else '&mdash;' | safe }}
+        </p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('admin_clientes') }}" class="btn btn-ghost">&larr; Volver a Clientes</a>
+    </div>
+</section>
+
+<div class="cli-stats">
+    <div class="cli-stat"><div class="n">{{ compras|length }}</div><div class="l">Compras</div></div>
+    <div class="cli-stat"><div class="n">{{ money(total) }}</div><div class="l">Total gastado</div></div>
+    <div class="cli-stat"><div class="n">{{ (compras[0].fecha_venta.strftime('%d/%m/%y') if compras and compras[0].fecha_venta else '&mdash;') | safe }}</div><div class="l">&Uacute;ltima compra</div></div>
+    <div class="cli-stat"><div class="n">{{ reservas_activas|length }}</div><div class="l">Reservas activas</div></div>
+</div>
+
+<div class="cli-cols">
+    <!-- Datos editables -->
+    <section class="cli-panel">
+        <h2 class="cli-panel-title">Datos</h2>
+        <form method="post" action="{{ url_for('admin_cliente_editar', cliente_id=cli.id) }}" class="cli-form">
+            <div class="form-field"><label>Nombre</label><input type="text" name="nombre" value="{{ cli.nombre }}" maxlength="200"></div>
+            <div class="form-field"><label>Celular / WhatsApp</label><input type="text" name="whatsapp" value="{{ cli.whatsapp or '' }}" maxlength="50"></div>
+            <div class="form-field">
+                <label>Instagram</label>
+                <input type="text" name="instagram" value="{{ ('@' ~ cli.instagram) if cli.instagram else '' }}" maxlength="100" placeholder="@usuario">
+                {% if cli.instagram %}<a href="https://instagram.com/{{ cli.instagram }}" target="_blank" rel="noopener" class="form-field-hint" style="color:var(--accent);">Abrir @{{ cli.instagram }} &nearr;</a>{% endif %}
+            </div>
+            <div class="form-field"><label>Email</label><input type="email" name="email" value="{{ cli.email or '' }}" maxlength="200"></div>
+            <div class="form-field"><label>Notas</label><textarea name="notas" rows="3">{{ cli.notas or '' }}</textarea></div>
+            <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        </form>
+    </section>
+
+    <!-- Compras + reservas -->
+    <section class="cli-panel">
+        <h2 class="cli-panel-title">Discos que compr&oacute; ({{ compras|length }})</h2>
+        {% if compras %}
+        <div class="cli-compras">
+            {% for d in compras %}
+            <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="cli-compra">
+                <span class="cli-compra-fecha">{{ d.fecha_venta.strftime('%d/%m/%y') if d.fecha_venta else '' }}</span>
+                <span class="cli-compra-disc"><strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}</span>
+                <span class="cli-compra-canal">{{ d.canal_venta or '' }}</span>
+                <span class="cli-compra-precio">{{ money(d.precio_mostrar or d.precio_uyu or 0) }}</span>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="cli-empty">Todav&iacute;a no tiene compras registradas.</p>
+        {% endif %}
+
+        {% if reservas_activas %}
+        <h2 class="cli-panel-title" style="margin-top:20px;">Reservas activas ({{ reservas_activas|length }})</h2>
+        <div class="cli-compras">
+            {% for r in reservas_activas %}
+            <a href="{{ url_for('admin_reserva_detail', reserva_id=r.id) }}" class="cli-compra">
+                <span class="cli-compra-fecha">#{{ r.id }}</span>
+                <span class="cli-compra-disc">{{ r.cantidad_discos }} disco(s) &middot; {{ r.estado }}</span>
+                <span class="cli-compra-precio">{{ money(r.total_uyu) }}</span>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </section>
+</div>
+
+<!-- Fusionar / eliminar -->
+<section class="cli-panel cli-danger">
+    <h2 class="cli-panel-title">Fusionar o eliminar</h2>
+    {% if otros %}
+    <form method="post" action="{{ url_for('admin_cliente_fusionar', cliente_id=cli.id) }}" class="cli-merge" onsubmit="return confirm('¿Fusionar este cliente dentro del elegido? Sus compras y reservas pasan al otro y este se borra.');">
+        <span class="cli-merge-lbl">Si qued&oacute; duplicado, fusionarlo dentro de:</span>
+        <select name="destino_id" required>
+            <option value="">&mdash; eleg&iacute; el cliente que se queda &mdash;</option>
+            {% for o in otros %}<option value="{{ o.id }}">{{ o.nombre }}{% if o.whatsapp %} &middot; {{ o.whatsapp }}{% endif %}</option>{% endfor %}
+        </select>
+        <button type="submit" class="btn btn-ghost">Fusionar</button>
+    </form>
+    {% endif %}
+    <form method="post" action="{{ url_for('admin_cliente_eliminar', cliente_id=cli.id) }}" onsubmit="return confirm('¿Eliminar este cliente? Las ventas NO se borran, solo se desvinculan.');" style="margin-top:10px;">
+        <button type="submit" class="btn btn-danger">Eliminar cliente</button>
+        <span class="form-field-hint">Las ventas quedan; solo se saca el vínculo con este cliente.</span>
+    </form>
+</section>
+
+<style>
+.cli-origen{font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:999px;}
+.cli-origen.web{background:rgba(46,92,158,.18);color:#6ea3e0;}
+.cli-origen.manual{background:rgba(168,117,15,.18);color:#d6a945;}
+.cli-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px;}
+.cli-stat{background:var(--bg-2,#1e1e1e);border:1px solid var(--border-1,#2a2a2a);border-radius:12px;padding:14px 16px;}
+.cli-stat .n{font-size:22px;font-weight:800;color:var(--text-1,#eee);}
+.cli-stat .l{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--text-3,#888);margin-top:5px;}
+@media(max-width:640px){.cli-stats{grid-template-columns:repeat(2,1fr);}}
+.cli-cols{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start;}
+@media(max-width:820px){.cli-cols{grid-template-columns:1fr;}}
+.cli-panel{background:var(--bg-1,#161616);border:1px solid var(--border-1,#2a2a2a);border-radius:12px;padding:18px;}
+.cli-panel-title{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3,#888);margin:0 0 12px;}
+.cli-form{display:flex;flex-direction:column;gap:11px;}
+.cli-compras{display:flex;flex-direction:column;gap:1px;}
+.cli-compra{display:flex;align-items:center;gap:12px;padding:9px 4px;border-bottom:1px solid var(--border-1,#2a2a2a);text-decoration:none;color:var(--text-1,#eee);font-size:14px;}
+.cli-compra:last-child{border-bottom:none;}
+.cli-compra:hover{background:var(--bg-2,#1e1e1e);}
+.cli-compra-fecha{color:var(--text-3,#888);font-size:12px;white-space:nowrap;flex:0 0 54px;}
+.cli-compra-disc{flex:1 1 auto;}
+.cli-compra-canal{color:var(--text-3,#888);font-size:11px;text-transform:capitalize;}
+.cli-compra-precio{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:600;}
+.cli-empty{color:var(--text-3,#888);font-size:14px;}
+.cli-danger{margin-top:16px;border-color:rgba(192,52,30,.35);}
+.cli-merge{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+.cli-merge-lbl{font-size:13px;color:var(--text-2,#bbb);}
+.cli-merge select{flex:1 1 220px;}
+</style>
+
+{% endblock %}

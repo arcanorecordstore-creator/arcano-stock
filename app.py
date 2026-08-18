@@ -775,6 +775,68 @@ def register_status_change(disc: Disc, nuevo_estado: str, nota: str | None = Non
     db.session.add(evento)
 
 
+def _norm_ig(ig):
+    """Normaliza un usuario de Instagram: sin @, en minusculas."""
+    return (ig or "").strip().lstrip("@").lower()[:100] or None
+
+
+def _buscar_o_crear_cliente(nombre=None, whatsapp=None, email=None, instagram=None,
+                            origen="web", crear=True):
+    """Base de clientes: busca uno existente por email / whatsapp / instagram (en ese
+    orden) y, si no hay, lo crea. Rellena los datos que le falten al que encuentre (sin
+    pisar lo que ya tiene). Devuelve el Cliente, o None si no hay datos utiles."""
+    from models import Cliente
+    nombre = (nombre or "").strip()[:200] or None
+    whatsapp = (whatsapp or "").strip()[:50] or None
+    email_n = (email or "").strip().lower()[:200] or None
+    ig = _norm_ig(instagram)
+    if not (nombre or whatsapp or email_n or ig):
+        return None
+    cli = None
+    if email_n:
+        cli = Cliente.query.filter(db.func.lower(Cliente.email) == email_n).first()
+    if not cli and whatsapp:
+        cli = Cliente.query.filter(Cliente.whatsapp == whatsapp).first()
+    if not cli and ig:
+        cli = Cliente.query.filter(db.func.lower(Cliente.instagram) == ig).first()
+    if cli:
+        # Rellenar lo que falte, sin pisar lo que ya cargaste
+        if nombre and not cli.nombre:
+            cli.nombre = nombre
+        if whatsapp and not cli.whatsapp:
+            cli.whatsapp = whatsapp
+        if email_n and not cli.email:
+            cli.email = email_n
+        if ig and not cli.instagram:
+            cli.instagram = ig
+        return cli
+    if not crear:
+        return None
+    cli = Cliente(
+        nombre=(nombre or (("@" + ig) if ig else None) or whatsapp or "Cliente"),
+        whatsapp=whatsapp, email=email_n, instagram=ig, origen=origen,
+        fecha_registro=now_uy(),
+    )
+    db.session.add(cli)
+    db.session.flush()
+    return cli
+
+
+def _atribuir_compra(discs, nombre=None, whatsapp=None, email=None, instagram=None,
+                     origen="web", cliente=None):
+    """Ata la compra de `discs` a un cliente (lo busca/crea con los datos, o usa el
+    `cliente` ya conocido). Setea disc.cliente_id (el comprador) en los que no lo tengan.
+    Devuelve el Cliente (o None)."""
+    cli = cliente
+    if cli is None:
+        cli = _buscar_o_crear_cliente(nombre, whatsapp, email, instagram, origen=origen)
+    if cli:
+        for d in discs:
+            if not getattr(d, "cliente_id", None):
+                d.cliente_id = cli.id
+    return cli
+
+
 # ---------------------------------------------------------------------------
 # API cost tracking helpers
 # ---------------------------------------------------------------------------
@@ -3064,6 +3126,11 @@ def register_routes(app: Flask) -> None:
                 fecha_venta = datetime.strptime(fecha_str, "%Y-%m-%d") if fecha_str else now_uy()
             except ValueError:
                 fecha_venta = now_uy()
+            # Cliente OPCIONAL (por si todavia no lo tenés cargado)
+            cli_nombre = (request.form.get("cliente_nombre") or "").strip() or None
+            cli_wa = (request.form.get("cliente_whatsapp") or "").strip() or None
+            cli_ig = (request.form.get("cliente_instagram") or "").strip() or None
+            cli_email = (request.form.get("cliente_email") or "").strip() or None
             discs = Disc.query.filter(Disc.id.in_(ids)).all() if ids else []
             if not discs:
                 flash("Elegí al menos un disco para cargar la venta.", "warning")
@@ -3078,6 +3145,9 @@ def register_routes(app: Flask) -> None:
                     d.metodo_pago_venta = metodo
                 if grupo:
                     d.venta_grupo = grupo
+            # Atar la compra a un cliente (si cargaste sus datos)
+            _atribuir_compra(discs, cli_nombre, cli_wa, cli_email, cli_ig,
+                             origen=("web" if canal == "web" else "manual"))
             db.session.commit()
             n = len(discs)
             flash(f"Venta cargada: {n} disco{'s' if n != 1 else ''}" + (" (como una sola venta)." if grupo else "."), "success")
@@ -5120,6 +5190,14 @@ def register_routes(app: Flask) -> None:
         if not reclamada:
             return  # otra llamada ya completo esta reserva
         ahora = now_uy()
+        # Cliente: asegurar su ficha en la base y linkear la reserva (venta web pagada)
+        from models import Cliente as _Cliente
+        cli_res = _Cliente.query.get(reserva.cliente_id) if reserva.cliente_id else None
+        if cli_res is None:
+            cli_res = _buscar_o_crear_cliente(reserva.nombre, reserva.whatsapp, reserva.email,
+                                              origen="web")
+            if cli_res and not reserva.cliente_id:
+                reserva.cliente_id = cli_res.id
         conflicto = []  # discos que YA estaban Vendidos por otra via (posible doble cobro)
         for item in reserva.items_efectivos:
             d = Disc.query.get(item.disc_id) if getattr(item, "disc_id", None) else None
@@ -5144,6 +5222,8 @@ def register_routes(app: Flask) -> None:
                 # Agrupar como UNA venta (todos los discos de esta reserva)
                 if not d.venta_grupo:
                     d.venta_grupo = f"r{reserva.id}"
+                if cli_res and not d.cliente_id:
+                    d.cliente_id = cli_res.id
         if conflicto:
             # Cobraste por MP un disco que YA se habia vendido por otra via. Dejar
             # constancia en la reserva para que la revises/reembolses.
@@ -6318,6 +6398,7 @@ def register_routes(app: Flask) -> None:
             nombre = (request.form.get("nombre") or "").strip()[:200]
             whatsapp = (request.form.get("whatsapp") or "").strip()[:50]
             email = (request.form.get("email") or "").strip()[:200] or None
+            instagram = _norm_ig(request.form.get("instagram"))
             nota = (request.form.get("nota") or "").strip() or None
             canal = (request.form.get("canal") or "instagram").strip()
             if canal not in ("web", "instagram", "presencial", "otro"):
@@ -6360,6 +6441,11 @@ def register_routes(app: Flask) -> None:
                     artista_snap=d.artista, titulo_snap=d.titulo,
                     precio_uyu_snap=(d.precio_mostrar or d.precio_uyu or 0),
                 ))
+            # Cliente: buscar/crear con los datos y linkear la reserva a su ficha
+            cli = _buscar_o_crear_cliente(nombre, whatsapp, email, instagram,
+                                          origen=("web" if canal == "web" else "manual"))
+            if cli:
+                reserva.cliente_id = cli.id
             db.session.commit()
 
             # Aplicar el estado elegido a los discos (misma logica que el detalle):
@@ -6383,6 +6469,8 @@ def register_routes(app: Flask) -> None:
                             d.metodo_pago_venta = metodo
                         if len(discs) > 1 and not d.venta_grupo:
                             d.venta_grupo = grupo
+                        if cli and not d.cliente_id:
+                            d.cliente_id = cli.id
                 db.session.commit()
 
             flash(f"Reserva manual #{reserva.id} creada.", "success")
@@ -6439,29 +6527,41 @@ def register_routes(app: Flask) -> None:
                     }.get(nuevo)
 
                     if estado_disco:
-                        cambios = 0
+                        # Al completar: asegurar el cliente en la base y linkear la reserva
+                        cli_res = None
+                        if nuevo == "Completada":
+                            from models import Cliente
+                            cli_res = Cliente.query.get(reserva.cliente_id) if reserva.cliente_id else None
+                            if cli_res is None:
+                                cli_res = _buscar_o_crear_cliente(
+                                    reserva.nombre, reserva.whatsapp, reserva.email,
+                                    origen=("web" if (reserva.canal or "web") == "web" else "manual"))
+                                if cli_res and not reserva.cliente_id:
+                                    reserva.cliente_id = cli_res.id
                         for item in reserva.items_efectivos:
                             disco = item.disco
-                            if disco and disco.estado != estado_disco:
+                            if not disco:
+                                continue
+                            if disco.estado != estado_disco:
                                 register_status_change(
                                     disco, estado_disco,
                                     nota=f"Reserva #{reserva.id} -> {nuevo}"
                                 )
-                                # Al vender: registrar canal (de la reserva) y metodo
-                                if estado_disco == "Vendido":
-                                    if not disco.canal_venta:
-                                        disco.canal_venta = reserva.canal or "web"
-                                    if not disco.metodo_pago_venta:
-                                        if reserva.pagado or reserva.metodo_pago == "mercadopago":
-                                            disco.metodo_pago_venta = "mercadopago"
-                                        elif reserva.metodo_pago == "transferencia":
-                                            disco.metodo_pago_venta = "transferencia"
-                                    # Agrupar como UNA venta (los discos de esta reserva)
-                                    if not disco.venta_grupo:
-                                        disco.venta_grupo = f"r{reserva.id}"
-                                cambios += 1
-                        if cambios:
-                            db.session.commit()
+                            # Al vender: registrar canal (de la reserva), metodo, grupo y
+                            # comprador — aunque el disco ya estuviera Vendido.
+                            if estado_disco == "Vendido":
+                                if not disco.canal_venta:
+                                    disco.canal_venta = reserva.canal or "web"
+                                if not disco.metodo_pago_venta:
+                                    if reserva.pagado or reserva.metodo_pago == "mercadopago":
+                                        disco.metodo_pago_venta = "mercadopago"
+                                    elif reserva.metodo_pago == "transferencia":
+                                        disco.metodo_pago_venta = "transferencia"
+                                if not disco.venta_grupo:
+                                    disco.venta_grupo = f"r{reserva.id}"
+                                if cli_res and not disco.cliente_id:
+                                    disco.cliente_id = cli_res.id
+                        db.session.commit()
 
                     # Ya NO se manda mail automatico al cambiar el estado: Facundo
                     # decide cuando avisar con el boton "Enviar mail al cliente".
@@ -6596,6 +6696,177 @@ def register_routes(app: Flask) -> None:
             Setting.set(key, value)
         flash("Textos publicos actualizados.", "success")
         return redirect(url_for("settings_page"))
+
+    # =====================================================================
+    # BASE DE CLIENTES
+    # =====================================================================
+    def _clientes_agregados():
+        """Devuelve dicts {cliente_id: {compras, total, ultima}} y {cliente_id: reservas
+        activas} para pintar la lista sin N+1."""
+        compras = {}
+        for d in (Disc.query
+                  .filter(Disc.estado == "Vendido", Disc.cliente_id.isnot(None))
+                  .all()):
+            a = compras.setdefault(d.cliente_id, {"n": 0, "total": 0.0, "ultima": None})
+            a["n"] += 1
+            a["total"] += (d.precio_mostrar or d.precio_uyu or 0)
+            if d.fecha_venta and (not a["ultima"] or d.fecha_venta > a["ultima"]):
+                a["ultima"] = d.fecha_venta
+        activas = {}
+        for r in (Reserva.query
+                  .filter(Reserva.cliente_id.isnot(None),
+                          Reserva.estado.in_(["Pendiente", "Confirmada"]))
+                  .all()):
+            activas[r.cliente_id] = activas.get(r.cliente_id, 0) + 1
+        return compras, activas
+
+    @app.route("/admin/clientes")
+    @auth.admin_required
+    def admin_clientes():
+        from models import Cliente
+        q = (request.args.get("q") or "").strip().lower()
+        clientes = Cliente.query.order_by(Cliente.nombre.asc()).all()
+        if q:
+            clientes = [c for c in clientes if q in " ".join(filter(None, [
+                (c.nombre or "").lower(), (c.email or "").lower(),
+                (c.whatsapp or "").lower(), (c.instagram or "").lower()])).lower()]
+        compras, activas = _clientes_agregados()
+        return render_template(
+            "admin_clientes.html", clientes=clientes, compras=compras,
+            activas=activas, q=q, total=Cliente.query.count(),
+        )
+
+    @app.route("/admin/clientes/export.csv")
+    @auth.admin_required
+    def admin_clientes_export():
+        from models import Cliente
+        import csv as _csv
+        import io as _io
+        compras, activas = _clientes_agregados()
+        buf = _io.StringIO()
+        w = _csv.writer(buf)
+        w.writerow(["Nombre", "Celular", "Email", "Instagram", "Origen",
+                    "Compras", "Total gastado (UYU)", "Ultima compra", "Reservas activas", "Notas"])
+        for c in Cliente.query.order_by(Cliente.nombre.asc()).all():
+            ag = compras.get(c.id, {})
+            w.writerow([
+                c.nombre or "", c.whatsapp or "", c.email or "",
+                ("@" + c.instagram) if c.instagram else "", c.origen or "",
+                ag.get("n", 0), round(ag.get("total", 0)),
+                ag["ultima"].strftime("%d/%m/%Y") if ag.get("ultima") else "",
+                activas.get(c.id, 0), (c.notas or "").replace("\n", " "),
+            ])
+        from flask import Response
+        return Response(buf.getvalue(), mimetype="text/csv",
+                        headers={"Content-Disposition": "attachment; filename=arcano_clientes.csv"})
+
+    @app.route("/admin/clientes/nuevo", methods=["POST"])
+    @auth.admin_required
+    def admin_cliente_nuevo():
+        from models import Cliente
+        nombre = (request.form.get("nombre") or "").strip()[:200]
+        whatsapp = (request.form.get("whatsapp") or "").strip()[:50] or None
+        email = (request.form.get("email") or "").strip().lower()[:200] or None
+        instagram = _norm_ig(request.form.get("instagram"))
+        notas = (request.form.get("notas") or "").strip() or None
+        if not (nombre or whatsapp or instagram):
+            flash("Poné al menos el nombre, el celular o el Instagram.", "error")
+            return redirect(url_for("admin_clientes"))
+        # Evitar duplicado obvio por email
+        if email and Cliente.query.filter(db.func.lower(Cliente.email) == email).first():
+            flash("Ya hay un cliente con ese email.", "warning")
+            return redirect(url_for("admin_clientes"))
+        cli = Cliente(nombre=nombre or (("@" + instagram) if instagram else whatsapp),
+                      whatsapp=whatsapp, email=email, instagram=instagram, notas=notas,
+                      origen="manual", fecha_registro=now_uy())
+        db.session.add(cli)
+        db.session.commit()
+        flash(f"Cliente '{cli.nombre}' agregado.", "success")
+        return redirect(url_for("admin_cliente_detail", cliente_id=cli.id))
+
+    @app.route("/admin/clientes/<int:cliente_id>")
+    @auth.admin_required
+    def admin_cliente_detail(cliente_id):
+        from models import Cliente
+        cli = Cliente.query.get_or_404(cliente_id)
+        compras = (Disc.query
+                   .filter(Disc.cliente_id == cli.id, Disc.estado == "Vendido")
+                   .order_by(Disc.fecha_venta.desc()).all())
+        reservas_activas = (Reserva.query
+                            .filter(Reserva.cliente_id == cli.id,
+                                    Reserva.estado.in_(["Pendiente", "Confirmada"]))
+                            .order_by(Reserva.fecha.desc()).all())
+        total = sum((d.precio_mostrar or d.precio_uyu or 0) for d in compras)
+        otros = (Cliente.query.filter(Cliente.id != cli.id)
+                 .order_by(Cliente.nombre.asc()).all())
+        return render_template(
+            "admin_cliente_detail.html", cli=cli, compras=compras,
+            reservas_activas=reservas_activas, total=total, otros=otros,
+        )
+
+    @app.route("/admin/clientes/<int:cliente_id>/editar", methods=["POST"])
+    @auth.admin_required
+    def admin_cliente_editar(cliente_id):
+        from models import Cliente
+        cli = Cliente.query.get_or_404(cliente_id)
+        cli.nombre = (request.form.get("nombre") or "").strip()[:200] or cli.nombre
+        cli.whatsapp = (request.form.get("whatsapp") or "").strip()[:50] or None
+        email = (request.form.get("email") or "").strip().lower()[:200] or None
+        if email and email != (cli.email or "").lower():
+            otro = Cliente.query.filter(db.func.lower(Cliente.email) == email,
+                                        Cliente.id != cli.id).first()
+            if otro:
+                flash("Otro cliente ya usa ese email.", "error")
+                return redirect(url_for("admin_cliente_detail", cliente_id=cli.id))
+        cli.email = email
+        cli.instagram = _norm_ig(request.form.get("instagram"))
+        cli.notas = (request.form.get("notas") or "").strip() or None
+        db.session.commit()
+        flash("Cliente actualizado.", "success")
+        return redirect(url_for("admin_cliente_detail", cliente_id=cli.id))
+
+    @app.route("/admin/clientes/<int:cliente_id>/fusionar", methods=["POST"])
+    @auth.admin_required
+    def admin_cliente_fusionar(cliente_id):
+        """Fusiona ESTE cliente dentro de otro (destino): pasa sus compras y reservas al
+        destino, le completa los datos que le falten, y borra este."""
+        from models import Cliente
+        cli = Cliente.query.get_or_404(cliente_id)
+        destino_id = request.form.get("destino_id")
+        destino = Cliente.query.get(int(destino_id)) if (destino_id or "").isdigit() else None
+        if not destino or destino.id == cli.id:
+            flash("Elegí un cliente destino válido para fusionar.", "error")
+            return redirect(url_for("admin_cliente_detail", cliente_id=cli.id))
+        # Mover compras (discos) y reservas al destino
+        Disc.query.filter_by(cliente_id=cli.id).update({"cliente_id": destino.id})
+        Reserva.query.filter_by(cliente_id=cli.id).update({"cliente_id": destino.id})
+        # Completar datos que al destino le falten
+        if not destino.whatsapp and cli.whatsapp:
+            destino.whatsapp = cli.whatsapp
+        if not destino.email and cli.email:
+            destino.email = cli.email
+        if not destino.instagram and cli.instagram:
+            destino.instagram = cli.instagram
+        if cli.notas:
+            destino.notas = ((destino.notas + "\n") if destino.notas else "") + cli.notas
+        db.session.delete(cli)
+        db.session.commit()
+        flash(f"Cliente fusionado dentro de '{destino.nombre}'.", "success")
+        return redirect(url_for("admin_cliente_detail", cliente_id=destino.id))
+
+    @app.route("/admin/clientes/<int:cliente_id>/eliminar", methods=["POST"])
+    @auth.admin_required
+    def admin_cliente_eliminar(cliente_id):
+        from models import Cliente
+        cli = Cliente.query.get_or_404(cliente_id)
+        # Los discos comprados quedan con cliente_id NULL (no se borra la venta)
+        Disc.query.filter_by(cliente_id=cli.id).update({"cliente_id": None})
+        Reserva.query.filter_by(cliente_id=cli.id).update({"cliente_id": None})
+        nombre = cli.nombre
+        db.session.delete(cli)
+        db.session.commit()
+        flash(f"Cliente '{nombre}' eliminado.", "success")
+        return redirect(url_for("admin_clientes"))
 
     @app.route("/admin/settings/legal", methods=["POST"])
     @auth.admin_required

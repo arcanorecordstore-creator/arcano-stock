@@ -126,6 +126,11 @@ class Disc(db.Model):
     copias_vendidas = db.Column(db.Integer, nullable=False, default=0)
     # Pedido/compra al que pertenece este disco (para trackear inversion)
     pedido_id = db.Column(db.Integer, db.ForeignKey("pedidos.id"), nullable=True)
+    # Comprador: a quien se le vendio (para la base de clientes / "que compro cada uno").
+    # Se setea al vender (web, reserva manual o venta de IG); opcional.
+    cliente_id = db.Column(db.Integer, db.ForeignKey("clientes.id", ondelete="SET NULL"),
+                           nullable=True, index=True)
+    comprador = db.relationship("Cliente", backref="discos_comprados", foreign_keys=[cliente_id])
 
     # Datos de la VENTA (se completan al vender; editables desde el panel de Ventas)
     # canal_venta: de donde vino la venta (web / instagram / presencial / otro)
@@ -674,9 +679,15 @@ class Cliente(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     nombre = db.Column(db.String(200), nullable=False)
-    email = db.Column(db.String(200), nullable=False, unique=True, index=True)
-    whatsapp = db.Column(db.String(50), nullable=True)
-    password_hash = db.Column(db.String(255), nullable=False)
+    # email/password son OPCIONALES: un cliente cargado a mano (Instagram) puede no tener
+    # cuenta web. La unicidad de email (para las cuentas web) se controla en el codigo, no
+    # con constraint de DB (por los NULL de los clientes manuales).
+    email = db.Column(db.String(200), nullable=True, index=True)
+    whatsapp = db.Column(db.String(50), nullable=True, index=True)
+    instagram = db.Column(db.String(100), nullable=True)   # @usuario (sin el @ guardado)
+    notas = db.Column(db.Text, nullable=True)
+    origen = db.Column(db.String(20), nullable=False, default="web")  # web / manual
+    password_hash = db.Column(db.String(255), nullable=True)
     fecha_registro = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     def set_password(self, raw: str) -> None:
@@ -689,8 +700,30 @@ class Cliente(db.Model):
             return False
         return check_password_hash(self.password_hash, raw)
 
+    @property
+    def compras(self) -> list:
+        """Discos que este cliente compro (vendidos y atribuidos a el)."""
+        return [d for d in getattr(self, "discos_comprados", []) if d.estado == "Vendido"]
+
+    @property
+    def total_gastado(self) -> float:
+        return sum((d.precio_mostrar or d.precio_uyu or 0) for d in self.compras)
+
+    @property
+    def cantidad_compras(self) -> int:
+        return len(self.compras)
+
+    @property
+    def ultima_compra(self):
+        fechas = [d.fecha_venta for d in self.compras if d.fecha_venta]
+        return max(fechas) if fechas else None
+
+    @property
+    def tiene_cuenta_web(self) -> bool:
+        return bool(self.password_hash)
+
     def __repr__(self) -> str:
-        return f"<Cliente {self.id}: {self.email}>"
+        return f"<Cliente {self.id}: {self.nombre}>"
 
 
 class ClienteFavorito(db.Model):
@@ -1497,6 +1530,11 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN venta_grupo VARCHAR(40)"))
                     conn.commit()
                 print("Migracion: columna venta_grupo agregada a discs")
+            if "cliente_id" not in dcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN cliente_id INTEGER"))
+                    conn.commit()
+                print("Migracion: columna cliente_id (comprador) agregada a discs")
             if "orden" not in dcols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN orden INTEGER"))
@@ -1518,6 +1556,44 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE tracks ADD COLUMN play_count INTEGER DEFAULT 0"))
                     conn.commit()
                 print("Migracion: columna play_count agregada a tracks")
+
+        # Reconstruir la tabla clientes: email y password pasan a OPCIONALES (clientes de
+        # Instagram cargados a mano no tienen cuenta) y se suman instagram/notas/origen.
+        # SQLite no permite cambiar NOT NULL con ALTER, asi que se rehace la tabla. Se
+        # corre UNA sola vez (guardado por 'instagram not in cols'). Preserva ids y datos.
+        if inspector.has_table("clientes"):
+            _ccols = [c["name"] for c in inspector.get_columns("clientes")]
+            if "instagram" not in _ccols:
+                raw = db.engine.raw_connection()
+                try:
+                    cur = raw.cursor()
+                    cur.execute("PRAGMA foreign_keys=OFF")
+                    cur.executescript(
+                        """
+                        CREATE TABLE clientes_new (
+                            id INTEGER PRIMARY KEY,
+                            nombre VARCHAR(200) NOT NULL,
+                            email VARCHAR(200),
+                            whatsapp VARCHAR(50),
+                            instagram VARCHAR(100),
+                            notas TEXT,
+                            origen VARCHAR(20) DEFAULT 'web',
+                            password_hash VARCHAR(255),
+                            fecha_registro DATETIME
+                        );
+                        INSERT INTO clientes_new (id, nombre, email, whatsapp, password_hash, fecha_registro, origen)
+                            SELECT id, nombre, email, whatsapp, password_hash, fecha_registro, 'web' FROM clientes;
+                        DROP TABLE clientes;
+                        ALTER TABLE clientes_new RENAME TO clientes;
+                        CREATE INDEX ix_clientes_email ON clientes(email);
+                        CREATE INDEX ix_clientes_whatsapp ON clientes(whatsapp);
+                        """
+                    )
+                    cur.execute("PRAGMA foreign_keys=ON")
+                    raw.commit()
+                    print("Migracion: tabla clientes reconstruida (email/password opcionales + instagram/notas/origen)")
+                finally:
+                    raw.close()
 
         # Columna cliente_id en reservas (para cuentas de cliente)
         if inspector.has_table("reservas"):

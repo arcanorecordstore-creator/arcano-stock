@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}Clientes &middot; Arcano admin{% endblock %}
+
+{% macro money(n) -%}$ {{ '{:,.0f}'.format(n or 0).replace(',', '.') }}{%- endmacro %}
+
+{% block content %}
+
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Clientes</h1>
+        <p class="page-sub">{{ total }} cliente{{ 's' if total != 1 else '' }} &middot; se guardan solos al confirmar una venta web, o los cargás a mano (Instagram, presencial).</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('admin_clientes_export') }}" class="btn btn-ghost">&#8595; Exportar CSV</a>
+    </div>
+</section>
+
+<!-- Alta manual -->
+<details class="cli-nuevo">
+    <summary class="btn btn-primary" style="display:inline-block;">+ Nuevo cliente</summary>
+    <form method="post" action="{{ url_for('admin_cliente_nuevo') }}" class="cli-form">
+        <div class="cli-form-grid">
+            <div class="form-field"><label>Nombre</label><input type="text" name="nombre" maxlength="200" placeholder="Nombre y apellido"></div>
+            <div class="form-field"><label>Celular / WhatsApp</label><input type="text" name="whatsapp" maxlength="50" placeholder="099 123 456"></div>
+            <div class="form-field"><label>Instagram</label><input type="text" name="instagram" maxlength="100" placeholder="@usuario"></div>
+            <div class="form-field"><label>Email</label><input type="email" name="email" maxlength="200" placeholder="si lo tenés"></div>
+        </div>
+        <div class="form-field"><label>Notas</label><textarea name="notas" rows="2" placeholder="Lo que quieras recordar (ej: prefiere minimal)"></textarea></div>
+        <button type="submit" class="btn btn-primary">Guardar cliente</button>
+        <span class="form-field-hint">Poné al menos el nombre, el celular o el Instagram.</span>
+    </form>
+</details>
+
+<!-- Buscador -->
+<form method="get" action="{{ url_for('admin_clientes') }}" class="cli-search">
+    <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre, celular, Instagram o email..." class="pv-inp">
+</form>
+
+{% if clientes %}
+<div class="cli-table-wrap">
+<table class="cli-table">
+    <thead>
+        <tr>
+            <th>Cliente</th><th>Contacto</th><th class="num">Compras</th>
+            <th class="num">Gastado</th><th>&Uacute;ltima</th><th class="num">Reservas</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for c in clientes %}
+        {% set ag = compras.get(c.id, {}) %}
+        <tr onclick="location.href='{{ url_for('admin_cliente_detail', cliente_id=c.id) }}'">
+            <td>
+                <a href="{{ url_for('admin_cliente_detail', cliente_id=c.id) }}" class="cli-name">{{ c.nombre }}</a>
+                <span class="cli-origen {{ 'web' if c.origen == 'web' else 'manual' }}">{{ 'Web' if c.origen == 'web' else 'Manual' }}</span>
+            </td>
+            <td class="cli-contacto">
+                {% if c.instagram %}<span>&#9673; @{{ c.instagram }}</span>{% endif %}
+                {% if c.whatsapp %}<span>&#128241; {{ c.whatsapp }}</span>{% endif %}
+                {% if c.email %}<span class="cli-email">&#9993; {{ c.email }}</span>{% endif %}
+            </td>
+            <td class="num">{{ ag.get('n', 0) }}</td>
+            <td class="num">{{ money(ag.get('total', 0)) }}</td>
+            <td>{{ ag['ultima'].strftime('%d/%m/%y') if ag.get('ultima') else '&mdash;' | safe }}</td>
+            <td class="num">{% if activas.get(c.id) %}<span class="cli-activa">{{ activas[c.id] }}</span>{% else %}&mdash;{% endif %}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">&#128100;</div>
+    <h2>{% if q %}Sin resultados{% else %}Todav&iacute;a no hay clientes{% endif %}</h2>
+    <p>{% if q %}Prob&aacute; con otro t&eacute;rmino.{% else %}Se van cargando solos con las ventas web, o agreg&aacute; uno a mano.{% endif %}</p>
+</div>
+{% endif %}
+
+<style>
+.cli-nuevo{margin:0 0 14px;}
+.cli-nuevo>summary{cursor:pointer;list-style:none;}
+.cli-nuevo>summary::-webkit-details-marker{display:none;}
+.cli-form{background:var(--bg-2,#1e1e1e);border:1px solid var(--border-1,#2a2a2a);border-radius:12px;padding:16px;margin-top:10px;display:flex;flex-direction:column;gap:10px;}
+.cli-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;}
+.cli-search{margin:0 0 14px;}
+.cli-search .pv-inp{width:100%;}
+.cli-table-wrap{overflow-x:auto;border:1px solid var(--border-1,#2a2a2a);border-radius:12px;}
+.cli-table{width:100%;border-collapse:collapse;font-size:14px;}
+.cli-table th{text-align:left;padding:11px 14px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--text-3,#888);border-bottom:1px solid var(--border-1,#2a2a2a);}
+.cli-table th.num,.cli-table td.num{text-align:right;font-variant-numeric:tabular-nums;}
+.cli-table td{padding:11px 14px;border-bottom:1px solid var(--border-1,#2a2a2a);vertical-align:middle;}
+.cli-table tbody tr{cursor:pointer;transition:background .1s;}
+.cli-table tbody tr:hover{background:var(--bg-2,#1e1e1e);}
+.cli-table tbody tr:last-child td{border-bottom:none;}
+.cli-name{font-weight:650;color:var(--text-1,#eee);text-decoration:none;}
+.cli-name:hover{text-decoration:underline;}
+.cli-origen{font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:999px;margin-left:7px;}
+.cli-origen.web{background:rgba(46,92,158,.18);color:#6ea3e0;}
+.cli-origen.manual{background:rgba(168,117,15,.18);color:#d6a945;}
+.cli-contacto{display:flex;flex-direction:column;gap:2px;font-size:12.5px;color:var(--text-2,#bbb);}
+.cli-contacto .cli-email{color:var(--text-3,#888);}
+.cli-activa{background:rgba(192,52,30,.16);color:#e08a78;font-weight:700;padding:2px 8px;border-radius:999px;font-size:12px;}
+</style>
+
+{% endblock %}
