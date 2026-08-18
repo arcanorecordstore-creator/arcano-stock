@@ -73,11 +73,6 @@
             <a href="{{ url_for('public_favoritos') }}" class="public-nav-link public-nav-fav {% if request.endpoint == 'public_favoritos' %}active{% endif %}">
                 Favoritos<span class="fav-count" id="fav-count" hidden>0</span>
             </a>
-            {% if cliente_actual %}
-            <a href="{{ url_for('cliente_cuenta') }}" class="public-nav-link {% if request.endpoint == 'cliente_cuenta' %}active{% endif %}">Mi cuenta</a>
-            {% else %}
-            <a href="{{ url_for('cliente_login_page') }}" class="public-nav-link {% if request.endpoint in ['cliente_login_page', 'cliente_registro'] %}active{% endif %}">Ingresar</a>
-            {% endif %}
             {% if instagram %}
             <a href="https://instagram.com/{{ instagram }}" target="_blank" rel="noopener" class="public-nav-link">Instagram</a>
             {% endif %}
@@ -86,14 +81,23 @@
                 <span class="icon-sun">&#9788;</span>
             </button>
         </nav>
-        <a href="{{ url_for('public_carrito') }}" class="public-topbar-cart {% if request.endpoint in ['public_carrito', 'public_checkout'] %}active{% endif %}" aria-label="Ver carrito" title="Carrito">
-            <svg class="topbar-cart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <circle cx="9" cy="21" r="1"></circle>
-                <circle cx="20" cy="21" r="1"></circle>
-                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-            </svg>
-            <span class="cart-count" id="cart-count-top" hidden>0</span>
-        </a>
+        <div class="public-topbar-actions">
+            <a href="{{ url_for('cliente_cuenta') if cliente_actual else url_for('cliente_login_page') }}" class="public-topbar-account {% if request.endpoint in ['cliente_cuenta', 'cliente_login_page', 'cliente_registro'] %}active{% endif %}" title="Mi cuenta" aria-label="Mi cuenta">
+                <svg class="topbar-account-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="7" r="4"></circle>
+                    <path d="M5.5 21a6.5 6.5 0 0 1 13 0"></path>
+                </svg>
+                <span class="topbar-account-label">Mi cuenta</span>
+            </a>
+            <a href="{{ url_for('public_carrito') }}" class="public-topbar-cart {% if request.endpoint in ['public_carrito', 'public_checkout'] %}active{% endif %}" aria-label="Ver carrito" title="Carrito">
+                <svg class="topbar-cart-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <circle cx="9" cy="21" r="1"></circle>
+                    <circle cx="20" cy="21" r="1"></circle>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                </svg>
+                <span class="cart-count" id="cart-count-top" hidden>0</span>
+            </a>
+        </div>
     </div>
 </header>
 
