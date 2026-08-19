@@ -20,8 +20,14 @@
 <section class="caja-hero">
     <div class="caja-hero-main">
         <span class="caja-hero-label">Plata en caja ahora</span>
-        <span class="caja-hero-value {% if resumen.disponible < 0 %}negativo{% endif %}">
-            $ {{ fmt_uyu(resumen.disponible) }} <span class="caja-hero-cur">UYU</span>
+        <span class="caja-hero-value caja-chip-desglose {% if resumen.disponible < 0 %}negativo{% endif %}" tabindex="0" role="button" title="Click para ver cómo se calcula">
+            $ {{ fmt_uyu(resumen.disponible) }} <span class="caja-hero-cur">UYU</span> <span class="caja-hero-caret">&#9662;</span>
+            <div class="caja-chip-pop caja-hero-pop" hidden>
+                <div class="caja-chip-pop-tit">Cómo se calcula</div>
+                <div class="caja-chip-pop-row"><span>Saldo (todo lo que hay)</span><span>$ {{ fmt_uyu(resumen.saldo_actual) }}</span></div>
+                {% if resumen.mp_pendiente > 0 %}<div class="caja-chip-pop-row"><span>&minus; Retenido en Mercado Pago</span><span>$ {{ fmt_uyu(resumen.mp_pendiente) }}</span></div>{% endif %}
+                <div class="caja-chip-pop-row total"><span>Plata en la mano</span><span>$ {{ fmt_uyu(resumen.disponible) }}</span></div>
+            </div>
         </span>
         {% if resumen.adelanto_pendiente_total > 0 %}
         <span class="caja-hero-sub">Esto es lo que ten&eacute;s <strong>en el banco</strong> (ya incluye los <strong>$ {{ fmt_uyu(resumen.adelanto_pendiente_total) }}</strong> que adelantaste de tu plata). Cuando MP te pague, recuper&aacute;s ese adelanto &mdash; abajo en &laquo;Adelantos a recuperar&raquo;.</span>
@@ -46,18 +52,39 @@
             <span class="caja-chip-label">Saldo inicial &#9998;</span>
             <span class="caja-chip-val">$ {{ fmt_uyu(resumen.saldo_inicial) }}</span>
         </div>
-        <div class="caja-chip pos">
-            <span class="caja-chip-label">Entró (ingresos)</span>
+        <div class="caja-chip pos caja-chip-desglose" tabindex="0" role="button" title="Click para ver de dónde sale">
+            <span class="caja-chip-label">Entró (ingresos) &#9662;</span>
             <span class="caja-chip-val">+ $ {{ fmt_uyu(resumen.total_ingresos) }}</span>
+            <div class="caja-chip-pop" hidden>
+                <div class="caja-chip-pop-tit">De dónde entró</div>
+                {% for d in resumen.ingresos_desglose %}
+                <div class="caja-chip-pop-row"><span>{{ d.label }}</span><span>$ {{ fmt_uyu(d.monto) }}</span></div>
+                {% endfor %}
+                <div class="caja-chip-pop-row total"><span>Total</span><span>$ {{ fmt_uyu(resumen.total_ingresos) }}</span></div>
+            </div>
         </div>
-        <div class="caja-chip neg">
-            <span class="caja-chip-label">Salió (egresos)</span>
+        <div class="caja-chip neg caja-chip-desglose" tabindex="0" role="button" title="Click para ver de dónde sale">
+            <span class="caja-chip-label">Salió (egresos) &#9662;</span>
             <span class="caja-chip-val">&minus; $ {{ fmt_uyu(resumen.total_egresos) }}</span>
+            <div class="caja-chip-pop" hidden>
+                <div class="caja-chip-pop-tit">En qué se fue</div>
+                {% for d in resumen.egresos_desglose %}
+                <div class="caja-chip-pop-row"><span>{{ d.label }}</span><span>$ {{ fmt_uyu(d.monto) }}</span></div>
+                {% endfor %}
+                <div class="caja-chip-pop-row total"><span>Total</span><span>$ {{ fmt_uyu(resumen.total_egresos) }}</span></div>
+            </div>
         </div>
         {% if resumen.capital_permanente > 0 %}
-        <div class="caja-chip cap">
-            <span class="caja-chip-label">Capital que pusiste</span>
+        <div class="caja-chip cap caja-chip-desglose" tabindex="0" role="button" title="Click para ver de dónde sale">
+            <span class="caja-chip-label">Capital que pusiste &#9662;</span>
             <span class="caja-chip-val">$ {{ fmt_uyu(resumen.capital_permanente) }}</span>
+            <div class="caja-chip-pop" hidden>
+                <div class="caja-chip-pop-tit">Tu plata aportada</div>
+                {% for d in resumen.capital_desglose %}
+                <div class="caja-chip-pop-row"><span>{{ d.label }}</span><span>$ {{ fmt_uyu(d.monto) }}</span></div>
+                {% endfor %}
+                <div class="caja-chip-pop-row total"><span>Total</span><span>$ {{ fmt_uyu(resumen.capital_permanente) }}</span></div>
+            </div>
         </div>
         {% endif %}
     </div>
@@ -568,6 +595,38 @@
             });
             input.addEventListener('blur', guardar);
             input.addEventListener('click', function (ev) { ev.stopPropagation(); });
+        });
+    })();
+
+    // Desglose de cada numero del header: click -> muestra de donde sale.
+    (function () {
+        var chips = document.querySelectorAll('.caja-chip-desglose');
+        function cerrarTodos(menos) {
+            chips.forEach(function (ch) {
+                if (ch === menos) return;
+                var p = ch.querySelector('.caja-chip-pop');
+                if (p) p.hidden = true;
+                ch.classList.remove('abierto');
+            });
+        }
+        chips.forEach(function (ch) {
+            var pop = ch.querySelector('.caja-chip-pop');
+            if (!pop) return;
+            ch.addEventListener('click', function (ev) {
+                // No cerrar si clickean adentro del propio popover
+                if (ev.target.closest('.caja-chip-pop')) return;
+                var abrir = pop.hidden;
+                cerrarTodos(ch);
+                pop.hidden = !abrir;
+                ch.classList.toggle('abierto', abrir);
+            });
+            ch.addEventListener('keydown', function (ev) {
+                if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ch.click(); }
+                else if (ev.key === 'Escape') { pop.hidden = true; ch.classList.remove('abierto'); }
+            });
+        });
+        document.addEventListener('click', function (ev) {
+            if (!ev.target.closest('.caja-chip-desglose')) cerrarTodos(null);
         });
     })();
 </script>

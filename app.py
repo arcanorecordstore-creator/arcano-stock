@@ -3881,12 +3881,55 @@ def register_routes(app: Flask) -> None:
             for g in sorted(grupos.values(), key=lambda x: (x["orden"], -x["count"]))
         ]
 
+        # --- Desgloses para "click en el numero" del header (sobre los totales AL DIA,
+        # no el mes filtrado). Cada tarjeta muestra de donde sale su numero. ---
+        from collections import OrderedDict as _OD
+
+        def _desglosar(movs_list, bucketfn):
+            acc = _OD()
+            for m in movs_list:
+                b = bucketfn(m)
+                acc[b] = acc.get(b, 0) + (m.monto_uyu or 0)
+            return [{"label": k, "monto": round(v)} for k, v in acc.items() if abs(v) > 0.5]
+
+        def _buck_ing(m):
+            if m.origen == "venta":
+                return "Ventas de discos"
+            if m.origen == "envio":
+                return "Envios cobrados"
+            if m.es_aporte:
+                return "Aportes de capital (tu plata)"
+            return "Otros ingresos que cargaste a mano"
+
+        def _buck_egr(m):
+            if m.origen == "pedido":
+                return "Compras a Deejay (pedidos)"
+            if m.origen == "gasto":
+                return "Gastos (publicidad, hosting, etc.)"
+            return "Retiros / ajustes que cargaste a mano"
+
+        ingresos_desglose = _desglosar([m for m in movs_dinero if m.tipo == "ingreso"], _buck_ing)
+        egresos_desglose = _desglosar([m for m in movs_dinero if m.tipo == "egreso"], _buck_egr)
+        capital_desglose = [
+            {"label": (m.concepto or "Aporte de capital"), "monto": round(m.monto_uyu or 0)}
+            for m in movs_dinero if (m.tipo == "ingreso" and m.es_aporte)
+        ]
+        saldo_desglose = [
+            {"label": "Saldo inicial", "monto": round(saldo_inicial)},
+            {"label": "Entro (ingresos)", "monto": round(total_ingresos)},
+            {"label": "Salio (egresos)", "monto": -round(total_egresos)},
+        ]
+
         return {
             "saldo_inicial": round(saldo_inicial, 2),
             "total_ingresos": round(total_ingresos, 2),
             "total_egresos": round(total_egresos, 2),
             "total_aportes": round(total_aportes, 2),
             "capital_permanente": round(capital_permanente, 2),
+            "ingresos_desglose": ingresos_desglose,
+            "egresos_desglose": egresos_desglose,
+            "capital_desglose": capital_desglose,
+            "saldo_desglose": saldo_desglose,
             "total_ventas": round(total_ventas, 2),
             "saldo_actual": round(saldo_actual, 2),
             "mp_pendiente": round(mp_pendiente, 2),
