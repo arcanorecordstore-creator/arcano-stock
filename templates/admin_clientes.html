@@ -9,7 +9,7 @@
 <section class="page-head">
     <div>
         <h1 class="page-title">Clientes</h1>
-        <p class="page-sub">{{ total }} cliente{{ 's' if total != 1 else '' }} &middot; se guardan solos al confirmar una venta web, o los cargás a mano (Instagram, presencial).</p>
+        <p class="page-sub">{{ total }} cliente{{ 's' if total != 1 else '' }} &middot; {{ con_cuenta }} con cuenta creada &middot; se guardan solos al confirmar una venta web, o los cargás a mano (Instagram, presencial).</p>
     </div>
     <div class="page-actions">
         <a href="{{ url_for('admin_clientes_export') }}" class="btn btn-ghost">&#8595; Exportar CSV</a>
@@ -58,7 +58,7 @@
     <thead>
         <tr>
             <th class="chk"><input type="checkbox" id="cli-all" title="Seleccionar todos"></th>
-            <th>Cliente</th><th>Contacto</th><th class="num">Compras</th>
+            <th>Cliente</th><th>Contacto</th><th>Cuenta</th><th class="num">Compras</th>
             <th class="num">Gastado</th><th>&Uacute;ltima</th><th class="num">Reservas</th>
         </tr>
     </thead>
@@ -77,6 +77,9 @@
                 {% if c.instagram %}<span>&#9673; @{{ c.instagram }}</span>{% endif %}
                 {% if c.whatsapp %}<span>&#128241; {{ c.whatsapp }}</span>{% endif %}
                 {% if c.email %}<span class="cli-email">&#9993; {{ c.email }}</span>{% endif %}
+            </td>
+            <td>
+                {% if c.tiene_cuenta %}<span class="cli-cuenta cli-cuenta-si">&#10003; S&iacute;</span>{% else %}<span class="cli-cuenta cli-cuenta-no">No</span>{% endif %}
             </td>
             <td class="num">{{ ag.get('n', 0) }}</td>
             <td class="num">{{ money(ag.get('total', 0)) }}</td>
@@ -120,6 +123,9 @@
 .cli-contacto{display:flex;flex-direction:column;gap:2px;font-size:12.5px;color:var(--text-2,#bbb);}
 .cli-contacto .cli-email{color:var(--text-3,#888);}
 .cli-activa{background:rgba(192,52,30,.16);color:#e08a78;font-weight:700;padding:2px 8px;border-radius:999px;font-size:12px;}
+.cli-cuenta{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap;}
+.cli-cuenta-si{background:rgba(46,138,87,.18);color:#4fae7c;}
+.cli-cuenta-no{background:var(--bg-3,#242424);color:var(--text-3,#888);border:1px solid var(--border-1,#2a2a2a);}
 .cli-bulkbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg-2,#1e1e1e);border:1px solid rgba(192,52,30,.4);border-radius:10px;padding:10px 14px;margin-bottom:10px;}
 .cli-table th.chk,.cli-table td.chk{width:38px;text-align:center;}
 .cli-chk,#cli-all{cursor:pointer;width:16px;height:16px;}

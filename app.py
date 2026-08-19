@@ -7196,9 +7196,11 @@ def register_routes(app: Flask) -> None:
                 est = _lealtad_estado(c, compras.get(c.id, {}).get("total", 0))
                 if est["tiene_premio"]:
                     premios[c.id] = est
+        con_cuenta = Cliente.query.filter(Cliente.password_hash.isnot(None)).count()
         return render_template(
             "admin_clientes.html", clientes=clientes, compras=compras,
             activas=activas, q=q, total=Cliente.query.count(),
+            con_cuenta=con_cuenta,
             lealtad_activa=lcfg["activa"], premios=premios,
         )
 

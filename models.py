@@ -805,6 +805,12 @@ class Cliente(db.Model):
         return check_password_hash(self.password_hash, raw)
 
     @property
+    def tiene_cuenta(self) -> bool:
+        """True si el cliente se registro con contrasena (cuenta web activa).
+        Los cargados a mano o auto-generados por una venta anonima no tienen."""
+        return bool(self.password_hash)
+
+    @property
     def compras(self) -> list:
         """Discos que este cliente compro (vendidos y atribuidos a el)."""
         return [d for d in getattr(self, "discos_comprados", []) if d.estado == "Vendido"]
