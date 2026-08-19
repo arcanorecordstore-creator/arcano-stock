@@ -9,6 +9,15 @@ from sqlalchemy import func, case
 from models import db, Disc, StatusHistory, Egreso, now_uy, today_uy
 
 
+def _costo_negocio(d) -> float:
+    """Costo del disco PARA EL NEGOCIO: 0 si es de la coleccion PERSONAL de Facundo
+    (su venta es un aporte, no le costo al negocio), si no `costo_final_uyu`. Es el
+    MISMO criterio que usa Contabilidad; se usa en TODAS las ganancias/margenes para
+    que los numeros coincidan entre paneles (antes varias restaban el costo del
+    personal y no cuadraban con el hero de Contabilidad)."""
+    return 0 if (getattr(d, "origen", "arcano") == "personal") else (d.costo_final_uyu or 0)
+
+
 def _month_bounds(year: int, month: int) -> tuple[datetime, datetime]:
     """Devuelve (inicio, fin) del mes dado."""
     inicio = datetime(year, month, 1)
@@ -55,9 +64,7 @@ def kpis_de_discos(discs) -> dict:
     # coleccion personal es 0 (no le costaron al negocio). Antes usaba d.ganancia_uyu,
     # que resta el costo tambien a los personales -> no coincidia con Contabilidad.
     def _gan(d):
-        precio = (d.precio_mostrar or d.precio_uyu or 0)
-        costo = 0 if (d.origen or "arcano") == "personal" else (d.costo_final_uyu or 0)
-        return precio - costo
+        return (d.precio_mostrar or d.precio_uyu or 0) - _costo_negocio(d)
     ganancia = sum(_gan(d) * d.copias_facturadas for d in discs)
     ventas = contar_ventas(discs)
     return {
@@ -95,16 +102,20 @@ def kpis_principales() -> dict:
         (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in vendidos
     )
     costo_vendido_uyu = sum(
-        (d.costo_final_uyu or 0) * d.copias_facturadas for d in vendidos
+        _costo_negocio(d) * d.copias_facturadas for d in vendidos
     )
     ganancia_realizada_uyu = facturado_uyu - costo_vendido_uyu
 
     # ---- Margen promedio ----
-    # Promedio de margen sobre los discos disponibles + vendidos (los que tienen precio)
+    # Promedio de margen sobre los discos disponibles + vendidos (los que tienen precio).
+    # Mismo criterio de costo por origen que Contabilidad (personal = 0).
     discos_con_precio = [
         d for d in disponibles + vendidos if (d.precio_uyu or 0) > 0
     ]
-    margenes = [d.margen_pct for d in discos_con_precio]
+    def _margen(d):
+        p = (d.precio_mostrar or d.precio_uyu or 0)
+        return ((p - _costo_negocio(d)) / p * 100) if p else 0.0
+    margenes = [_margen(d) for d in discos_con_precio]
     margen_promedio = sum(margenes) / len(margenes) if margenes else 0.0
 
     return {
@@ -136,7 +147,7 @@ def kpis_mes_actual() -> dict:
 
     unidades = sum(d.copias_facturadas for d in vendidos_mes)
     facturado = sum((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in vendidos_mes)
-    costo = sum((d.costo_final_uyu or 0) * d.copias_facturadas for d in vendidos_mes)
+    costo = sum(_costo_negocio(d) * d.copias_facturadas for d in vendidos_mes)
     ganancia = facturado - costo
 
     return {
@@ -268,7 +279,7 @@ def ventas_ultimos_6_meses() -> list[dict]:
         )
         unidades = sum(d.copias_facturadas for d in vendidos)
         facturado = sum((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in vendidos)
-        ganancia = facturado - sum((d.costo_final_uyu or 0) * d.copias_facturadas for d in vendidos)
+        ganancia = facturado - sum(_costo_negocio(d) * d.copias_facturadas for d in vendidos)
 
         salida.append({
             "year": y,

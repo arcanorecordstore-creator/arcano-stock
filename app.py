@@ -478,18 +478,22 @@ def compute_totals(discs):
 
     suma_ganancia_uyu = 0.0
     for d in discs:
-        suma_costo_eur += (d.costo_eur or 0) * (d.stock or 1)
-        suma_envio_eur += (d.envio_eur or 0) * (d.stock or 1)
-        suma_costo_final_uyu += (d.costo_final_uyu or 0) * (d.stock or 1)
+        # Cantidad: para un disco Vendido son las copias vendidas (stock ya es 0);
+        # para el resto, el stock. Antes usaba (stock or 1) y contaba 1 sola copia en
+        # los vendidos multi-copia (subcontaba facturado/ganancia).
+        cant = d.copias_facturadas if d.estado == "Vendido" else (d.stock or 1)
+        suma_costo_eur += (d.costo_eur or 0) * cant
+        suma_envio_eur += (d.envio_eur or 0) * cant
+        suma_costo_final_uyu += (d.costo_final_uyu or 0) * cant
         # precio_mostrar (con oferta) para que el pie cuadre: precio - costo = ganancia
         # (la ganancia ya usa el precio de oferta).
-        suma_precio_uyu += (d.precio_mostrar or d.precio_uyu or 0) * (d.stock or 1)
-        suma_ganancia_uyu += (d.ganancia_uyu or 0) * (d.stock or 1)
+        suma_precio_uyu += (d.precio_mostrar or d.precio_uyu or 0) * cant
+        suma_ganancia_uyu += (d.ganancia_uyu or 0) * cant
         stock_total += d.stock or 0
         if d.estado == "Disponible":
-            ganancia_potencial_uyu += (d.ganancia_uyu or 0) * (d.stock or 1)
+            ganancia_potencial_uyu += (d.ganancia_uyu or 0) * cant
         elif d.estado == "Vendido":
-            ganancia_realizada_uyu += (d.ganancia_uyu or 0) * (d.stock or 1)
+            ganancia_realizada_uyu += (d.ganancia_uyu or 0) * cant
 
     return {
         "total": total,
@@ -881,7 +885,12 @@ def _backfill_ventas_sin_cliente(app):
                                        Disc.venta_grupo.isnot(None)).all():
                 grupos[d.venta_grupo].append(d)
             for grupo, ds in grupos.items():
-                cli = next((x.cliente_id for x in ds if getattr(x, "cliente_id", None)), None)
+                # Si el grupo mezcla DOS compradores distintos, no adivinar: se saltea
+                # (un grupo deberia ser una sola transaccion = un solo comprador).
+                _distintos = set(x.cliente_id for x in ds if getattr(x, "cliente_id", None))
+                if len(_distintos) > 1:
+                    continue
+                cli = next(iter(_distintos), None)
                 if not cli and grupo.startswith("r"):
                     try:
                         _rr = Reserva.query.get(int(grupo[1:]))
@@ -3074,7 +3083,10 @@ def register_routes(app: Flask) -> None:
             t = trans_map[key]
             t["discos"].append(d)
             t["subtotal"] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
-            t["ganancia"] += (d.ganancia_uyu or 0) * d.copias_facturadas
+            # Ganancia con costo por origen (personal = 0), MISMO criterio que el KPI de
+            # arriba (kpis_de_discos) y que Contabilidad, para que la suma de las filas
+            # coincida con el total del panel.
+            t["ganancia"] += ((d.precio_mostrar or d.precio_uyu or 0) - metrics._costo_negocio(d)) * d.copias_facturadas
             if not t["cliente"] and cliente_res.get(d.id):
                 t["cliente"] = cliente_res.get(d.id)
             fv = d.fecha_venta.date() if d.fecha_venta else None
@@ -3161,8 +3173,10 @@ def register_routes(app: Flask) -> None:
         # El comprador del grupo: el de algun disco que ya lo tenga, o el de la reserva
         # si el grupo es 'r<id>'. Al agrupar, los discos sin comprador lo heredan, asi
         # el panel de Clientes (que atribuye por disco) suma la venta al cliente correcto.
-        cli_id = next((d.cliente_id for d in discs if getattr(d, "cliente_id", None)), None)
-        if not cli_id and grupo.startswith("r"):
+        # Si mezclas discos de DOS compradores distintos, no adivinamos (no se propaga).
+        _distintos = set(d.cliente_id for d in discs if getattr(d, "cliente_id", None))
+        cli_id = next(iter(_distintos), None) if len(_distintos) <= 1 else None
+        if not cli_id and len(_distintos) <= 1 and grupo.startswith("r"):
             try:
                 _r = Reserva.query.get(int(grupo[1:]))
                 cli_id = _r.cliente_id if _r else None
@@ -3672,8 +3686,11 @@ def register_routes(app: Flask) -> None:
                 continue  # todavia no entro la plata; la limpieza saca un mov viejo si lo hubiera
             key = ("envio", r.id)
             vigentes.add(key)
-            metodo = ("mercadopago" if (r.pagado or r.metodo_pago == "mercadopago")
-                      else ("transferencia" if r.metodo_pago == "transferencia" else None))
+            # Metodo REAL de la reserva (no derivar de 'pagado', que ahora es True para
+            # toda venta Pagada y etiquetaba el envio como MP aunque fuera transferencia).
+            metodo = ("mercadopago" if r.metodo_pago == "mercadopago"
+                      else ("transferencia" if r.metodo_pago == "transferencia"
+                      else ("efectivo" if r.metodo_pago == "efectivo" else None)))
             _fbase = r.fecha_actualizacion or r.fecha
             fecha = _fbase.date() if hasattr(_fbase, "date") else _fbase
             concepto = f"Envio (pedido #{r.id})"[:300]
@@ -6703,9 +6720,18 @@ def register_routes(app: Flask) -> None:
                                     origen=("web" if (reserva.canal or "web") == "web" else "manual"))
                                 if cli_res and not reserva.cliente_id:
                                     reserva.cliente_id = cli_res.id
+                            # Si la reserva no tiene email pero el cliente si, usarlo (para
+                            # poder mandarle la confirmacion de compra).
+                            if cli_res and not reserva.email and cli_res.email:
+                                reserva.email = cli_res.email
                         for item in reserva.items_efectivos:
                             disco = item.disco
                             if not disco:
+                                continue
+                            # No des-vender un disco que ya vendio OTRA reserva/venta:
+                            # bajarlo de Vendido borraria esa venta (fecha/precio) en silencio.
+                            if (disco.estado == "Vendido" and estado_disco != "Vendido"
+                                    and (disco.venta_grupo or "") != f"r{reserva.id}"):
                                 continue
                             if disco.estado != estado_disco:
                                 register_status_change(
@@ -6722,19 +6748,38 @@ def register_routes(app: Flask) -> None:
                                 if not disco.canal_venta:
                                     disco.canal_venta = reserva.canal or "web"
                                 if not disco.metodo_pago_venta:
-                                    if reserva.pagado or reserva.metodo_pago == "mercadopago":
+                                    # El metodo REAL de la reserva (no derivar de 'pagado',
+                                    # que ahora es True para toda venta y etiquetaba todo MP).
+                                    _rm = (reserva.metodo_pago or "").lower()
+                                    if _rm == "mercadopago" or reserva.mp_status == "approved":
                                         disco.metodo_pago_venta = "mercadopago"
-                                    elif reserva.metodo_pago == "transferencia":
-                                        disco.metodo_pago_venta = "transferencia"
+                                    elif _rm in ("transferencia", "efectivo", "otro"):
+                                        disco.metodo_pago_venta = _rm
                                 if not disco.venta_grupo:
                                     disco.venta_grupo = f"r{reserva.id}"
                                 if cli_res and not disco.cliente_id:
                                     disco.cliente_id = cli_res.id
                         db.session.commit()
 
-                    # Ya NO se manda mail automatico al cambiar el estado: Facundo
-                    # decide cuando avisar con el boton "Enviar mail al cliente".
-                    flash(f"Reserva marcada como {nuevo}. (No se envio mail; usá el botón si querés avisarle.)", "success")
+                    # Al marcar PAGADA una compra por Mercado Pago o transferencia, avisarle
+                    # al cliente que su compra quedo confirmada. (MP tambien lo manda solo al
+                    # confirmarse el pago via webhook; esto cubre cuando VOS confirmas la
+                    # transferencia y la marcas Pagada.)
+                    _mail_ok = False
+                    if (nuevo == "Pagada" and reserva.email and mailer.can_send()
+                            and (reserva.metodo_pago or "") in ("mercadopago", "transferencia")):
+                        try:
+                            _discos = [i.disco for i in reserva.items_efectivos if i.disco]
+                            # "confirmado" -> el mail dice "Tu pago quedo confirmado" (no el
+                            # "recibimos tu comprobante" del checkout), porque aca ya lo verificaste.
+                            mailer.send_compra_confirmacion_cliente(reserva, _discos, metodo="confirmado")
+                            _mail_ok = True
+                        except Exception:
+                            _mail_ok = False
+                    if _mail_ok:
+                        flash(f"Reserva marcada como {nuevo}. Le mandamos el mail de confirmación de compra a {reserva.email}.", "success")
+                    else:
+                        flash(f"Reserva marcada como {nuevo}. (No se envió mail; usá el botón si querés avisarle.)", "success")
 
             elif accion == "enviar_mail":
                 # Envio MANUAL del aviso de estado al cliente (lo dispara Facundo).
@@ -7021,7 +7066,12 @@ def register_routes(app: Flask) -> None:
                   .filter(Reserva.cliente_id.isnot(None), Reserva.estado == "Pagada")
                   .all()):
             for it in r.items_efectivos:
-                _add(r.cliente_id, it.disc_id, (it.precio_uyu_snap or 0), r.fecha)
+                # MISMA formula de precio/fecha que _compras_de_cliente (la ficha), para
+                # que el total gastado y la lealtad coincidan entre la lista y la ficha.
+                _d = it.disco
+                _pre = (it.precio_uyu_snap or (_d.precio_mostrar if _d else 0) or 0)
+                _fec = (_d.fecha_venta if (_d and _d.fecha_venta) else r.fecha)
+                _add(r.cliente_id, it.disc_id, _pre, _fec)
         # 2) Ventas directas (IG) atadas al disco, no contadas arriba
         for d in (Disc.query
                   .filter(Disc.estado == "Vendido", Disc.cliente_id.isnot(None))
@@ -7200,15 +7250,30 @@ def register_routes(app: Flask) -> None:
         from models import Cliente
         cli = Cliente.query.get_or_404(cliente_id)
         cfg = _lealtad_config()
+        # Recomputar el estado real ANTES de tocar el saldo, para no aplicar un premio
+        # que no esta disponible (ej: doble clic / reenvio del POST que consumiria un
+        # ciclo de mas y le comeria el excedente al cliente).
+        _total = sum(e["precio"] for e in _compras_de_cliente(cli))
+        est = _lealtad_estado(cli, _total)
         if hito == 1:
+            if not est["premio1_disponible"]:
+                flash("El premio 1 no esta disponible (ya lo entregaste o todavia no lo alcanzo).", "warning")
+                return redirect(url_for("admin_cliente_detail", cliente_id=cli.id))
             cli.premio1_cobrado = True
             db.session.commit()
             flash(f"Premio 1 marcado como entregado a {cli.nombre}.", "success")
         elif hito == 2:
+            if not est["premio2_disponible"]:
+                flash("El premio 2 no esta disponible todavia (el cliente no llego a la meta).", "warning")
+                return redirect(url_for("admin_cliente_detail", cliente_id=cli.id))
             cli.lealtad_base = int(getattr(cli, "lealtad_base", 0) or 0) + cfg["u2"]
             cli.premio1_cobrado = False
             db.session.commit()
-            flash(f"Premio 2 entregado a {cli.nombre}: el ciclo se reinicia y el excedente queda a favor.", "success")
+            # Aviso si tambien tenia el premio 1 sin entregar (el reinicio lo deja atras).
+            if est["premio1_disponible"]:
+                flash(f"Premio 2 entregado a {cli.nombre}: el ciclo se reinicia (el excedente queda a favor). OJO: este cliente TAMBIEN tenia el premio 1 pendiente — asegurate de dárselo.", "success")
+            else:
+                flash(f"Premio 2 entregado a {cli.nombre}: el ciclo se reinicia y el excedente queda a favor.", "success")
         else:
             flash("Hito invalido.", "error")
         return redirect(url_for("admin_cliente_detail", cliente_id=cli.id))
