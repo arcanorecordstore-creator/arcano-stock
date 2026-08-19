@@ -446,10 +446,10 @@ Montevideo, Uruguay
 
 # Titulo + texto por defecto de cada estado (editable desde el admin al enviar)
 RESERVA_ESTADO_MENSAJES = {
-    "Confirmada": ("Confirmamos tu pedido",
-                   "Confirmamos tu pedido. En breve coordinamos la entrega por WhatsApp."),
-    "Completada": ("Tu pedido esta completo",
-                   "Tu pedido se completo. Gracias por comprar en Arcano!"),
+    "Pendiente": ("Recibimos tu pedido",
+                  "Recibimos tu pedido y te lo apartamos. Coordinamos el pago y la entrega por WhatsApp."),
+    "Pagada": ("Confirmamos tu pago",
+               "Confirmamos tu pago. Gracias por comprar en Arcano! Coordinamos la entrega por WhatsApp."),
     "Cancelada": ("Tu pedido fue cancelado",
                   "Tu pedido fue cancelado. Si fue un error o queres retomarlo, escribinos por WhatsApp."),
 }

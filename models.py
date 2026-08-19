@@ -852,11 +852,13 @@ class ClienteFavorito(db.Model):
     )
 
 
+# Estados del pedido = estado del PAGO. La entrega (envio/pickup + entregado) va
+# aparte, no toca la plata. La venta (disco Vendido, entra a caja/contabilidad)
+# se registra al pasar a "Pagada".
 ESTADOS_RESERVA = [
-    "Pendiente",      # cliente reservo, vos todavia no confirmaste
-    "Confirmada",     # vos confirmaste que se la guardas
-    "Completada",     # cliente pago y retiro
-    "Cancelada",      # se cancelo por alguna razon
+    "Pendiente",      # todavia no pago (el disco queda apartado / Reservado)
+    "Pagada",         # pago (por Mercado Pago o transferencia) -> se marca la venta
+    "Cancelada",      # se cancelo (el disco vuelve a Disponible)
 ]
 
 
@@ -1731,6 +1733,17 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE reservas ADD COLUMN cliente_id INTEGER"))
                     conn.commit()
                 print("Migracion: columna cliente_id agregada a reservas")
+            # Rediseño de estados (v4.37): Confirmada -> Pendiente, Completada -> Pagada.
+            # Idempotente: despues de la 1ra corrida ya no quedan esos estados.
+            with db.engine.connect() as conn:
+                r1 = conn.execute(text(
+                    "UPDATE reservas SET estado='Pendiente' WHERE estado='Confirmada'"))
+                r2 = conn.execute(text(
+                    "UPDATE reservas SET estado='Pagada', entregado=1 WHERE estado='Completada'"))
+                conn.commit()
+                _n = (r1.rowcount or 0) + (r2.rowcount or 0)
+                if _n:
+                    print(f"Migracion: {_n} reserva(s) migradas a los estados nuevos (Pendiente/Pagada)")
 
 
 def _migrate_tracklists_to_tracks(app):

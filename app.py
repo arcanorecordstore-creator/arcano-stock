@@ -848,14 +848,14 @@ def _atribuir_compra(discs, nombre=None, whatsapp=None, email=None, instagram=No
 
 def _backfill_ventas_sin_cliente(app):
     """Al arrancar (idempotente): re-ata a su cliente las ventas viejas que quedaron
-    sueltas. (1) Reservas Completada sin cliente -> busca/crea el cliente por sus datos
-    (email/celular/IG) y la linkea. (2) Discos Vendido de reservas Completada ya
+    sueltas. (1) Reservas Pagada sin cliente -> busca/crea el cliente por sus datos
+    (email/celular/IG) y la linkea. (2) Discos Vendido de reservas Pagada ya
     linkeadas que no tengan comprador -> les pone el comprador de la reserva. Nunca
     pisa lo que ya esta atado, asi que correrlo de nuevo no cambia nada."""
     try:
         with app.app_context():
             cambios = 0
-            for r in Reserva.query.filter(Reserva.estado == "Completada",
+            for r in Reserva.query.filter(Reserva.estado == "Pagada",
                                           Reserva.cliente_id.is_(None)).all():
                 cli = _buscar_o_crear_cliente(
                     r.nombre, r.whatsapp, r.email,
@@ -864,7 +864,7 @@ def _backfill_ventas_sin_cliente(app):
                     r.cliente_id = cli.id
                     cambios += 1
             db.session.flush()
-            for r in Reserva.query.filter(Reserva.estado == "Completada",
+            for r in Reserva.query.filter(Reserva.estado == "Pagada",
                                           Reserva.cliente_id.isnot(None)).all():
                 for it in r.items_efectivos:
                     d = getattr(it, "disco", None)
@@ -3663,12 +3663,12 @@ def register_routes(app: Flask) -> None:
 
         # --- ENVIOS (ingresos): el $50 del envio cobrado, cuando la venta se concreta ---
         # Entra a la caja recien cuando hay plata de verdad: MP pagado o reserva
-        # Completada. Antes de eso NO cuenta (todavia no entro).
+        # Pagada. Antes de eso NO cuenta (todavia no entro).
         for r in Reserva.query.filter(Reserva.envio_costo_uyu > 0).all():
             monto = round(r.envio_costo_uyu or 0, 2)
             if monto <= 0:
                 continue
-            if not (bool(r.pagado) or r.estado == "Completada"):
+            if not (bool(r.pagado) or r.estado == "Pagada"):
                 continue  # todavia no entro la plata; la limpieza saca un mov viejo si lo hubiera
             key = ("envio", r.id)
             vigentes.add(key)
@@ -5291,7 +5291,7 @@ def register_routes(app: Flask) -> None:
             .update(
                 {
                     "pagado": True,
-                    "estado": "Completada",
+                    "estado": "Pagada",
                     "mp_status": status,
                     "mp_payment_id": str(payment_id) if payment_id else reserva.mp_payment_id,
                 },
@@ -6429,7 +6429,7 @@ def register_routes(app: Flask) -> None:
                 # El cliente subio comprobante: apartamos los discos (Reservado)
                 # automaticamente para que nadie mas los compre. NO se marcan
                 # Vendido ni entran a la caja hasta que Facundo confirme que la
-                # plata llego (marca la reserva Completada). El comprobante es una
+                # plata llego (marca la reserva Pagada). El comprobante es una
                 # foto del cliente, no una confirmacion real del banco.
                 for d in disponibles:
                     if d.estado == "Disponible":
@@ -6547,7 +6547,7 @@ def register_routes(app: Flask) -> None:
     def admin_reserva_nueva():
         """Alta MANUAL de una reserva (ej: un pedido que te llego por Instagram). Se
         llenan los mismos campos que la reserva web + el canal, y segun el estado elegido
-        el/los discos quedan Reservado (Confirmada) o Vendido (Completada)."""
+        el/los discos quedan Reservado (Pendiente) o Vendido (Pagada)."""
         if request.method == "POST":
             nombre = (request.form.get("nombre") or "").strip()[:200]
             whatsapp = (request.form.get("whatsapp") or "").strip()[:50]
@@ -6584,7 +6584,7 @@ def register_routes(app: Flask) -> None:
                 canal=canal, estado=estado, metodo_pago=metodo,
                 entrega_tipo=entrega_tipo, envio_costo_uyu=envio_costo,
                 envio_direccion=envio_direccion, envio_agencia=envio_agencia,
-                fecha=now_uy(), pagado=(estado == "Completada"),
+                fecha=now_uy(), pagado=(estado == "Pagada"),
                 total_cobrado_uyu=round(total_discos + envio_costo, 2),
             )
             db.session.add(reserva)
@@ -6610,8 +6610,8 @@ def register_routes(app: Flask) -> None:
             db.session.commit()
 
             # Aplicar el estado elegido a los discos (misma logica que el detalle):
-            # Confirmada -> Reservado | Completada -> Vendido | Cancelada -> Disponible.
-            estado_disco = {"Confirmada": "Reservado", "Completada": "Vendido",
+            # Pendiente -> Reservado (apartado) | Pagada -> Vendido | Cancelada -> Disponible.
+            estado_disco = {"Pendiente": "Reservado", "Pagada": "Vendido",
                             "Cancelada": "Disponible"}.get(estado)
             if estado_disco:
                 grupo = f"r{reserva.id}"
@@ -6621,9 +6621,9 @@ def register_routes(app: Flask) -> None:
                     if d.estado != estado_disco and d.estado != "Vendido":
                         register_status_change(d, estado_disco,
                                                nota=f"Reserva manual #{reserva.id} -> {estado}")
-                    # Si la reserva es una venta (Completada), registrar canal/metodo/grupo
+                    # Si la reserva es una venta (Pagada), registrar canal/metodo/grupo
                     # aunque el disco ya estuviera Vendido (lo marcaste antes de la reserva).
-                    if estado == "Completada":
+                    if estado == "Pagada":
                         if not d.canal_venta:
                             d.canal_venta = canal
                         if metodo and not d.metodo_pago_venta:
@@ -6659,7 +6659,7 @@ def register_routes(app: Flask) -> None:
     @auth.admin_required
     def reserva_toggle_entrega(reserva_id: int):
         """Alterna el estado de ENTREGA de la reserva (recibido / pendiente de
-        entrega). Es independiente del pago (estado Completada)."""
+        entrega). Es independiente del pago (estado Pagada)."""
         r = Reserva.query.get_or_404(reserva_id)
         r.entregado = not bool(r.entregado)
         db.session.commit()
@@ -6680,20 +6680,21 @@ def register_routes(app: Flask) -> None:
                     flash(f"Estado invalido: {nuevo}", "error")
                 else:
                     reserva.estado = nuevo
+                    reserva.pagado = (nuevo == "Pagada")  # la venta se cuenta al Pagar
                     db.session.commit()
 
                     # Aplicar cambio de estado a TODOS los discos de la reserva
-                    # Confirmada -> Reservado | Completada -> Vendido | Cancelada -> Disponible
+                    # Pendiente -> Reservado (apartado) | Pagada -> Vendido | Cancelada -> Disponible
                     estado_disco = {
-                        "Confirmada": "Reservado",
-                        "Completada": "Vendido",
+                        "Pendiente": "Reservado",
+                        "Pagada": "Vendido",
                         "Cancelada": "Disponible",
                     }.get(nuevo)
 
                     if estado_disco:
-                        # Al completar: asegurar el cliente en la base y linkear la reserva
+                        # Al marcar Pagada (la venta): asegurar el cliente y linkear la reserva
                         cli_res = None
-                        if nuevo == "Completada":
+                        if nuevo == "Pagada":
                             from models import Cliente
                             cli_res = Cliente.query.get(reserva.cliente_id) if reserva.cliente_id else None
                             if cli_res is None:
@@ -6954,15 +6955,15 @@ def register_routes(app: Flask) -> None:
     # =====================================================================
     def _compras_de_cliente(cli):
         """Lista de compras de un cliente. La historia real vive en las RESERVAS
-        Completadas (via sus items); ademas se suman las ventas de IG que quedaron
+        Pagadas (via sus items); ademas se suman las ventas de IG que quedaron
         atadas directo al disco (disc.cliente_id) y no pasaron por una reserva. Se
         deduplica por disco. Devuelve entradas {artista, titulo, precio, fecha, canal,
         disc_id}."""
         entradas = []
         vistos = set()
-        # 1) Reservas Completadas del cliente -> sus discos (con precio pagado)
+        # 1) Reservas Pagadas del cliente -> sus discos (con precio pagado)
         reservas = (Reserva.query
-                    .filter(Reserva.cliente_id == cli.id, Reserva.estado == "Completada")
+                    .filter(Reserva.cliente_id == cli.id, Reserva.estado == "Pagada")
                     .all())
         for r in reservas:
             for it in r.items_efectivos:
@@ -6997,7 +6998,7 @@ def register_routes(app: Flask) -> None:
 
     def _clientes_agregados():
         """Agregados de compras por cliente (mismo criterio que _compras_de_cliente pero
-        en bloque, para la lista): reservas Completadas + ventas IG directas, deduplicado
+        en bloque, para la lista): reservas Pagadas + ventas IG directas, deduplicado
         por disco. Devuelve {cliente_id: {n, total, ultima}} y {cliente_id: reservas activas}."""
         agg = {}   # cid -> {"discs": set, "sueltos": int, "total": float, "ultima": dt}
 
@@ -7015,9 +7016,9 @@ def register_routes(app: Flask) -> None:
             if fecha and (not a["ultima"] or fecha > a["ultima"]):
                 a["ultima"] = fecha
 
-        # 1) Reservas Completadas -> sus items (la historia real de compras)
+        # 1) Reservas Pagadas -> sus items (la historia real de compras)
         for r in (Reserva.query
-                  .filter(Reserva.cliente_id.isnot(None), Reserva.estado == "Completada")
+                  .filter(Reserva.cliente_id.isnot(None), Reserva.estado == "Pagada")
                   .all()):
             for it in r.items_efectivos:
                 _add(r.cliente_id, it.disc_id, (it.precio_uyu_snap or 0), r.fecha)
@@ -7032,7 +7033,7 @@ def register_routes(app: Flask) -> None:
         activas = {}
         for r in (Reserva.query
                   .filter(Reserva.cliente_id.isnot(None),
-                          Reserva.estado.in_(["Pendiente", "Confirmada"]))
+                          Reserva.estado.in_(["Pendiente"]))
                   .all()):
             activas[r.cliente_id] = activas.get(r.cliente_id, 0) + 1
         return compras, activas
@@ -7174,10 +7175,10 @@ def register_routes(app: Flask) -> None:
     def admin_cliente_detail(cliente_id):
         from models import Cliente
         cli = Cliente.query.get_or_404(cliente_id)
-        compras = _compras_de_cliente(cli)  # desde las reservas Completadas + ventas IG
+        compras = _compras_de_cliente(cli)  # desde las reservas Pagadas + ventas IG
         reservas_activas = (Reserva.query
                             .filter(Reserva.cliente_id == cli.id,
-                                    Reserva.estado.in_(["Pendiente", "Confirmada"]))
+                                    Reserva.estado.in_(["Pendiente"]))
                             .order_by(Reserva.fecha.desc()).all())
         total = sum(e["precio"] for e in compras)
         otros = (Cliente.query.filter(Cliente.id != cli.id)

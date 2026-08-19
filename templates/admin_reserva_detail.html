@@ -7,7 +7,7 @@
 <section class="page-head">
     <div>
         <h1 class="page-title">Reserva #{{ reserva.id }}</h1>
-        <p class="page-sub">{{ reserva.fecha.strftime('%d/%m/%Y %H:%M') }} UTC &middot; Estado: <span class="badge badge-{{ 'reservado' if reserva.estado == 'Pendiente' else 'disponible' if reserva.estado == 'Confirmada' else 'vendido' if reserva.estado == 'Completada' else 'descartado' }}">{{ reserva.estado }}</span></p>
+        <p class="page-sub">{{ reserva.fecha.strftime('%d/%m/%Y %H:%M') }} UTC &middot; Estado: <span class="badge badge-{{ 'reservado' if reserva.estado == 'Pendiente' else 'vendido' if reserva.estado == 'Pagada' else 'descartado' }}">{{ reserva.estado }}</span></p>
     </div>
     <div class="page-actions">
         <a href="{{ url_for('admin_reservas') }}" class="btn btn-ghost">&larr; Volver</a>
@@ -81,6 +81,19 @@
                 {% endif %}
             </div>
             {% endif %}
+
+            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-1);">
+                <span class="detail-meta-label">&iquest;Ya lo entregaste?</span>
+                <form method="post" action="{{ url_for('reserva_toggle_entrega', reserva_id=reserva.id) }}" style="margin-top: 8px;">
+                    <button type="submit" class="entrega-toggle {{ 'on' if reserva.entregado else 'off' }}" title="Tocá para cambiar entre entregado y pendiente de entrega">
+                        {% if reserva.entregado %}
+                        <span class="entrega-ico">&#10003;</span><span class="entrega-txt">Entregado</span>
+                        {% else %}
+                        <span class="entrega-ico">&#8987;</span><span class="entrega-txt">Pendiente de entrega</span>
+                        {% endif %}
+                    </button>
+                </form>
+            </div>
         </div>
 
         <div class="detail-actions">
@@ -98,7 +111,7 @@
             {% if not reserva.email %}
             <p style="font-size: 12px; color: var(--text-4); margin: 0;">El cliente no dejó email, no se le puede avisar por mail.</p>
             {% elif not texto_mail_default %}
-            <p style="font-size: 12px; color: var(--text-4); margin: 0;">El estado actual («{{ reserva.estado }}») no tiene mail de aviso. Poné la reserva en Confirmada, Completada o Cancelada para poder avisarle.</p>
+            <p style="font-size: 12px; color: var(--text-4); margin: 0;">El estado actual («{{ reserva.estado }}») no tiene mail de aviso.</p>
             {% else %}
             <form method="post" action="{{ url_for('admin_reserva_detail', reserva_id=reserva.id) }}"
                   data-confirm="¿Enviar este mail a {{ reserva.email }}?">
@@ -193,10 +206,10 @@ Montevideo, Uruguay</div>
         <div class="detail-card">
             <h2 class="detail-card-title">Flujo</h2>
             <p style="color: var(--text-3); font-size: 13px; line-height: 1.6;">
-                <strong>Pendiente</strong>: el cliente reservo, todavia no coordinaron nada. El disco esta en estado "Reservado".<br><br>
-                <strong>Confirmada</strong>: ya hablaste con el cliente y le aseguraste la guarda.<br><br>
-                <strong>Completada</strong>: cliente pago y retiro. Marca al disco como Vendido automaticamente.<br><br>
-                <strong>Cancelada</strong>: por la razon que sea (no contesto, se arrepintio). El disco vuelve a Disponible automaticamente.
+                <strong>Pendiente</strong>: todavia no pago. El disco queda <strong>apartado</strong> (Reservado), nadie mas lo compra.<br><br>
+                <strong>Pagada</strong>: ya pago (por Mercado Pago o transferencia). Marca al disco como <strong>Vendido</strong> y la venta entra a la caja/contabilidad.<br><br>
+                <strong>Cancelada</strong>: por la razon que sea (no contesto, se arrepintio). El disco vuelve a Disponible automaticamente.<br><br>
+                La <strong>entrega</strong> (env&iacute;o / pick up y el bot&oacute;n "Entregado") va aparte: es solo seguimiento y no toca la plata.
             </p>
         </div>
     </div>

@@ -51,12 +51,11 @@
                 {% if r.metodo_pago %}
                 <span class="cuenta-reserva-metodo">{% if r.metodo_pago == 'transferencia' %}Transferencia{% elif r.metodo_pago == 'mercadopago' %}Mercado Pago{% else %}Coordinar{% endif %}</span>
                 {% endif %}
-                <span class="badge badge-{{ 'reservado' if r.estado == 'Pendiente' else 'disponible' if r.estado == 'Confirmada' else 'vendido' if r.estado == 'Completada' else 'descartado' }}">{{ r.estado }}</span>
+                <span class="badge badge-{{ 'reservado' if r.estado == 'Pendiente' else 'vendido' if r.estado == 'Pagada' else 'descartado' }}">{{ r.estado }}</span>
             </div>
             <div class="cuenta-reserva-estado-hint">
-                {% if r.estado == 'Pendiente' %}Te contactamos por WhatsApp para coordinar.
-                {% elif r.estado == 'Confirmada' %}Confirmado &mdash; coordinamos la entrega.
-                {% elif r.estado == 'Completada' %}Completado. &iexcl;Gracias por tu compra!
+                {% if r.estado == 'Pendiente' %}Te apartamos el pedido. Coordinamos el pago por WhatsApp.
+                {% elif r.estado == 'Pagada' %}Pago confirmado &mdash; coordinamos la entrega. &iexcl;Gracias!
                 {% elif r.estado == 'Cancelada' %}Cancelado.
                 {% endif %}
             </div>

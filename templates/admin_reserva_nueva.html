@@ -7,7 +7,7 @@
 <section class="page-head">
     <div>
         <h1 class="page-title">Nueva reserva manual</h1>
-        <p class="page-sub">Cargá una reserva que te lleg&oacute; por fuera de la web (Instagram, presencial). Segun el estado que elijas, el disco queda apartado (Confirmada) o vendido (Completada). El canal se refleja en el panel de Ventas.</p>
+        <p class="page-sub">Cargá una reserva que te lleg&oacute; por fuera de la web (Instagram, presencial). Segun el estado que elijas, el disco queda apartado (Pendiente) o vendido (Pagada). El canal se refleja en el panel de Ventas.</p>
     </div>
     <div class="page-actions">
         <a href="{{ url_for('admin_reservas') }}" class="btn btn-ghost">&larr; Volver a Reservas</a>
@@ -70,7 +70,7 @@
                 <option value="{{ e }}" {% if e == 'Pendiente' %}selected{% endif %}>{{ e }}</option>
                 {% endfor %}
             </select>
-            <span class="form-field-hint" id="estado-hint">Pendiente = solo anotar (no toca el disco).</span>
+            <span class="form-field-hint" id="estado-hint">Pendiente = apartado, esperando el pago (Reservado).</span>
         </div>
         <div class="form-field">
             <label for="metodo_pago">M&eacute;todo de pago</label>
@@ -170,9 +170,8 @@
     var estado = document.getElementById('estado');
     var hint = document.getElementById('estado-hint');
     var HINTS = {
-        'Pendiente': 'Pendiente = solo anotar (no toca el disco).',
-        'Confirmada': 'Confirmada = aparta el disco (pasa a Reservado).',
-        'Completada': 'Completada = vende el disco (con el canal y metodo elegidos).',
+        'Pendiente': 'Pendiente = apartado, esperando el pago (el disco pasa a Reservado).',
+        'Pagada': 'Pagada = vende el disco (con el canal y metodo elegidos) y entra a la caja.',
         'Cancelada': 'Cancelada = el disco vuelve a Disponible.'
     };
     if (estado && hint) estado.addEventListener('change', function () {
