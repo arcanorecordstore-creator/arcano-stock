@@ -2,6 +2,75 @@
 
 {% block title %}Reservas &middot; Arcano admin{% endblock %}
 
+{% macro money(n) -%}$ {{ '{:,.0f}'.format(n or 0).replace(',', '.') }}{%- endmacro %}
+
+{% macro reserva_card(r, con_check) %}
+<div class="reserva-card {% if r.estado == 'Pendiente' %}reserva-pending{% endif %}">
+    {% if con_check %}
+    <label class="reserva-chk-col" onclick="event.stopPropagation();" title="Eleg&iacute; 2 o m&aacute;s para unirlas en un pedido">
+        <input type="checkbox" class="reserva-chk" value="{{ r.id }}">
+    </label>
+    {% endif %}
+    <form method="post" action="{{ url_for('reserva_toggle_entrega', reserva_id=r.id) }}" class="reserva-entrega-col">
+        <button type="submit" class="entrega-toggle {{ 'on' if r.entregado else 'off' }}" title="Toc&aacute; para cambiar entre entregado y pendiente">
+            {% if r.entregado %}
+            <span class="entrega-ico">&#10003;</span><span class="entrega-txt">Entregado</span>
+            {% else %}
+            <span class="entrega-ico">&#8987;</span><span class="entrega-txt">Pendiente de entrega</span>
+            {% endif %}
+        </button>
+    </form>
+    <a href="{{ url_for('admin_reserva_detail', reserva_id=r.id) }}" class="reserva-card-link">
+    <div class="reserva-card-head">
+        <span class="reserva-card-num">#{{ r.id }}</span>
+        {% if r.estado == 'Pagada' %}
+        <span class="badge badge-pagada">Pagada</span>
+        {% else %}
+        <span class="badge badge-{{ 'reservado' if r.estado == 'Pendiente' else 'descartado' }}">{{ r.estado }}</span>
+        {% endif %}
+        <span class="reserva-metodo-chip" title="Canal de la reserva">
+            {%- if r.canal == 'instagram' %}&#9673; Instagram
+            {%- elif r.canal == 'presencial' %}&#9673; Presencial
+            {%- elif r.canal == 'otro' %}&#9673; Otro
+            {%- else %}&#9673; Web{% endif %}
+        </span>
+        {% if r.metodo_pago %}
+        <span class="reserva-metodo-chip">
+            {%- if r.metodo_pago == 'transferencia' %}Transferencia
+            {%- elif r.metodo_pago == 'mercadopago' %}Mercado Pago{% if r.pagado %} &middot; PAGADO{% endif %}
+            {%- else %}Coordinar{% endif %}
+        </span>
+        {% endif %}
+        {% if r.comprobante_file %}
+        <span class="reserva-comprobante-chip">&#128206; Comprobante</span>
+        {% endif %}
+        <span class="reserva-card-date">{{ r.fecha.strftime('%d/%m/%Y %H:%M') }} UTC</span>
+    </div>
+    <div class="reserva-card-body">
+        <div class="reserva-card-disc">
+            {% set items = r.items_efectivos %}
+            {% if items|length == 1 %}
+                <strong>{{ items[0].artista_snap or '(disco)' }}</strong> &mdash; {{ items[0].titulo_snap or '' }}
+            {% elif items|length > 1 %}
+                <strong>{{ items|length }} discos</strong>
+                <span class="reserva-card-multi">{{ items[0].artista_snap }} &middot; {{ items[1].artista_snap }}{% if items|length > 2 %} +{{ items|length - 2 }}{% endif %}</span>
+            {% else %}
+                <strong>(sin discos)</strong>
+            {% endif %}
+            {% if r.total_uyu > 0 %}<span class="reserva-card-total">$ {{ '{:,.0f}'.format(r.total_uyu).replace(',', '.') }}</span>{% endif %}
+        </div>
+        <div class="reserva-card-cliente">
+            {{ r.nombre }} &middot; {{ r.whatsapp }}
+            {% if r.email %}&middot; {{ r.email }}{% endif %}
+        </div>
+        {% if r.nota %}
+        <div class="reserva-card-nota">"{{ r.nota }}"</div>
+        {% endif %}
+    </div>
+    </a>
+</div>
+{% endmacro %}
+
 {% block content %}
 
 <section class="page-head">
@@ -21,78 +90,55 @@
 </section>
 
 <div class="reserva-filters">
-    <a href="{{ url_for('admin_reservas') }}" class="reserva-filter-chip {% if not filtro_estado %}active{% endif %}">
+    <a href="{{ url_for('admin_reservas', q=f_q or None) }}" class="reserva-filter-chip {% if not filtro_estado %}active{% endif %}">
         Todas ({{ contadores.Pendiente + contadores.Pagada + contadores.Cancelada }})
     </a>
     {% for e in estados %}
-    <a href="{{ url_for('admin_reservas', estado=e) }}" class="reserva-filter-chip {% if filtro_estado == e %}active{% endif %}">
+    <a href="{{ url_for('admin_reservas', estado=e, q=f_q or None) }}" class="reserva-filter-chip {% if filtro_estado == e %}active{% endif %}">
         {{ e }} ({{ contadores[e] }})
     </a>
     {% endfor %}
 </div>
 
-{% if reservas %}
-<div class="reserva-list">
-    {% for r in reservas %}
-    <div class="reserva-card {% if r.estado == 'Pendiente' %}reserva-pending{% endif %}">
-        <form method="post" action="{{ url_for('reserva_toggle_entrega', reserva_id=r.id) }}" class="reserva-entrega-col">
-            <button type="submit" class="entrega-toggle {{ 'on' if r.entregado else 'off' }}" title="Toc&aacute; para cambiar entre entregado y pendiente">
-                {% if r.entregado %}
-                <span class="entrega-ico">&#10003;</span><span class="entrega-txt">Entregado</span>
-                {% else %}
-                <span class="entrega-ico">&#8987;</span><span class="entrega-txt">Pendiente de entrega</span>
-                {% endif %}
-            </button>
-        </form>
-        <a href="{{ url_for('admin_reserva_detail', reserva_id=r.id) }}" class="reserva-card-link">
-        <div class="reserva-card-head">
-            <span class="reserva-card-num">#{{ r.id }}</span>
-            {% if r.estado == 'Pagada' %}
-            <span class="badge badge-pagada">Pagada</span>
-            {% else %}
-            <span class="badge badge-{{ 'reservado' if r.estado == 'Pendiente' else 'descartado' }}">{{ r.estado }}</span>
-            {% endif %}
-            <span class="reserva-metodo-chip" title="Canal de la reserva">
-                {%- if r.canal == 'instagram' %}&#9673; Instagram
-                {%- elif r.canal == 'presencial' %}&#9673; Presencial
-                {%- elif r.canal == 'otro' %}&#9673; Otro
-                {%- else %}&#9673; Web{% endif %}
-            </span>
-            {% if r.metodo_pago %}
-            <span class="reserva-metodo-chip">
-                {%- if r.metodo_pago == 'transferencia' %}Transferencia
-                {%- elif r.metodo_pago == 'mercadopago' %}Mercado Pago{% if r.pagado %} &middot; PAGADO{% endif %}
-                {%- else %}Coordinar{% endif %}
-            </span>
-            {% endif %}
-            {% if r.comprobante_file %}
-            <span class="reserva-comprobante-chip">&#128206; Comprobante</span>
-            {% endif %}
-            <span class="reserva-card-date">{{ r.fecha.strftime('%d/%m/%Y %H:%M') }} UTC</span>
-        </div>
-        <div class="reserva-card-body">
-            <div class="reserva-card-disc">
-                {% set items = r.items_efectivos %}
-                {% if items|length == 1 %}
-                    <strong>{{ items[0].artista_snap or '(disco)' }}</strong> &mdash; {{ items[0].titulo_snap or '' }}
-                {% elif items|length > 1 %}
-                    <strong>{{ items|length }} discos</strong>
-                    <span class="reserva-card-multi">{{ items[0].artista_snap }} &middot; {{ items[1].artista_snap }}{% if items|length > 2 %} +{{ items|length - 2 }}{% endif %}</span>
-                {% else %}
-                    <strong>(sin discos)</strong>
-                {% endif %}
-                {% if r.total_uyu > 0 %}<span class="reserva-card-total">$ {{ '{:,.0f}'.format(r.total_uyu).replace(',', '.') }}</span>{% endif %}
-            </div>
-            <div class="reserva-card-cliente">
-                {{ r.nombre }} &middot; {{ r.whatsapp }}
-                {% if r.email %}&middot; {{ r.email }}{% endif %}
-            </div>
-            {% if r.nota %}
-            <div class="reserva-card-nota">"{{ r.nota }}"</div>
-            {% endif %}
-        </div>
-        </a>
+<form method="get" action="{{ url_for('admin_reservas') }}" class="reserva-search">
+    {% if filtro_estado %}<input type="hidden" name="estado" value="{{ filtro_estado }}">{% endif %}
+    <input type="search" name="q" value="{{ f_q }}" placeholder="Buscar por cliente (nombre, celular, email o Instagram)..." class="pv-inp">
+    {% if f_q %}<a href="{{ url_for('admin_reservas', estado=filtro_estado or None) }}" class="reserva-search-clear">&times; limpiar</a>{% endif %}
+</form>
+
+{% if unidades %}
+<!-- Barra para unir reservas en un pedido (aparece al elegir 2+) -->
+<form method="post" action="{{ url_for('reservas_agrupar') }}" id="reserva-bulk-form"
+      onsubmit="return confirm('¿Unir las reservas elegidas en un solo pedido? Se van a tratar juntas (un envío).');">
+    <input type="hidden" name="ids" id="reserva-bulk-ids">
+    <div class="reserva-bulkbar" id="reserva-bulkbar" hidden>
+        <span>&#128230; <strong id="reserva-bulk-n">0</strong> reservas elegidas</span>
+        <button type="submit" class="btn btn-primary btn-sm">Unir en un pedido</button>
     </div>
+</form>
+
+<div class="reserva-list">
+    {% for u in unidades %}
+        {% if u.es_grupo %}
+        <div class="reserva-grupo">
+            <div class="reserva-grupo-head">
+                <span class="reserva-grupo-tag">&#128230; Pedido agrupado</span>
+                <span class="reserva-grupo-meta">{{ u.reservas|length }} reservas &middot; {{ u.n_discos }} disco{{ 's' if u.n_discos != 1 else '' }} &middot; {{ u.cliente }}</span>
+                {% if u.entregado %}<span class="reserva-grupo-entregado">&#10003; Todo entregado</span>{% endif %}
+                <span class="reserva-grupo-total">{{ money(u.total) }}</span>
+                <form method="post" action="{{ url_for('reservas_desagrupar') }}"
+                      onsubmit="return confirm('¿Separar este pedido? Cada reserva vuelve a ir por su cuenta.');">
+                    <input type="hidden" name="grupo" value="{{ u.grupo }}">
+                    <button type="submit" class="btn btn-ghost btn-sm">Separar</button>
+                </form>
+            </div>
+            <div class="reserva-grupo-items">
+                {% for r in u.reservas %}{{ reserva_card(r, false) }}{% endfor %}
+            </div>
+        </div>
+        {% else %}
+            {{ reserva_card(u.reservas[0], true) }}
+        {% endif %}
     {% endfor %}
 </div>
 
@@ -100,8 +146,43 @@
 <div class="empty-state">
     <div class="empty-icon">&#9999;</div>
     <h2>Sin reservas</h2>
-    <p>{% if filtro_estado %}No hay reservas en estado "{{ filtro_estado }}".{% else %}Todavia no llegaron reservas desde la tienda.{% endif %}</p>
+    <p>{% if filtro_estado or f_q %}No hay reservas que coincidan con el filtro.{% else %}Todavia no llegaron reservas desde la tienda.{% endif %}</p>
 </div>
 {% endif %}
+
+<style>
+.reserva-search{margin:0 0 14px;position:relative;display:flex;align-items:center;gap:10px;}
+.reserva-search .pv-inp{width:100%;}
+.reserva-search-clear{flex-shrink:0;font-size:12.5px;color:var(--text-3,#888);text-decoration:none;white-space:nowrap;}
+.reserva-search-clear:hover{color:var(--text-1,#eee);}
+.reserva-bulkbar{position:sticky;top:0;z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg-2,#1e1e1e);border:1px solid rgba(46,92,158,.45);border-radius:10px;padding:10px 14px;margin-bottom:10px;}
+.reserva-chk-col{flex-shrink:0;display:flex;align-items:center;justify-content:center;padding:0 13px;border-right:1px solid var(--border-1,#2a2a2a);cursor:pointer;}
+.reserva-chk{width:17px;height:17px;cursor:pointer;}
+.reserva-grupo{border:1px solid rgba(46,92,158,.45);border-radius:10px;overflow:hidden;background:rgba(46,92,158,.05);}
+.reserva-grupo-head{display:flex;align-items:center;flex-wrap:wrap;gap:10px;padding:9px 14px;background:rgba(46,92,158,.12);border-bottom:1px solid rgba(46,92,158,.3);}
+.reserva-grupo-tag{font-weight:800;color:#6ea3e0;font-size:13px;}
+.reserva-grupo-meta{font-size:13px;color:var(--text-2,#bbb);}
+.reserva-grupo-entregado{font-size:11px;font-weight:700;color:#10b981;background:rgba(16,185,129,.12);padding:2px 8px;border-radius:999px;}
+.reserva-grupo-total{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums;color:var(--text-1,#eee);}
+.reserva-grupo-items{display:flex;flex-direction:column;gap:8px;padding:10px;}
+.reserva-grupo-items .reserva-card{background:var(--bg-2,#1e1e1e);}
+</style>
+<script>
+(function(){
+    var chks = document.querySelectorAll('.reserva-chk');
+    var bar = document.getElementById('reserva-bulkbar');
+    var nEl = document.getElementById('reserva-bulk-n');
+    var idsInput = document.getElementById('reserva-bulk-ids');
+    if(!bar) return;
+    function refresh(){
+        var ids = [];
+        chks.forEach(function(c){ if(c.checked) ids.push(c.value); });
+        nEl.textContent = ids.length;
+        bar.hidden = (ids.length < 2);
+        idsInput.value = ids.join(',');
+    }
+    chks.forEach(function(c){ c.addEventListener('change', refresh); });
+})();
+</script>
 
 {% endblock %}

@@ -6578,24 +6578,97 @@ def register_routes(app: Flask) -> None:
     @auth.admin_required
     def admin_reservas():
         filtro_estado = (request.args.get("estado") or "").strip()
+        f_q = (request.args.get("q") or "").strip()
         query = Reserva.query.order_by(Reserva.fecha.desc())
         if filtro_estado:
             query = query.filter(Reserva.estado == filtro_estado)
         reservas = query.all()
 
-        # Contadores por estado
+        # Filtro por cliente (nombre / whatsapp / email / instagram de la reserva)
+        if f_q:
+            ql = f_q.lower()
+            reservas = [r for r in reservas if ql in " ".join(filter(None, [
+                (r.nombre or "").lower(), (r.whatsapp or "").lower(),
+                (r.email or "").lower(),
+                ((r.cliente.instagram or "") if r.cliente else "").lower(),
+            ]))]
+
+        # Armar "unidades": las reservas con el mismo grupo se muestran juntas como un
+        # solo pedido; las sueltas quedan cada una por su lado. Se conserva el orden por
+        # fecha (la lista ya viene desc); el grupo toma la fecha de su reserva mas nueva.
+        from collections import OrderedDict as _OD
+        vistos = _OD()
+        for r in reservas:
+            key = r.grupo or f"s{r.id}"
+            vistos.setdefault(key, []).append(r)
+        unidades = []
+        for key, rs in vistos.items():
+            es_grupo = bool(rs[0].grupo) and len(rs) > 1
+            unidades.append({
+                "es_grupo": es_grupo,
+                "grupo": rs[0].grupo if es_grupo else None,
+                "reservas": rs,
+                "total": sum((r.total_uyu or 0) + (r.envio_costo_uyu or 0) for r in rs),
+                "fecha": max((r.fecha for r in rs), default=None),
+                "cliente": rs[0].nombre,
+                "n_discos": sum(len(r.items_efectivos) for r in rs),
+                "entregado": all(r.entregado for r in rs),
+            })
+        unidades.sort(key=lambda u: (u["fecha"] or datetime.min), reverse=True)
+
+        # Contadores por estado (siempre sobre el total, no sobre el filtro)
         contadores = {}
         for e in ESTADOS_RESERVA:
             contadores[e] = Reserva.query.filter_by(estado=e).count()
 
         return render_template(
             "admin_reservas.html",
-            reservas=reservas,
+            unidades=unidades,
             estados=ESTADOS_RESERVA,
             contadores=contadores,
             filtro_estado=filtro_estado,
+            f_q=f_q,
             tc=Setting.get_tc(),
         )
+
+    def _nuevo_reserva_grupo():
+        """Id incremental para un pedido agrupado de reservas ('rg1', 'rg2', ...)."""
+        try:
+            n = int(Setting.get("reserva_grupo_seq", "0") or 0)
+        except (ValueError, TypeError):
+            n = 0
+        n += 1
+        Setting.set("reserva_grupo_seq", str(n))
+        return f"rg{n}"
+
+    @app.route("/admin/reservas/agrupar", methods=["POST"])
+    @auth.admin_required
+    def reservas_agrupar():
+        """Junta 2+ reservas en un solo pedido (comparten 'grupo'). Tipico: unificar
+        varias reservas del mismo cliente en un unico envio. Si alguna ya estaba en un
+        grupo, todas se suman a ese grupo."""
+        ids = [int(x) for x in (request.form.get("ids") or "").split(",") if x.strip().isdigit()]
+        reservas = Reserva.query.filter(Reserva.id.in_(ids)).all() if ids else []
+        if len(reservas) < 2:
+            flash("Elegí al menos 2 reservas para unirlas en un pedido.", "warning")
+            return redirect(url_for("admin_reservas"))
+        grupo = next((r.grupo for r in reservas if r.grupo), None) or _nuevo_reserva_grupo()
+        for r in reservas:
+            r.grupo = grupo
+        db.session.commit()
+        flash(f"Listo: {len(reservas)} reservas quedaron unidas en un pedido.", "success")
+        return redirect(url_for("admin_reservas"))
+
+    @app.route("/admin/reservas/desagrupar", methods=["POST"])
+    @auth.admin_required
+    def reservas_desagrupar():
+        """Deshace la agrupacion: cada reserva del grupo vuelve a contar por separado."""
+        grupo = (request.form.get("grupo") or "").strip()
+        if grupo:
+            Reserva.query.filter_by(grupo=grupo).update({"grupo": None})
+            db.session.commit()
+            flash("Pedido separado: cada reserva vuelve a ir por su cuenta.", "success")
+        return redirect(url_for("admin_reservas"))
 
     _CANALES_RESERVA = [("web", "Web"), ("instagram", "Instagram"),
                         ("presencial", "Presencial"), ("otro", "Otro")]

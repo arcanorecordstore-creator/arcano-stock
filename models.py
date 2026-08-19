@@ -932,6 +932,10 @@ class Reserva(db.Model):
     # Al vender los discos de la reserva, este canal se copia a Disc.canal_venta -> aparece
     # en el panel de Ventas por ese canal. Las reservas web quedan en 'web'.
     canal = db.Column(db.String(20), nullable=False, default="web")
+    # Agrupacion manual de pedidos: varias reservas hechas en momentos distintos que
+    # comparten 'grupo' se tratan como UN pedido (tipico: unificar en un solo envio).
+    # Analogo a Disc.venta_grupo. Null = reserva suelta.
+    grupo = db.Column(db.String(40), nullable=True, index=True)
 
     # Relacion (puede ser null si el disco se borro)
     disc = db.relationship("Disc", backref="reservas", foreign_keys=[disc_id])
@@ -1469,6 +1473,7 @@ def _migrate_schema(app):
                 "envio_agencia": "VARCHAR(200)",
                 "entregado": "BOOLEAN DEFAULT 0",
                 "canal": "VARCHAR(20) DEFAULT 'web'",
+                "grupo": "VARCHAR(40)",
             }
             for _col, _ddl in _radds.items():
                 if _col not in _rcols:
