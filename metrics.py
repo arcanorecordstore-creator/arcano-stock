@@ -624,7 +624,7 @@ def recuperacion_inversion() -> dict:
          hosting, etc.) vs TODAS las ventas de discos. Es el punto de equilibrio
          real del negocio (cuando esta linea llega al 100%, empezas a ganar).
     """
-    from models import Pedido, Egreso
+    from models import Pedido
     peds = Pedido.query.all()
     invertido = sum(p.costo_total_uyu for p in peds)
     recuperado = sum(p.recaudado_uyu for p in peds)
@@ -632,15 +632,18 @@ def recuperacion_inversion() -> dict:
     discos_vendidos = sum(p.discos_vendidos for p in peds)
     pct = round(recuperado / invertido * 100, 1) if invertido > 0 else 0.0
 
-    # Linea 2: sumamos los gastos operativos a la inversion, y contamos TODAS las
-    # ventas (arcano + personal), porque toda venta ayuda a cubrir ese total.
-    gastos_op = sum((e.monto_uyu or 0) for e in Egreso.query.all())
-    ventas_totales = sum(
-        (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
-        for d in Disc.query.filter_by(estado="Vendido").all()
-    )
-    invertido_con = invertido + gastos_op
-    pct2 = round(ventas_totales / invertido_con * 100, 1) if invertido_con > 0 else 0.0
+    # Linea 2: punto de equilibrio REAL del negocio. Usa EXACTAMENTE los mismos
+    # numeros que la "Ganancia real" (contabilidad de 'todo') para que las dos nunca
+    # se contradigan: lo puesto = costo de los discos de Arcano (vendidos + stock no
+    # vendido) + TODOS los gastos operativos; lo recuperado = todas las ventas.
+    # Asi: recuperado - puesto == ganancia real historica.
+    conta = contabilidad("todo")
+    ventas_tot = conta["ingresos_uyu"]
+    costo_arcano = conta["costo_discos_uyu"] + conta["costo_stock_no_vendido_uyu"]
+    gastos_tot = conta["egresos_uyu"]
+    puesto = costo_arcano + gastos_tot
+    resultado2 = round(ventas_tot - puesto, 2)          # = ganancia_real de 'todo'
+    pct2 = round(ventas_tot / puesto * 100, 1) if puesto > 0 else 0.0
 
     return {
         "invertido": round(invertido, 2),
@@ -653,14 +656,16 @@ def recuperacion_inversion() -> dict:
         "discos_sin_vender": discos_total - discos_vendidos,
         "recuperado_total": recuperado >= invertido and invertido > 0,
         "pedidos_count": len(peds),
-        # Linea 2: con gastos operativos
-        "gastos_operativos": round(gastos_op, 2),
-        "invertido_con": round(invertido_con, 2),
-        "recuperado_con": round(ventas_totales, 2),
-        "falta_con": round(max(0, invertido_con - ventas_totales), 2),
+        # Linea 2: con gastos operativos (mismo calculo que la Ganancia real)
+        "gastos_operativos": round(gastos_tot, 2),
+        "costo_arcano": round(costo_arcano, 2),
+        "invertido_con": round(puesto, 2),
+        "recuperado_con": round(ventas_tot, 2),
+        "falta_con": round(max(0, -resultado2), 2),
+        "sobra_con": round(max(0, resultado2), 2),
         "pct_con": min(pct2, 100),
         "pct_con_real": pct2,
-        "recuperado_total_con": ventas_totales >= invertido_con and invertido_con > 0,
+        "recuperado_total_con": resultado2 >= 0 and puesto > 0,
     }
 
 

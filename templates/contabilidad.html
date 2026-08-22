@@ -424,12 +424,13 @@
         {% endif %}
     </p>
 
-    <!-- LINEA 2: mercaderia + gastos operativos = punto de equilibrio real -->
+    <!-- LINEA 2: costo de discos Arcano + TODOS los gastos = punto de equilibrio real.
+         Usa la misma formula que la Ganancia real para no contradecirla. -->
     <p class="recup-linea-tit" style="margin-top:22px;">2) Contando tambi&eacute;n los gastos operativos</p>
-    <p class="resumen-card-sub">Ahora sumando publicidad, hosting y dem&aacute;s gastos ($ {{ fmt_uyu(recuperacion.gastos_operativos) }}) a lo que pusiste, contra <strong>todas</strong> tus ventas. Cuando esta barra llega al 100%, el negocio empez&oacute; a dar ganancia.</p>
+    <p class="resumen-card-sub">Suma el costo de tus discos de Arcano ($ {{ fmt_uyu(recuperacion.costo_arcano) }}) m&aacute;s <strong>todos</strong> los gastos ($ {{ fmt_uyu(recuperacion.gastos_operativos) }}: publicidad, hosting, env&iacute;os, bolsas&hellip; todo lo que cargues en Gastos), contra todas tus ventas. Es el mismo c&aacute;lculo que la <strong>Ganancia real</strong>: cuando la barra llega al 100%, el negocio ya se pag&oacute; solo (desde que arrancaste).</p>
     <div class="recup-row">
         <div class="recup-cifra">
-            <span class="recup-num">{{ recuperacion.pct_con_real|round|int }}%</span>
+            <span class="recup-num">{{ recuperacion.pct_con|round|int }}%</span>
             <span class="recup-cifra-sub">recuperado</span>
         </div>
         <div class="recup-bar-wrap">
@@ -437,9 +438,11 @@
                 <div class="recup-bar-fill {% if recuperacion.recuperado_total_con %}full{% endif %}" style="width: {{ recuperacion.pct_con }}%;"></div>
             </div>
             <div class="recup-detail">
-                <span>Puesto (discos + gastos): <strong>$ {{ fmt_uyu(recuperacion.invertido_con) }}</strong></span>
+                <span>Puesto (discos de Arcano + gastos): <strong>$ {{ fmt_uyu(recuperacion.invertido_con) }}</strong></span>
                 <span>Recuperado (todas las ventas): <strong class="recup-green">$ {{ fmt_uyu(recuperacion.recuperado_con) }}</strong></span>
-                {% if not recuperacion.recuperado_total_con %}
+                {% if recuperacion.recuperado_total_con %}
+                <span>Ganancia: <strong class="recup-green">+$ {{ fmt_uyu(recuperacion.sobra_con) }}</strong></span>
+                {% else %}
                 <span>Falta: <strong class="recup-red">$ {{ fmt_uyu(recuperacion.falta_con) }}</strong></span>
                 {% endif %}
             </div>
@@ -447,9 +450,9 @@
     </div>
     <p class="recup-foot">
         {% if recuperacion.recuperado_total_con %}
-        Ya cubriste todo lo que pusiste en el negocio (discos + gastos). De ac&aacute; en m&aacute;s es ganancia.
+        Ya cubriste todo lo que pusiste (discos de Arcano + gastos). Vas <strong>+$ {{ fmt_uyu(recuperacion.sobra_con) }}</strong> &mdash; ese es tu <strong>ganancia real</strong> (coincide con el n&uacute;mero de arriba con el filtro en "Todo").
         {% else %}
-        Te falta recuperar <strong>$ {{ fmt_uyu(recuperacion.falta_con) }}</strong> para cubrir todo lo que pusiste. Reci&eacute;n ah&iacute; el negocio empieza a ganar.
+        Te falta <strong>$ {{ fmt_uyu(recuperacion.falta_con) }}</strong> para cubrir todo lo que pusiste. Reci&eacute;n ah&iacute; el negocio empieza a ganar.
         {% endif %}
     </p>
 </section>
