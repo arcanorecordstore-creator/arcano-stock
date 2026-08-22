@@ -187,50 +187,53 @@
      ============================================================ -->
 <section class="conta-block">
     <h2 class="conta-block-title">Gastos del periodo</h2>
+    <p class="conta-block-sub">Toc&aacute; cualquier campo para corregirlo y despu&eacute;s "Guardar". El campo <em>En pesos</em> es lo que te debit&oacute; el banco (dejalo vac&iacute;o para recalcularlo solo con el tipo de cambio).</p>
     {% if egresos %}
-    <table class="conta-table">
-        <thead>
-            <tr>
-                <th>Fecha</th>
-                <th>Categoria</th>
-                <th>Descripcion</th>
-                <th class="col-num">Monto</th>
-                <th class="col-num">En UYU</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for e in egresos %}
-            <tr>
-                <td>{{ e.fecha.strftime('%d/%m/%Y') }}</td>
-                <td>{{ e.categoria }}</td>
-                <td>{{ e.descripcion or '—' }}</td>
-                <td class="col-num">{{ '%.2f'|format(e.monto) }} {{ e.moneda }}</td>
-                <td class="col-num">
-                    <form method="post" action="{{ url_for('egreso_monto_uyu', egreso_id=e.id) }}" class="egreso-uyu-form">
-                        <input type="number" step="1" min="0" name="monto_uyu"
-                               value="{{ '%.0f'|format(e.monto_uyu) }}"
-                               class="egreso-uyu-input" title="Editalo con lo que te debito el banco en pesos">
-                        <button type="submit" class="egreso-uyu-save" title="Guardar">&#10003;</button>
-                    </form>
-                </td>
-                <td class="col-num">
-                    <form method="post" action="{{ url_for('egreso_borrar', egreso_id=e.id) }}" class="inline-form"
-                          data-confirm="Eliminar este gasto?">
-                        <button type="submit" class="action-btn danger">Borrar</button>
-                    </form>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-        <tfoot>
-            <tr class="totals-row">
-                <td colspan="4" class="totals-label">Total gastos</td>
-                <td class="col-num">{{ fmt_uyu(conta.egresos_uyu) }}</td>
-                <td></td>
-            </tr>
-        </tfoot>
-    </table>
+    <div class="egreso-edit-list">
+        {% for e in egresos %}
+        <div class="egreso-edit-row">
+            <form method="post" action="{{ url_for('egreso_editar', egreso_id=e.id) }}" class="egreso-edit-form">
+                <label class="egf-field egf-fecha">
+                    <span class="egf-lbl">Fecha</span>
+                    <input type="date" name="fecha" value="{{ e.fecha.isoformat() }}">
+                </label>
+                <label class="egf-field egf-cat">
+                    <span class="egf-lbl">Categor&iacute;a</span>
+                    <select name="categoria">
+                        {% for c in categorias %}<option value="{{ c }}" {% if c == e.categoria %}selected{% endif %}>{{ c }}</option>{% endfor %}
+                        {% if e.categoria and e.categoria not in categorias %}<option value="{{ e.categoria }}" selected>{{ e.categoria }}</option>{% endif %}
+                    </select>
+                </label>
+                <label class="egf-field egf-desc">
+                    <span class="egf-lbl">Descripci&oacute;n</span>
+                    <input type="text" name="descripcion" value="{{ e.descripcion or '' }}" placeholder="(opcional)" maxlength="300">
+                </label>
+                <label class="egf-field egf-monto">
+                    <span class="egf-lbl">Monto</span>
+                    <input type="number" step="0.01" min="0" name="monto" value="{{ '%.2f'|format(e.monto) }}">
+                </label>
+                <label class="egf-field egf-moneda">
+                    <span class="egf-lbl">Moneda</span>
+                    <select name="moneda">
+                        {% for m in ['UYU', 'USD', 'EUR'] %}<option value="{{ m }}" {% if m == e.moneda %}selected{% endif %}>{{ m }}</option>{% endfor %}
+                    </select>
+                </label>
+                <label class="egf-field egf-uyu">
+                    <span class="egf-lbl">En pesos</span>
+                    <input type="number" step="1" min="0" name="monto_uyu" value="{{ '%.0f'|format(e.monto_uyu) }}" title="Lo que te debito el banco en pesos. Vacio = recalcular con el tipo de cambio.">
+                </label>
+                <button type="submit" class="btn btn-primary btn-sm egf-save">Guardar</button>
+            </form>
+            <form method="post" action="{{ url_for('egreso_borrar', egreso_id=e.id) }}" class="inline-form egf-del" data-confirm="Eliminar este gasto?">
+                <button type="submit" class="action-btn danger">Borrar</button>
+            </form>
+        </div>
+        {% endfor %}
+        <div class="egreso-edit-total">
+            <span>Total gastos</span>
+            <strong>{{ fmt_uyu(conta.egresos_uyu) }}</strong>
+        </div>
+    </div>
     {% else %}
     <p class="conta-empty">No hay gastos registrados en este periodo.</p>
     {% endif %}
@@ -390,7 +393,10 @@
 {% if recuperacion.pedidos_count > 0 %}
 <section class="conta-block">
     <h2 class="conta-block-title">Recuperacion de la inversion</h2>
-    <p class="resumen-card-sub">Cuanto de lo que gastaste en pedidos ya volvio como ventas.</p>
+
+    <!-- LINEA 1: solo la mercaderia (los discos de los pedidos) -->
+    <p class="recup-linea-tit">1) Solo la mercader&iacute;a (los discos)</p>
+    <p class="resumen-card-sub">Cu&aacute;nto de lo que pagaste por los discos de tus pedidos ya volvi&oacute; al venderlos.</p>
     <div class="recup-row">
         <div class="recup-cifra">
             <span class="recup-num">{{ recuperacion.pct_real|round|int }}%</span>
@@ -401,7 +407,7 @@
                 <div class="recup-bar-fill {% if recuperacion.recuperado_total %}full{% endif %}" style="width: {{ recuperacion.pct }}%;"></div>
             </div>
             <div class="recup-detail">
-                <span>Invertido: <strong>$ {{ fmt_uyu(recuperacion.invertido) }}</strong></span>
+                <span>Invertido en discos: <strong>$ {{ fmt_uyu(recuperacion.invertido) }}</strong></span>
                 <span>Recuperado: <strong class="recup-green">$ {{ fmt_uyu(recuperacion.recuperado) }}</strong></span>
                 {% if not recuperacion.recuperado_total %}
                 <span>Falta: <strong class="recup-red">$ {{ fmt_uyu(recuperacion.falta) }}</strong></span>
@@ -411,10 +417,39 @@
     </div>
     <p class="recup-foot">
         {% if recuperacion.recuperado_total %}
-        Ya recuperaste toda tu inversion en pedidos. Lo que vendas de ahora en mas es ganancia limpia.
+        Ya recuperaste toda la plata que pusiste en discos. Lo que vendas de esos pedidos de ahora en m&aacute;s ayuda a cubrir los gastos.
         {% else %}
         Vendiste <strong>{{ recuperacion.discos_vendidos }}</strong> de <strong>{{ recuperacion.discos_total }}</strong> discos de tus pedidos.
-        Te quedan <strong>{{ recuperacion.discos_sin_vender }}</strong> por vender para recuperar todo.
+        Te quedan <strong>{{ recuperacion.discos_sin_vender }}</strong> por vender para recuperar la mercader&iacute;a.
+        {% endif %}
+    </p>
+
+    <!-- LINEA 2: mercaderia + gastos operativos = punto de equilibrio real -->
+    <p class="recup-linea-tit" style="margin-top:22px;">2) Contando tambi&eacute;n los gastos operativos</p>
+    <p class="resumen-card-sub">Ahora sumando publicidad, hosting y dem&aacute;s gastos ($ {{ fmt_uyu(recuperacion.gastos_operativos) }}) a lo que pusiste, contra <strong>todas</strong> tus ventas. Cuando esta barra llega al 100%, el negocio empez&oacute; a dar ganancia.</p>
+    <div class="recup-row">
+        <div class="recup-cifra">
+            <span class="recup-num">{{ recuperacion.pct_con_real|round|int }}%</span>
+            <span class="recup-cifra-sub">recuperado</span>
+        </div>
+        <div class="recup-bar-wrap">
+            <div class="recup-bar">
+                <div class="recup-bar-fill {% if recuperacion.recuperado_total_con %}full{% endif %}" style="width: {{ recuperacion.pct_con }}%;"></div>
+            </div>
+            <div class="recup-detail">
+                <span>Puesto (discos + gastos): <strong>$ {{ fmt_uyu(recuperacion.invertido_con) }}</strong></span>
+                <span>Recuperado (todas las ventas): <strong class="recup-green">$ {{ fmt_uyu(recuperacion.recuperado_con) }}</strong></span>
+                {% if not recuperacion.recuperado_total_con %}
+                <span>Falta: <strong class="recup-red">$ {{ fmt_uyu(recuperacion.falta_con) }}</strong></span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <p class="recup-foot">
+        {% if recuperacion.recuperado_total_con %}
+        Ya cubriste todo lo que pusiste en el negocio (discos + gastos). De ac&aacute; en m&aacute;s es ganancia.
+        {% else %}
+        Te falta recuperar <strong>$ {{ fmt_uyu(recuperacion.falta_con) }}</strong> para cubrir todo lo que pusiste. Reci&eacute;n ah&iacute; el negocio empieza a ganar.
         {% endif %}
     </p>
 </section>

@@ -3391,6 +3391,63 @@ def register_routes(app: Flask) -> None:
                 flash("Monto invalido.", "error")
         return redirect(url_for("contabilidad"))
 
+    @app.route("/admin/contabilidad/egreso/<int:egreso_id>/editar", methods=["POST"])
+    @auth.admin_required
+    def egreso_editar(egreso_id):
+        """Edita TODOS los campos de un gasto: fecha, categoria, descripcion, monto,
+        moneda y el monto real en UYU. Si el campo 'En pesos' se deja vacio, se
+        recalcula solo desde el monto original y el tipo de cambio."""
+        from models import Egreso
+        from datetime import datetime as _dt
+        e = Egreso.query.get_or_404(egreso_id)
+
+        fecha_str = (request.form.get("fecha") or "").strip()
+        if fecha_str:
+            try:
+                e.fecha = _dt.strptime(fecha_str, "%Y-%m-%d").date()
+            except ValueError:
+                pass
+
+        cat = (request.form.get("categoria") or "").strip()
+        nueva_cat = (request.form.get("categoria_nueva") or "").strip()
+        if nueva_cat:
+            Setting.add_categoria_egreso(nueva_cat)
+            e.categoria = nueva_cat
+        elif cat:
+            e.categoria = cat
+
+        e.descripcion = (request.form.get("descripcion") or "").strip() or None
+
+        try:
+            monto = float(request.form.get("monto") or e.monto)
+        except (ValueError, TypeError):
+            monto = e.monto
+        if monto < 0:
+            monto = e.monto
+        moneda = (request.form.get("moneda") or e.moneda).strip().upper()
+        if moneda not in ("UYU", "USD", "EUR"):
+            moneda = e.moneda
+        e.monto = monto
+        e.moneda = moneda
+
+        # Monto en pesos: si viene un valor, se respeta; si viene vacio, se recalcula.
+        raw = (request.form.get("monto_uyu") or "").strip().replace(".", "").replace(",", ".")
+        if raw:
+            try:
+                val = float(raw)
+                if val >= 0:
+                    e.monto_uyu = val
+            except (ValueError, TypeError):
+                pass
+        else:
+            monto_uyu, tc = _convertir_a_uyu(monto, moneda)
+            e.monto_uyu = monto_uyu
+            e.tc_usado = tc
+
+        db.session.commit()
+        flash("Gasto actualizado.", "success")
+        return redirect(url_for("contabilidad"))
+
     @app.route("/admin/contabilidad/recurrente/agregar", methods=["POST"])
     @auth.admin_required
     def recurrente_agregar():

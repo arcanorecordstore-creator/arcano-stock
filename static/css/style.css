@@ -8219,6 +8219,7 @@ td.num,
 .recup-green { color: #10b981; }
 .recup-red { color: #ef4444; }
 .recup-foot { margin-top: 12px; font-size: 13px; color: var(--text-3, #888); }
+.recup-linea-tit { margin: 0 0 2px; font-size: 13.5px; font-weight: 700; color: var(--text-1, #eee); letter-spacing: .01em; }
 
 /* Fila de stock frenado */
 .row-frenado { background: rgba(239,68,68,0.07); }
@@ -8837,6 +8838,43 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     line-height: 1;
 }
 .egreso-uyu-save:hover { background: rgba(16,185,129,0.12); border-color: var(--accent, #10b981); }
+
+/* Gastos del periodo: filas editables (todos los campos) */
+.egreso-edit-list { display: flex; flex-direction: column; gap: 10px; }
+.egreso-edit-row {
+    display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap;
+    padding: 10px 12px; border: 1px solid var(--border-1, #2a2a2a);
+    border-radius: 10px; background: var(--bg-1, #1a1a1a);
+}
+.egreso-edit-form { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; flex: 1 1 auto; }
+.egf-field { display: flex; flex-direction: column; gap: 3px; }
+.egf-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3, #888); }
+.egf-field input, .egf-field select {
+    padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-2, #333);
+    background: var(--bg-2, #1e1e1e); color: var(--text-1, #eee);
+    font-family: inherit; font-size: 13.5px;
+}
+.egf-field input:focus, .egf-field select:focus { outline: none; border-color: var(--accent, #10b981); }
+.egf-fecha input { width: 140px; }
+.egf-cat select { min-width: 120px; }
+.egf-desc { flex: 1 1 150px; min-width: 120px; }
+.egf-desc input { width: 100%; }
+.egf-monto input { width: 92px; text-align: right; font-variant-numeric: tabular-nums; }
+.egf-moneda select { width: 74px; }
+.egf-uyu input { width: 100px; text-align: right; font-variant-numeric: tabular-nums; }
+.egf-save { flex-shrink: 0; }
+.egf-del { flex-shrink: 0; }
+.egreso-edit-total {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 12px; margin-top: 2px; border-top: 1px solid var(--border-1, #2a2a2a);
+    font-variant-numeric: tabular-nums;
+}
+.egreso-edit-total strong { font-size: 16px; }
+@media (max-width: 560px) {
+    .egf-field { flex: 1 1 auto; }
+    .egf-fecha input, .egf-cat select, .egf-monto input, .egf-moneda select, .egf-uyu input { width: 100%; }
+    .egf-save { flex: 1 1 auto; }
+}
 
 /* ============================================================
    v2.72 - Mobile: header compacto, carrito SVG, player, toggles

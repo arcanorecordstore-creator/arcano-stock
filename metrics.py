@@ -616,14 +616,32 @@ def stock_frenado(dias_umbral: int = 45) -> dict:
 
 
 def recuperacion_inversion() -> dict:
-    """Cuanto se invirtio en pedidos vs cuanto se recupero vendiendo esos discos."""
-    from models import Pedido
+    """Cuanto se invirtio en pedidos vs cuanto se recupero vendiendo esos discos.
+
+    Devuelve DOS miradas:
+      1) Mercaderia sola: costo de los pedidos vs lo recaudado por esos discos.
+      2) Con gastos operativos: costo de pedidos + todos los gastos (publicidad,
+         hosting, etc.) vs TODAS las ventas de discos. Es el punto de equilibrio
+         real del negocio (cuando esta linea llega al 100%, empezas a ganar).
+    """
+    from models import Pedido, Egreso
     peds = Pedido.query.all()
     invertido = sum(p.costo_total_uyu for p in peds)
     recuperado = sum(p.recaudado_uyu for p in peds)
     discos_total = sum(p.discos_asignados for p in peds)
     discos_vendidos = sum(p.discos_vendidos for p in peds)
     pct = round(recuperado / invertido * 100, 1) if invertido > 0 else 0.0
+
+    # Linea 2: sumamos los gastos operativos a la inversion, y contamos TODAS las
+    # ventas (arcano + personal), porque toda venta ayuda a cubrir ese total.
+    gastos_op = sum((e.monto_uyu or 0) for e in Egreso.query.all())
+    ventas_totales = sum(
+        (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+        for d in Disc.query.filter_by(estado="Vendido").all()
+    )
+    invertido_con = invertido + gastos_op
+    pct2 = round(ventas_totales / invertido_con * 100, 1) if invertido_con > 0 else 0.0
+
     return {
         "invertido": round(invertido, 2),
         "recuperado": round(recuperado, 2),
@@ -635,6 +653,14 @@ def recuperacion_inversion() -> dict:
         "discos_sin_vender": discos_total - discos_vendidos,
         "recuperado_total": recuperado >= invertido and invertido > 0,
         "pedidos_count": len(peds),
+        # Linea 2: con gastos operativos
+        "gastos_operativos": round(gastos_op, 2),
+        "invertido_con": round(invertido_con, 2),
+        "recuperado_con": round(ventas_totales, 2),
+        "falta_con": round(max(0, invertido_con - ventas_totales), 2),
+        "pct_con": min(pct2, 100),
+        "pct_con_real": pct2,
+        "recuperado_total_con": ventas_totales >= invertido_con and invertido_con > 0,
     }
 
 
