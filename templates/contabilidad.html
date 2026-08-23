@@ -6,6 +6,46 @@
 {{ '{:,.0f}'.format(n or 0).replace(',', '.') }}
 {%- endmacro %}
 
+{% macro gasto_row(e, categorias) %}
+<div class="egreso-edit-row">
+    <form method="post" action="{{ url_for('egreso_editar', egreso_id=e.id) }}" class="egreso-edit-form">
+        <label class="egf-field egf-fecha">
+            <span class="egf-lbl">Fecha</span>
+            <input type="date" name="fecha" value="{{ e.fecha.isoformat() }}">
+        </label>
+        <label class="egf-field egf-cat">
+            <span class="egf-lbl">Categor&iacute;a</span>
+            <select name="categoria">
+                {% for c in categorias %}<option value="{{ c }}" {% if c == e.categoria %}selected{% endif %}>{{ c }}</option>{% endfor %}
+                {% if e.categoria and e.categoria not in categorias %}<option value="{{ e.categoria }}" selected>{{ e.categoria }}</option>{% endif %}
+            </select>
+        </label>
+        <label class="egf-field egf-desc">
+            <span class="egf-lbl">Descripci&oacute;n</span>
+            <input type="text" name="descripcion" value="{{ e.descripcion or '' }}" placeholder="(opcional)" maxlength="300">
+        </label>
+        <label class="egf-field egf-monto">
+            <span class="egf-lbl">Monto</span>
+            <input type="number" step="0.01" min="0" name="monto" value="{{ '%.2f'|format(e.monto) }}">
+        </label>
+        <label class="egf-field egf-moneda">
+            <span class="egf-lbl">Moneda</span>
+            <select name="moneda">
+                {% for m in ['UYU', 'USD', 'EUR'] %}<option value="{{ m }}" {% if m == e.moneda %}selected{% endif %}>{{ m }}</option>{% endfor %}
+            </select>
+        </label>
+        <label class="egf-field egf-uyu">
+            <span class="egf-lbl">En pesos</span>
+            <input type="number" step="1" min="0" name="monto_uyu" value="{{ '%.0f'|format(e.monto_uyu) }}" title="Lo que te debito el banco en pesos. Vacio = recalcular con el tipo de cambio.">
+        </label>
+        <button type="submit" class="btn btn-primary btn-sm egf-save">Guardar</button>
+    </form>
+    <form method="post" action="{{ url_for('egreso_borrar', egreso_id=e.id) }}" class="inline-form egf-del" data-confirm="Eliminar este movimiento?">
+        <button type="submit" class="action-btn danger">Borrar</button>
+    </form>
+</div>
+{% endmacro %}
+
 {% block content %}
 <section class="page-head">
     <div>
@@ -190,45 +230,7 @@
     <p class="conta-block-sub">Toc&aacute; cualquier campo para corregirlo y despu&eacute;s "Guardar". El campo <em>En pesos</em> es lo que te debit&oacute; el banco (dejalo vac&iacute;o para recalcularlo solo con el tipo de cambio).</p>
     {% if egresos %}
     <div class="egreso-edit-list">
-        {% for e in egresos %}
-        <div class="egreso-edit-row">
-            <form method="post" action="{{ url_for('egreso_editar', egreso_id=e.id) }}" class="egreso-edit-form">
-                <label class="egf-field egf-fecha">
-                    <span class="egf-lbl">Fecha</span>
-                    <input type="date" name="fecha" value="{{ e.fecha.isoformat() }}">
-                </label>
-                <label class="egf-field egf-cat">
-                    <span class="egf-lbl">Categor&iacute;a</span>
-                    <select name="categoria">
-                        {% for c in categorias %}<option value="{{ c }}" {% if c == e.categoria %}selected{% endif %}>{{ c }}</option>{% endfor %}
-                        {% if e.categoria and e.categoria not in categorias %}<option value="{{ e.categoria }}" selected>{{ e.categoria }}</option>{% endif %}
-                    </select>
-                </label>
-                <label class="egf-field egf-desc">
-                    <span class="egf-lbl">Descripci&oacute;n</span>
-                    <input type="text" name="descripcion" value="{{ e.descripcion or '' }}" placeholder="(opcional)" maxlength="300">
-                </label>
-                <label class="egf-field egf-monto">
-                    <span class="egf-lbl">Monto</span>
-                    <input type="number" step="0.01" min="0" name="monto" value="{{ '%.2f'|format(e.monto) }}">
-                </label>
-                <label class="egf-field egf-moneda">
-                    <span class="egf-lbl">Moneda</span>
-                    <select name="moneda">
-                        {% for m in ['UYU', 'USD', 'EUR'] %}<option value="{{ m }}" {% if m == e.moneda %}selected{% endif %}>{{ m }}</option>{% endfor %}
-                    </select>
-                </label>
-                <label class="egf-field egf-uyu">
-                    <span class="egf-lbl">En pesos</span>
-                    <input type="number" step="1" min="0" name="monto_uyu" value="{{ '%.0f'|format(e.monto_uyu) }}" title="Lo que te debito el banco en pesos. Vacio = recalcular con el tipo de cambio.">
-                </label>
-                <button type="submit" class="btn btn-primary btn-sm egf-save">Guardar</button>
-            </form>
-            <form method="post" action="{{ url_for('egreso_borrar', egreso_id=e.id) }}" class="inline-form egf-del" data-confirm="Eliminar este gasto?">
-                <button type="submit" class="action-btn danger">Borrar</button>
-            </form>
-        </div>
-        {% endfor %}
+        {% for e in egresos %}{{ gasto_row(e, categorias) }}{% endfor %}
         <div class="egreso-edit-total">
             <span>Total gastos</span>
             <strong>{{ fmt_uyu(conta.egresos_uyu) }}</strong>
@@ -238,6 +240,23 @@
     <p class="conta-empty">No hay gastos registrados en este periodo.</p>
     {% endif %}
 </section>
+
+<!-- ============================================================
+     Retiros personales (plata que Facundo saca para si)
+     ============================================================ -->
+{% if retiros %}
+<section class="conta-block conta-retiros">
+    <h2 class="conta-block-title">Retiros personales</h2>
+    <p class="conta-block-sub">Plata que sacaste para vos. <strong>No</strong> es un gasto del negocio (no baja la ganancia): se descuenta de tu <strong>capital</strong> y de la plata en caja &mdash; el inverso de un aporte.</p>
+    <div class="egreso-edit-list">
+        {% for e in retiros %}{{ gasto_row(e, categorias) }}{% endfor %}
+        <div class="egreso-edit-total">
+            <span>Total retiros</span>
+            <strong class="conta-retiros-num">&minus; {{ fmt_uyu(conta.retiros_personales_uyu) }}</strong>
+        </div>
+    </div>
+</section>
+{% endif %}
 
 <!-- ============================================================
      Gastos recurrentes (mensuales)
@@ -694,4 +713,37 @@
     <p class="resumen-empty">No hay ventas registradas todavia. Cuando marques discos como Vendido vas a ver el ranking aca.</p>
     {% endif %}
 </section>
+
+<style>
+/* v4.45 - mas color en Contabilidad (menos blanco), scoped a las clases de esta pagina */
+.conta-block-title { position: relative; padding-left: 15px; }
+.conta-block-title::before {
+    content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
+    width: 5px; height: 1.05em; border-radius: 3px; background: #6366f1;
+}
+/* Gastos por categoria: borde y monto de color, rotando por tarjeta */
+.conta-cat-item {
+    border-left: 4px solid #6366f1;
+    background: color-mix(in srgb, #6366f1 8%, var(--bg-1, #fff));
+    transition: transform .1s;
+}
+.conta-cat-item:hover { transform: translateX(3px); }
+.conta-cat-monto { color: #6366f1; font-weight: 700; }
+.conta-cat-item:nth-child(5n+2) { border-left-color: #14b8a6; background: color-mix(in srgb, #14b8a6 8%, var(--bg-1,#fff)); }
+.conta-cat-item:nth-child(5n+2) .conta-cat-monto { color: #14b8a6; }
+.conta-cat-item:nth-child(5n+3) { border-left-color: #eab308; background: color-mix(in srgb, #eab308 9%, var(--bg-1,#fff)); }
+.conta-cat-item:nth-child(5n+3) .conta-cat-monto { color: #ca8a04; }
+.conta-cat-item:nth-child(5n+4) { border-left-color: #ec4899; background: color-mix(in srgb, #ec4899 8%, var(--bg-1,#fff)); }
+.conta-cat-item:nth-child(5n+4) .conta-cat-monto { color: #ec4899; }
+.conta-cat-item:nth-child(5n+5) { border-left-color: #a78bfa; background: color-mix(in srgb, #a78bfa 9%, var(--bg-1,#fff)); }
+.conta-cat-item:nth-child(5n+5) .conta-cat-monto { color: #8b5cf6; }
+/* KPIs: una cinta de color arriba para que la grilla no sea toda blanca */
+.kpi-card { border-top: 3px solid #6366f1; }
+.kpi-card:nth-child(4n+2) { border-top-color: #14b8a6; }
+.kpi-card:nth-child(4n+3) { border-top-color: #eab308; }
+.kpi-card:nth-child(4n+4) { border-top-color: #ec4899; }
+/* Retiros personales: acento naranja (plata que sale) */
+.conta-retiros .conta-block-title::before { background: #e0752f; }
+.conta-retiros-num { color: #e0752f; font-weight: 800; }
+</style>
 {% endblock %}

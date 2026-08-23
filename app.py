@@ -3261,20 +3261,23 @@ def register_routes(app: Flask) -> None:
     @app.route("/admin/contabilidad")
     @auth.admin_required
     def contabilidad():
-        from models import Egreso, EgresoRecurrente
+        from models import Egreso, EgresoRecurrente, CAT_RETIRO_PERSONAL
         periodo = request.args.get("periodo", "mes_actual")
         desde = request.args.get("desde")
         hasta = request.args.get("hasta")
         data = metrics.get_all_metrics()
         conta = metrics.contabilidad(periodo, desde, hasta)
-        # Lista de egresos del periodo para mostrar
+        # Lista de egresos del periodo para mostrar. Los retiros personales van aparte:
+        # no son gasto operativo (no bajan la ganancia), se descuentan del capital.
         inicio, fin = metrics._rango_periodo(periodo, desde, hasta)
-        egresos = (
+        egresos_all = (
             Egreso.query
             .filter(Egreso.fecha >= inicio, Egreso.fecha < fin)
             .order_by(Egreso.fecha.desc())
             .all()
         )
+        egresos = [e for e in egresos_all if e.categoria != CAT_RETIRO_PERSONAL]
+        retiros = [e for e in egresos_all if e.categoria == CAT_RETIRO_PERSONAL]
         recurrentes = EgresoRecurrente.query.order_by(EgresoRecurrente.categoria).all()
         por_cobrar = metrics.dinero_por_cobrar()
         ingresos_egresos_6m = metrics.ingresos_vs_egresos_6m()
@@ -3289,8 +3292,10 @@ def register_routes(app: Flask) -> None:
             desde=desde or "",
             hasta=hasta or "",
             egresos=egresos,
+            retiros=retiros,
             recurrentes=recurrentes,
             categorias=Setting.get_categorias_egreso(),
+            cat_retiro=CAT_RETIRO_PERSONAL,
             monedas=["UYU", "USD", "EUR"],
             por_cobrar=por_cobrar,
             ingresos_egresos_6m=ingresos_egresos_6m,
@@ -3788,7 +3793,7 @@ def register_routes(app: Flask) -> None:
         Si se pasa `mes` ('YYYY-MM'), la LISTA de movimientos y el desglose se
         filtran a ese mes; los cuadros de arriba (saldo, MP, mercaderia) siguen
         siendo al dia."""
-        from models import MovimientoCaja
+        from models import MovimientoCaja, CAT_RETIRO_PERSONAL
         movs = (
             MovimientoCaja.query
             .order_by(MovimientoCaja.fecha.asc(), MovimientoCaja.id.asc())
@@ -3828,10 +3833,18 @@ def register_routes(app: Flask) -> None:
         # Para MOSTRAR "Capital que pusiste": solo el capital PERMANENTE, sin los
         # adelantos de MP (que son plata temporal que Facundo recupera y ya se
         # muestran aparte en "Adelantos a recuperar"). Asi el capital no salta al adelantar.
-        capital_permanente = sum(
+        capital_aportado = sum(
             m.monto_uyu or 0 for m in movs_dinero
             if m.tipo == "ingreso" and m.es_aporte and not (m.adelanto_mp or "")
         )
+        # Retiros personales: plata que Facundo saca para si (categoria especial en los
+        # gastos). Afecta el capital al REVES que un aporte: lo resta. Ya sale de la caja
+        # como cualquier egreso (baja el saldo), pero ademas baja el "Capital que pusiste".
+        total_retiros_personales = sum(
+            m.monto_uyu or 0 for m in movs_dinero
+            if m.tipo == "egreso" and m.origen == "gasto" and m.categoria == CAT_RETIRO_PERSONAL
+        )
+        capital_permanente = capital_aportado - total_retiros_personales
         # Ventas cobradas = ingresos que NO son aporte de capital
         total_ventas = total_ingresos - total_aportes
 
@@ -3922,6 +3935,8 @@ def register_routes(app: Flask) -> None:
                 key, label, orden = "pedido", "Pedidos", 1
             elif m.tipo == "ingreso" and m.es_aporte:
                 key, label, orden = "aporte", "Aportes de capital", 2
+            elif m.origen == "gasto" and m.categoria == CAT_RETIRO_PERSONAL:
+                key, label, orden = "retiro", "Retiros personales", 2.5
             elif m.origen == "gasto":
                 cat = m.categoria or "Otros"
                 key, label, orden = "gasto:" + cat, "Gasto: " + cat, 3
@@ -3962,6 +3977,8 @@ def register_routes(app: Flask) -> None:
             if m.origen == "pedido":
                 return "Compras a Deejay (pedidos)"
             if m.origen == "gasto":
+                if m.categoria == CAT_RETIRO_PERSONAL:
+                    return "Retiros personales (tu plata)"
                 return "Gastos (publicidad, hosting, etc.)"
             return "Retiros / ajustes que cargaste a mano"
 
@@ -3970,6 +3987,12 @@ def register_routes(app: Flask) -> None:
         capital_desglose = [
             {"label": (m.concepto or "Aporte de capital"), "monto": round(m.monto_uyu or 0)}
             for m in movs_dinero if (m.tipo == "ingreso" and m.es_aporte)
+        ]
+        # Los retiros personales restan del capital (inverso a un aporte).
+        capital_desglose += [
+            {"label": "Retiro: " + (m.concepto or "personal"), "monto": -round(m.monto_uyu or 0)}
+            for m in movs_dinero
+            if m.tipo == "egreso" and m.origen == "gasto" and m.categoria == CAT_RETIRO_PERSONAL
         ]
         saldo_desglose = [
             {"label": "Saldo inicial", "monto": round(saldo_inicial)},

@@ -1065,12 +1065,18 @@ class ReservaItem(db.Model):
 # ---------------------------------------------------------------------------
 
 # Categorias de gasto por defecto. El usuario puede agregar mas.
+# Categoria especial: NO es un gasto operativo del negocio, es plata que Facundo
+# saca para si mismo. Afecta el capital al reves que un aporte (lo resta) y sale de
+# la caja, pero NO baja la Ganancia real (no es un costo de vender discos).
+CAT_RETIRO_PERSONAL = "Retiro personal"
+
 CATEGORIAS_EGRESO_DEFAULT = [
     "Hosting",
     "Publicidad",
     "Envios",
     "Viajes",
     "Otros",
+    CAT_RETIRO_PERSONAL,
 ]
 
 MONEDAS_EGRESO = ["UYU", "USD", "EUR"]

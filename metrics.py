@@ -387,15 +387,22 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
     costo_stock_no_vendido_uyu = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in disponibles_arcano)
 
     # --- EGRESOS: gastos operativos del periodo ---
-    egresos = (
+    from models import CAT_RETIRO_PERSONAL
+    egresos_all = (
         Egreso.query
         .filter(Egreso.fecha >= inicio)
         .filter(Egreso.fecha < fin)
         .all()
     )
+    # Los retiros personales NO son un gasto operativo: son plata que Facundo saca para
+    # si mismo (afecta el capital, no la ganancia del negocio). Se excluyen del gasto y
+    # se muestran/suman aparte.
+    egresos = [e for e in egresos_all if e.categoria != CAT_RETIRO_PERSONAL]
+    retiros = [e for e in egresos_all if e.categoria == CAT_RETIRO_PERSONAL]
     egresos_uyu = sum(e.monto_uyu or 0 for e in egresos)
+    retiros_personales_uyu = sum(e.monto_uyu or 0 for e in retiros)
 
-    # Egresos agrupados por categoria
+    # Egresos agrupados por categoria (sin los retiros personales)
     por_categoria = {}
     for e in egresos:
         por_categoria[e.categoria] = por_categoria.get(e.categoria, 0) + (e.monto_uyu or 0)
@@ -454,6 +461,8 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
         "egresos_uyu": round(egresos_uyu, 2),
         "egresos_por_categoria": [(c, round(m, 2)) for c, m in egresos_por_categoria],
         "egresos_count": len(egresos),
+        "retiros_personales_uyu": round(retiros_personales_uyu, 2),
+        "retiros_count": len(retiros),
         "ganancia_bruta_uyu": round(ganancia_bruta, 2),
         "ganancia_real_uyu": round(ganancia_real, 2),
         "comparacion": comparacion,
