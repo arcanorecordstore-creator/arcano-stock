@@ -21,9 +21,9 @@
 
     --text-1: #ffffff;
     --text-2: #cbced4;
-    --text-3: #90939b;
-    --text-4: #74777f;
-    --text-5: #565962;
+    --text-3: #9a9da4;
+    --text-4: #9498a1;
+    --text-5: #83868f;
 
     --accent: #ffffff;
     --gain: #10b981;
@@ -73,9 +73,9 @@
 
     --text-1: #0a0a0a;
     --text-2: #2a2a2a;
-    --text-3: #555555;
-    --text-4: #808080;
-    --text-5: #a0a0a0;
+    --text-3: #565656;
+    --text-4: #6a6a6a;
+    --text-5: #7d7d7d;
 
     --accent: #0a0a0a;
     --gain: #059669;
@@ -10168,4 +10168,36 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .caja-hero-pop { left: 0; }
 @media (max-width: 560px) {
     .caja-chip-pop { min-width: 200px; max-width: 78vw; }
+}
+
+/* =========================================================================
+   AUDITORIA UI/UX v4.46 - Tanda 1: mobile (zoom, contraste, tactil)
+   Scope: solo el admin (body.app). La tienda publica no se toca.
+   ========================================================================= */
+@media (max-width: 768px) {
+    /* A2 - Evitar el auto-zoom de iOS: todo campo a 16px en el celular. */
+    body.app input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+    body.app select,
+    body.app textarea {
+        font-size: 16px;
+    }
+    /* A5 - Areas de toque comodas (minimo ~40px) en los campos y controles. */
+    body.app input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+    body.app select {
+        min-height: 40px;
+    }
+    body.app input[type="checkbox"],
+    body.app input[type="radio"] {
+        width: 20px;
+        height: 20px;
+    }
+    /* Botones-icono chicos de uso frecuente: agrandar el area de toque. */
+    body.app .caja-editar-toggle,
+    body.app .caja-cat-del,
+    body.app .ped-costo-save,
+    body.app .egreso-uyu-save,
+    body.app .entrega-toggle {
+        min-width: 40px;
+        min-height: 40px;
+    }
 }
