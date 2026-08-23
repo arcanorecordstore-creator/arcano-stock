@@ -63,8 +63,8 @@
     <a href="{{ url_for('contabilidad', periodo=val) }}"
        class="conta-periodo-btn {% if periodo == val %}active{% endif %}">{{ label }}</a>
     {% endfor %}
-    <a href="{{ url_for('contabilidad_exportar', periodo=periodo, desde=desde, hasta=hasta) }}" class="conta-export-btn">&#8595; Exportar Excel</a>
-    <a href="{{ url_for('contabilidad_informe_pdf', periodo=periodo, desde=desde, hasta=hasta) }}" class="conta-export-btn conta-export-pdf">&#128196; Bajar informe PDF</a>
+    <a href="{{ url_for('contabilidad_exportar', periodo=periodo, desde=desde, hasta=hasta) }}" class="btn btn-ghost">&#8595; Exportar Excel</a>
+    <a href="{{ url_for('contabilidad_informe_pdf', periodo=periodo, desde=desde, hasta=hasta) }}" class="btn btn-ghost">&#128196; Bajar informe PDF</a>
 </section>
 
 <!-- Filtro por fechas personalizado -->
@@ -484,7 +484,7 @@
 <section class="conta-block">
     <div style="display:flex; justify-content:space-between; align-items:baseline;">
         <h2 class="conta-block-title">Pedidos (inversion en stock)</h2>
-        <a href="{{ url_for('pedidos') }}" class="conta-export-btn" style="margin:0;">Gestionar pedidos</a>
+        <a href="{{ url_for('pedidos') }}" class="btn btn-ghost">Gestionar pedidos</a>
     </div>
     <table class="conta-table">
         <thead>

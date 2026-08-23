@@ -4,15 +4,17 @@
 
 {% block content %}
 <div class="radar-page">
-    <div class="radar-head">
-        <h1>Radar de demanda</h1>
-        <p class="radar-sub">
-            Qué está despertando ganas, medido por <strong>escuchas por día disponible</strong>
-            (no solo escuchas totales). Así un disco nuevo con pocas escuchas pero mucha intensidad
-            aparece arriba, y no queda tapado por uno viejo que juntó escuchas de a poco.
-            <br>{{ con_escuchas }} discos con escuchas · {{ sin_escuchas }} todavía sin escuchas · {{ total_discos }} en total.
-        </p>
-    </div>
+    <section class="page-head">
+        <div>
+            <h1 class="page-title">Radar de demanda</h1>
+            <p class="page-sub">
+                Qué está despertando ganas, medido por <strong>escuchas por día disponible</strong>
+                (no solo escuchas totales). Así un disco nuevo con pocas escuchas pero mucha intensidad
+                aparece arriba, y no queda tapado por uno viejo que juntó escuchas de a poco.
+                <br>{{ con_escuchas }} discos con escuchas · {{ sin_escuchas }} todavía sin escuchas · {{ total_discos }} en total.
+            </p>
+        </div>
+    </section>
 
     {% set estado_class = {
         'Disponible': 'badge-disponible', 'Pre-order': 'badge-preorder',
@@ -56,13 +58,13 @@
     {% endmacro %}
 
     <section class="radar-section">
-        <h2>&#128293; Calientes y disponibles</h2>
+        <h2 class="gest-sec-title">Calientes y disponibles</h2>
         <p class="radar-hint">Los que más ganas despiertan por día <strong>y todavía tenés</strong>. Candidatos para subir a la primera fila de la home, destacar, o hacerles una story hoy.</p>
         {{ tabla_radar(disponibles, 'Todavía no hay discos disponibles con escuchas. Cuando la gente empiece a escuchar samples, aparecen acá ordenados por interés.') }}
     </section>
 
     <section class="radar-section">
-        <h2>&#10003; Tu oído convierte (escuchado y vendido)</h2>
+        <h2 class="gest-sec-title">Tu oído convierte (escuchado y vendido)</h2>
         <p class="radar-hint">Discos que se escucharon fuerte y se vendieron: validación de que el sonido que elegís mueve. Si el interés/día es alto, ese es tu tipo de disco ganador.</p>
         {{ tabla_radar(vendidos, 'Todavía no hay ventas de discos con escuchas registradas.') }}
     </section>

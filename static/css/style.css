@@ -338,9 +338,10 @@ body.app { display: block; padding: 0; }
 .page-head {
     display: flex;
     justify-content: space-between;
-    align-items: flex-end;
+    align-items: flex-start;
     margin-bottom: 24px;
     gap: 16px;
+    flex-wrap: wrap;
 }
 
 .page-title {
@@ -8071,12 +8072,13 @@ td.num,
 }
 .conta-table .col-num { text-align: right; font-variant-numeric: tabular-nums; }
 .conta-table .totals-row td { font-weight: 700; border-top: 2px solid var(--border-2, #333); }
-.conta-empty { color: var(--text-3, #888); font-size: 14px; padding: 12px 0; }
+.conta-empty { padding: 22px; text-align: center; color: var(--text-3); background: var(--bg-1); border: 1px dashed var(--border-2); border-radius: 12px; font-size: 14px; }
 
 @media (max-width: 600px) {
     .conta-hero-value { font-size: 32px; }
     .conta-table { font-size: 13px; }
-    .conta-table th:nth-child(3), .conta-table td:nth-child(3) { display: none; }
+    /* A4: no escondemos la 3a columna (suele ser dinero: Costo UYU / Monto).
+       La tabla ya scrollea de costado si no entra. */
 }
 
 /* Contabilidad: comparacion, por cobrar, exportar, grafico ingresos/egresos */
@@ -8388,7 +8390,6 @@ td.num,
 
 /* Botones de exportar en pedidos */
 .ped-export-btns { display: flex; gap: 8px; }
-.page-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
 
 /* Filtro de fechas personalizado en contabilidad */
 .conta-custom-range { margin-bottom: 24px; }
@@ -9162,7 +9163,7 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .ra-sello { display: block; color: var(--text-4); font-size: 12px; margin-top: 1px; }
 .ra-interes { font-weight: 700; color: var(--gain, #10b981); }
 .radar-table tbody tr:first-child .ra-interes { font-size: 15px; }
-.radar-empty { color: var(--text-4); font-style: italic; font-size: 14px; }
+.radar-empty { padding: 22px; text-align: center; color: var(--text-3); background: var(--bg-1); border: 1px dashed var(--border-2); border-radius: 12px; font-size: 14px; }
 
 /* v2.85 - Favoritos guardados en la cuenta del cliente (entre dispositivos) */
 .cuenta-favs { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; margin-top: 8px; }
@@ -10201,3 +10202,34 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
         min-height: 40px;
     }
 }
+
+/* =========================================================================
+   AUDITORIA UI/UX v4.47 - Tanda 2: consistencia y color
+   ========================================================================= */
+/* M1/M5 - Titulo de seccion compartido con barra de color (estandar de Contabilidad).
+   Se aplica en Radar (y queda disponible para el resto). */
+.gest-sec-title {
+    position: relative;
+    padding-left: 15px;
+    font-size: 18px;
+    font-weight: 600;
+}
+.gest-sec-title::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 5px; height: 1.05em;
+    border-radius: 3px;
+    background: #6366f1;
+}
+/* M5 - Radar: acento en la metrica clave y separacion prolija de secciones. */
+.radar-section { padding-bottom: 4px; }
+.ra-interes { color: #6366f1; }
+.radar-table tbody tr:first-child .ra-interes { color: #4f46e5; }
+:root:not([data-theme="light"]) .ra-interes,
+:root[data-theme="dark"] .ra-interes { color: #8f92ff; }
+/* M5 - Clientes: acento de color en el dato clave (lo gastado). */
+.cli-gastado { color: #6366f1; font-weight: 700; }
+:root:not([data-theme="light"]) .cli-gastado,
+:root[data-theme="dark"] .cli-gastado { color: #8f92ff; }

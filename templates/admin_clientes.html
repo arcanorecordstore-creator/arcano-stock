@@ -82,7 +82,7 @@
                 {% if c.tiene_cuenta %}<span class="cli-cuenta cli-cuenta-si">&#10003; S&iacute;</span>{% else %}<span class="cli-cuenta cli-cuenta-no">No</span>{% endif %}
             </td>
             <td class="num">{{ ag.get('n', 0) }}</td>
-            <td class="num">{{ money(ag.get('total', 0)) }}</td>
+            <td class="num">{% if ag.get('total', 0) %}<span class="cli-gastado">{{ money(ag.get('total', 0)) }}</span>{% else %}{{ money(0) }}{% endif %}</td>
             <td>{{ ag['ultima'].strftime('%d/%m/%y') if ag.get('ultima') else '&mdash;' | safe }}</td>
             <td class="num">{% if activas.get(c.id) %}<span class="cli-activa">{{ activas[c.id] }}</span>{% else %}&mdash;{% endif %}</td>
         </tr>
