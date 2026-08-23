@@ -317,9 +317,9 @@
                 {% for fila in resumen.filas %}
                 {% set m = fila.mov %}
                 <tr class="caja-row {{ 'is-ingreso' if m.tipo == 'ingreso' else 'is-egreso' }} {% if m.origen == 'pedido' %}is-pedido{% endif %}">
-                    <td class="caja-td-fecha caja-cell-edit" title="Click para editar" data-mov="{{ m.id }}" data-campo="fecha" data-editor="date" data-raw="{{ m.fecha.strftime('%Y-%m-%d') if m.fecha else '' }}">{{ m.fecha.strftime('%d/%m/%y') if m.fecha else '—' }}</td>
+                    <td class="caja-td-fecha caja-cell-edit" data-label="Fecha" title="Click para editar" data-mov="{{ m.id }}" data-campo="fecha" data-editor="date" data-raw="{{ m.fecha.strftime('%Y-%m-%d') if m.fecha else '' }}">{{ m.fecha.strftime('%d/%m/%y') if m.fecha else '—' }}</td>
                     <td class="caja-td-concepto caja-cell-edit" title="Click para editar" data-mov="{{ m.id }}" data-campo="concepto" data-editor="text" data-raw="{{ m.concepto or '' }}">{{ m.concepto or '—' }}</td>
-                    <td class="{% if m.es_manual %}caja-cell-edit caja-td-origen{% endif %}"
+                    <td class="{% if m.es_manual %}caja-cell-edit caja-td-origen{% endif %}" data-label="Origen"
                         {% if m.es_manual %}title="Click para poner/editar la categoría" data-mov="{{ m.id }}" data-campo="origen_categoria" data-editor="origencat" data-raw="{{ m.origen_categoria or '' }}"{% endif %}>
                         {% set _ck = m.origen_categoria if (m.es_manual and m.origen_categoria) else (m.origen or 'manual') %}
                         {% set _est = origen_estilos.get(_ck) %}
@@ -332,18 +332,18 @@
                         {% elif fila.disc_origen == 'arcano' %}<span class="badge badge-arcano">Arcano</span>
                         {% endif %}
                     </td>
-                    <td class="caja-td-metodo caja-cell-edit" title="Click para editar"
+                    <td class="caja-td-metodo caja-cell-edit" data-label="M&eacute;todo / Categor&iacute;a" title="Click para editar"
                         data-mov="{{ m.id }}"
                         data-campo="{{ 'metodo' if m.tipo == 'ingreso' else 'categoria' }}"
                         data-editor="{{ 'metodo' if m.tipo == 'ingreso' else 'categoria' }}"
                         data-raw="{{ (m.metodo or '') if m.tipo == 'ingreso' else (m.categoria or '') }}">
                         {% if m.tipo == 'ingreso' %}{{ m.metodo_label or '—' }}{% else %}{{ m.categoria or '—' }}{% endif %}
                     </td>
-                    <td class="col-num caja-monto caja-cell-edit {{ 'pos' if m.tipo == 'ingreso' else 'neg' }}" title="Click para editar"
+                    <td class="col-num caja-monto caja-cell-edit {{ 'pos' if m.tipo == 'ingreso' else 'neg' }}" data-label="Monto" title="Click para editar"
                         data-mov="{{ m.id }}" data-campo="monto" data-editor="monto" data-raw="{{ '%.0f'|format(m.monto_uyu or 0) }}">
                         {{ '+' if m.tipo == 'ingreso' else '−' }} $ {{ fmt_uyu(m.monto_uyu) }}
                     </td>
-                    <td class="col-num caja-saldo-col {% if fila.saldo < 0 %}neg{% endif %}">$ {{ fmt_uyu(fila.saldo) }}</td>
+                    <td class="col-num caja-saldo-col {% if fila.saldo < 0 %}neg{% endif %}" data-label="Saldo">$ {{ fmt_uyu(fila.saldo) }}</td>
                     <td class="caja-td-acciones">
                         <details class="caja-editar">
                             <summary class="caja-editar-toggle" title="Editar">&#9998;</summary>

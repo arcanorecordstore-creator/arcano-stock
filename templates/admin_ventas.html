@@ -140,7 +140,7 @@
     <input type="hidden" name="periodo" value="{{ periodo }}">
     <input type="hidden" name="desde" value="{{ desde }}">
     <input type="hidden" name="hasta" value="{{ hasta }}">
-    <input type="search" name="q" value="{{ filtros.q }}" placeholder="Buscar disco, sello o cliente..." class="pv-inp pv-search">
+    <input type="search" name="q" value="{{ filtros.q }}" placeholder="Buscar disco, sello o cliente..." class="pv-inp pv-search" aria-label="Buscar ventas">
     <select name="canal" class="pv-inp" onchange="this.form.submit()">
         <option value="">Canal: todos</option>
         {% for key, label in canales if key %}<option value="{{ key }}" {% if filtros.canal == key %}selected{% endif %}>{{ label }}</option>{% endfor %}

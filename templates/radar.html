@@ -28,17 +28,18 @@
             <thead>
                 <tr>
                     <th class="ra-rank">#</th>
+                    <th class="ra-num">Interés <span>/día</span></th>
                     <th>Disco</th>
                     <th>Estado</th>
                     <th class="ra-num">Escuchas</th>
                     <th class="ra-num">Días</th>
-                    <th class="ra-num">Interés <span>/día</span></th>
                 </tr>
             </thead>
             <tbody>
                 {% for f in filas %}
                 <tr>
                     <td class="ra-rank">{{ loop.index }}</td>
+                    <td class="ra-num ra-interes">{{ '%.2f'|format(f.interes) }}</td>
                     <td class="ra-disco">
                         <a href="{{ url_for('disc_detail', disc_id=f.disc.id) }}">{{ f.disc.artista }} &mdash; {{ f.disc.titulo }}</a>
                         {% if f.disc.sello %}<span class="ra-sello">{{ f.disc.sello }}</span>{% endif %}
@@ -46,7 +47,6 @@
                     <td><span class="badge {{ estado_class.get(f.disc.estado, 'badge-default') }}">{{ f.disc.estado }}</span></td>
                     <td class="ra-num">{{ f.plays }}</td>
                     <td class="ra-num">{{ f.dias }}</td>
-                    <td class="ra-num ra-interes">{{ '%.2f'|format(f.interes) }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

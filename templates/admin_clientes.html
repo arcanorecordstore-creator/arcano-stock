@@ -30,12 +30,12 @@
     <summary class="btn btn-primary" style="display:inline-block;">+ Nuevo cliente</summary>
     <form method="post" action="{{ url_for('admin_cliente_nuevo') }}" class="cli-form">
         <div class="cli-form-grid">
-            <div class="form-field"><label>Nombre</label><input type="text" name="nombre" maxlength="200" placeholder="Nombre y apellido"></div>
-            <div class="form-field"><label>Celular / WhatsApp</label><input type="text" name="whatsapp" maxlength="50" placeholder="099 123 456"></div>
-            <div class="form-field"><label>Instagram</label><input type="text" name="instagram" maxlength="100" placeholder="@usuario"></div>
-            <div class="form-field"><label>Email</label><input type="email" name="email" maxlength="200" placeholder="si lo tenés"></div>
+            <div class="form-field"><label for="cli-nombre">Nombre</label><input id="cli-nombre" type="text" name="nombre" maxlength="200" placeholder="Nombre y apellido"></div>
+            <div class="form-field"><label for="cli-wa">Celular / WhatsApp</label><input id="cli-wa" type="text" name="whatsapp" maxlength="50" placeholder="099 123 456"></div>
+            <div class="form-field"><label for="cli-ig">Instagram</label><input id="cli-ig" type="text" name="instagram" maxlength="100" placeholder="@usuario"></div>
+            <div class="form-field"><label for="cli-email">Email</label><input id="cli-email" type="email" name="email" maxlength="200" placeholder="si lo tenés"></div>
         </div>
-        <div class="form-field"><label>Notas</label><textarea name="notas" rows="2" placeholder="Lo que quieras recordar (ej: prefiere minimal)"></textarea></div>
+        <div class="form-field"><label for="cli-notas">Notas</label><textarea id="cli-notas" name="notas" rows="2" placeholder="Lo que quieras recordar (ej: prefiere minimal)"></textarea></div>
         <button type="submit" class="btn btn-primary">Guardar cliente</button>
         <span class="form-field-hint">Poné al menos el nombre, el celular o el Instagram.</span>
     </form>
@@ -43,7 +43,7 @@
 
 <!-- Buscador -->
 <form method="get" action="{{ url_for('admin_clientes') }}" class="cli-search">
-    <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre, celular, Instagram o email..." class="pv-inp">
+    <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre, celular, Instagram o email..." class="pv-inp" aria-label="Buscar clientes">
 </form>
 
 {% if clientes %}
@@ -67,24 +67,24 @@
         {% set ag = compras.get(c.id, {}) %}
         <tr onclick="location.href='{{ url_for('admin_cliente_detail', cliente_id=c.id) }}'">
             <td class="chk" onclick="event.stopPropagation();">
-                <input type="checkbox" class="cli-chk" name="ids" value="{{ c.id }}">
+                <input type="checkbox" class="cli-chk" name="ids" value="{{ c.id }}" aria-label="Elegir {{ c.nombre }}">
             </td>
-            <td>
+            <td class="cli-td-nombre">
                 <a href="{{ url_for('admin_cliente_detail', cliente_id=c.id) }}" class="cli-name">{{ c.nombre }}</a>
                 <span class="cli-origen {{ 'web' if c.origen == 'web' else 'manual' }}">{{ 'Web' if c.origen == 'web' else 'Manual' }}</span>
             </td>
-            <td class="cli-contacto">
+            <td class="cli-contacto" data-label="Contacto">
                 {% if c.instagram %}<span>&#9673; @{{ c.instagram }}</span>{% endif %}
                 {% if c.whatsapp %}<span>&#128241; {{ c.whatsapp }}</span>{% endif %}
                 {% if c.email %}<span class="cli-email">&#9993; {{ c.email }}</span>{% endif %}
             </td>
-            <td>
+            <td data-label="Cuenta">
                 {% if c.tiene_cuenta %}<span class="cli-cuenta cli-cuenta-si">&#10003; S&iacute;</span>{% else %}<span class="cli-cuenta cli-cuenta-no">No</span>{% endif %}
             </td>
-            <td class="num">{{ ag.get('n', 0) }}</td>
-            <td class="num">{% if ag.get('total', 0) %}<span class="cli-gastado">{{ money(ag.get('total', 0)) }}</span>{% else %}{{ money(0) }}{% endif %}</td>
-            <td>{{ ag['ultima'].strftime('%d/%m/%y') if ag.get('ultima') else '&mdash;' | safe }}</td>
-            <td class="num">{% if activas.get(c.id) %}<span class="cli-activa">{{ activas[c.id] }}</span>{% else %}&mdash;{% endif %}</td>
+            <td class="num" data-label="Compras">{{ ag.get('n', 0) }}</td>
+            <td class="num" data-label="Gastado">{% if ag.get('total', 0) %}<span class="cli-gastado">{{ money(ag.get('total', 0)) }}</span>{% else %}{{ money(0) }}{% endif %}</td>
+            <td data-label="&Uacute;ltima compra">{{ ag['ultima'].strftime('%d/%m/%y') if ag.get('ultima') else '&mdash;' | safe }}</td>
+            <td class="num" data-label="Reservas">{% if activas.get(c.id) %}<span class="cli-activa">{{ activas[c.id] }}</span>{% else %}&mdash;{% endif %}</td>
         </tr>
         {% endfor %}
     </tbody>
@@ -134,6 +134,24 @@
 .cli-premios-chips{display:flex;flex-wrap:wrap;gap:6px;}
 .cli-premio-chip{background:var(--bg-2,#1e1e1e);border:1px solid rgba(214,169,69,.4);color:var(--text-1,#eee);text-decoration:none;font-size:13px;padding:4px 10px;border-radius:999px;}
 .cli-premio-chip:hover{background:rgba(214,169,69,.18);}
+
+/* M6 - En el celular, cada cliente es una tarjeta (label: valor) en vez de tabla ancha. */
+@media (max-width:600px){
+    .cli-table-wrap{border:none;overflow:visible;background:transparent;}
+    .cli-table thead{display:none;}
+    .cli-table, .cli-table tbody, .cli-table tr, .cli-table td{display:block;width:auto;}
+    .cli-table tr{position:relative;border:1px solid var(--border-1,#2a2a2a);border-radius:12px;background:var(--bg-1,#1a1a1a);margin-bottom:10px;padding:12px 14px;}
+    .cli-table tr:last-child td{border-bottom:none;}
+    .cli-table td{border:none;padding:4px 0;display:flex;justify-content:space-between;align-items:center;gap:14px;text-align:right;}
+    .cli-table td::before{content:attr(data-label);color:var(--text-3);font-size:12px;font-weight:600;text-align:left;flex-shrink:0;}
+    .cli-table td.cli-td-nombre{display:block;padding:0 40px 8px 0;margin-bottom:6px;border-bottom:1px solid var(--border-1,#2a2a2a);}
+    .cli-table td.cli-td-nombre::before{content:none;}
+    .cli-table td.cli-td-nombre .cli-name{font-size:16px;}
+    .cli-table td.cli-contacto{flex-direction:column;align-items:flex-end;}
+    .cli-table td.cli-contacto::before{align-self:flex-start;}
+    .cli-table td.chk{position:absolute;top:12px;right:12px;width:auto;padding:0;}
+    .cli-table td.chk::before{content:none;}
+}
 </style>
 <script>
 (function(){

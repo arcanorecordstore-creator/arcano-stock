@@ -10233,3 +10233,72 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .cli-gastado { color: #6366f1; font-weight: 700; }
 :root:not([data-theme="light"]) .cli-gastado,
 :root[data-theme="dark"] .cli-gastado { color: #8f92ff; }
+
+/* =========================================================================
+   AUDITORIA UI/UX v4.48 - Tanda 3: Caja en tarjetas (celular) + edicion en hoja
+   ========================================================================= */
+@media (max-width: 600px) {
+    /* A1 - La tabla de movimientos pasa a tarjetas: se lee sin arrastrar de costado. */
+    .caja-table-wrap { overflow: visible; border: none; background: transparent; }
+    .caja-table, .caja-table tbody, .caja-table tr, .caja-table td { display: block; width: auto; }
+    .caja-table thead { display: none; }
+    .caja-table tr {
+        position: relative;
+        border: 1px solid var(--border-1, #2a2a2a);
+        border-radius: 12px;
+        background: var(--bg-1, #1a1a1a);
+        margin-bottom: 10px;
+        padding: 12px 14px;
+    }
+    .caja-table td {
+        border: none;
+        padding: 4px 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        text-align: right;
+        min-height: 0;
+    }
+    .caja-table td::before {
+        content: attr(data-label);
+        color: var(--text-3);
+        font-size: 12px;
+        font-weight: 600;
+        text-align: left;
+        flex-shrink: 0;
+    }
+    /* Concepto = titulo de la tarjeta (sin label, mas grande, deja lugar al lapiz). */
+    .caja-table td.caja-td-concepto {
+        display: block;
+        text-align: left;
+        font-weight: 600;
+        font-size: 15px;
+        padding: 0 44px 8px 0;
+        margin-bottom: 6px;
+        border-bottom: 1px solid var(--border-1, #2a2a2a);
+    }
+    .caja-table td.caja-td-concepto::before { content: none; }
+    /* El origen "Disco" (arcano/personal) es secundario: se oculta si esta vacio. */
+    .caja-table td.caja-td-disco:empty { display: none; }
+    .caja-table td.caja-td-disco { justify-content: flex-end; }
+    /* Lapiz de editar: arriba a la derecha de la tarjeta. */
+    .caja-table td.caja-td-acciones {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        padding: 0;
+    }
+    .caja-table td.caja-td-acciones::before { content: none; }
+    /* El popover de edicion, como hoja inferior a pantalla completa (no recortado). */
+    .caja-table .caja-editar[open] .caja-editar-pop {
+        position: fixed;
+        left: 0; right: 0; bottom: 0; top: auto;
+        width: 100%;
+        max-height: 88vh;
+        overflow-y: auto;
+        border-radius: 16px 16px 0 0;
+        z-index: 1000;
+        box-shadow: 0 -8px 30px rgba(0,0,0,.5);
+    }
+}

@@ -67,6 +67,15 @@
     <a href="{{ url_for('contabilidad_informe_pdf', periodo=periodo, desde=desde, hasta=hasta) }}" class="btn btn-ghost">&#128196; Bajar informe PDF</a>
 </section>
 
+<!-- Indice para saltar a cada bloque (la pagina es larga) -->
+<nav class="conta-index" aria-label="Secciones de la pagina">
+    <a href="#c-ganancia">Ganancia</a>
+    <a href="#c-gastos">Gastos</a>
+    <a href="#c-recuperacion">Recuperaci&oacute;n</a>
+    <a href="#c-pedidos">Pedidos</a>
+    <a href="#c-panorama">Panorama</a>
+</nav>
+
 <!-- Filtro por fechas personalizado -->
 <section class="conta-custom-range">
     <form method="get" action="{{ url_for('contabilidad') }}" class="conta-range-form">
@@ -83,7 +92,7 @@
 <!-- ============================================================
      Ganancia real (numero grande) + comparacion
      ============================================================ -->
-<section class="conta-hero">
+<section class="conta-hero" id="c-ganancia">
     <span class="conta-hero-label">Ganancia real del periodo</span>
     <span class="conta-hero-value {% if conta.ganancia_real_uyu < 0 %}negativo{% endif %}">
         $ {{ fmt_uyu(conta.ganancia_real_uyu) }} <span class="conta-hero-cur">UYU</span>
@@ -226,7 +235,7 @@
      Lista de egresos del periodo
      ============================================================ -->
 <section class="conta-block">
-    <h2 class="conta-block-title">Gastos del periodo</h2>
+    <h2 class="conta-block-title" id="c-gastos">Gastos del periodo</h2>
     <p class="conta-block-sub">Toc&aacute; cualquier campo para corregirlo y despu&eacute;s "Guardar". El campo <em>En pesos</em> es lo que te debit&oacute; el banco (dejalo vac&iacute;o para recalcularlo solo con el tipo de cambio).</p>
     {% if egresos %}
     <div class="egreso-edit-list">
@@ -411,7 +420,7 @@
      ============================================================ -->
 {% if recuperacion.pedidos_count > 0 %}
 <section class="conta-block">
-    <h2 class="conta-block-title">Recuperacion de la inversion</h2>
+    <h2 class="conta-block-title" id="c-recuperacion">Recuperacion de la inversion</h2>
 
     <!-- LINEA 1: solo la mercaderia (los discos de los pedidos) -->
     <p class="recup-linea-tit">1) Solo la mercader&iacute;a (los discos)</p>
@@ -483,7 +492,7 @@
 {% if pedidos_lista %}
 <section class="conta-block">
     <div style="display:flex; justify-content:space-between; align-items:baseline;">
-        <h2 class="conta-block-title">Pedidos (inversion en stock)</h2>
+        <h2 class="conta-block-title" id="c-pedidos">Pedidos (inversion en stock)</h2>
         <a href="{{ url_for('pedidos') }}" class="btn btn-ghost">Gestionar pedidos</a>
     </div>
     <table class="conta-table">
@@ -525,7 +534,7 @@
      KPIs completos (inventario + ventas historicas)
      ============================================================ -->
 <section class="conta-block">
-    <h2 class="conta-block-title">Panorama general</h2>
+    <h2 class="conta-block-title" id="c-panorama">Panorama general</h2>
     <div class="kpi-grid">
         <div class="kpi-card">
             <span class="kpi-label">Stock disponible</span>
@@ -745,5 +754,11 @@
 /* Retiros personales: acento naranja (plata que sale) */
 .conta-retiros .conta-block-title::before { background: #e0752f; }
 .conta-retiros-num { color: #e0752f; font-weight: 800; }
+/* M3 - Indice para saltar a cada bloque (la pagina es larga). */
+.conta-index { position: sticky; top: 0; z-index: 20; display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 0; margin: 0 0 8px; background: var(--bg-0); }
+.conta-index a { font-size: 13px; padding: 6px 13px; border-radius: 999px; background: var(--bg-2); border: 1px solid var(--border-1); color: var(--text-2); text-decoration: none; white-space: nowrap; transition: border-color .1s, color .1s; }
+.conta-index a:hover { border-color: #6366f1; color: var(--text-1); }
+#c-ganancia, #c-gastos, #c-recuperacion, #c-pedidos, #c-panorama { scroll-margin-top: 62px; }
+@media (max-width: 600px) { .conta-index { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; } }
 </style>
 {% endblock %}
