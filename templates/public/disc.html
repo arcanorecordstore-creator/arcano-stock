@@ -439,4 +439,26 @@
 })();
 </script>
 
+{# A5 - Barra de compra fija (solo mobile): precio + agregar siempre a mano. #}
+{% if disc.estado == 'Disponible' and disc.precio_uyu and not disc.esta_agotado %}
+<div class="disc-buybar">
+    <div class="disc-buybar-info">
+        <span class="disc-buybar-name">{{ disc.artista }}</span>
+        <span class="disc-buybar-price">
+            {%- if disc.en_fire_sale_activo and cliente_actual %}&#128293; $ {{ '{:,.0f}'.format(disc.precio_fire_sale).replace(',', '.') }}
+            {%- elif disc.en_fire_sale_activo %}&#128274; $ {{ '{:,.0f}'.format(disc.precio_fire_sale).replace(',', '.') }}
+            {%- else %}$ {{ '{:,.0f}'.format(disc.precio_mostrar).replace(',', '.') }}{% endif -%}
+        </span>
+    </div>
+    {% if disc.en_fire_sale_activo and not cliente_actual %}
+    <a href="{{ url_for('cliente_login_page') }}" class="btn btn-primary disc-buybar-btn">Iniciar sesi&oacute;n</a>
+    {% else %}
+    <button type="button" class="btn btn-primary cart-btn disc-buybar-btn" data-cart-id="{{ disc.id }}">
+        <span class="cart-label-add">&#43; Agregar</span>
+        <span class="cart-label-in">&#10003; En el carrito</span>
+    </button>
+    {% endif %}
+</div>
+{% endif %}
+
 {% endblock %}

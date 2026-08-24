@@ -64,6 +64,14 @@
         </div>
     </div>
 
+    {% if not cliente_actual %}
+    <div class="public-reserve-ok-cuenta">
+        <strong>&#127873; Cre&aacute; tu cuenta y segu&iacute; tu pedido</strong>
+        <p>Mir&aacute; el estado de esta compra, sum&aacute; para tus premios y desbloque&aacute; descuentos exclusivos. Con tu email ya casi lo ten&eacute;s.</p>
+        <a href="{{ url_for('cliente_registro') }}?email={{ reserva.email|urlencode }}" class="btn btn-primary">Crear mi cuenta</a>
+    </div>
+    {% endif %}
+
     {% if whatsapp %}
     {% if multi %}
     {% set wa_msg = 'Hola! Hice la reserva #' ~ reserva.id ~ ' de ' ~ reserva.cantidad_discos ~ ' discos en Arcano.' %}

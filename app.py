@@ -6231,7 +6231,9 @@ def register_routes(app: Flask) -> None:
             flash(f"Cuenta creada. Bienvenido, {cliente.nombre}!", "success")
             return redirect(url_for("cliente_cuenta"))
 
-        return render_template("public/cliente_registro.html", form={}, **_public_context())
+        return render_template("public/cliente_registro.html",
+                               form={"email": (request.args.get("email") or "").strip()[:200]},
+                               **_public_context())
 
     @app.route("/cuenta/login", methods=["GET", "POST"], endpoint="cliente_login_page")
     def cliente_login_page():

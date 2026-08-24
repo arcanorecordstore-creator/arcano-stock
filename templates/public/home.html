@@ -31,6 +31,11 @@
 </section>
 {% endif %}
 
+{# M8 - H1 siempre presente para SEO y accesibilidad cuando no hay hero con titulo #}
+{% if not hero_h %}
+<h1 class="sr-only">Arcano Record Store &mdash; vinilos de m&uacute;sica electr&oacute;nica en Montevideo</h1>
+{% endif %}
+
 {% macro carrusel(discos, titulo, carrusel_id) %}
 <section class="public-carrusel" data-carrusel="{{ carrusel_id }}" data-velocidad="{{ carrusel_velocidad or 7 }}">
     <div class="public-carrusel-head">
@@ -165,6 +170,16 @@
             Filtros{% if filtros_activos > 0 %} <span class="filters-badge">{{ filtros_activos }}</span>{% endif %}
         </button>
     </div>
+
+    {# M8 - Tira de confianza / como funciona (solo en la vista principal, sin filtros) #}
+    {% if not filtro_q and filtros_activos == 0 %}
+    <div class="public-trust">
+        <span class="public-trust-item">&#9733; Curadur&iacute;a a mano</span>
+        <span class="public-trust-item">&#128230; Env&iacute;o a todo Uruguay</span>
+        <span class="public-trust-item">&#128205; Retiro en Pocitos</span>
+        <span class="public-trust-item">&#128179; Pag&aacute;s como quieras</span>
+    </div>
+    {% endif %}
 
     {% if preorders_carrusel and car_preorder %}
     {{ carrusel(preorders_carrusel, 'Pre-order', 'preorder') }}
