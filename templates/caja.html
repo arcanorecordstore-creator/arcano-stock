@@ -286,10 +286,10 @@
         <form method="get" action="{{ url_for('caja') }}" class="caja-mes-filtro" id="caja-mes-form">
             <label>Ver:
                 <select name="mes" onchange="document.getElementById('caja-mes-form').submit()">
-                    <option value="">Todos los movimientos</option>
                     {% for m in resumen.meses_disponibles %}
                     <option value="{{ m.val }}" {% if resumen.mes_filtro == m.val %}selected{% endif %}>{{ m.label }}</option>
                     {% endfor %}
+                    <option value="todos" {% if not resumen.mes_activo %}selected{% endif %}>Todos los movimientos</option>
                 </select>
             </label>
         </form>

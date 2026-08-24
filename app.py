@@ -133,8 +133,13 @@ def convertir_cover_a_webp(path_original: str) -> str:
                 img = fondo
         elif img.mode != "RGB":
             img = img.convert("RGB")
+        # Redimensionar: una portada no necesita mas de ~1000px de lado. Antes se
+        # guardaba a resolucion completa (fotos de 500-600 KB) y el celular bajaba la
+        # imagen entera para una card de ~300px. thumbnail() respeta la proporcion y
+        # solo achica (nunca agranda). Solo afecta covers NUEVAS.
+        img.thumbnail((1000, 1000), Image.LANCZOS)
         webp_path = base + ".webp"
-        img.save(webp_path, "WEBP", quality=85, method=4)
+        img.save(webp_path, "WEBP", quality=82, method=6)
         _os.remove(path_original)
         return _os.path.basename(webp_path)
     except Exception:
@@ -260,13 +265,19 @@ def create_app() -> Flask:
     else:
         app.config["COVERS_DIR"] = os.path.join(app.static_folder, "covers")
 
+    # Cache larga para estaticos (CSS/JS): el cache-busting ?v=<mtime> ya fuerza el
+    # refresco cuando cambia el archivo, asi que el navegador no revalida en cada carga.
+    # (El HTML se sirve con no-cache aparte, no lo afecta.)
+    app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 31536000
+
     # Ruta que sirve las portadas desde COVERS_DIR (para que funcionen tanto en
     # local como cuando viven en el disco persistente fuera de /static).
     from flask import send_from_directory
 
     @app.route("/covers/<path:filename>")
     def serve_cover(filename):
-        return send_from_directory(app.config["COVERS_DIR"], filename)
+        # Cache larga: las portadas son inmutables por nombre (cover_<hash>).
+        return send_from_directory(app.config["COVERS_DIR"], filename, max_age=31536000)
 
     # Carpeta de samples de audio/video subidos a mano. En produccion tiene que
     # vivir en el DISCO PERSISTENTE o los archivos se borran en cada deploy.
@@ -287,8 +298,8 @@ def create_app() -> Flask:
         # que hayan quedado en static/samples se sirven como fallback.
         d = app.config["SAMPLES_DIR"]
         if os.path.exists(os.path.join(d, filename)):
-            return send_from_directory(d, filename)
-        return send_from_directory(os.path.join(app.static_folder, "samples"), filename)
+            return send_from_directory(d, filename, max_age=31536000)
+        return send_from_directory(os.path.join(app.static_folder, "samples"), filename, max_age=31536000)
 
     # Carpeta de comprobantes de transferencia (PRIVADOS). En produccion caen al
     # disco persistente (junto a covers/samples) de forma automatica; en local a
@@ -4042,7 +4053,18 @@ def register_routes(app: Flask) -> None:
         from models import METODOS_PAGO_CAJA
         from datetime import datetime as _dt
         _sincronizar_caja()  # trae ventas/pedidos/gastos nuevos (silencioso)
-        mes = request.args.get("mes") or None
+        from models import MovimientoCaja as _MC
+        mes_param = request.args.get("mes")
+        if mes_param is None:
+            # Default: el mes mas reciente con movimientos (no 'Todos', que con cientos
+            # de movimientos es una lista enorme y lenta de dibujar). El usuario elige
+            # 'Todos' cuando quiere ver la historia completa.
+            _ult = _MC.query.order_by(_MC.fecha.desc()).first()
+            mes = _ult.fecha.strftime("%Y-%m") if (_ult and _ult.fecha) else None
+        elif mes_param == "todos":
+            mes = None
+        else:
+            mes = mes_param or None
         resumen = _resumen_caja(mes)
         # Lista GESTIONADA de categorias de origen propias (agregar/eliminar)
         categorias_origen = _categorias_origen_lista()

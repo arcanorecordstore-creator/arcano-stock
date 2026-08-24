@@ -139,6 +139,27 @@
     Est&aacute;s ordenando por una columna. <a href="{{ sort_url('orden', 'desc') }}">Volv&eacute; al orden manual</a> para poder arrastrar y fijar el orden de la tienda.
     {% endif %}
 </div>
+
+{# M6 - Totales clave arriba (en el celular, donde el detalle completo queda al pie) #}
+<div class="dash-kpis-top">
+    <div class="dash-kpi-top"><span>Discos</span><strong>{{ totals.total }}</strong></div>
+    <div class="dash-kpi-top"><span>Gan. potencial</span><strong>$ {{ '{:,.0f}'.format(totals.ganancia_potencial_uyu).replace(',', '.') }}</strong></div>
+    <div class="dash-kpi-top"><span>Gan. realizada</span><strong>$ {{ '{:,.0f}'.format(totals.ganancia_realizada_uyu).replace(',', '.') }}</strong></div>
+</div>
+
+{# M6 - Leyenda de la columna Home (las marcas de curaduria son crípticas sin tooltip) #}
+<details class="dash-home-legend">
+    <summary>&iquest;Qu&eacute; son las marcas de la columna <strong>Home</strong>?</summary>
+    <div class="dash-home-legend-body">
+        <span><b>SP</b> Staff Pick</span>
+        <span><b>&#9733;</b> Destacado</span>
+        <span><b>N</b> Nuevos ingresos</span>
+        <span><b>&#9888;</b> &Uacute;ltima copia</span>
+        <span><b>A</b> Mostrar agotado</span>
+        <span><b>P</b> Pre-order</span>
+    </div>
+</details>
+
 <div class="table-wrap">
     <table class="stock-table" data-estados="{{ estados|join('|') }}" data-reorder="{{ '1' if filtros.order == 'orden' else '0' }}">
         <thead>

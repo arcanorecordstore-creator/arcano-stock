@@ -10332,3 +10332,22 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .public-reserve-ok-cuenta { margin:18px 0 6px; padding:16px 18px; border:1px solid var(--border-2); border-radius:12px; background:var(--bg-2); text-align:center; }
 .public-reserve-ok-cuenta strong { display:block; font-size:15px; margin-bottom:4px; }
 .public-reserve-ok-cuenta p { font-size:13.5px; color:var(--text-2); margin:0 0 12px; }
+
+/* =========================================================================
+   AUDITORIA INTEGRAL v4.51 - Tanda C: velocidad + admin (Dashboard)
+   ========================================================================= */
+/* M6 - Tira de totales clave arriba de la tabla. En desktop el detalle completo
+   sigue al pie (summary-cards); esta tira ayuda sobre todo en el celular. */
+.dash-kpis-top { display: flex; gap: 8px; margin: 0 0 12px; }
+.dash-kpi-top { flex: 1; background: var(--bg-1); border: 1px solid var(--border-1); border-top: 3px solid #6366f1; border-radius: 10px; padding: 8px 10px; min-width: 0; }
+.dash-kpi-top:nth-child(2) { border-top-color: #14b8a6; }
+.dash-kpi-top:nth-child(3) { border-top-color: #eab308; }
+.dash-kpi-top span { display: block; font-size: 11px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dash-kpi-top strong { font-size: 16px; font-variant-numeric: tabular-nums; }
+@media (min-width: 861px) { .dash-kpis-top { display: none; } }
+/* M6 - Leyenda de la columna Home */
+.dash-home-legend { margin: 0 0 12px; font-size: 13px; }
+.dash-home-legend summary { cursor: pointer; color: var(--text-2); }
+.dash-home-legend-body { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; color: var(--text-2); }
+.dash-home-legend-body span { white-space: nowrap; }
+.dash-home-legend-body b { display: inline-block; min-width: 20px; text-align: center; color: var(--text-1); background: var(--bg-3); border-radius: 4px; padding: 0 4px; margin-right: 3px; }
