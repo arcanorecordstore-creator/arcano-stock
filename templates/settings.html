@@ -495,7 +495,7 @@
             </div>
         </form>
 
-        <form method="post" action="{{ url_for('settings_update_public') }}" class="settings-form" style="margin-top: 16px;">
+        <form method="post" action="{{ url_for('settings_update_video') }}" class="settings-form" style="margin-top: 16px;">
             <div class="form-row">
                 <div class="form-field form-field-full">
                     <label for="public_banner_video_url">Video de fondo <span class="form-field-hint">(URL de un .mp4; opcional, reemplaza la imagen)</span></label>
@@ -503,16 +503,6 @@
                     <span class="form-field-hint">Tip: un loop corto y liviano (menos de 5 MB) queda mejor. Si ponés video, la imagen queda como poster de carga.</span>
                 </div>
             </div>
-            {# Campos ocultos para no pisar los otros textos al guardar solo el video #}
-            <input type="hidden" name="public_tagline" value="{{ public_tagline or '' }}">
-            <input type="hidden" name="public_hero_title" value="{{ public_hero_title or '' }}">
-            <input type="hidden" name="public_hero_subtitle" value="{{ public_hero_subtitle or '' }}">
-            <input type="hidden" name="public_about" value="{{ public_about or '' }}">
-            <input type="hidden" name="public_about_curaduria" value="{{ public_about_curaduria or '' }}">
-            <input type="hidden" name="public_about_como_funciona" value="{{ public_about_como_funciona or '' }}">
-            <input type="hidden" name="public_envios" value="{{ public_envios or '' }}">
-            <input type="hidden" name="public_instagram" value="{{ public_instagram or '' }}">
-            <input type="hidden" name="public_whatsapp" value="{{ public_whatsapp or '' }}">
             <div class="form-footer">
                 <button type="submit" class="btn btn-primary">Guardar video de fondo</button>
             </div>

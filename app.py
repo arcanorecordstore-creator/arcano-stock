@@ -482,18 +482,24 @@ def compute_totals(discs):
         # para el resto, el stock. Antes usaba (stock or 1) y contaba 1 sola copia en
         # los vendidos multi-copia (subcontaba facturado/ganancia).
         cant = d.copias_facturadas if d.estado == "Vendido" else (d.stock or 1)
+        # Costo por ORIGEN: los discos de la coleccion personal no le costaron al
+        # negocio (aporte), asi que su costo cuenta 0. Mismo criterio que Contabilidad
+        # (metrics._costo_negocio); antes se usaba d.ganancia_uyu, que restaba el costo
+        # tambien a los personales y daba una "Ganancia realizada" distinta a Contabilidad.
+        costo_neg = 0.0 if (d.origen or "arcano") == "personal" else (d.costo_final_uyu or 0)
+        gan = ((d.precio_mostrar or d.precio_uyu or 0) - costo_neg)
         suma_costo_eur += (d.costo_eur or 0) * cant
         suma_envio_eur += (d.envio_eur or 0) * cant
         suma_costo_final_uyu += (d.costo_final_uyu or 0) * cant
         # precio_mostrar (con oferta) para que el pie cuadre: precio - costo = ganancia
         # (la ganancia ya usa el precio de oferta).
         suma_precio_uyu += (d.precio_mostrar or d.precio_uyu or 0) * cant
-        suma_ganancia_uyu += (d.ganancia_uyu or 0) * cant
+        suma_ganancia_uyu += gan * cant
         stock_total += d.stock or 0
         if d.estado == "Disponible":
-            ganancia_potencial_uyu += (d.ganancia_uyu or 0) * cant
+            ganancia_potencial_uyu += gan * cant
         elif d.estado == "Vendido":
-            ganancia_realizada_uyu += (d.ganancia_uyu or 0) * cant
+            ganancia_realizada_uyu += gan * cant
 
     return {
         "total": total,
@@ -6178,7 +6184,10 @@ def register_routes(app: Flask) -> None:
                 errores.append("La contrasena debe tener al menos 6 caracteres.")
             if password != password2:
                 errores.append("Las contrasenas no coinciden.")
-            if email and Cliente.query.filter_by(email=email).first():
+            _existente = Cliente.query.filter_by(email=email).first() if email else None
+            # Solo bloquea si ya hay una cuenta REAL (con contrasena). Si la ficha existe
+            # pero sin contrasena (se creo sola por una compra sin cuenta), se adopta abajo.
+            if _existente and _existente.password_hash:
                 errores.append("Ya existe una cuenta con ese email. Inicia sesion.")
 
             if errores:
@@ -6190,9 +6199,20 @@ def register_routes(app: Flask) -> None:
                     **_public_context(),
                 )
 
-            cliente = Cliente(nombre=nombre, email=email, whatsapp=whatsapp)
-            cliente.set_password(password)
-            db.session.add(cliente)
+            if _existente and not _existente.password_hash:
+                # Ficha creada sola por una compra sin cuenta: la ADOPTA (le pone la
+                # contrasena) en vez de rechazar. Antes quedaba trabada: no podia
+                # registrarse ("ya existe") ni iniciar sesion (no tenia contrasena).
+                cliente = _existente
+                if not cliente.nombre:
+                    cliente.nombre = nombre
+                if whatsapp and not cliente.whatsapp:
+                    cliente.whatsapp = whatsapp
+                cliente.set_password(password)
+            else:
+                cliente = Cliente(nombre=nombre, email=email, whatsapp=whatsapp)
+                cliente.set_password(password)
+                db.session.add(cliente)
             db.session.flush()
 
             # Adoptar reservas anonimas previas hechas con el MISMO EMAIL de esta cuenta.
@@ -6536,13 +6556,24 @@ def register_routes(app: Flask) -> None:
             # (asi puede seguir sus pedidos sin registrarse aparte). Best-effort: nunca rompe la reserva.
             if crear_cuenta and len(password_cuenta) >= 6 and email:
                 email_norm = email.strip().lower()
-                if Cliente.query.filter_by(email=email_norm).first():
+                existente = Cliente.query.filter_by(email=email_norm).first()
+                if existente and existente.password_hash:
                     flash("Ya tenias una cuenta con ese email. Inicia sesion para ver tus pedidos.", "info")
                 else:
                     try:
-                        nuevo_cliente = Cliente(nombre=nombre, email=email_norm, whatsapp=whatsapp or None)
-                        nuevo_cliente.set_password(password_cuenta)
-                        db.session.add(nuevo_cliente)
+                        if existente and not existente.password_hash:
+                            # Adoptar la ficha creada sola por una compra previa sin cuenta
+                            # (antes quedaba trabada: no podia registrarse ni loguear).
+                            nuevo_cliente = existente
+                            if not nuevo_cliente.nombre:
+                                nuevo_cliente.nombre = nombre
+                            if whatsapp and not nuevo_cliente.whatsapp:
+                                nuevo_cliente.whatsapp = whatsapp
+                            nuevo_cliente.set_password(password_cuenta)
+                        else:
+                            nuevo_cliente = Cliente(nombre=nombre, email=email_norm, whatsapp=whatsapp or None)
+                            nuevo_cliente.set_password(password_cuenta)
+                            db.session.add(nuevo_cliente)
                         db.session.flush()
                         # Adoptar esta reserva + otras anonimas con el MISMO EMAIL de la
                         # cuenta (no por WhatsApp: el numero se puede conocer sin ser el
@@ -7141,6 +7172,18 @@ def register_routes(app: Flask) -> None:
                     value = "15000" if key == "lealtad_umbral1" else "30000"
             Setting.set(key, value)
         flash("Textos publicos actualizados.", "success")
+        return redirect(url_for("settings_page"))
+
+    @app.route("/admin/settings/video", methods=["POST"])
+    @auth.admin_required
+    def settings_update_video():
+        """Actualiza SOLO el video de fondo del hero. Ruta propia para NO pisar el resto
+        de la config (cobros, analytics, pixel, carruseles) que maneja el form grande:
+        antes el form del video posteaba a settings_update_public y, al no mandar esos
+        campos, los apagaba/borraba en silencio."""
+        Setting.set("public_banner_video_url",
+                    (request.form.get("public_banner_video_url") or "").strip())
+        flash("Video de fondo actualizado.", "success")
         return redirect(url_for("settings_page"))
 
     @app.route("/admin/fire-sale/avisar", methods=["POST"])

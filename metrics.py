@@ -83,14 +83,19 @@ def kpis_principales() -> dict:
     # ---- Stock disponible ----
     disponibles = Disc.query.filter_by(estado="Disponible").all()
     stock_disponible_unidades = sum(d.stock or 0 for d in disponibles)
+    # Inversion inmovilizada = plata que ARCANO puso en stock. Los discos de la
+    # coleccion personal no le costaron al negocio (aporte), asi que cuentan 0.
+    # Mismo criterio por origen que la Ganancia real (antes sumaba tambien los
+    # personales y daba una "inversion" distinta al stock no vendido de la misma pagina).
     inversion_uyu = sum(
-        (d.costo_final_uyu or 0) * (d.stock or 1) for d in disponibles
+        _costo_negocio(d) * (d.stock or 1) for d in disponibles
     )
     valor_venta_uyu = sum(
         (d.precio_uyu or 0) * (d.stock or 1) for d in disponibles
     )
     ganancia_potencial_uyu = sum(
-        (d.ganancia_uyu or 0) * (d.stock or 1) for d in disponibles
+        ((d.precio_mostrar or d.precio_uyu or 0) - _costo_negocio(d)) * (d.stock or 1)
+        for d in disponibles
     )
 
     # ---- Ventas historicas ----
