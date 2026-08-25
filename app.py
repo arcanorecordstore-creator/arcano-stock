@@ -7050,6 +7050,33 @@ def register_routes(app: Flask) -> None:
                     else:
                         flash(f"No se envió el mail: {msg}", "error")
 
+            elif accion == "asignar_cliente":
+                # Asignar (o cambiar) el cliente de una reserva ya existente a uno ya
+                # cargado. Ademas atribuye los discos de la reserva a ese cliente, para
+                # que aparezcan en sus compras (los Vendidos cuentan; los Reservados
+                # quedan atribuidos para cuando se vendan).
+                from models import Cliente
+                cid = (request.form.get("cliente_id") or "").strip()
+                if cid == "":
+                    reserva.cliente_id = None
+                    for item in reserva.items_efectivos:
+                        if item.disco:
+                            item.disco.cliente_id = None
+                    db.session.commit()
+                    flash("Reserva desvinculada del cliente.", "success")
+                elif cid.isdigit() and Cliente.query.get(int(cid)):
+                    cli = Cliente.query.get(int(cid))
+                    reserva.cliente_id = cli.id
+                    if not reserva.email and cli.email:
+                        reserva.email = cli.email
+                    for item in reserva.items_efectivos:
+                        if item.disco:
+                            item.disco.cliente_id = cli.id
+                    db.session.commit()
+                    flash(f"Reserva asignada a {cli.nombre}. Sus discos quedaron atribuidos a este cliente.", "success")
+                else:
+                    flash("Eleg&iacute; un cliente v&aacute;lido.", "warning")
+
             elif accion == "delete":
                 # Si algun disco quedo Reservado por esta reserva, devolverlo a Disponible
                 for item in reserva.items_efectivos:
@@ -7077,6 +7104,9 @@ def register_routes(app: Flask) -> None:
 
         _par = mailer.RESERVA_ESTADO_MENSAJES.get(reserva.estado)
         mail_subject = f"{_par[0]} - pedido #{reserva.id} - Arcano Record Store" if _par else ""
+        from models import Cliente
+        clientes = Cliente.query.order_by(Cliente.nombre.asc()).all()
+        cliente_actual_reserva = Cliente.query.get(reserva.cliente_id) if reserva.cliente_id else None
         return render_template(
             "admin_reserva_detail.html",
             reserva=reserva,
@@ -7085,6 +7115,8 @@ def register_routes(app: Flask) -> None:
             tc=Setting.get_tc(),
             texto_mail_default=mailer.texto_estado_default(reserva.estado),
             mail_subject=mail_subject,
+            clientes=clientes,
+            cliente_actual_reserva=cliente_actual_reserva,
         )
 
     # ----------------------------------------------------------------------

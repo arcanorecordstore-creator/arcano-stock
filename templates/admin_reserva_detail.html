@@ -38,6 +38,22 @@
                 {% endif %}
             </div>
 
+            {# Asignar esta reserva (y sus discos) a un cliente ya cargado, o cambiarlo. #}
+            <form method="post" class="reserva-asignar" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-1);">
+                <input type="hidden" name="accion" value="asignar_cliente">
+                <span class="detail-meta-label">Ficha de cliente {% if cliente_actual_reserva %}&mdash; asignada a <strong style="color: var(--text-1);">{{ cliente_actual_reserva.nombre }}</strong>{% else %}&mdash; sin asignar{% endif %}</span>
+                <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
+                    <select name="cliente_id" id="asignar-cliente-sel" class="pv-inp" style="flex:1; min-width:150px;">
+                        <option value="">&mdash; Sin asignar &mdash;</option>
+                        {% for c in clientes %}
+                        <option value="{{ c.id }}" {% if cliente_actual_reserva and cliente_actual_reserva.id == c.id %}selected{% endif %}>{{ c.nombre }}{% if c.whatsapp %} &middot; {{ c.whatsapp }}{% endif %}</option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-sm">Asignar</button>
+                </div>
+                <p class="form-field-hint" style="margin-top:6px;">Vincula esta reserva y sus discos al cliente (aparece en sus compras).</p>
+            </form>
+
             {% if reserva.nota %}
             <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-1);">
                 <span class="detail-meta-label">Nota del cliente</span>
