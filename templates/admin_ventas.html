@@ -10,7 +10,7 @@
 {% endif %}
 {% endmacro %}
 
-{% macro venta_fila(d, mostrar_cliente, mostrar_fecha) %}
+{% macro venta_fila(d, mostrar_cliente, mostrar_fecha, mostrar_eliminar=false) %}
 {% set met = d.metodo_pago_venta or metodo_por_disc.get(d.id) %}
 {% set canal = d.canal_venta or ('web' if d.id in disc_ids_web else '') %}
 {% set cli = cliente_por_disc.get(d.id) %}
@@ -57,6 +57,12 @@
         $ {{ fmt(d.precio_mostrar or d.precio_uyu or 0) }}
         <span class="venta-gan">+$ {{ fmt((d.ganancia_uyu or 0) * d.copias_facturadas) }}</span>
     </div>
+    {% if mostrar_eliminar %}
+    <form method="post" action="{{ url_for('ventas_eliminar') }}" class="venta-elim-form" onsubmit="return confirm('¿Eliminar esta venta? El disco vuelve a Disponible y se borra de ventas, contabilidad, caja y lealtad. Si vino de un pedido web, también se borra el pedido. No se puede deshacer.');">
+        <input type="hidden" name="ids" value="{{ d.id }}">
+        <button type="submit" class="venta-eliminar" title="Eliminar esta venta" aria-label="Eliminar esta venta">&#128465;</button>
+    </form>
+    {% endif %}
 </div>
 {% endmacro %}
 
@@ -172,15 +178,21 @@
         <div class="venta-trans">
             <div class="venta-trans-head">
                 <span class="venta-trans-label">&#128230; Una venta &middot; {{ t.discos|length }} discos{% if t.cliente %} &middot; {{ t.cliente.nombre }} &middot; <a href="{{ url_for('admin_reserva_detail', reserva_id=t.cliente.reserva_id) }}">reserva #{{ t.cliente.reserva_id }}</a>{% endif %} &middot; $ {{ fmt(t.subtotal) }} &middot; <span class="venta-gan">+$ {{ fmt(t.ganancia) }}</span>{% if t.multidia %} <span class="venta-multidia">entregada en varios d&iacute;as</span>{% endif %}</span>
-                <form method="post" action="{{ url_for('ventas_desagrupar') }}" onsubmit="return confirm('¿Desagrupar esta venta? Cada disco vuelve a contar por separado.');">
-                    <input type="hidden" name="grupo" value="{{ t.grupo }}">
-                    <button type="submit" class="venta-desagrupar">Desagrupar</button>
-                </form>
+                <div class="venta-trans-acciones">
+                    <form method="post" action="{{ url_for('ventas_desagrupar') }}" onsubmit="return confirm('¿Desagrupar esta venta? Cada disco vuelve a contar por separado.');">
+                        <input type="hidden" name="grupo" value="{{ t.grupo }}">
+                        <button type="submit" class="venta-desagrupar">Desagrupar</button>
+                    </form>
+                    <form method="post" action="{{ url_for('ventas_eliminar') }}" onsubmit="return confirm('¿Eliminar esta venta completa ({{ t.discos|length }} discos)? Los discos vuelven a Disponible y se borra de ventas, contabilidad, caja y lealtad. Si vino de un pedido web, también se borra el pedido. No se puede deshacer.');">
+                        <input type="hidden" name="ids" value="{{ t.discos|map(attribute='id')|join(',') }}">
+                        <button type="submit" class="venta-eliminar venta-eliminar-txt" title="Eliminar esta venta">&#128465; Eliminar venta</button>
+                    </form>
+                </div>
             </div>
             {% for d in t.discos %}{{ venta_fila(d, false, t.multidia) }}{% endfor %}
         </div>
         {% else %}
-        {{ venta_fila(t.discos[0], true, false) }}
+        {{ venta_fila(t.discos[0], true, false, true) }}
         {% endif %}
         {% endfor %}
     </div>

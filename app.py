@@ -3383,6 +3383,52 @@ def register_routes(app: Flask) -> None:
             flash("Venta desagrupada: cada disco cuenta por separado.", "success")
         return redirect(url_for("ventas_panel"))
 
+    def _desvender_disco(d, nota="Venta eliminada"):
+        """Revierte una venta: el disco vuelve a Disponible y se limpian TODOS sus
+        datos de venta (comprador, canal, metodo, grupo). La caja, la contabilidad,
+        el panel de ventas y la barra de lealtad son derivados del estado 'Vendido',
+        asi que se limpian solos al des-vender."""
+        if d is None:
+            return
+        register_status_change(d, "Disponible", nota=nota)  # limpia fecha_venta/copias/precio_venta
+        d.cliente_id = None
+        d.canal_venta = None
+        d.metodo_pago_venta = None
+        d.venta_grupo = None
+
+    @app.route("/admin/ventas/eliminar", methods=["POST"])
+    @auth.admin_required
+    def ventas_eliminar():
+        """Elimina una venta por completo: cada disco vuelve a Disponible y desaparece
+        de ventas, contabilidad, caja y lealtad (todo se recalcula del estado Vendido).
+        Si la venta vino de un pedido web (reserva), tambien se borra ese pedido."""
+        from models import Reserva as _Reserva, ReservaItem as _RI
+        ids = {int(x) for x in (request.form.get("ids") or "").split(",") if x.strip().isdigit()}
+        if not ids:
+            flash("No se indicaron discos para eliminar la venta.", "warning")
+            return redirect(url_for("ventas_panel"))
+        # Pedidos web (reservas) que tocan alguno de estos discos (por items o por el
+        # disc_id directo de reservas viejas).
+        reserva_ids = {it.reserva_id for it in _RI.query.filter(_RI.disc_id.in_(ids)).all()}
+        reserva_ids |= {r.id for r in _Reserva.query.filter(_Reserva.disc_id.in_(ids)).all()}
+        reservas = _Reserva.query.filter(_Reserva.id.in_(reserva_ids)).all() if reserva_ids else []
+        # Al borrar un pedido, se des-venden TODOS sus discos (no dejar huerfanos vendidos).
+        for r in reservas:
+            for it in r.items_efectivos:
+                if it.disc_id:
+                    ids.add(it.disc_id)
+        discs = Disc.query.filter(Disc.id.in_(ids)).all() if ids else []
+        for d in discs:
+            _desvender_disco(d, nota="Venta eliminada desde el panel")
+        for r in reservas:
+            db.session.delete(r)
+        db.session.commit()
+        msg = f"Venta eliminada. {len(discs)} disco(s) volvieron a Disponible."
+        if reservas:
+            msg += f" Se borró {len(reservas)} pedido(s) web del cliente."
+        flash(msg, "success")
+        return redirect(url_for("ventas_panel"))
+
     @app.route("/admin/ventas/cargar", methods=["GET", "POST"])
     @auth.admin_required
     def ventas_cargar():
@@ -7338,17 +7384,16 @@ def register_routes(app: Flask) -> None:
                     flash("Eleg&iacute; un cliente v&aacute;lido.", "warning")
 
             elif accion == "delete":
-                # Si algun disco quedo Reservado por esta reserva, devolverlo a Disponible
+                # Revertir los discos de la reserva: los Reservados Y los Vendidos vuelven
+                # a Disponible y se les limpian los datos de venta. Sin esto, borrar una
+                # reserva pagada dejaba el disco 'Vendido' sumando plata y lealtad fantasma.
                 for item in reserva.items_efectivos:
                     disco = item.disco
-                    if disco and disco.estado == "Reservado":
-                        register_status_change(
-                            disco, "Disponible",
-                            nota=f"Reserva #{reserva.id} eliminada"
-                        )
+                    if disco and disco.estado in ("Reservado", "Vendido"):
+                        _desvender_disco(disco, nota=f"Reserva #{reserva.id} eliminada")
                 db.session.delete(reserva)
                 db.session.commit()
-                flash("Reserva eliminada.", "success")
+                flash("Reserva eliminada. Sus discos volvieron a Disponible.", "success")
                 return redirect(url_for("admin_reservas"))
 
             return redirect(url_for("admin_reserva_detail", reserva_id=reserva.id))

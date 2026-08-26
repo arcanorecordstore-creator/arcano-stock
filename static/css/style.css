@@ -1779,6 +1779,15 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
     padding: 2px 4px;
 }
 .venta-desagrupar:hover { color: var(--danger, #e5484d); }
+.venta-trans-acciones { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.venta-elim-form { flex: 0 0 auto; display: flex; align-items: center; }
+.venta-eliminar {
+    background: none; border: none; color: var(--text-4);
+    font-size: 15px; line-height: 1; cursor: pointer; padding: 4px 7px;
+    border-radius: 8px; transition: background .15s ease, color .15s ease;
+}
+.venta-eliminar:hover { color: #fff; background: var(--danger, #e5484d); }
+.venta-eliminar-txt { font-size: 12px; padding: 3px 9px; white-space: nowrap; }
 .ventas-bulkbar {
     position: sticky;
     bottom: 14px;
