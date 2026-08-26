@@ -28,6 +28,55 @@ def _money(n) -> str:
     return f"{(n or 0):,.0f}".replace(",", ".")
 
 
+# URL publica del sitio, para armar links absolutos (ficha + portada) en los mails.
+SITE_URL = (os.environ.get("SITE_URL") or "https://arcanorecordstore.com").rstrip("/")
+
+
+def _cover_url_abs(disc):
+    """URL absoluta de la portada del disco (o None si no tiene)."""
+    if disc is None:
+        return None
+    cl = getattr(disc, "cover_local", None)
+    if cl:
+        return f"{SITE_URL}/covers/{cl}"
+    cu = getattr(disc, "cover_url", None)
+    if cu:
+        return cu
+    return None
+
+
+def _fila_html(artista, titulo, disc=None, precio=None):
+    """Una fila de disco para los mails al cliente: portada + nombre (linkeado a la
+    ficha si el disco existe) + precio opcional. Pensada para fondo oscuro (#0a0a0a).
+    Usa tablas porque muchos clientes de mail no soportan flexbox."""
+    disc_id = getattr(disc, "id", None) if disc is not None else None
+    nombre = f'<strong>{_e(artista or "")}</strong> - {_e(titulo or "")}'
+    cover = _cover_url_abs(disc)
+    if cover:
+        img_inner = (f'<img src="{_e(cover)}" width="48" height="48" alt="" '
+                     f'style="width:48px;height:48px;border-radius:6px;object-fit:cover;display:block;border:0;">')
+    else:
+        img_inner = ('<div style="width:48px;height:48px;border-radius:6px;background:#1a1a1a;'
+                     'color:#555;text-align:center;line-height:48px;font-size:20px;">&#9834;</div>')
+    if disc_id:
+        href = f"{SITE_URL}/disco/{disc_id}"
+        img_cell = f'<a href="{href}" style="text-decoration:none;">{img_inner}</a>'
+        nombre = f'<a href="{href}" style="color:#fff;text-decoration:underline;">{nombre}</a>'
+    else:
+        img_cell = img_inner
+    precio_cell = ''
+    if precio is not None:
+        precio_cell = ('<td style="vertical-align:middle;padding-left:14px;color:#10b981;'
+                       f'font-weight:600;white-space:nowrap;">$ {_money(precio)} UYU</td>')
+    return (
+        '<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0;border-collapse:collapse;"><tr>'
+        f'<td style="padding-right:12px;vertical-align:middle;width:48px;">{img_cell}</td>'
+        f'<td style="vertical-align:middle;font-size:14px;color:#fff;">{nombre}</td>'
+        f'{precio_cell}'
+        '</tr></table>'
+    )
+
+
 def _lineas_pedido(reserva, discs):
     """(total, lineas_texto, filas_html) con los precios REALES que paga el
     cliente: los snapshots de la reserva (Fire Sale/oferta ya aplicados). Cae a
@@ -40,8 +89,7 @@ def _lineas_pedido(reserva, discs):
             for it in items
         )
         filas_html = "".join(
-            f'<p style="margin:4px 0;"><strong>{_e(it.artista_snap or "")}</strong> - {_e(it.titulo_snap or "")} '
-            f'<span style="color:#10b981;">$ {_money(it.precio_uyu_snap)} UYU</span></p>'
+            _fila_html(it.artista_snap, it.titulo_snap, disc=it.disco, precio=it.precio_uyu_snap)
             for it in items
         )
         return total, lineas, filas_html
@@ -51,8 +99,7 @@ def _lineas_pedido(reserva, discs):
         for d in discs
     )
     filas_html = "".join(
-        f'<p style="margin:4px 0;"><strong>{_e(d.artista or "")}</strong> - {_e(d.titulo or "")} '
-        f'<span style="color:#10b981;">$ {_money(d.precio_mostrar)} UYU</span></p>'
+        _fila_html(d.artista, d.titulo, disc=d, precio=d.precio_mostrar)
         for d in discs
     )
     return total, lineas, filas_html
@@ -339,10 +386,8 @@ Montevideo, Uruguay
 <p>Hola <strong>{_e(reserva.nombre or '')}</strong>, recibimos tu reserva. Estos son los detalles:</p>
 
 <h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 2px;">Disco</h3>
-<p><strong>{_e(disc.artista or '')}</strong><br>
-{_e(disc.titulo or '')}<br>
-<span style="color: #888;">{_e(disc.sello or '—')}</span><br>
-<span style="color: #10b981;">$ {precio_uyu:,.0f} UYU</span></p>
+{_fila_html(disc.artista, disc.titulo, disc=disc, precio=precio_uyu)}
+<p style="color: #888; margin:4px 0 0;">{_e(disc.sello or '—')}</p>
 
 <p>Nos vamos a contactar con vos por WhatsApp (<strong>{_e(reserva.whatsapp or '')}</strong>) para coordinar el pago y la entrega o retiro.</p>
 
@@ -488,7 +533,7 @@ Montevideo, Uruguay
 """
 
     filas_html = "".join(
-        f'<p style="margin:4px 0;"><strong>{_e(d.artista or "")}</strong> - {_e(d.titulo or "")}</p>'
+        _fila_html(d.artista, d.titulo, disc=d)
         for d in discs
     )
     body_html = f"""<html><body style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; background: #0a0a0a; color: #fff;">

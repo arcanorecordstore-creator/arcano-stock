@@ -61,10 +61,24 @@
             </div>
             <div class="cuenta-reserva-items">
                 {% for item in r.items_efectivos %}
+                {% set d = item.disco %}
+                {% if d %}
+                <a href="{{ url_for('public_disc', disc_id=d.id) }}" class="cuenta-reserva-item cuenta-reserva-item-link" title="Ver ficha del disco">
+                    <span class="cuenta-reserva-item-cover">
+                        {% if d.cover_local %}<img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="" loading="lazy">
+                        {% elif d.cover_url %}<img src="{{ d.cover_url }}" alt="" loading="lazy">
+                        {% else %}<span class="cuenta-reserva-item-noimg">&#9834;</span>{% endif %}
+                    </span>
+                    <span class="cuenta-reserva-item-name">{{ item.artista_snap }} &mdash; {{ item.titulo_snap }}</span>
+                    {% if item.precio_uyu_snap %}<span class="cuenta-reserva-precio">$ {{ '{:,.0f}'.format(item.precio_uyu_snap).replace(',', '.') }}</span>{% endif %}
+                </a>
+                {% else %}
                 <div class="cuenta-reserva-item">
-                    <span>{{ item.artista_snap }} &mdash; {{ item.titulo_snap }}</span>
+                    <span class="cuenta-reserva-item-cover"><span class="cuenta-reserva-item-noimg">&#9834;</span></span>
+                    <span class="cuenta-reserva-item-name">{{ item.artista_snap }} &mdash; {{ item.titulo_snap }}</span>
                     {% if item.precio_uyu_snap %}<span class="cuenta-reserva-precio">$ {{ '{:,.0f}'.format(item.precio_uyu_snap).replace(',', '.') }}</span>{% endif %}
                 </div>
+                {% endif %}
                 {% endfor %}
             </div>
             {% if r.total_uyu > 0 %}
