@@ -41,6 +41,20 @@
     </form>
 </details>
 
+<!-- Aviso por WhatsApp (semi-automatico, sin riesgo de ban) -->
+<details class="cli-wa-panel">
+    <summary class="btn btn-primary" style="display:inline-block;">&#128241; Avisar por WhatsApp</summary>
+    <div class="cli-wa-box">
+        <p class="cli-wa-hint">Escrib&iacute; el mensaje una vez y toc&aacute; el bot&oacute;n verde de <strong>WhatsApp</strong> en cada cliente: se abre WhatsApp con el mensaje ya cargado y vos apret&aacute;s enviar. As&iacute; no hay riesgo de que te bloqueen el n&uacute;mero.</p>
+        <div class="cli-wa-plantillas">
+            <button type="button" class="btn btn-ghost btn-sm cli-wa-tpl" data-tpl="Hola! Entraron discos nuevos a Arcano que te pueden gustar. Pas&aacute; a verlos: https://arcanorecordstore.com">Nuevos ingresos</button>
+            <button type="button" class="btn btn-ghost btn-sm cli-wa-tpl" data-tpl="Hola! Arranc&oacute; un descuento en Arcano por tiempo limitado. Mir&aacute; los precios: https://arcanorecordstore.com">Descuento / Fire Sale</button>
+        </div>
+        <textarea id="cli-wa-msg" class="cli-wa-msg" rows="3" placeholder="Escribí el mensaje que les querés mandar...">Hola! </textarea>
+        <p class="cli-wa-hint">Les pod&eacute;s mandar a <strong id="cli-wa-count">0</strong> cliente(s) con WhatsApp y avisos activados. Us&aacute; el buscador para segmentar y desmarc&aacute; "Avisos" a quien no quiera recibir.</p>
+    </div>
+</details>
+
 <!-- Buscador -->
 <form method="get" action="{{ url_for('admin_clientes') }}" class="cli-search">
     <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre, celular, Instagram o email..." class="pv-inp" aria-label="Buscar clientes">
@@ -59,7 +73,7 @@
         <tr>
             <th class="chk"><input type="checkbox" id="cli-all" title="Seleccionar todos"></th>
             <th>Cliente</th><th>Contacto</th><th>Cuenta</th><th class="num">Compras</th>
-            <th class="num">Gastado</th><th>&Uacute;ltima</th><th class="num">Reservas</th>
+            <th class="num">Gastado</th><th>&Uacute;ltima</th><th class="num">Reservas</th><th>Avisar</th>
         </tr>
     </thead>
     <tbody>
@@ -85,6 +99,15 @@
             <td class="num" data-label="Gastado">{% if ag.get('total', 0) %}<span class="cli-gastado">{{ money(ag.get('total', 0)) }}</span>{% else %}{{ money(0) }}{% endif %}</td>
             <td data-label="&Uacute;ltima compra">{{ ag['ultima'].strftime('%d/%m/%y') if ag.get('ultima') else '&mdash;' | safe }}</td>
             <td class="num" data-label="Reservas">{% if activas.get(c.id) %}<span class="cli-activa">{{ activas[c.id] }}</span>{% else %}&mdash;{% endif %}</td>
+            <td class="cli-avisar-cell" data-label="Avisar" onclick="event.stopPropagation();">
+                <label class="cli-avisos-toggle" title="Acepta recibir avisos">
+                    <input type="checkbox" class="cli-avisos-chk" data-id="{{ c.id }}" {% if c.acepta_avisos %}checked{% endif %}>
+                    <span>Avisos</span>
+                </label>
+                {% if c.whatsapp %}
+                <button type="button" class="cli-wa-send" data-wa="{{ c.whatsapp }}" data-avisos="{{ '1' if c.acepta_avisos else '0' }}" title="Abrir WhatsApp con el mensaje">&#128241;</button>
+                {% endif %}
+            </td>
         </tr>
         {% endfor %}
     </tbody>
@@ -152,6 +175,19 @@
     .cli-table td.chk{position:absolute;top:12px;right:12px;width:auto;padding:0;}
     .cli-table td.chk::before{content:none;}
 }
+/* Avisar por WhatsApp */
+.cli-wa-panel{margin:0 0 14px;}
+.cli-wa-panel>summary{cursor:pointer;list-style:none;}
+.cli-wa-panel>summary::-webkit-details-marker{display:none;}
+.cli-wa-box{background:var(--bg-2,#1e1e1e);border:1px solid var(--border-1,#2a2a2a);border-radius:12px;padding:14px 16px;margin-top:10px;}
+.cli-wa-hint{font-size:13px;color:var(--text-2,#bbb);margin:0 0 10px;}
+.cli-wa-plantillas{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;}
+.cli-wa-msg{width:100%;border-radius:8px;border:1px solid var(--border-2,#333);background:var(--bg-1,#1a1a1a);color:var(--text-1,#eee);padding:10px;font-family:inherit;font-size:14px;resize:vertical;}
+.cli-avisar-cell{white-space:nowrap;}
+.cli-avisos-toggle{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--text-3,#888);cursor:pointer;}
+.cli-avisos-toggle input{width:16px;height:16px;cursor:pointer;}
+.cli-wa-send{margin-left:8px;background:rgba(37,211,102,.14);color:#25d366;border:1px solid rgba(37,211,102,.4);border-radius:8px;padding:5px 9px;cursor:pointer;font-size:14px;transition:background .12s;}
+.cli-wa-send:hover{background:rgba(37,211,102,.26);}
 </style>
 <script>
 (function(){
@@ -172,6 +208,57 @@
         refresh();
     });
     chks.forEach(function(c){ c.addEventListener('change', refresh); });
+})();
+
+// --- Avisar por WhatsApp (semi-automatico) ---
+(function(){
+    var msg = document.getElementById('cli-wa-msg');
+    document.querySelectorAll('.cli-wa-tpl').forEach(function(b){
+        b.addEventListener('click', function(){ if(msg){ msg.value = b.getAttribute('data-tpl'); msg.focus(); } });
+    });
+    // Normaliza un numero uruguayo para wa.me (agrega 598, saca el 0 inicial).
+    function waNum(raw){
+        var d = (raw||'').replace(/\D/g,'');
+        if(!d) return '';
+        if(d.indexOf('598')===0) return d;
+        if(d.charAt(0)==='0') d = d.slice(1);
+        return '598' + d;
+    }
+    document.querySelectorAll('.cli-wa-send').forEach(function(b){
+        b.addEventListener('click', function(){
+            var num = waNum(b.getAttribute('data-wa'));
+            if(!num){ alert('Ese cliente no tiene un numero valido.'); return; }
+            var texto = msg ? msg.value.trim() : '';
+            var url = 'https://wa.me/' + num + (texto ? ('?text=' + encodeURIComponent(texto)) : '');
+            window.open(url, '_blank');
+        });
+    });
+    function contar(){
+        var n = 0;
+        document.querySelectorAll('.cli-avisar-cell').forEach(function(cell){
+            var chk = cell.querySelector('.cli-avisos-chk');
+            var wa = cell.querySelector('.cli-wa-send');
+            if(chk && chk.checked && wa) n++;
+        });
+        var c = document.getElementById('cli-wa-count'); if(c) c.textContent = n;
+    }
+    document.querySelectorAll('.cli-avisos-chk').forEach(function(ch){
+        ch.addEventListener('change', function(){
+            var id = ch.getAttribute('data-id');
+            fetch('/admin/clientes/'+id+'/avisos', {method:'POST'})
+                .then(function(r){ return r.json(); })
+                .then(function(d){
+                    if(d && d.ok){
+                        var cell = ch.closest('.cli-avisar-cell');
+                        var wa = cell ? cell.querySelector('.cli-wa-send') : null;
+                        if(wa) wa.style.opacity = d.acepta ? '1' : '.4';
+                        contar();
+                    } else { ch.checked = !ch.checked; }
+                })
+                .catch(function(){ ch.checked = !ch.checked; });
+        });
+    });
+    contar();
 })();
 </script>
 

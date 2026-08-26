@@ -7642,9 +7642,19 @@ def register_routes(app: Flask) -> None:
         return render_template(
             "admin_clientes.html", clientes=clientes, compras=compras,
             activas=activas, q=q, total=Cliente.query.count(),
-            con_cuenta=con_cuenta,
+            con_cuenta=con_cuenta, wa_default=Setting.get("public_whatsapp", ""),
             lealtad_activa=lcfg["activa"], premios=premios,
         )
+
+    @app.route("/admin/clientes/<int:cliente_id>/avisos", methods=["POST"])
+    @auth.admin_required
+    def cliente_toggle_avisos(cliente_id):
+        """Marca/desmarca si un cliente acepta recibir avisos (WhatsApp/mail)."""
+        from models import Cliente
+        cli = Cliente.query.get_or_404(cliente_id)
+        cli.acepta_avisos = not cli.acepta_avisos
+        db.session.commit()
+        return jsonify({"ok": True, "acepta": cli.acepta_avisos})
 
     @app.route("/admin/clientes/export.csv")
     @auth.admin_required

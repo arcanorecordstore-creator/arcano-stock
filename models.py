@@ -793,6 +793,9 @@ class Cliente(db.Model):
     lealtad_base = db.Column(db.Integer, nullable=False, default=0)
     # Si ya se le entrego el premio del 1er hito en el ciclo actual.
     premio1_cobrado = db.Column(db.Boolean, nullable=False, default=False)
+    # Acepta recibir avisos (nuevos ingresos, descuentos). Default True (opt-out):
+    # Facundo puede desmarcar a quien pida no recibir.
+    acepta_avisos = db.Column(db.Boolean, nullable=False, default=True)
 
     def set_password(self, raw: str) -> None:
         from werkzeug.security import generate_password_hash
@@ -1753,6 +1756,11 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE clientes ADD COLUMN premio1_cobrado BOOLEAN DEFAULT 0"))
                     conn.commit()
                 print("Migracion: columna premio1_cobrado agregada a clientes")
+            if "acepta_avisos" not in _ccols2:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE clientes ADD COLUMN acepta_avisos BOOLEAN DEFAULT 1"))
+                    conn.commit()
+                print("Migracion: columna acepta_avisos agregada a clientes")
 
         # Columna cliente_id en reservas (para cuentas de cliente)
         if inspector.has_table("reservas"):
