@@ -10458,3 +10458,8 @@ body.app .flash.flash-fade { opacity: 0; transform: translateY(-8px); }
     body.app input[type="checkbox"]:active { transform: scale(1.15); }
     body.app .entrega-toggle:active { transform: scale(.97); }
 }
+
+/* v4.58 - Barra de progreso de carga al navegar en el admin (feedback de velocidad) */
+.nav-progress { position: fixed; top: 0; left: 0; height: 3px; width: 0; background: linear-gradient(90deg, #6366f1, #8b5cf6); z-index: 9999; box-shadow: 0 0 10px rgba(99,102,241,.7); opacity: 0; transition: width .25s ease, opacity .3s ease; pointer-events: none; }
+.nav-progress.active { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .nav-progress { display: none; } }

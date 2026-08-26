@@ -110,7 +110,7 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v4.57 &middot; Clientes: avis&aacute; por WhatsApp sin riesgo &mdash; escrib&iacute;s el mensaje una vez (con plantillas de nuevos ingresos / descuento) y un bot&oacute;n por cliente abre WhatsApp con el texto listo. Cada cliente tiene un "acepta avisos" para respetar a quien no quiere recibir.</span>
+            <span class="footer-version">v4.58 &middot; Admin: barra de progreso de carga arriba al navegar entre p&aacute;ginas (feedback de que est&aacute; cargando). Respeta "reducir movimiento".</span>
         </footer>
     </div>
 
@@ -194,6 +194,33 @@
                     }, 3800 + idx * 350);
                 })(f, i);
             }
+        })();
+        // Barra de progreso al navegar (feedback de que la pagina esta cargando).
+        (function () {
+            if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+            var bar = document.createElement('div');
+            bar.className = 'nav-progress';
+            document.body.appendChild(bar);
+            var timer;
+            function start() {
+                bar.classList.add('active');
+                bar.style.width = '8%';
+                clearInterval(timer);
+                var w = 8;
+                timer = setInterval(function () { w += (92 - w) * 0.12; bar.style.width = w + '%'; }, 280);
+            }
+            document.addEventListener('click', function (e) {
+                var a = e.target.closest('a');
+                if (!a) return;
+                var href = a.getAttribute('href') || '';
+                if (a.target === '_blank' || a.hasAttribute('download')) return;
+                if (href.charAt(0) === '#' || href.indexOf('javascript:') === 0 || href.indexOf('mailto:') === 0 ||
+                    href.indexOf('tel:') === 0 || href.indexOf('wa.me') >= 0 ||
+                    (href.indexOf('http') === 0 && a.hostname !== location.hostname)) return;
+                start();
+            }, true);
+            document.addEventListener('submit', function () { start(); }, true);
+            window.addEventListener('pageshow', function () { clearInterval(timer); bar.classList.remove('active'); bar.style.width = '0'; });
         })();
     </script>
 </body>
