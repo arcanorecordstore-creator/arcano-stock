@@ -6433,6 +6433,76 @@ def register_routes(app: Flask) -> None:
                                form={"email": (request.args.get("email") or "").strip()[:200]},
                                **_public_context())
 
+    def _reset_serializer():
+        from itsdangerous import URLSafeTimedSerializer
+        return URLSafeTimedSerializer(app.config.get("SECRET_KEY") or "dev-key",
+                                      salt="cliente-reset-v1")
+
+    @app.route("/cuenta/recuperar", methods=["GET", "POST"])
+    def cliente_recuperar():
+        """Paso 1 del 'olvide mi contrasena': el cliente pone su email y le mandamos
+        un link con token que vence en 1 hora. No revelamos si el email existe."""
+        if auth.cliente_actual_id():
+            return redirect(url_for("cliente_cuenta"))
+        if request.method == "POST":
+            email = (request.form.get("email") or "").strip().lower()[:200]
+            cli = (Cliente.query.filter(db.func.lower(Cliente.email) == email).first()
+                   if email else None)
+            if cli and cli.password_hash and mailer.can_send():
+                token = _reset_serializer().dumps(cli.id)
+                reset_url = url_for("cliente_reset", token=token, _external=True)
+                try:
+                    _nombre = cli.nombre or ""
+                    cuerpo = ("Hola %s,\n\nPediste cambiar tu contrasena en Arcano. Entra a "
+                              "este link (vence en 1 hora):\n%s\n\nSi no fuiste vos, ignora "
+                              "este mail." % (_nombre, reset_url))
+                    html = ("<p>Hola %s,</p><p>Pediste cambiar tu contrase&ntilde;a en "
+                            "<strong>Arcano Record Store</strong>. Toc&aacute; el bot&oacute;n "
+                            "(vence en 1 hora):</p><p><a href='%s' style='display:inline-block;"
+                            "background:#6366f1;color:#fff;padding:11px 20px;border-radius:8px;"
+                            "text-decoration:none;font-weight:600'>Cambiar mi contrase&ntilde;a</a></p>"
+                            "<p style='color:#888;font-size:13px'>Si no fuiste vos, ignor&aacute; "
+                            "este mail; tu contrase&ntilde;a queda igual.</p>" % (_nombre, reset_url))
+                    mailer.send_email("Cambiar tu contrasena - Arcano Record Store",
+                                      cuerpo, html, to=cli.email)
+                except Exception:
+                    pass
+            flash("Si ese email tiene una cuenta, te mandamos un link para cambiar la "
+                  "contrasena. Revisa tu correo (y la carpeta de spam).", "info")
+            return redirect(url_for("cliente_login_page"))
+        return render_template("public/cliente_recuperar.html", **_public_context())
+
+    @app.route("/cuenta/reset/<token>", methods=["GET", "POST"])
+    def cliente_reset(token):
+        """Paso 2: valida el token del mail y deja poner una contrasena nueva."""
+        from itsdangerous import SignatureExpired, BadSignature
+        try:
+            cid = _reset_serializer().loads(token, max_age=3600)
+        except SignatureExpired:
+            flash("El link venci&oacute; (dura 1 hora). Ped&iacute; uno nuevo.", "error")
+            return redirect(url_for("cliente_recuperar"))
+        except (BadSignature, Exception):
+            flash("El link no es v&aacute;lido. Ped&iacute; uno nuevo.", "error")
+            return redirect(url_for("cliente_recuperar"))
+        cli = Cliente.query.get(cid)
+        if not cli or not cli.password_hash:
+            flash("No encontramos esa cuenta.", "error")
+            return redirect(url_for("cliente_recuperar"))
+        if request.method == "POST":
+            p1 = request.form.get("password") or ""
+            p2 = request.form.get("password2") or ""
+            if len(p1) < 6:
+                flash("La contrase&ntilde;a debe tener al menos 6 caracteres.", "error")
+            elif p1 != p2:
+                flash("Las contrase&ntilde;as no coinciden.", "error")
+            else:
+                cli.set_password(p1)
+                db.session.commit()
+                auth.cliente_login(cli.id)
+                flash("Listo, cambiaste tu contrase&ntilde;a. Ya est&aacute;s adentro.", "success")
+                return redirect(url_for("cliente_cuenta"))
+        return render_template("public/cliente_reset.html", token=token, **_public_context())
+
     @app.route("/cuenta/login", methods=["GET", "POST"], endpoint="cliente_login_page")
     def cliente_login_page():
         if auth.cliente_actual_id():

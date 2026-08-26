@@ -1,0 +1,22 @@
+{% extends "public/base.html" %}
+
+{% block title %}Recuperar contrase&ntilde;a &middot; Arcano Record Store{% endblock %}
+
+{% block content %}
+
+<section class="public-auth">
+    <h1 class="public-auth-title">Recuperar contrase&ntilde;a</h1>
+    <p class="public-auth-alt" style="text-align:center; margin-top:0;">Pon&eacute; el email de tu cuenta y te mandamos un link para elegir una nueva contrase&ntilde;a.</p>
+
+    <form method="post" action="{{ url_for('cliente_recuperar') }}" class="public-auth-form">
+        <div class="form-field">
+            <label for="email">Email de tu cuenta</label>
+            <input type="email" id="email" name="email" required autofocus>
+        </div>
+        <button type="submit" class="btn btn-primary public-auth-submit">Enviarme el link</button>
+    </form>
+
+    <p class="public-auth-alt"><a href="{{ url_for('cliente_login_page') }}">Volver a iniciar sesi&oacute;n</a></p>
+</section>
+
+{% endblock %}

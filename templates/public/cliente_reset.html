@@ -1,0 +1,23 @@
+{% extends "public/base.html" %}
+
+{% block title %}Nueva contrase&ntilde;a &middot; Arcano Record Store{% endblock %}
+
+{% block content %}
+
+<section class="public-auth">
+    <h1 class="public-auth-title">Eleg&iacute; tu nueva contrase&ntilde;a</h1>
+
+    <form method="post" action="{{ url_for('cliente_reset', token=token) }}" class="public-auth-form">
+        <div class="form-field">
+            <label for="password">Nueva contrase&ntilde;a</label>
+            <input type="password" id="password" name="password" required minlength="6" autofocus>
+        </div>
+        <div class="form-field">
+            <label for="password2">Repet&iacute; la contrase&ntilde;a</label>
+            <input type="password" id="password2" name="password2" required minlength="6">
+        </div>
+        <button type="submit" class="btn btn-primary public-auth-submit">Guardar contrase&ntilde;a</button>
+    </form>
+</section>
+
+{% endblock %}
