@@ -7515,7 +7515,15 @@ td.num,
         gap: 2px;
         overflow: visible;
     }
-    .topbar-nav.open { display: flex; }
+    .topbar-nav.open {
+        display: flex;
+        /* El header queda pegado arriba (sticky). Si el menu desplegado es mas alto
+           que la pantalla, que scrollee DENTRO del menu para llegar a Ajustes/Tienda. */
+        max-height: calc(100vh - 118px);
+        max-height: calc(100dvh - 118px);
+        overflow-y: auto;
+        overscroll-behavior: contain;
+    }
     .topbar-nav .nav-link {
         white-space: nowrap;
         font-size: 15px;

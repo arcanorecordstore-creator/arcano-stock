@@ -311,7 +311,7 @@ def create_app() -> Flask:
         siguen necesitando conexion."""
         from flask import Response as _Resp
         sw = """
-const CACHE = 'arcano-admin-v1';
+const CACHE = 'arcano-admin-v2';
 self.addEventListener('install', function(e){
   e.waitUntil(caches.open(CACHE).then(function(c){ return c.addAll(['/static/css/style.css']); }).catch(function(){}));
   self.skipWaiting();
@@ -325,20 +325,16 @@ self.addEventListener('fetch', function(e){
   if (req.method !== 'GET') return;
   var url = new URL(req.url);
   if (url.origin !== location.origin) return;
-  // Estaticos y portadas: primero cache, actualiza en segundo plano.
+  // SOLO cacheamos estaticos y portadas (inmutables por nombre). Las paginas del
+  // admin NO se tocan: van siempre a la red, para no servir nunca una version vieja
+  // ni datos financieros desactualizados.
   if (url.pathname.indexOf('/static/') === 0 || url.pathname.indexOf('/covers/') === 0) {
     e.respondWith(caches.match(req).then(function(hit){
-      var net = fetch(req).then(function(res){ var copy = res.clone(); caches.open(CACHE).then(function(c){ c.put(req, copy); }); return res; }).catch(function(){ return hit; });
-      return hit || net;
+      return hit || fetch(req).then(function(res){
+        if (res && res.status === 200) { var copy = res.clone(); caches.open(CACHE).then(function(c){ c.put(req, copy); }); }
+        return res;
+      });
     }));
-    return;
-  }
-  // Paginas del admin: primero la red; si no hay senal, lo ultimo cacheado.
-  if (url.pathname.indexOf('/admin/') === 0) {
-    e.respondWith(fetch(req).then(function(res){
-      var copy = res.clone(); caches.open(CACHE).then(function(c){ c.put(req, copy); }); return res;
-    }).catch(function(){ return caches.match(req); }));
-    return;
   }
 });
 self.addEventListener('push', function(e){
