@@ -279,6 +279,74 @@ def create_app() -> Flask:
         # Cache larga: las portadas son inmutables por nombre (cover_<hash>).
         return send_from_directory(app.config["COVERS_DIR"], filename, max_age=31536000)
 
+    # ---- App instalable del admin (PWA) ----
+    @app.route("/admin/manifest.webmanifest")
+    def admin_manifest():
+        """Manifest de la 'app' del admin: hace que se pueda instalar en el celular
+        con icono propio y a pantalla completa (standalone)."""
+        import json as _json
+        from flask import Response as _Resp
+        data = {
+            "name": "Arcano Admin",
+            "short_name": "Arcano",
+            "description": "Gestión de Arcano Record Store",
+            "start_url": "/admin/",
+            "scope": "/admin/",
+            "display": "standalone",
+            "orientation": "portrait",
+            "background_color": "#0a0a0c",
+            "theme_color": "#0a0a0c",
+            "icons": [
+                {"src": url_for("static", filename="icon-192.png"), "sizes": "192x192", "type": "image/png"},
+                {"src": url_for("static", filename="icon-512.png"), "sizes": "512x512", "type": "image/png"},
+                {"src": url_for("static", filename="icon-maskable-512.png"), "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+            ],
+        }
+        return _Resp(_json.dumps(data), mimetype="application/manifest+json")
+
+    @app.route("/admin/sw.js")
+    def admin_service_worker():
+        """Service worker (scope /admin/): cachea el 'cascaron' para que la app abra
+        rapido y muestre lo ultimo visto aunque no haya senal. Los datos en vivo
+        siguen necesitando conexion."""
+        from flask import Response as _Resp
+        sw = """
+const CACHE = 'arcano-admin-v1';
+self.addEventListener('install', function(e){
+  e.waitUntil(caches.open(CACHE).then(function(c){ return c.addAll(['/static/css/style.css']); }).catch(function(){}));
+  self.skipWaiting();
+});
+self.addEventListener('activate', function(e){
+  e.waitUntil(caches.keys().then(function(ks){ return Promise.all(ks.map(function(k){ if(k!==CACHE) return caches.delete(k); })); }));
+  self.clients.claim();
+});
+self.addEventListener('fetch', function(e){
+  var req = e.request;
+  if (req.method !== 'GET') return;
+  var url = new URL(req.url);
+  if (url.origin !== location.origin) return;
+  // Estaticos y portadas: primero cache, actualiza en segundo plano.
+  if (url.pathname.indexOf('/static/') === 0 || url.pathname.indexOf('/covers/') === 0) {
+    e.respondWith(caches.match(req).then(function(hit){
+      var net = fetch(req).then(function(res){ var copy = res.clone(); caches.open(CACHE).then(function(c){ c.put(req, copy); }); return res; }).catch(function(){ return hit; });
+      return hit || net;
+    }));
+    return;
+  }
+  // Paginas del admin: primero la red; si no hay senal, lo ultimo cacheado.
+  if (url.pathname.indexOf('/admin/') === 0) {
+    e.respondWith(fetch(req).then(function(res){
+      var copy = res.clone(); caches.open(CACHE).then(function(c){ c.put(req, copy); }); return res;
+    }).catch(function(){ return caches.match(req); }));
+    return;
+  }
+});
+"""
+        resp = _Resp(sw, mimetype="application/javascript")
+        resp.headers["Service-Worker-Allowed"] = "/admin/"
+        resp.headers["Cache-Control"] = "no-cache"
+        return resp
+
     # Carpeta de samples de audio/video subidos a mano. En produccion tiene que
     # vivir en el DISCO PERSISTENTE o los archivos se borran en cada deploy.
     # Prioridad: SAMPLES_PATH explicito > derivar del disco de covers (mismo disco

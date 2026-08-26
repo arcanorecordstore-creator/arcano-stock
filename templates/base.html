@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Arcano Stock{% endblock %}</title>
+    <!-- App instalable (PWA) del admin: icono + pantalla completa -->
+    <link rel="manifest" href="/admin/manifest.webmanifest">
+    <meta name="theme-color" content="#0a0a0c">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Arcano">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
@@ -103,7 +110,7 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v4.52 &middot; Reservas: en el detalle de una reserva pod&eacute;s asignarla a un cliente ya cargado (o cambiarlo), y sus discos quedan atribuidos a ese cliente &mdash; aparecen en sus compras.</span>
+            <span class="footer-version">v4.53 &middot; App del admin: pod&eacute;s "instalar" Arcano en tu celular (&iacute;cono en la pantalla de inicio, se abre a pantalla completa) y abre r&aacute;pido incluso sin se&ntilde;al. Es tu web como app, sin pasar por ninguna tienda.</span>
         </footer>
     </div>
 
@@ -165,6 +172,14 @@
                 });
             });
         })();
+    </script>
+    <script>
+        // Registrar el service worker de la app del admin (scope /admin/).
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' }).catch(function () {});
+            });
+        }
     </script>
 </body>
 </html>
