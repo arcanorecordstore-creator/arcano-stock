@@ -10359,3 +10359,102 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .dash-home-legend-body { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 8px; color: var(--text-2); }
 .dash-home-legend-body span { white-space: nowrap; }
 .dash-home-legend-body b { display: inline-block; min-width: 20px; text-align: center; color: var(--text-1); background: var(--bg-3); border-radius: 4px; padding: 0 4px; margin-right: 3px; }
+
+/* =========================================================================
+   v4.56 - Pulido estetico + microinteracciones del admin (scoped body.app)
+   Respeta prefers-reduced-motion. No cambia colores de marca ni la estructura.
+   ========================================================================= */
+
+/* --- Transiciones suaves en todo lo interactivo --- */
+body.app .btn, body.app .action-btn, body.app .nav-link, body.app .nav-group-btn,
+body.app button, body.app input, body.app select, body.app textarea,
+body.app .kpi-card, body.app .summary-card, body.app .conta-block, body.app .settings-card,
+body.app .detail-card, body.app .pv-card, body.app .pv-kpi, body.app .ped-card,
+body.app .reserva-card, body.app .cli-table tbody tr, body.app .conta-cat-item,
+body.app .caja-chip, body.app .badge, body.app .dash-kpi-top, body.app .recup-row {
+    transition: transform .15s cubic-bezier(.22,.61,.36,1), box-shadow .18s ease,
+                background-color .15s ease, border-color .15s ease, color .15s ease, opacity .15s ease;
+}
+
+/* --- Botones: mas presencia y feedback tactil --- */
+body.app .btn { border-radius: 9px; font-weight: 600; letter-spacing: .01em; }
+@media (prefers-reduced-motion: no-preference) {
+    body.app .btn:hover, body.app .action-btn:hover { transform: translateY(-1px); }
+    body.app .btn:active, body.app .action-btn:active { transform: translateY(0) scale(.97); }
+}
+body.app .btn-primary { box-shadow: 0 1px 2px rgba(0,0,0,.12), 0 2px 8px rgba(99,102,241,.18); }
+body.app .btn-primary:hover { box-shadow: 0 2px 6px rgba(0,0,0,.16), 0 6px 18px rgba(99,102,241,.28); }
+
+/* --- Paneles / cards: profundidad suave y elevacion al pasar --- */
+body.app .kpi-card, body.app .summary-card, body.app .pv-kpi, body.app .ped-card,
+body.app .settings-card, body.app .conta-block, body.app .detail-card {
+    box-shadow: var(--card-shadow);
+}
+@media (prefers-reduced-motion: no-preference) {
+    body.app .kpi-card:hover, body.app .summary-card:hover, body.app .pv-kpi:hover,
+    body.app .ped-card:hover, body.app .conta-cat-item:hover, body.app .dash-kpi-top:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 22px rgba(0,0,0,.14);
+    }
+}
+/* Filas de tabla: realce parejo al pasar */
+body.app .cli-table tbody tr:hover, body.app .stock-table tbody tr:hover,
+body.app .conta-table tbody tr:hover, body.app .caja-table tbody tr:hover {
+    background: var(--bg-hover);
+}
+
+/* --- Foco visible y prolijo (accesibilidad + estetica), tambien con reduced-motion --- */
+body.app .btn:focus-visible, body.app .action-btn:focus-visible, body.app .nav-link:focus-visible,
+body.app input:focus-visible, body.app select:focus-visible, body.app textarea:focus-visible {
+    outline: 2px solid #6366f1;
+    outline-offset: 2px;
+}
+body.app input:focus, body.app select:focus, body.app textarea:focus {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99,102,241,.16);
+}
+
+/* --- Animacion de entrada de secciones/cards (con leve escalonado) --- */
+@media (prefers-reduced-motion: no-preference) {
+    body.app .app-main > section,
+    body.app .app-main > .settings-grid > section,
+    body.app .app-main > .resumen-row,
+    body.app .app-main > nav {
+        animation: adminFadeUp .34s cubic-bezier(.22,.61,.36,1) both;
+    }
+    body.app .app-main > *:nth-child(2) { animation-delay: .04s; }
+    body.app .app-main > *:nth-child(3) { animation-delay: .08s; }
+    body.app .app-main > *:nth-child(4) { animation-delay: .12s; }
+    body.app .app-main > *:nth-child(5) { animation-delay: .15s; }
+    body.app .app-main > *:nth-child(n+6) { animation-delay: .18s; }
+    @keyframes adminFadeUp {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    /* KPIs con un pop suave escalonado */
+    body.app .kpi-grid .kpi-card, body.app .summary-cards .summary-card, body.app .pv-kpis .pv-kpi {
+        animation: adminPop .38s cubic-bezier(.22,.61,.36,1) both;
+    }
+    body.app .kpi-grid .kpi-card:nth-child(2), body.app .summary-cards .summary-card:nth-child(2), body.app .pv-kpis .pv-kpi:nth-child(2) { animation-delay: .05s; }
+    body.app .kpi-grid .kpi-card:nth-child(3), body.app .summary-cards .summary-card:nth-child(3), body.app .pv-kpis .pv-kpi:nth-child(3) { animation-delay: .1s; }
+    body.app .kpi-grid .kpi-card:nth-child(4), body.app .summary-cards .summary-card:nth-child(4), body.app .pv-kpis .pv-kpi:nth-child(4) { animation-delay: .15s; }
+    body.app .kpi-grid .kpi-card:nth-child(n+5), body.app .summary-cards .summary-card:nth-child(n+5) { animation-delay: .2s; }
+    @keyframes adminPop {
+        from { opacity: 0; transform: translateY(8px) scale(.98); }
+        to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+}
+
+/* --- Flash messages: aparecen deslizando y (por JS) se van solos --- */
+@media (prefers-reduced-motion: no-preference) {
+    body.app .flash { animation: adminFlashIn .32s cubic-bezier(.22,.61,.36,1) both; }
+    @keyframes adminFlashIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+}
+body.app .flash { transition: opacity .35s ease, transform .35s ease; box-shadow: var(--card-shadow); }
+body.app .flash.flash-fade { opacity: 0; transform: translateY(-8px); }
+
+/* --- Toggles/checkbox: micro feedback --- */
+@media (prefers-reduced-motion: no-preference) {
+    body.app input[type="checkbox"]:active { transform: scale(1.15); }
+    body.app .entrega-toggle:active { transform: scale(.97); }
+}

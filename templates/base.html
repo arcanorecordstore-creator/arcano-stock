@@ -110,7 +110,7 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v4.55 &middot; Fix: en el celular el men&uacute; del admin ahora <strong>scrollea</strong> (lleg&aacute;s a Ajustes y Tienda aunque el men&uacute; sea largo). Y la app ya no guarda copias de las p&aacute;ginas del admin (siempre frescas de la red).</span>
+            <span class="footer-version">v4.56 &middot; Admin m&aacute;s prolijo: botones y paneles con m&aacute;s profundidad y sombras suaves, animaciones de entrada, realce al pasar el dedo/mouse, foco m&aacute;s claro, y los avisos de &eacute;xito se ocultan solos. Respeta "reducir movimiento".</span>
         </footer>
     </div>
 
@@ -180,6 +180,21 @@
                 navigator.serviceWorker.register('/admin/sw.js', { scope: '/admin/' }).catch(function () {});
             });
         }
+        // Los avisos (flash) de exito/info se ocultan solos tras unos segundos;
+        // los de error o advertencia quedan hasta que cambies de pagina.
+        (function () {
+            var flashes = document.querySelectorAll('.flash-stack .flash');
+            for (var i = 0; i < flashes.length; i++) {
+                var f = flashes[i];
+                if (f.classList.contains('flash-error') || f.classList.contains('flash-warning')) continue;
+                (function (el, idx) {
+                    setTimeout(function () {
+                        el.classList.add('flash-fade');
+                        setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 420);
+                    }, 3800 + idx * 350);
+                })(f, i);
+            }
+        })();
     </script>
 </body>
 </html>
