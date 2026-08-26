@@ -858,6 +858,18 @@ class ClienteFavorito(db.Model):
     )
 
 
+class PushSubscription(db.Model):
+    """Suscripcion de un dispositivo del admin a los avisos push (Web Push).
+    Cada celular/navegador donde Facundo activa los avisos guarda una fila."""
+    __tablename__ = "push_subscriptions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    endpoint = db.Column(db.Text, nullable=False, unique=True)
+    p256dh = db.Column(db.String(200), nullable=False)
+    auth = db.Column(db.String(100), nullable=False)
+    creado = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
 # Estados del pedido = estado del PAGO. La entrega (envio/pickup + entregado) va
 # aparte, no toca la plata. La venta (disco Vendido, entra a caja/contabilidad)
 # se registra al pasar a "Pagada".

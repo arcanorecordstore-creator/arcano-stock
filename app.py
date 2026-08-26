@@ -341,11 +341,112 @@ self.addEventListener('fetch', function(e){
     return;
   }
 });
+self.addEventListener('push', function(e){
+  var data = {};
+  try { data = e.data ? e.data.json() : {}; } catch(err) {}
+  var opts = {
+    body: data.body || '',
+    icon: '/static/icon-192.png',
+    badge: '/static/icon-192.png',
+    vibrate: [80, 40, 80],
+    data: { url: data.url || '/admin/' }
+  };
+  e.waitUntil(self.registration.showNotification(data.title || 'Arcano', opts));
+});
+self.addEventListener('notificationclick', function(e){
+  e.notification.close();
+  var url = (e.notification.data && e.notification.data.url) || '/admin/';
+  e.waitUntil(clients.matchAll({ type: 'window' }).then(function(cl){
+    for (var i = 0; i < cl.length; i++) { if (cl[i].url.indexOf(url) >= 0 && 'focus' in cl[i]) return cl[i].focus(); }
+    if (clients.openWindow) return clients.openWindow(url);
+  }));
+});
 """
         resp = _Resp(sw, mimetype="application/javascript")
         resp.headers["Service-Worker-Allowed"] = "/admin/"
         resp.headers["Cache-Control"] = "no-cache"
         return resp
+
+    # ---- Avisos al celular (Web Push) ----
+    def _vapid_keys():
+        """(private_pem, public_key_b64). Se generan UNA vez y quedan en Settings,
+        asi Facundo no tiene que configurar nada."""
+        priv = Setting.get("vapid_private_pem", "") or ""
+        pub = Setting.get("vapid_public_key", "") or ""
+        if priv and pub:
+            return priv, pub
+        try:
+            from py_vapid import Vapid01
+            from cryptography.hazmat.primitives import serialization
+            import base64 as _b64
+            v = Vapid01(); v.generate_keys()
+            priv = v.private_pem().decode()
+            pubk = v.public_key.public_bytes(
+                serialization.Encoding.X962, serialization.PublicFormat.UncompressedPoint)
+            pub = _b64.urlsafe_b64encode(pubk).rstrip(b"=").decode()
+            Setting.set("vapid_private_pem", priv)
+            Setting.set("vapid_public_key", pub)
+            return priv, pub
+        except Exception:
+            return "", ""
+
+    @app.route("/admin/push/key")
+    @auth.admin_required
+    def push_key():
+        _, pub = _vapid_keys()
+        return jsonify({"key": pub})
+
+    @app.route("/admin/push/subscribe", methods=["POST"])
+    @auth.admin_required
+    def push_subscribe():
+        from models import PushSubscription
+        data = request.get_json(silent=True) or {}
+        endpoint = data.get("endpoint")
+        keys = data.get("keys") or {}
+        p256dh = keys.get("p256dh"); auth_k = keys.get("auth")
+        if not (endpoint and p256dh and auth_k):
+            return jsonify({"ok": False, "error": "datos incompletos"}), 400
+        if not PushSubscription.query.filter_by(endpoint=endpoint).first():
+            db.session.add(PushSubscription(endpoint=endpoint, p256dh=p256dh, auth=auth_k))
+            db.session.commit()
+        return jsonify({"ok": True})
+
+    def _enviar_push(titulo, cuerpo, url="/admin/"):
+        """Manda un aviso a todos los dispositivos suscritos. Silencioso: nunca
+        rompe el flujo que lo dispara (una venta/reserva)."""
+        from models import PushSubscription
+        try:
+            from pywebpush import webpush, WebPushException
+        except Exception:
+            return
+        priv, _ = _vapid_keys()
+        if not priv:
+            return
+        subs = PushSubscription.query.all()
+        if not subs:
+            return
+        import json as _json
+        payload = _json.dumps({"title": titulo, "body": cuerpo, "url": url})
+        muertas = []
+        for s in subs:
+            try:
+                webpush(
+                    subscription_info={"endpoint": s.endpoint,
+                                       "keys": {"p256dh": s.p256dh, "auth": s.auth}},
+                    data=payload,
+                    vapid_private_key=priv,
+                    vapid_claims={"sub": "mailto:arcanorecordstore@gmail.com"},
+                )
+            except WebPushException as e:
+                _r = getattr(e, "response", None)
+                if _r is not None and _r.status_code in (404, 410):
+                    muertas.append(s)   # suscripcion vencida -> limpiar
+            except Exception:
+                pass
+        for s in muertas:
+            db.session.delete(s)
+        if muertas:
+            db.session.commit()
 
     # Carpeta de samples de audio/video subidos a mano. En produccion tiene que
     # vivir en el DISCO PERSISTENTE o los archivos se borran en cada deploy.
@@ -5609,6 +5710,17 @@ def register_routes(app: Flask) -> None:
                     mailer.send_reserva_notification(reserva, _disc0)
             except Exception:
                 pass
+        # Aviso push al celu del admin: entro una venta cobrada por Mercado Pago.
+        try:
+            _enviar_push(
+                "\U0001F4B8 ¡Venta por Mercado Pago!",
+                "%s pagó %s disco(s) · $%s" % (
+                    reserva.nombre, reserva.cantidad_discos,
+                    "{:,.0f}".format(reserva.total_uyu or 0).replace(",", ".")),
+                "/admin/reservas/%s" % reserva.id,
+            )
+        except Exception:
+            pass
 
     @app.route("/mp/webhook", methods=["POST", "GET"])
     def mp_webhook():
@@ -6731,6 +6843,20 @@ def register_routes(app: Flask) -> None:
                         mailer.send_reserva_confirmacion_cliente_multi(reserva, disponibles)
                 except Exception:
                     pass
+
+            # Aviso push al celu del admin (si activo los avisos en su celular).
+            try:
+                _met = {"transferencia": "transferencia", "mercadopago": "Mercado Pago"}.get(
+                    reserva.metodo_pago or "", "a coordinar")
+                _enviar_push(
+                    "Nueva reserva #%s" % reserva.id,
+                    "%s reservó %s disco(s) · $%s · %s" % (
+                        reserva.nombre, reserva.cantidad_discos,
+                        "{:,.0f}".format(reserva.total_uyu or 0).replace(",", "."), _met),
+                    "/admin/reservas/%s" % reserva.id,
+                )
+            except Exception:
+                pass
 
             # PRG: guardamos el id en sesion y redirigimos a la pagina de
             # confirmacion. Refrescar no reenvia el POST (no duplica la reserva).

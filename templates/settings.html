@@ -14,6 +14,17 @@
 
     <section class="settings-card">
         <header class="settings-card-head">
+            <h2 class="settings-card-title">&#128241; App y avisos en el celular</h2>
+            <p class="settings-card-sub">
+                Instal&aacute; Arcano como app (en el men&uacute; del navegador: <strong>"Instalar app"</strong> o "Agregar a inicio") y activ&aacute; los avisos para recibir una notificaci&oacute;n cuando entra una venta o una reserva.
+            </p>
+        </header>
+        <button type="button" class="btn btn-primary" id="push-activar-btn" onclick="arcanoActivarAvisos(this)">&#128276; Activar avisos en este celular</button>
+        <p class="form-field-hint" style="margin-top: 8px;">Toc&aacute; el bot&oacute;n desde el celular donde quer&eacute;s los avisos (pod&eacute;s activarlo en varios). En Android va directo; en iPhone, hacelo desde la app ya instalada.</p>
+    </section>
+
+    <section class="settings-card">
+        <header class="settings-card-head">
             <h2 class="settings-card-title">Tipos de cambio EUR / USD &rarr; UYU</h2>
             <p class="settings-card-sub">
                 El del <strong>euro</strong> se usa para el costo final de un disco nuevo; el del <strong>dolar</strong> para el costo de los pedidos.
@@ -552,4 +563,24 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+// Activar los avisos push (Web Push) en este dispositivo.
+async function arcanoActivarAvisos(btn){
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+      alert('Este navegador no soporta avisos. Prob&aacute; desde Chrome en el celular.'.replace(/&aacute;/g,'á')); return;
+    }
+    var perm = await Notification.requestPermission();
+    if (perm !== 'granted') { alert('No diste permiso para los avisos.'); return; }
+    var reg = await navigator.serviceWorker.ready;
+    var pub = (await (await fetch('/admin/push/key')).json()).key;
+    if (!pub) { alert('No se pudo preparar los avisos. Probá recargar la página.'); return; }
+    function b64(b){ var p='='.repeat((4-b.length%4)%4); var s=(b+p).replace(/-/g,'+').replace(/_/g,'/'); var r=atob(s); var u=new Uint8Array(r.length); for(var i=0;i<r.length;i++)u[i]=r.charCodeAt(i); return u; }
+    var sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(pub) });
+    var resp = await fetch('/admin/push/subscribe', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(sub) });
+    if (resp.ok) { btn.textContent = '✓ Avisos activados en este celular'; btn.disabled = true; }
+    else { alert('No se pudo guardar. Probá de nuevo.'); }
+  } catch(e){ alert('No se pudo activar los avisos: ' + (e.message || e)); }
+}
+</script>
 {% endblock %}
