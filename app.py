@@ -5949,7 +5949,10 @@ def register_routes(app: Flask) -> None:
         db.session.flush()
         db.session.add(StatusHistory(disc_id=disc.id, estado=disc.estado, nota="Ingreso al stock (Drop Hunter API)"))
 
-        # --- Tracks (con YouTube como sample si viene) ---
+        # --- Tracks. Sample: un audio subido (track_audio_<idx>, ej MP3 del Drop Hunter)
+        #     tiene prioridad; si no, el link de YouTube. Un youtube_url "upload://..."
+        #     es un placeholder de audio subido: NO es una URL real, se ignora. ---
+        _audio_exts = (".mp3", ".m4a", ".wav", ".ogg", ".opus", ".flac", ".aac")
         tl_lines = []
         for idx, t in enumerate(data.get("tracks") or []):
             if not isinstance(t, dict):
@@ -5958,8 +5961,24 @@ def register_routes(app: Flask) -> None:
             art = ((t.get("artista") or t.get("artist") or "").strip() or None)
             tit = ((t.get("titulo") or t.get("title") or "").strip() or f"Track {idx + 1}")
             yt = ((t.get("youtube_url") or t.get("youtube") or "").strip() or None)
+            if yt and yt.lower().startswith("upload://"):
+                yt = None  # placeholder de MP3 subido, no es una URL
+            sample_local = None
+            try:
+                audio_f = request.files.get(f"track_audio_{idx}")
+                if audio_f and audio_f.filename:
+                    aext = os.path.splitext(audio_f.filename)[1].lower()
+                    if aext in _audio_exts:
+                        samples_dir = app.config["SAMPLES_DIR"]
+                        os.makedirs(samples_dir, exist_ok=True)
+                        sname = f"sample_{_uuid.uuid4().hex[:12]}{aext}"
+                        audio_f.save(os.path.join(samples_dir, sname))
+                        sample_local = sname
+            except Exception:
+                sample_local = None
             db.session.add(Track(disc_id=disc.id, posicion=idx, lado=lado, artista=art,
-                                 titulo=tit[:300], youtube_url=yt))
+                                 titulo=tit[:300], youtube_url=(None if sample_local else yt),
+                                 sample_local=sample_local))
             _p = (f"{lado}. " if lado else f"{idx + 1}. ")
             tl_lines.append(_p + (f"{art} - {tit}" if art else tit))
         if tl_lines:
