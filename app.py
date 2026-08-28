@@ -7939,9 +7939,11 @@ def register_routes(app: Flask) -> None:
         otros = (Cliente.query.filter(Cliente.id != cli.id)
                  .order_by(Cliente.nombre.asc()).all())
         lealtad = _lealtad_estado(cli, total)
-        # Discos que se pueden agregar como compra/reserva (para el selector)
+        # Discos que se pueden agregar como compra/reserva (para el selector). Incluye
+        # los Vendidos: sirve para ATRIBUIR una venta ya hecha a este cliente (si el
+        # disco ya esta Vendido, "lo compro" solo le pone el cliente, no re-vende).
         discs_para_agregar = (Disc.query
-                              .filter(Disc.estado.in_(["Disponible", "Pre-order", "Reservado"]))
+                              .filter(Disc.estado.in_(["Disponible", "Pre-order", "Reservado", "Vendido"]))
                               .order_by(Disc.artista.asc(), Disc.titulo.asc()).all())
         # Discos reservados a nombre de este cliente (para ver/gestionar la sena)
         reservados_cliente = (Disc.query
@@ -8038,14 +8040,20 @@ def register_routes(app: Flask) -> None:
 
         disc.cliente_id = cli.id
         if tipo == "compro":
-            disc.canal_venta = (request.form.get("canal") or "instagram").strip() or "instagram"
-            met = (request.form.get("metodo") or "").strip()
-            if met:
-                disc.metodo_pago_venta = met
             if disc.estado != "Vendido":
+                # Venta nueva: se marca Vendido y se cargan canal/metodo del form.
+                disc.canal_venta = (request.form.get("canal") or "instagram").strip() or "instagram"
+                met = (request.form.get("metodo") or "").strip()
+                if met:
+                    disc.metodo_pago_venta = met
                 register_status_change(disc, "Vendido", nota=f"Compra cargada desde ficha de {cli.nombre}")
-            db.session.commit()
-            flash(f"Listo: {disc.artista} - {disc.titulo} quedó como compra de {cli.nombre}.", "success")
+                db.session.commit()
+                flash(f"Listo: {disc.artista} - {disc.titulo} quedó como compra de {cli.nombre}.", "success")
+            else:
+                # Ya estaba Vendido: solo se ATRIBUYE la venta a este cliente. No se pisan
+                # canal/metodo/fecha de la venta ya cargada (eso se edita en el panel de Ventas).
+                db.session.commit()
+                flash(f"Listo: le atribui la compra de {disc.artista} - {disc.titulo} a {cli.nombre}.", "success")
         elif tipo == "reservo":
             if disc.estado != "Reservado":
                 register_status_change(disc, "Reservado", nota=f"Reserva cargada desde ficha de {cli.nombre}")
