@@ -1,0 +1,138 @@
+{% extends "base.html" %}
+
+{% block title %}Agregar disco (URL + video) &middot; Arcano{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Agregar disco</h1>
+        <p class="page-sub">Peg&aacute; la URL de Deejay.de y/o sub&iacute; los videos del disco. Pod&eacute;s usar uno, el otro, o los dos: la URL trae los datos y el tracklist, y cada video queda como el sample de su track (se emparejan por el nombre).</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('disc_new') }}" class="btn btn-ghost">Cargar manual en su lugar</a>
+    </div>
+</section>
+
+<div class="upload-grid">
+    <section class="upload-card">
+        {% if not api_key_set %}
+        <div class="upload-warning">
+            <strong>API key no configurada.</strong> Sin <code>ANTHROPIC_API_KEY</code> no puedo leer los videos (la URL igual funciona). Agregala en el entorno (Render / .env) y reinici&aacute;.
+        </div>
+        {% endif %}
+        {% if failed_url %}
+        <div class="upload-warning">La &uacute;ltima URL fall&oacute;: <code>{{ failed_url }}</code></div>
+        {% endif %}
+
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('disc_new_combo') }}" id="combo-form">
+            <div class="combo-field">
+                <label for="url" class="combo-label">1 &middot; URL de Deejay.de <span class="combo-opt">(opcional)</span></label>
+                <input type="url" id="url" name="url" class="combo-url" placeholder="https://www.deejay.de/..." autocomplete="off">
+                <span class="combo-hint">De ac&aacute; salen artista, t&iacute;tulo, sello, a&ntilde;o, portada y el tracklist completo.</span>
+            </div>
+
+            <div class="combo-field">
+                <label class="combo-label">2 &middot; Videos del disco <span class="combo-opt">(opcional)</span></label>
+                <label class="video-drop" for="videos">
+                    <span class="video-drop-icon">&#9654;</span>
+                    <span class="video-drop-title">Eleg&iacute; los videos</span>
+                    <span class="video-drop-sub">uno por track &middot; MP4, MOV, WEBM &middot; m&aacute;x 50 MB c/u</span>
+                    <input type="file" id="videos" name="videos" accept="video/*" multiple hidden>
+                </label>
+                <span class="combo-hint">Cada video es el sample de un track. Si pusiste URL, se emparejan solos con el tracklist por el nombre.</span>
+            </div>
+
+            <div id="video-list" class="video-list"></div>
+
+            <div class="upload-actions">
+                <button type="submit" class="btn btn-primary" id="combo-submit">Procesar</button>
+                <span class="video-processing" id="combo-processing" hidden>Procesando&hellip; puede tardar unos segundos por video.</span>
+            </div>
+        </form>
+    </section>
+
+    <aside class="upload-aside">
+        <h3 class="upload-aside-title">C&oacute;mo funciona</h3>
+        <ol class="upload-steps">
+            <li><strong>Solo URL:</strong> saco los datos y el tracklist de Deejay.de (sin samples).</li>
+            <li><strong>Solo videos:</strong> cada video es un track con su sample; los datos salen de la placa.</li>
+            <li><strong>Los dos:</strong> la URL arma la ficha y el tracklist, y cada video se engancha a su track por el nombre. Los que no matcheen quedan sin asignar para que los pongas vos.</li>
+            <li>Siempre te llevo a una pantalla de revisi&oacute;n antes de crear la ficha.</li>
+        </ol>
+        <h3 class="upload-aside-title">Ojo</h3>
+        <p class="upload-aside-text">El gasto de IA (solo por los videos) se acumula en <a href="{{ url_for('settings_page') }}" class="link">Ajustes</a>. La portada sale de la URL; si cargás solo videos, la agreg&aacute;s despu&eacute;s.</p>
+    </aside>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        var input = document.getElementById('videos');
+        var drop = document.querySelector('.video-drop');
+        var list = document.getElementById('video-list');
+        var form = document.getElementById('combo-form');
+        var processing = document.getElementById('combo-processing');
+        var urlInput = document.getElementById('url');
+        if (!input) return;
+
+        var PER_VIDEO_MB = 50;
+        var TOTAL_MB = 390;
+        function render() {
+            list.innerHTML = '';
+            var files = input.files;
+            var submit = document.getElementById('combo-submit');
+            if (!files || !files.length) { if (submit) submit.disabled = false; return; }
+            var totalMB = 0, tooBig = false;
+            for (var i = 0; i < files.length; i++) totalMB += files[i].size / 1024 / 1024;
+            var head = document.createElement('p');
+            head.className = 'video-list-head';
+            head.textContent = files.length + ' video(s)  ·  ' + Math.round(totalMB) + ' MB en total';
+            list.appendChild(head);
+            for (var i = 0; i < files.length; i++) {
+                var mb = Math.round(files[i].size / 1024 / 1024 * 10) / 10;
+                var over = mb > PER_VIDEO_MB;
+                if (over) tooBig = true;
+                var row = document.createElement('div');
+                row.className = 'video-item' + (over ? ' video-item-over' : '');
+                row.textContent = (i + 1) + '.  ' + files[i].name + '  ·  ' + mb + ' MB' + (over ? '  — muy pesado (máx ' + PER_VIDEO_MB + ' MB)' : '');
+                list.appendChild(row);
+            }
+            var warn = null;
+            if (tooBig) warn = 'Hay video(s) que pasan los ' + PER_VIDEO_MB + ' MB. Sacalos o comprimilos.';
+            else if (totalMB > TOTAL_MB) warn = 'El lote pesa mucho (' + Math.round(totalMB) + ' MB). Subí menos por vez.';
+            else if (totalMB > 150) warn = 'Son ' + Math.round(totalMB) + ' MB: la subida puede tardar según tu conexión.';
+            if (warn) {
+                var w = document.createElement('p');
+                w.className = 'video-warn';
+                w.textContent = warn;
+                list.appendChild(w);
+            }
+            if (submit) submit.disabled = tooBig || totalMB > TOTAL_MB;
+        }
+        input.addEventListener('change', render);
+        if (drop) {
+            drop.addEventListener('dragover', function (e) { e.preventDefault(); drop.classList.add('dragover'); });
+            drop.addEventListener('dragleave', function () { drop.classList.remove('dragover'); });
+            drop.addEventListener('drop', function (e) {
+                e.preventDefault(); drop.classList.remove('dragover');
+                if (e.dataTransfer && e.dataTransfer.files.length) { input.files = e.dataTransfer.files; render(); }
+            });
+        }
+        if (form) {
+            form.addEventListener('submit', function (e) {
+                var hayUrl = urlInput && urlInput.value.trim();
+                var hayVid = input.files && input.files.length;
+                if (!hayUrl && !hayVid) {
+                    e.preventDefault();
+                    alert('Pegá una URL de Deejay.de, subí videos, o las dos cosas.');
+                    return;
+                }
+                if (processing) processing.hidden = false;
+                var btn = document.getElementById('combo-submit');
+                if (btn) { btn.disabled = true; btn.textContent = 'Procesando…'; }
+            });
+        }
+    })();
+</script>
+{% endblock %}

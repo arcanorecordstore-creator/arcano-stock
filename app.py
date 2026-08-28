@@ -179,7 +179,7 @@ def create_app() -> Flask:
     # que no sea el subir-video (asi no se puede DoSear el login con 400 MB).
     app.config["MAX_CONTENT_LENGTH"] = 400 * 1024 * 1024  # 400 MB (techo duro)
     # Endpoints que legitimamente suben archivos grandes (videos).
-    _ENDPOINTS_UPLOAD_GRANDE = {"disc_new_from_video", "disc_video_review"}
+    _ENDPOINTS_UPLOAD_GRANDE = {"disc_new_from_video", "disc_video_review", "disc_new_combo"}
     _LIMITE_NORMAL = 60 * 1024 * 1024  # 60 MB para el resto (covers, samples, galeria)
 
     @app.before_request
@@ -1878,6 +1878,295 @@ def register_routes(app: Flask) -> None:
             "disc_from_url.html",
             tc=Setting.get_tc(),
             failed_url=failed_url,
+        )
+
+    # ------------------------------------------------------------------
+    # ALTA COMBINADA: URL (Deejay.de) + Video(s). Reemplaza "Desde URL" y
+    # "Desde video": podés usar uno, el otro, o los dos. La URL da la
+    # estructura (datos + tracklist + portada); los videos dan los samples,
+    # que se emparejan con cada track por el nombre.
+    # ------------------------------------------------------------------
+    def _procesar_video_file(f, samples_dir):
+        """Procesa UN video: lo guarda como sample, saca frames y lee la placa con IA.
+        Devuelve dict {ok, track, disc_fields, cost_usd, error}."""
+        import video as _video
+        import uuid as _uuid
+        out = {"ok": False, "track": None, "disc_fields": {}, "cost_usd": 0.0, "error": None}
+        mtype = (f.mimetype or "").lower()
+        if mtype not in _video.VIDEO_EXT_MAP:
+            out["error"] = f"{f.filename}: tipo no soportado ({mtype})"
+            return out
+        try:
+            f.stream.seek(0, os.SEEK_END)
+            fsize = f.stream.tell()
+            f.stream.seek(0)
+        except (OSError, ValueError):
+            fsize = 0
+        if fsize and fsize > _video.MAX_VIDEO_BYTES:
+            out["error"] = f"{f.filename}: pesa demasiado ({fsize // 1024 // 1024} MB, max 50 MB)"
+            return out
+        ext = _video.VIDEO_EXT_MAP[mtype]
+        fname = f"sample_{_uuid.uuid4().hex[:12]}{ext}"
+        dest_path = os.path.join(samples_dir, fname)
+        try:
+            f.save(dest_path)
+        except Exception as e:
+            out["error"] = f"{f.filename}: no se pudo guardar ({e})"
+            return out
+        fn_artista, fn_track = _video.split_artist_track(
+            _video.clean_track_name_from_filename(f.filename))
+        track_artista, track_titulo = fn_artista, fn_track
+        frames, ferr = _video.extract_frames_from_path(dest_path)
+        if ferr:
+            out["error"] = f"{f.filename}: {ferr}"
+        else:
+            res = vision.extract_from_video_frames(frames, filename=f.filename)
+            out["cost_usd"] = res.cost_usd or 0.0
+            if res.ok:
+                d = res.data
+                for k in ("sello", "anio", "genero", "catalogo", "precio_uyu"):
+                    if d.get(k):
+                        out["disc_fields"][k] = d.get(k)
+                if d.get("artista"):
+                    track_artista = d.get("artista")
+                if d.get("track"):
+                    track_titulo = d.get("track")
+            else:
+                out["error"] = f"{f.filename}: {res.error}"
+        out["ok"] = True
+        out["track"] = {"artista": track_artista or "", "titulo": track_titulo or "",
+                        "sample_local": fname, "archivo": f.filename}
+        return out
+
+    def _norm_nombre(s):
+        """Normaliza un nombre de track para comparar (sin acentos, minusculas, solo alfanum)."""
+        import unicodedata as _ud
+        import re as _re
+        if not s:
+            return ""
+        s = _ud.normalize("NFKD", str(s)).encode("ascii", "ignore").decode()
+        s = s.lower()
+        s = _re.sub(r"[^a-z0-9]+", " ", s)
+        return s.strip()
+
+    def _emparejar_videos_tracks(tracks, videos, umbral=0.55):
+        """Asigna a cada track (del tracklist de la URL) el video cuyo nombre mas se
+        parece. Cada video se usa una sola vez. Devuelve (tracks, set de indices usados)."""
+        from difflib import SequenceMatcher
+        usados = set()
+        for tr in tracks:
+            obj_t = _norm_nombre(tr.get("titulo"))
+            obj_f = _norm_nombre(f"{tr.get('artista', '')} {tr.get('titulo', '')}")
+            mejor_i, mejor = None, 0.0
+            for i, v in enumerate(videos):
+                if i in usados:
+                    continue
+                vt = _norm_nombre(v.get("titulo"))
+                vf = _norm_nombre(f"{v.get('artista', '')} {v.get('titulo', '')}")
+                score = max(
+                    SequenceMatcher(None, obj_t, vt).ratio() if (obj_t and vt) else 0.0,
+                    SequenceMatcher(None, obj_f, vf).ratio() if (obj_f and vf) else 0.0,
+                    0.9 if (obj_t and vt and (obj_t in vt or vt in obj_t)) else 0.0,
+                )
+                if score > mejor:
+                    mejor, mejor_i = score, i
+            if mejor_i is not None and mejor >= umbral:
+                tr["sample_local"] = videos[mejor_i]["sample_local"]
+                tr["sample_archivo"] = videos[mejor_i]["archivo"]
+                usados.add(mejor_i)
+        return tracks, usados
+
+    @app.route("/admin/discs/new/combo", methods=["GET", "POST"])
+    @auth.admin_required
+    def disc_new_combo():
+        """Alta combinada: URL de Deejay.de y/o videos. La URL trae los datos y el
+        tracklist; los videos traen los samples, emparejados por nombre con cada track."""
+        api_key_set = bool(config.ANTHROPIC_API_KEY)
+        _sweep_samples_huerfanos()
+        if request.method == "POST":
+            url = (request.form.get("url") or "").strip()
+            files = [f for f in request.files.getlist("videos") if f and f.filename]
+            if not url and not files:
+                flash("Pegá una URL de Deejay.de, subí videos, o las dos cosas.", "error")
+                return redirect(url_for("disc_new_combo"))
+
+            disc_fields = {}
+            cover_local = None
+            url_tracks = []
+            errores = []
+            source_url = None
+
+            # 1) URL (Deejay.de) -> datos + tracklist + portada
+            if url:
+                result = scraper.scrape_url(url)
+                if result.ok:
+                    data = dict(result.data)
+                    source_url = data.get("source_url") or url
+                    if data.get("cover_url"):
+                        covers_dir = app.config["COVERS_DIR"]
+                        cl = scraper.download_cover(data["cover_url"], covers_dir)
+                        if cl:
+                            cover_local = convertir_cover_a_webp(os.path.join(covers_dir, cl))
+                    for k in ("artista", "titulo", "sello", "anio", "genero", "formato", "costo_eur"):
+                        if data.get(k) not in (None, ""):
+                            disc_fields[k] = data.get(k)
+                    if data.get("tracklist"):
+                        disc_fields["tracklist"] = data.get("tracklist")
+                        url_tracks = parse_tracklist_text(data.get("tracklist"))
+                else:
+                    errores.append(f"URL: {result.error}")
+                    if not files:
+                        session["scrape_failed_url"] = url
+                        flash(f"No se pudo leer la URL: {result.error}", "error")
+                        return redirect(url_for("disc_new_combo"))
+                    flash(f"No se pudo leer la URL ({result.error}). Sigo con los videos.", "warning")
+
+            # 2) Videos -> samples + datos de respaldo
+            videos = []
+            total_cost = 0.0
+            if files:
+                if not api_key_set:
+                    flash("La API key de Anthropic no esta configurada; no puedo leer los videos.", "error")
+                    return redirect(url_for("disc_new_combo"))
+                samples_dir = app.config["SAMPLES_DIR"]
+                os.makedirs(samples_dir, exist_ok=True)
+                for f in files:
+                    r = _procesar_video_file(f, samples_dir)
+                    total_cost += r.get("cost_usd") or 0.0
+                    if r.get("error"):
+                        errores.append(r["error"])
+                    if r.get("track"):
+                        videos.append(r["track"])
+                        for k, v in (r.get("disc_fields") or {}).items():
+                            if not disc_fields.get(k) and v:
+                                disc_fields[k] = v
+                if total_cost > 0:
+                    _track_api_cost(total_cost)
+                    db.session.commit()
+
+            # 3) Definir los tracks y emparejar los videos
+            if url_tracks:
+                tracks = url_tracks
+                tracks, usados = _emparejar_videos_tracks(tracks, videos)
+                sin_asignar = [v for i, v in enumerate(videos) if i not in usados]
+            else:
+                # Sin tracklist de URL: cada video es un track (flujo video clasico)
+                tracks = [{
+                    "posicion": i, "lado": None,
+                    "titulo": v.get("titulo"), "artista": v.get("artista"),
+                    "sample_local": v.get("sample_local"), "sample_archivo": v.get("archivo"),
+                } for i, v in enumerate(videos)]
+                sin_asignar = []
+
+            if not tracks and not disc_fields:
+                flash("No pude sacar datos ni de la URL ni de los videos. " + " · ".join(errores[:3]), "error")
+                return redirect(url_for("disc_new_combo"))
+
+            # Artista del disco por defecto (si la URL no lo trajo)
+            if not disc_fields.get("artista"):
+                arts = [v.get("artista") for v in videos if v.get("artista")]
+                if arts:
+                    disc_fields["artista"] = arts[0] if len(set(arts)) == 1 else "Various"
+            disc_fields.setdefault("formato", "Vinyl")
+
+            session["combo_prefill"] = disc_fields
+            session["combo_tracks"] = tracks
+            session["combo_videos"] = videos
+            session["combo_cover"] = cover_local
+            session["combo_info"] = {
+                "cost_usd": round(total_cost, 4),
+                "errores": errores,
+                "sin_asignar": [v["archivo"] for v in sin_asignar],
+                "source_url": source_url,
+            }
+            _msg = "Listo. Revisá y creá la ficha."
+            if total_cost:
+                _msg += f" Costo IA: ${total_cost:.4f} USD."
+            flash(_msg, "success")
+            return redirect(url_for("disc_combo_review"))
+
+        return render_template(
+            "disc_combo.html",
+            api_key_set=api_key_set,
+            failed_url=session.pop("scrape_failed_url", None),
+        )
+
+    @app.route("/admin/discs/new/combo/review", methods=["GET", "POST"])
+    @auth.admin_required
+    def disc_combo_review():
+        prefill = session.get("combo_prefill") or {}
+        tracks = session.get("combo_tracks") or []
+        videos = session.get("combo_videos") or []
+        cover_local = session.get("combo_cover")
+        info = session.get("combo_info") or {}
+        if not tracks and not prefill:
+            flash("No hay datos para revisar. Empezá de nuevo.", "error")
+            return redirect(url_for("disc_new_combo"))
+
+        if request.method == "POST":
+            def _s(k):
+                v = (request.form.get(k) or "").strip()
+                return v or None
+
+            def _i(k):
+                try:
+                    return int(request.form.get(k))
+                except (TypeError, ValueError):
+                    return None
+
+            def _f(k):
+                try:
+                    return round(float(str(request.form.get(k)).replace(",", ".")), 2)
+                except (TypeError, ValueError):
+                    return None
+
+            titulo = _s("titulo") or "Sin título"
+            disc = Disc(
+                estado="Disponible", stock=1, origen="arcano",
+                artista=_s("artista") or "Various", titulo=titulo, sello=_s("sello"),
+                anio=_i("anio"), formato=_s("formato") or "Vinyl", genero=_s("genero"),
+                tags=_s("catalogo"), precio_uyu=float(_i("precio_uyu") or 0),
+                costo_eur=_f("costo_eur") or 0.0, envio_eur=0.0,
+                cover_local=cover_local or None,
+                fecha_ingreso=now_uy(),
+            )
+            try:
+                disc.recalcular_costo_final(tc=Setting.get_tc())
+            except Exception:
+                pass
+            db.session.add(disc)
+            db.session.flush()
+            db.session.add(StatusHistory(disc_id=disc.id, estado=disc.estado, nota="Ingreso al stock (URL + video)"))
+
+            validos = {v["sample_local"] for v in videos}
+            n = _i("track_count") or 0
+            creados = 0
+            tl_lines = []
+            for idx in range(n):
+                tit = (request.form.get(f"track_titulo_{idx}") or "").strip() or f"Track {idx + 1}"
+                art = (request.form.get(f"track_artista_{idx}") or "").strip() or None
+                lado = (request.form.get(f"track_lado_{idx}") or "").strip() or None
+                sample = (request.form.get(f"track_sample_{idx}") or "").strip()
+                sample = sample if sample in validos else None
+                db.session.add(Track(
+                    disc_id=disc.id, posicion=idx, lado=lado, titulo=tit[:300],
+                    artista=art, sample_local=sample,
+                ))
+                creados += 1
+                _pref = (f"{lado}. " if lado else f"{idx + 1}. ")
+                tl_lines.append(_pref + (f"{art} - {tit}" if art else tit))
+            if tl_lines:
+                disc.tracklist = "\n".join(tl_lines)
+            db.session.commit()
+            for k in ("combo_prefill", "combo_tracks", "combo_videos", "combo_cover", "combo_info"):
+                session.pop(k, None)
+            flash(f"Ficha creada con {creados} track(s). Revisá la portada y los samples.", "success")
+            return redirect(url_for("disc_edit", disc_id=disc.id) + "#tracks-section")
+
+        return render_template(
+            "disc_combo_review.html",
+            prefill=prefill, tracks=tracks, videos=videos,
+            cover_local=cover_local, info=info, tc=Setting.get_tc(),
         )
 
     @app.route("/admin/discs/new/from-invoice", methods=["GET", "POST"])

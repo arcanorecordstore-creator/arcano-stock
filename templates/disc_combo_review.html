@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}Revisar ficha (URL + video) &middot; Arcano{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Revis&aacute; antes de crear</h1>
+        <p class="page-sub">Confirm&aacute; los datos del disco y que cada track tenga su video correcto. Corregí lo que haga falta.</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('disc_new_combo') }}" class="btn btn-ghost">Volver a empezar</a>
+    </div>
+</section>
+
+{% if info.errores %}
+<div class="upload-warning"><strong>Algunas cosas tuvieron problemas:</strong> {{ info.errores|join(' · ') }}</div>
+{% endif %}
+{% if info.sin_asignar %}
+<div class="upload-warning">
+    <strong>Videos sin asignar ({{ info.sin_asignar|length }}):</strong> {{ info.sin_asignar|join(' · ') }}.
+    Pon&eacute;los en el desplegable del track que corresponda, ac&aacute; abajo.
+</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('disc_combo_review') }}" class="videorev-form">
+    <section class="videorev-card">
+        <h2 class="videorev-title">Datos del disco</h2>
+        <div class="combo-rev-top">
+            <div class="videorev-grid combo-rev-grid">
+                <label>Artista<input type="text" name="artista" value="{{ prefill.artista or '' }}"></label>
+                <label>T&iacute;tulo del EP<input type="text" name="titulo" value="{{ prefill.titulo or '' }}" placeholder="Si lo dejás vacío queda 'Sin título'"></label>
+                <label>Sello<input type="text" name="sello" value="{{ prefill.sello or '' }}"></label>
+                <label>G&eacute;nero<input type="text" name="genero" value="{{ prefill.genero or '' }}"></label>
+                <label>A&ntilde;o<input type="number" name="anio" value="{{ prefill.anio or '' }}"></label>
+                <label>Formato<input type="text" name="formato" value="{{ prefill.formato or 'Vinyl' }}"></label>
+                <label>Cat&aacute;logo<input type="text" name="catalogo" value="{{ prefill.catalogo or '' }}"></label>
+                <label>Precio (UYU)<input type="number" name="precio_uyu" value="{{ prefill.precio_uyu or '' }}"></label>
+                <label>Costo (EUR)<input type="number" step="0.01" name="costo_eur" value="{{ prefill.costo_eur or '' }}"></label>
+            </div>
+            {% if cover_local %}
+            <div class="combo-rev-cover">
+                <span class="combo-rev-cover-lbl">Portada (de la URL)</span>
+                <img src="{{ url_for('serve_cover', filename=cover_local) }}" alt="portada">
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="videorev-card">
+        <h2 class="videorev-title">Tracks ({{ tracks|length }})</h2>
+        <p class="videorev-sub">
+            {% if videos %}Cada track con su video de sample. El que emparej&oacute; solo ya viene elegido; cambialo si hace falta.{% else %}Sin videos: se crean los tracks del tracklist, sin sample.{% endif %}
+        </p>
+        <input type="hidden" name="track_count" value="{{ tracks|length }}">
+        <div class="videorev-tracks">
+            {% for t in tracks %}
+            <div class="videorev-track combo-rev-track">
+                <span class="videorev-tracknum">{{ t.lado or loop.index }}</span>
+                <input type="hidden" name="track_lado_{{ loop.index0 }}" value="{{ t.lado or '' }}">
+                <div class="videorev-track-main">
+                    <div class="videorev-track-fields">
+                        <input type="text" class="videorev-artista" name="track_artista_{{ loop.index0 }}" value="{{ t.artista or '' }}" placeholder="Artista">
+                        <span class="videorev-dash">&mdash;</span>
+                        <input type="text" class="videorev-titulo" name="track_titulo_{{ loop.index0 }}" value="{{ t.titulo or '' }}" placeholder="Nombre del track">
+                    </div>
+                    {% if videos %}
+                    <div class="combo-rev-sample">
+                        <label class="combo-rev-sample-lbl">Video de sample:</label>
+                        <select class="combo-sample-sel" name="track_sample_{{ loop.index0 }}" data-track="{{ loop.index0 }}">
+                            <option value="" data-url="">&mdash; sin sample &mdash;</option>
+                            {% for v in videos %}
+                            <option value="{{ v.sample_local }}" data-url="{{ url_for('serve_sample', filename=v.sample_local) }}" {% if t.sample_local == v.sample_local %}selected{% endif %}>{{ v.archivo }}{% if v.titulo %} &middot; {{ v.titulo }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if videos %}
+                <video class="videorev-vid combo-rev-vid" data-track="{{ loop.index0 }}"
+                       {% if t.sample_local %}src="{{ url_for('serve_sample', filename=t.sample_local) }}"{% endif %}
+                       controls preload="metadata" playsinline></video>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <div class="videorev-actions">
+        <button type="submit" class="btn btn-primary">Crear ficha en el dashboard</button>
+        <a href="{{ url_for('disc_new_combo') }}" class="btn btn-ghost">Cancelar</a>
+    </div>
+</form>
+
+<style>
+.combo-rev-top{display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap;}
+.combo-rev-grid{flex:1 1 420px;}
+.combo-rev-cover{flex:0 0 auto;text-align:center;}
+.combo-rev-cover img{width:150px;height:150px;object-fit:cover;border-radius:10px;border:1px solid var(--border-1,#2a2a2a);display:block;}
+.combo-rev-cover-lbl{display:block;font-size:11px;color:var(--text-3,#888);margin-bottom:6px;text-transform:uppercase;letter-spacing:.06em;}
+.combo-rev-sample{margin-top:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.combo-rev-sample-lbl{font-size:12px;color:var(--text-3,#888);}
+.combo-sample-sel{flex:1 1 220px;min-width:180px;}
+</style>
+
+<script>
+    (function () {
+        document.querySelectorAll('.combo-sample-sel').forEach(function (sel) {
+            sel.addEventListener('change', function () {
+                var idx = sel.getAttribute('data-track');
+                var vid = document.querySelector('.combo-rev-vid[data-track="' + idx + '"]');
+                if (!vid) return;
+                var opt = sel.options[sel.selectedIndex];
+                var url = opt ? opt.getAttribute('data-url') : '';
+                if (url) { vid.src = url; vid.style.display = ''; vid.load(); }
+                else { vid.removeAttribute('src'); vid.load(); }
+            });
+        });
+    })();
+</script>
+{% endblock %}
