@@ -185,12 +185,18 @@
     <form method="post" action="{{ url_for('admin_cliente_agregar_disco', cliente_id=cli.id) }}" class="cli-add-form" id="cli-add-form">
         <div class="form-field cli-add-disc">
             <label>Disco</label>
-            <select name="disc_id" required>
-                <option value="">&mdash; eleg&iacute; un disco &mdash;</option>
-                {% for d in discs_para_agregar %}
-                <option value="{{ d.id }}">{{ d.artista }} &mdash; {{ d.titulo }} ({{ d.estado }} &middot; {{ money(d.precio_mostrar) }})</option>
-                {% endfor %}
-            </select>
+            <div class="disc-picker">
+                <input type="text" class="disc-picker-search" placeholder="Busc&aacute; por artista o t&iacute;tulo&hellip;" autocomplete="off">
+                <input type="hidden" name="disc_id" value="">
+                <div class="disc-picker-menu" hidden>
+                    {% for d in discs_para_agregar %}
+                    <button type="button" class="disc-picker-opt" data-id="{{ d.id }}" data-label="{{ d.artista }} — {{ d.titulo }}">
+                        <span class="dpo-main">{{ d.artista }} &mdash; {{ d.titulo }}</span>
+                        <span class="dpo-meta">{{ d.estado }} &middot; {{ money(d.precio_mostrar) }}</span>
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
 
         <div class="cli-add-tipo">

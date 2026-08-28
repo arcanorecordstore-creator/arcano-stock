@@ -1753,6 +1753,18 @@ def _migrate_schema(app):
                     conn.commit()
                 print("Migracion: columna play_count agregada a tracks")
 
+        # Seed del marcador de "reservas vistas" (v4.65): que el badge del nav arranque en
+        # 0 tras el deploy y solo avise por reservas NUEVAS (id mayor al maximo actual).
+        # Solo si nunca se seteo (idempotente).
+        if inspector.has_table("settings") and inspector.has_table("reservas"):
+            with db.engine.connect() as conn:
+                _row = conn.execute(text("SELECT 1 FROM settings WHERE key='reservas_visto_hasta_id'")).fetchone()
+                if not _row:
+                    _mx = conn.execute(text("SELECT COALESCE(MAX(id), 0) FROM reservas")).scalar() or 0
+                    conn.execute(text("INSERT INTO settings (key, value, updated_at) VALUES ('reservas_visto_hasta_id', :v, CURRENT_TIMESTAMP)"), {"v": str(_mx)})
+                    conn.commit()
+                    print(f"Seed: reservas_visto_hasta_id = {_mx}")
+
         # Reconstruir la tabla clientes: email y password pasan a OPCIONALES (clientes de
         # Instagram cargados a mano no tienen cuenta) y se suman instagram/notas/origen.
         # SQLite no permite cambiar NOT NULL con ALTER, asi que se rehace la tabla. Se

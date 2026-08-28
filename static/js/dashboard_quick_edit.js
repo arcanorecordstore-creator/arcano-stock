@@ -404,4 +404,40 @@
             }).catch(function () { sel.value = original; });
         });
     });
+
+    // ---- Sena de reserva (chip en la celda de estado) ----
+    tabla.querySelectorAll('.sena-cell').forEach(function (cell) {
+        var discId = cell.dataset.discId;
+        cell.addEventListener('click', function (e) {
+            e.stopPropagation(); // no abrir el editor de estado de esta celda
+            var add = e.target.closest('.sena-add');
+            var chip = e.target.closest('.sena-chip');
+            if (add) {
+                var val = prompt('Cuanto pago de sena para reservar? (en pesos)');
+                if (val === null) return;
+                val = ('' + val).replace(/[^0-9.,]/g, '');
+                if (!val) return;
+                guardar(discId, 'sena_cobrar', val).then(function (res) {
+                    if (res.ok && res.data && res.data.ok) {
+                        cell.innerHTML = '<button type="button" class="sena-chip" title="Sena cobrada. Click para devolver o quedartela.">sena $ ' + (res.data.sena_monto || val) + '</button>';
+                    } else {
+                        alert((res.data && res.data.error) || 'No se pudo guardar la sena.');
+                    }
+                });
+            } else if (chip) {
+                var op = prompt('Sena ya cobrada. Escribi:\nD = se la devolvi al cliente (sale de la caja)\nQ = me la quede (queda como ingreso)');
+                if (op === null) return;
+                op = ('' + op).trim().toLowerCase();
+                var accion = op === 'd' ? 'devolver' : (op === 'q' ? 'quedar' : null);
+                if (!accion) { if (op) alert('Escribi D o Q.'); return; }
+                guardar(discId, 'sena_resolver', accion).then(function (res) {
+                    if (res.ok && res.data && res.data.ok) {
+                        cell.innerHTML = '<button type="button" class="sena-add" title="Marca que pago sena para reservar">+ sena</button>';
+                    } else {
+                        alert((res.data && res.data.error) || 'No se pudo.');
+                    }
+                });
+            }
+        });
+    });
 })();

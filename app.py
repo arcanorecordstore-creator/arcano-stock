@@ -490,10 +490,23 @@ self.addEventListener('notificationclick', function(e){
     # Context processor: vars disponibles en todos los templates
     @app.context_processor
     def inject_globals():
+        # Pendientes reales (para la tarjeta del dashboard "N pendiente/s").
         try:
             reservas_pendientes_count = Reserva.query.filter_by(estado="Pendiente").count()
         except Exception:
             reservas_pendientes_count = 0
+        # Badge del nav = reservas NUEVAS que todavia no viste (id mayor al ultimo
+        # visto). Se limpia al entrar a /admin/reservas. Es solo el aviso de "llego
+        # algo nuevo"; los pendientes se siguen viendo adentro.
+        try:
+            from models import Setting as _S
+            try:
+                _visto = int(_S.get("reservas_visto_hasta_id", "0") or 0)
+            except (TypeError, ValueError):
+                _visto = 0
+            reservas_sin_ver_count = Reserva.query.filter(Reserva.id > _visto).count()
+        except Exception:
+            reservas_sin_ver_count = 0
 
         def url_pagina(nro):
             """Arma la URL de la pagina `nro` conservando los filtros actuales."""
@@ -527,6 +540,7 @@ self.addEventListener('notificationclick', function(e){
             cliente_actual = None
 
         return {
+            "reservas_sin_ver_count": reservas_sin_ver_count,
             "reservas_pendientes_count": reservas_pendientes_count,
             "now": now_uy(),
             "url_pagina": url_pagina,
@@ -2946,6 +2960,27 @@ def register_routes(app: Flask) -> None:
                 db.session.commit()
             return jsonify({"ok": True, "campo": campo, "valor": disc.estado})
 
+        elif campo == "sena_cobrar":
+            monto = _parse_monto_caja(valor)
+            met = (data.get("metodo") or "").strip() or None if hasattr(data, "get") else None
+            ok, msg = _aplicar_sena(disc, "cobrar", monto=monto, metodo=met)
+            if not ok:
+                return jsonify({"ok": False, "error": msg}), 400
+            db.session.commit()
+            return jsonify({"ok": True, "campo": campo, "sena_cobrada": True,
+                            "sena_monto": round(disc.sena_monto_uyu or 0),
+                            "falta": round(disc.precio_falta_uyu or 0)})
+
+        elif campo == "sena_resolver":
+            accion = (valor or "").strip()
+            if accion not in ("devolver", "quedar"):
+                return jsonify({"ok": False, "error": "Accion invalida"}), 400
+            ok, msg = _aplicar_sena(disc, accion)
+            if not ok:
+                return jsonify({"ok": False, "error": msg}), 400
+            db.session.commit()
+            return jsonify({"ok": True, "campo": campo, "sena_cobrada": False})
+
         elif campo in ("costo_eur", "envio_eur"):
             try:
                 nuevo = round(float(str(valor).replace(",", ".")), 2)
@@ -4164,13 +4199,13 @@ def register_routes(app: Flask) -> None:
                 disc_origen[d.id] = (d.origen or "arcano")
 
         # Plata metida en mercaderia: costo de los discos de Arcano (no personales)
-        # comprados y todavia no vendidos. Misma definicion que la contabilidad
-        # (Disponibles + Pre-order con pedido asignado). No es plata en caja: es
-        # plata convertida en stock.
+        # comprados y todavia no vendidos. Misma definicion que la contabilidad: TODO lo
+        # que no esta Vendido (Disponible + Reservado + Apartado para mi) + Pre-order con
+        # pedido asignado. No es plata en caja: es plata convertida en stock.
         mercaderia_discos = (
             Disc.query
             .filter(
-                (Disc.estado == "Disponible")
+                Disc.estado.in_(["Disponible", "Reservado", "Apartado para mi"])
                 | ((Disc.estado == "Pre-order") & (Disc.pedido_id.isnot(None)))
             )
             .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
@@ -7067,6 +7102,15 @@ def register_routes(app: Flask) -> None:
     @app.route("/admin/reservas")
     @auth.admin_required
     def admin_reservas():
+        # Entrar aca marca todas las reservas actuales como "vistas": limpia el badge
+        # de aviso del nav (los pendientes se siguen viendo en la propia lista).
+        try:
+            from models import Setting as _S
+            _maxid = db.session.query(db.func.max(Reserva.id)).scalar() or 0
+            if int(_S.get("reservas_visto_hasta_id", "0") or 0) < _maxid:
+                _S.set("reservas_visto_hasta_id", str(_maxid))
+        except Exception:
+            pass
         filtro_estado = (request.args.get("estado") or "").strip()
         f_q = (request.args.get("q") or "").strip()
         query = Reserva.query.order_by(Reserva.fecha.desc())
@@ -7918,42 +7962,30 @@ def register_routes(app: Flask) -> None:
             return redirect(destino)
         return redirect(url_for(default_endpoint, **kw))
 
-    @app.route("/admin/discs/<int:disc_id>/sena", methods=["POST"])
-    @auth.admin_required
-    def admin_disc_sena(disc_id):
-        """Marca / edita / resuelve la SENA de reserva de un disco. Central: la usan
-        la ficha del cliente, el detalle de la reserva y el dashboard.
-        Acciones: cobrar (marca la sena cobrada), editar (cambia monto/metodo),
-        devolver (se la devolviste al cliente: sale de la caja), quedar (te la
-        quedaste: queda como ingreso retenido a favor tuyo)."""
+    def _aplicar_sena(disc, accion, monto=None, metodo=None):
+        """Aplica una accion de sena a un disco, SIN commit. Devuelve (ok, msg).
+        La comparten la ruta de sena (form) y el quick-update del dashboard (AJAX).
+        Acciones: cobrar/editar (marca/actualiza la sena cobrada), devolver (se la
+        devolviste: sale de la caja), quedar (te la quedaste: ingreso retenido)."""
         from models import MovimientoCaja
-        disc = Disc.query.get_or_404(disc_id)
-        accion = (request.form.get("accion") or "").strip()
-
         if accion in ("cobrar", "editar"):
-            monto = _parse_monto_caja(request.form.get("monto"))
-            if monto <= 0:
-                flash("Pone un monto de sena valido (mayor a 0).", "error")
-                return _volver_admin()
+            if not monto or monto <= 0:
+                return False, "Pone un monto de sena valido (mayor a 0)."
             disc.sena_cobrada = True
             disc.sena_monto_uyu = round(monto, 2)
             if not disc.sena_fecha:
                 disc.sena_fecha = today_uy()
-            met = (request.form.get("metodo") or "").strip()
-            if met:
-                disc.sena_metodo = met
-            db.session.commit()
-            flash(f"Sena de $ {monto:,.0f}".replace(",", ".") +
-                  (" marcada como cobrada." if accion == "cobrar" else " actualizada."), "success")
-            return _volver_admin()
-
-        # Resolucion (devolver / quedar): sacamos el mov automatico de sena
+            if metodo:
+                disc.sena_metodo = metodo
+            _f = f"$ {round(monto):,.0f}".replace(",", ".")
+            return True, (f"Sena de {_f} marcada como cobrada." if accion == "cobrar"
+                          else f"Sena de {_f} actualizada.")
         old = MovimientoCaja.query.filter_by(origen="sena", origen_id=disc.id).first()
-        monto = round(disc.sena_monto_uyu or 0, 2)
         if accion == "quedar":
-            if monto > 0:
+            m = round(disc.sena_monto_uyu or 0, 2)
+            if m > 0:
                 db.session.add(MovimientoCaja(
-                    fecha=today_uy(), tipo="ingreso", monto_uyu=monto,
+                    fecha=today_uy(), tipo="ingreso", monto_uyu=m,
                     concepto=(f"Sena retenida: {disc.artista or ''} - {disc.titulo or ''}".strip(" -"))[:300],
                     metodo=disc.sena_metodo, categoria="Sena retenida",
                     origen="manual", origen_categoria="Sena retenida", manual_override=True,
@@ -7961,18 +7993,29 @@ def register_routes(app: Flask) -> None:
             if old:
                 db.session.delete(old)
             disc.sena_cobrada = False
-            db.session.commit()
-            flash("Sena retenida: queda como ingreso a favor tuyo en la caja.", "success")
-            return _volver_admin()
-        elif accion == "devolver":
+            return True, "Sena retenida: queda como ingreso a favor tuyo en la caja."
+        if accion == "devolver":
             if old:
                 db.session.delete(old)
             disc.sena_cobrada = False
-            db.session.commit()
-            flash("Sena devuelta al cliente: se saco de la caja.", "success")
-            return _volver_admin()
+            return True, "Sena devuelta al cliente: se saco de la caja."
+        return False, "Accion de sena no reconocida."
 
-        flash("Accion de sena no reconocida.", "error")
+    @app.route("/admin/discs/<int:disc_id>/sena", methods=["POST"])
+    @auth.admin_required
+    def admin_disc_sena(disc_id):
+        """Marca / edita / resuelve la SENA de reserva de un disco (form POST).
+        La usan la ficha del cliente y el detalle de la reserva."""
+        disc = Disc.query.get_or_404(disc_id)
+        accion = (request.form.get("accion") or "").strip()
+        monto = _parse_monto_caja(request.form.get("monto")) if accion in ("cobrar", "editar") else None
+        met = (request.form.get("metodo") or "").strip() or None
+        ok, msg = _aplicar_sena(disc, accion, monto=monto, metodo=met)
+        if ok:
+            db.session.commit()
+            flash(msg, "success")
+        else:
+            flash(msg, "error")
         return _volver_admin()
 
     @app.route("/admin/clientes/<int:cliente_id>/agregar-disco", methods=["POST"])

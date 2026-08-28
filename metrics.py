@@ -377,13 +377,16 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
     unidades_personal = sum(d.copias_facturadas for d in vendidos_personal)
 
     # --- COSTO DE STOCK NO VENDIDO (solo arcano) ---
-    # Plata ya gastada en discos que todavia no se vendieron: los Disponibles, MAS los
-    # Pre-order que tienen un pedido asignado (ya se encargaron/pagaron a Deejay). Los
-    # Pre-order SIN pedido asignado NO cuentan: todavia no hay plata comprometida.
+    # Plata ya gastada en discos que todavia NO se vendieron: TODO lo que no esta Vendido
+    # (Disponible + Reservado + Apartado para mi), MAS los Pre-order con pedido asignado
+    # (ya se encargaron/pagaron a Deejay). Un Reservado SIGUE siendo stock sin vender: la
+    # plata sigue metida ahi hasta que la venta se concreta (por eso reservar no debe subir
+    # la ganancia). Quedan afuera: los Pre-order SIN pedido (todavia no hay plata puesta) y
+    # los Descartados (perdida, se cuenta aparte).
     disponibles_arcano = (
         Disc.query
         .filter(
-            (Disc.estado == "Disponible")
+            Disc.estado.in_(["Disponible", "Reservado", "Apartado para mi"])
             | ((Disc.estado == "Pre-order") & (Disc.pedido_id.isnot(None)))
         )
         .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
@@ -539,9 +542,10 @@ def _resumen_rango(inicio, fin):
 
 
 def dinero_por_cobrar() -> dict:
-    """Discos reservados: ventas casi cerradas que todavia no se cobraron."""
+    """Discos reservados: lo que todavia FALTA cobrar (el precio menos la sena que el
+    cliente ya pago por adelantado). Si no hubo sena, es el precio completo."""
     reservados = Disc.query.filter(Disc.estado == "Reservado").all()
-    total = sum((d.precio_mostrar or d.precio_uyu or 0) for d in reservados)
+    total = sum(d.precio_falta_uyu for d in reservados)
     return {
         "titulos": len(reservados),
         "total_uyu": round(total, 2),

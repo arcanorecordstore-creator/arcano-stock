@@ -260,6 +260,15 @@
                         'Descartado': 'badge-descartado',
                     } %}
                     <span class="badge {{ estado_class.get(d.estado, 'badge-default') }}">{{ d.estado }}</span>
+                    {% if d.estado == 'Reservado' or d.sena_cobrada %}
+                    <div class="sena-cell" data-disc-id="{{ d.id }}">
+                        {% if d.sena_cobrada %}
+                        <button type="button" class="sena-chip" title="Se&ntilde;a cobrada. Click para devolver o quedartela.">se&ntilde;a $ {{ (d.sena_efectiva)|round|int }}</button>
+                        {% else %}
+                        <button type="button" class="sena-add" title="Marca que pago sena para reservar">+ se&ntilde;a</button>
+                        {% endif %}
+                    </div>
+                    {% endif %}
                 </td>
                 <td class="col-origen col-editable-origen" data-disc-id="{{ d.id }}" data-origen="{{ d.origen }}" title="Click para cambiar origen">
                     {% if d.origen == 'personal' %}

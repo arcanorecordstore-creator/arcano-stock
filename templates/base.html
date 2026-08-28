@@ -41,8 +41,8 @@
                 <a href="{{ url_for('dashboard') }}" class="nav-link {% if ep == 'dashboard' %}active{% endif %}">Dashboard</a>
                 <a href="{{ url_for('admin_reservas') }}" class="nav-link {% if ep.startswith('admin_reserva') %}active{% endif %}">
                     Reservas
-                    {% if reservas_pendientes_count > 0 %}
-                    <span class="nav-badge">{{ reservas_pendientes_count }}</span>
+                    {% if reservas_sin_ver_count > 0 %}
+                    <span class="nav-badge">{{ reservas_sin_ver_count }}</span>
                     {% endif %}
                 </a>
 
@@ -110,7 +110,7 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v4.64 &middot; Se&ntilde;as de reserva: marc&aacute;s por disco si el cliente pag&oacute; la se&ntilde;a; entra a la caja como plata real y el "por cobrar" muestra solo lo que falta (al vender, se cuenta neta, sin duplicar). Desde la ficha del cliente ahora agreg&aacute;s los discos que compr&oacute; o reserv&oacute;.</span>
+            <span class="footer-version">v4.65 &middot; Arreglo contable: un disco Reservado ahora sigue contando como stock no vendido (reservar ya no infla la ganancia). Se&ntilde;a tambi&eacute;n desde el dashboard y el detalle de la reserva. Buscador de disco por texto en la ficha del cliente. El badge de Reservas ahora avisa solo por las que no viste (se limpia al entrar).</span>
         </footer>
     </div>
 
@@ -221,6 +221,69 @@
             }, true);
             document.addEventListener('submit', function () { start(); }, true);
             window.addEventListener('pageshow', function () { clearInterval(timer); bar.classList.remove('active'); bar.style.width = '0'; });
+        })();
+    </script>
+    <script>
+        // Buscador de disco por texto (combobox reutilizable): cualquier .disc-picker
+        // con un input .disc-picker-search, un <input type=hidden> y un .disc-picker-menu
+        // con botones .disc-picker-opt (data-id, data-label) se vuelve buscable.
+        (function () {
+            document.querySelectorAll('.disc-picker').forEach(function (dp) {
+                var search = dp.querySelector('.disc-picker-search');
+                var hidden = dp.querySelector('input[type="hidden"]');
+                var menu = dp.querySelector('.disc-picker-menu');
+                if (!search || !hidden || !menu) return;
+                var opts = Array.prototype.slice.call(menu.querySelectorAll('.disc-picker-opt'));
+                var empty = document.createElement('div');
+                empty.className = 'disc-picker-empty';
+                empty.textContent = 'Sin resultados';
+                empty.hidden = true;
+                menu.appendChild(empty);
+
+                function filter() {
+                    var q = search.value.trim().toLowerCase();
+                    var any = false, shown = 0;
+                    opts.forEach(function (o) {
+                        var txt = (o.getAttribute('data-label') || o.textContent || '').toLowerCase();
+                        var hit = !q || txt.indexOf(q) >= 0;
+                        // limite de 40 visibles para no dibujar cientos de golpe
+                        if (hit && shown < 40) { o.hidden = false; shown++; any = true; }
+                        else { o.hidden = true; }
+                    });
+                    empty.hidden = any;
+                }
+                function open() { filter(); menu.hidden = false; }
+                function close() { menu.hidden = true; }
+                function pick(o) {
+                    hidden.value = o.getAttribute('data-id') || '';
+                    search.value = o.getAttribute('data-label') || (o.textContent || '').trim();
+                    search.classList.remove('dp-error');
+                    close();
+                }
+                search.addEventListener('focus', open);
+                search.addEventListener('input', function () { hidden.value = ''; open(); });
+                search.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        var vis = opts.filter(function (o) { return !o.hidden; });
+                        if (vis.length) { e.preventDefault(); pick(vis[0]); }
+                    } else if (e.key === 'Escape') { close(); }
+                });
+                opts.forEach(function (o) {
+                    o.addEventListener('mousedown', function (e) { e.preventDefault(); pick(o); });
+                });
+                document.addEventListener('click', function (e) { if (!dp.contains(e.target)) close(); });
+
+                var form = dp.closest('form');
+                if (form) {
+                    form.addEventListener('submit', function (e) {
+                        if (!hidden.value) {
+                            e.preventDefault();
+                            search.classList.add('dp-error');
+                            search.focus();
+                        }
+                    });
+                }
+            });
         })();
     </script>
 </body>

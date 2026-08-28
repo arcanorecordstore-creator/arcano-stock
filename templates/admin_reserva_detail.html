@@ -209,6 +209,34 @@ Montevideo, Uruguay</div>
                             &middot; <span style="color: var(--text-5);">disco eliminado del stock</span>
                         {% endif %}
                     </div>
+                    {% if d %}
+                        {% if d.sena_cobrada %}
+                        <div class="disc-sena">
+                            <span class="disc-sena-tag">&#10003; Se&ntilde;a $ {{ '{:,.0f}'.format(d.sena_efectiva).replace(',', '.') }} cobrada &middot; falta $ {{ '{:,.0f}'.format(d.precio_falta_uyu).replace(',', '.') }}</span>
+                            <form method="post" action="{{ url_for('admin_disc_sena', disc_id=d.id) }}" onsubmit="return confirm('¿Le devolviste la seña al cliente? Se saca de la caja.');">
+                                <input type="hidden" name="accion" value="devolver"><input type="hidden" name="next" value="{{ request.path }}">
+                                <button type="submit" class="btn btn-ghost btn-xs">Devolv&iacute;</button>
+                            </form>
+                            <form method="post" action="{{ url_for('admin_disc_sena', disc_id=d.id) }}" onsubmit="return confirm('¿Te quedás la seña? Queda como ingreso a favor tuyo.');">
+                                <input type="hidden" name="accion" value="quedar"><input type="hidden" name="next" value="{{ request.path }}">
+                                <button type="submit" class="btn btn-ghost btn-xs">Me la qued&eacute;</button>
+                            </form>
+                        </div>
+                        {% elif d.estado == 'Reservado' %}
+                        <form method="post" action="{{ url_for('admin_disc_sena', disc_id=d.id) }}" class="disc-sena">
+                            <input type="hidden" name="accion" value="cobrar"><input type="hidden" name="next" value="{{ request.path }}">
+                            <input type="number" name="monto" min="1" step="1" placeholder="Se&ntilde;a $" class="disc-sena-monto" required>
+                            <select name="metodo">
+                                <option value="">c&oacute;mo pag&oacute;</option>
+                                <option value="efectivo">Efectivo</option>
+                                <option value="transferencia">Transferencia</option>
+                                <option value="mercadopago">Mercado Pago</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                            <button type="submit" class="btn btn-primary btn-xs">Cobr&eacute; la se&ntilde;a</button>
+                        </form>
+                        {% endif %}
+                    {% endif %}
                 </div>
             </div>
             {% endfor %}
