@@ -2063,8 +2063,10 @@ def register_routes(app: Flask) -> None:
                 if _u and _u not in urls:
                     urls.append(_u)
             files = [f for f in request.files.getlist("videos") if f and f.filename]
-            if not urls and not files:
-                flash("Pegá uno o varios links de Deejay.de, subí videos, o las dos cosas.", "error")
+            ss_file = request.files.get("screenshot")
+            _hay_ss = bool(ss_file and ss_file.filename)
+            if not urls and not files and not _hay_ss:
+                flash("Pegá un link de Deejay.de, subí un screenshot, subí videos, o combinalos.", "error")
                 return redirect(url_for("disc_new_combo"))
             # Varios links: van por el flujo por lotes de siempre (a la ficha, de a uno).
             # Los videos no se pueden repartir entre varios discos, asi que ahi se ignoran.
@@ -2083,6 +2085,7 @@ def register_routes(app: Flask) -> None:
                 url_tracks = []
                 errores = []
                 source_url = None
+                total_cost = 0.0
 
                 # 1) URL (Deejay.de) -> datos + tracklist + portada
                 if url:
@@ -2112,9 +2115,31 @@ def register_routes(app: Flask) -> None:
                             return redirect(url_for("disc_new_combo"))
                         flash(f"No se pudo leer la URL ({result.error}). Sigo con los videos.", "warning")
 
-                # 2) Videos -> samples + datos de respaldo
+                # 2) Screenshot (opcional) -> completa lo que la URL no trajo (o TODO si
+                #    la URL fallo/no vino). Da datos + tracklist, igual que la URL.
+                if _hay_ss:
+                    if not api_key_set:
+                        flash("Sin API key no puedo leer el screenshot (el link y los videos igual funcionan).", "warning")
+                    else:
+                        try:
+                            ssres = vision.extract_disc_from_image(ss_file.read(), (ss_file.mimetype or "").lower())
+                            total_cost += ssres.cost_usd or 0.0
+                            if ssres.ok:
+                                ssd = ssres.data or {}
+                                for k in ("artista", "titulo", "sello", "anio", "genero",
+                                          "formato", "pais", "catalogo", "precio_uyu"):
+                                    if not disc_fields.get(k) and ssd.get(k) not in (None, ""):
+                                        disc_fields[k] = ssd.get(k)
+                                if not url_tracks and ssd.get("tracklist"):
+                                    disc_fields["tracklist"] = ssd.get("tracklist")
+                                    url_tracks = parse_tracklist_text(ssd.get("tracklist"))
+                            else:
+                                errores.append(f"Screenshot: {ssres.error}")
+                        except Exception as _e:
+                            errores.append(f"Screenshot: {_e}")
+
+                # 3) Videos -> samples + datos de respaldo
                 videos = []
-                total_cost = 0.0
                 if files:
                     if not api_key_set:
                         flash("La API key de Anthropic no esta configurada; no puedo leer los videos.", "error")
@@ -2131,9 +2156,9 @@ def register_routes(app: Flask) -> None:
                             for k, v in (r.get("disc_fields") or {}).items():
                                 if not disc_fields.get(k) and v:
                                     disc_fields[k] = v
-                    if total_cost > 0:
-                        _track_api_cost(total_cost)
-                        db.session.commit()
+                if total_cost > 0:
+                    _track_api_cost(total_cost)
+                    db.session.commit()
 
                 # 3) Definir los tracks y emparejar los videos
                 if url_tracks:

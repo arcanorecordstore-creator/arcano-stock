@@ -32,14 +32,25 @@
             </div>
 
             <div class="combo-field">
-                <label class="combo-label">2 &middot; Videos del disco <span class="combo-opt">(opcional)</span></label>
+                <label class="combo-label">2 &middot; Screenshot de la ficha <span class="combo-opt">(opcional)</span></label>
+                <label class="video-drop" for="screenshot">
+                    <span class="video-drop-icon">&#128247;</span>
+                    <span class="video-drop-title" id="ss-title">Eleg&iacute; una captura</span>
+                    <span class="video-drop-sub">PNG / JPG / WEBP &middot; de la p&aacute;gina del disco</span>
+                    <input type="file" id="screenshot" name="screenshot" accept="image/*" hidden>
+                </label>
+                <span class="combo-hint">La IA lee la captura y completa lo que el link no trajo &mdash; o todo, si el link fall&oacute; o no lo pusiste.</span>
+            </div>
+
+            <div class="combo-field">
+                <label class="combo-label">3 &middot; Videos del disco <span class="combo-opt">(opcional)</span></label>
                 <label class="video-drop" for="videos">
                     <span class="video-drop-icon">&#9654;</span>
                     <span class="video-drop-title">Eleg&iacute; los videos</span>
                     <span class="video-drop-sub">uno por track &middot; MP4, MOV, WEBM &middot; m&aacute;x 50 MB c/u</span>
                     <input type="file" id="videos" name="videos" accept="video/*" multiple hidden>
                 </label>
-                <span class="combo-hint">Cada video es el sample de un track. Si pusiste URL, se emparejan solos con el tracklist por el nombre.</span>
+                <span class="combo-hint">Cada video es el sample de un track. Si pusiste URL o screenshot, se emparejan solos con el tracklist por el nombre.</span>
             </div>
 
             <div id="video-list" class="video-list"></div>
@@ -54,13 +65,13 @@
     <aside class="upload-aside">
         <h3 class="upload-aside-title">C&oacute;mo funciona</h3>
         <ol class="upload-steps">
-            <li><strong>Solo URL:</strong> saco los datos y el tracklist de Deejay.de (sin samples).</li>
-            <li><strong>Solo videos:</strong> cada video es un track con su sample; los datos salen de la placa.</li>
-            <li><strong>Los dos:</strong> la URL arma la ficha y el tracklist, y cada video se engancha a su track por el nombre. Los que no matcheen quedan sin asignar para que los pongas vos.</li>
+            <li><strong>3 fuentes que se combinan:</strong> el <strong>link</strong> de Deejay.de y el <strong>screenshot</strong> dan los datos + el tracklist; los <strong>videos</strong> dan los samples. Us&aacute; una, dos o las tres.</li>
+            <li><strong>Se completan entre s&iacute;:</strong> mando primero lo del link; lo que falte lo completa el screenshot; y si el link fall&oacute; o no lo pusiste, el screenshot hace todo el trabajo.</li>
+            <li><strong>Videos:</strong> cada uno se engancha a su track por el nombre; los que no matcheen quedan sin asignar para que los pongas vos.</li>
             <li>Siempre te llevo a una pantalla de revisi&oacute;n antes de crear la ficha.</li>
         </ol>
         <h3 class="upload-aside-title">Ojo</h3>
-        <p class="upload-aside-text">El gasto de IA (solo por los videos) se acumula en <a href="{{ url_for('settings_page') }}" class="link">Ajustes</a>. La portada sale de la URL; si cargás solo videos, la agreg&aacute;s despu&eacute;s.</p>
+        <p class="upload-aside-text">El gasto de IA (por el screenshot y los videos) se acumula en <a href="{{ url_for('settings_page') }}" class="link">Ajustes</a>. La portada sale de la URL; si no hay link, la agreg&aacute;s despu&eacute;s.</p>
     </aside>
 </div>
 
@@ -77,11 +88,19 @@
 <script>
     (function () {
         var input = document.getElementById('videos');
-        var drop = document.querySelector('.video-drop');
+        var drop = input ? input.closest('.video-drop') : null;
         var list = document.getElementById('video-list');
         var form = document.getElementById('combo-form');
         var processing = document.getElementById('combo-processing');
         var urlInput = document.getElementById('url');
+        var ssInput = document.getElementById('screenshot');
+        var ssTitle = document.getElementById('ss-title');
+        if (ssInput && ssTitle) {
+            ssInput.addEventListener('change', function () {
+                ssTitle.textContent = (ssInput.files && ssInput.files.length)
+                    ? ssInput.files[0].name : 'Elegí una captura';
+            });
+        }
         if (!input) return;
 
         var PER_VIDEO_MB = 50;
@@ -131,9 +150,10 @@
             form.addEventListener('submit', function (e) {
                 var hayUrl = urlInput && urlInput.value.trim();
                 var hayVid = input.files && input.files.length;
-                if (!hayUrl && !hayVid) {
+                var haySS = ssInput && ssInput.files && ssInput.files.length;
+                if (!hayUrl && !hayVid && !haySS) {
                     e.preventDefault();
-                    alert('Pegá una URL de Deejay.de, subí videos, o las dos cosas.');
+                    alert('Pegá un link de Deejay.de, subí un screenshot, subí videos, o combinalos.');
                     return;
                 }
                 if (processing) processing.hidden = false;
