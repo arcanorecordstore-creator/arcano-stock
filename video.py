@@ -125,6 +125,36 @@ def extract_frames_from_path(path, n_frames: int = 1, max_width: int = 900,
     return frames, None
 
 
+def extract_audio_from_path(src_path, dest_path, timeout_s: int = 90):
+    """Extrae SOLO el audio de un video a dest_path (.m4a AAC 128k). Con -vn no toca
+    el video, asi el archivo pesa una fraccion (el sample de la ficha solo suena, no
+    se ve). Liviano en CPU/memoria. Devuelve (ok, error)."""
+    import subprocess
+    exe = _ffmpeg_exe()
+    cmd = [
+        exe, "-nostdin", "-loglevel", "error", "-y",
+        "-i", src_path,
+        "-vn", "-c:a", "aac", "-b:a", "128k",
+        dest_path,
+    ]
+    try:
+        proc = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE, timeout=timeout_s)
+    except subprocess.TimeoutExpired:
+        return False, "el video tardo demasiado en convertir a audio (timeout)"
+    except FileNotFoundError:
+        return False, "no se encontro ffmpeg"
+    except Exception as e:
+        return False, f"error de ffmpeg: {e}"
+    if proc.returncode != 0:
+        return False, ((proc.stderr or b"").decode("utf-8", "replace").strip()[:200] or "ffmpeg fallo")
+    try:
+        if not os.path.exists(dest_path) or os.path.getsize(dest_path) == 0:
+            return False, "el audio salio vacio (el video no tiene sonido?)"
+    except OSError:
+        return False, "no se pudo leer el audio generado"
+    return True, None
+
+
 def extract_frames_png(video_bytes: bytes, n_frames: int = 1, max_width: int = 900):
     """Compat/tests: recibe bytes, los escribe a un temp y extrae con ffmpeg."""
     tmp = os.path.join(tempfile.gettempdir(), f"arcano_vid_{uuid.uuid4().hex}.mp4")

@@ -77,9 +77,9 @@
                     {% endif %}
                 </div>
                 {% if videos %}
-                <video class="videorev-vid combo-rev-vid" data-track="{{ loop.index0 }}"
+                <audio class="combo-rev-vid" data-track="{{ loop.index0 }}" style="width:100%;max-width:320px;"
                        {% if t.sample_local %}src="{{ url_for('serve_sample', filename=t.sample_local) }}"{% endif %}
-                       controls preload="metadata" playsinline></video>
+                       controls preload="none"></audio>
                 {% endif %}
             </div>
             {% endfor %}

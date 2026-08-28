@@ -181,6 +181,14 @@
             <li>Portadas: <strong>{{ '%.0f'|format(u.covers_mb or 0) }} MB</strong></li>
             <li>Base de datos: <strong>{{ '%.1f'|format(u.db_mb or 0) }} MB</strong></li>
         </ul>
+        {% if u.video_n %}
+        <div style="background:rgba(214,169,69,.08);border:1px solid rgba(214,169,69,.3);border-radius:10px;padding:12px 14px;margin:4px 0 12px;">
+            <p style="margin:0 0 8px;font-size:13.5px;color:var(--text-2);"><strong>{{ u.video_n }}</strong> sample(s) todav&iacute;a en video ({{ '%.0f'|format(u.video_mb or 0) }} MB). Convertilos a audio para liberar la mayor parte &mdash; el cliente escucha igual. Se hace de a poco: toc&aacute; y repet&iacute; hasta que llegue a 0.</p>
+            <form method="post" action="{{ url_for('admin_comprimir_samples') }}">
+                <button type="submit" class="btn btn-primary">&#127925; Comprimir videos a audio</button>
+            </form>
+        </div>
+        {% endif %}
         <form method="post" action="{{ url_for('admin_limpiar_samples') }}" style="padding:6px 0;" onsubmit="return confirm('¿Borrar los samples que ningún disco usa? Libera espacio y NO afecta las fichas.');">
             <button type="submit" class="btn {% if u.huerfanos_n %}btn-primary{% else %}btn-ghost{% endif %}">&#129529; Limpiar samples sin usar{% if u.huerfanos_n %} ({{ u.huerfanos_n }}){% endif %}</button>
         </form>

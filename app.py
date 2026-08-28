@@ -1980,9 +1980,30 @@ def register_routes(app: Flask) -> None:
                     track_titulo = d.get("track")
             else:
                 out["error"] = f"{f.filename}: {res.error}"
+        # Guardar SOLO el audio como sample (la ficha lo reproduce como audio; nadie ve
+        # el video). Pesa ~10% del video. Si no se puede sacar el audio, queda el video.
+        sample_final = fname
+        try:
+            audio_fname = f"sample_{_uuid.uuid4().hex[:12]}.m4a"
+            audio_path = os.path.join(samples_dir, audio_fname)
+            ok_audio, _aerr = _video.extract_audio_from_path(dest_path, audio_path)
+            if ok_audio:
+                sample_final = audio_fname
+                try:
+                    os.remove(dest_path)  # ya tenemos el audio; el video se descarta
+                except Exception:
+                    pass
+            else:
+                try:
+                    if os.path.exists(audio_path):
+                        os.remove(audio_path)
+                except Exception:
+                    pass
+        except Exception:
+            sample_final = fname
         out["ok"] = True
         out["track"] = {"artista": track_artista or "", "titulo": track_titulo or "",
-                        "sample_local": fname, "archivo": f.filename}
+                        "sample_local": sample_final, "archivo": f.filename}
         return out
 
     def _norm_nombre(s):
@@ -5661,6 +5682,77 @@ def register_routes(app: Flask) -> None:
             mimetype="application/zip",
         )
 
+    VIDEO_SAMPLE_EXTS = {".mp4", ".mov", ".webm", ".m4v", ".avi", ".mkv"}
+
+    @app.route("/admin/mantenimiento/comprimir-samples", methods=["POST"])
+    @auth.admin_required
+    def admin_comprimir_samples():
+        """Convierte a AUDIO los samples que todavia son VIDEO (libera ~90% por archivo).
+        Procesa de a lotes para no pasarse del tiempo de respuesta; si quedan, avisa que
+        se toque de nuevo. El cliente escucha igual (la ficha reproduce audio)."""
+        import video as _video
+        import uuid as _uuid
+        samples_dir = app.config.get("SAMPLES_DIR")
+        if not samples_dir or not os.path.isdir(samples_dir):
+            flash("No hay carpeta de samples.", "error")
+            return redirect(url_for("settings_page"))
+        # Tracks cuyo sample sigue siendo un video
+        pend = []
+        for t in Track.query.filter(Track.sample_local.isnot(None)).all():
+            if os.path.splitext(t.sample_local)[1].lower() in VIDEO_SAMPLE_EXTS:
+                pend.append(t)
+        LOTE = 8
+        conv, libres, err = 0, 0, 0
+        for t in pend[:LOTE]:
+            src = os.path.join(samples_dir, t.sample_local)
+            if not os.path.isfile(src):
+                continue
+            audio_fname = f"sample_{_uuid.uuid4().hex[:12]}.m4a"
+            audio_path = os.path.join(samples_dir, audio_fname)
+            ok, _e = _video.extract_audio_from_path(src, audio_path)
+            if ok:
+                try:
+                    sz_old = os.path.getsize(src)
+                    sz_new = os.path.getsize(audio_path)
+                    old_name = t.sample_local
+                    t.sample_local = audio_fname
+                    db.session.commit()
+                    try:
+                        os.remove(src)
+                    except Exception:
+                        pass
+                    conv += 1
+                    libres += max(0, sz_old - sz_new)
+                except Exception:
+                    db.session.rollback()
+                    try:
+                        if os.path.exists(audio_path):
+                            os.remove(audio_path)
+                    except Exception:
+                        pass
+                    err += 1
+            else:
+                try:
+                    if os.path.exists(audio_path):
+                        os.remove(audio_path)
+                except Exception:
+                    pass
+                err += 1
+        quedan = max(0, len(pend) - conv)
+        mb = libres / 1024 / 1024
+        if conv:
+            msg = f"Convertí {conv} sample(s) a audio y liberaste {mb:.0f} MB."
+            if quedan:
+                msg += f" Quedan {quedan} — toca de nuevo el boton para seguir."
+            if err:
+                msg += f" ({err} con error)"
+            flash(msg, "success")
+        elif err:
+            flash(f"No se pudo convertir ({err} con error). Puede que esos videos no tengan audio.", "warning")
+        else:
+            flash("No hay videos para convertir: ya estan todos en audio.", "info")
+        return redirect(url_for("settings_page"))
+
     @app.route("/admin/mantenimiento/limpiar-samples", methods=["POST"])
     @auth.admin_required
     def admin_limpiar_samples():
@@ -5682,6 +5774,7 @@ def register_routes(app: Flask) -> None:
         mostrar en Ajustes. Solo lee: funciona aunque el disco este lleno."""
         import shutil
         info = {"samples_mb": 0.0, "samples_n": 0, "huerfanos_n": 0, "huerfanos_mb": 0.0,
+                "video_n": 0, "video_mb": 0.0,
                 "covers_mb": 0.0, "db_mb": 0.0, "libre_mb": None, "total_mb": None}
         samples_dir = app.config.get("SAMPLES_DIR")
         try:
@@ -5698,6 +5791,10 @@ def register_routes(app: Flask) -> None:
                     if fn not in usados:
                         info["huerfanos_n"] += 1
                         info["huerfanos_mb"] += sz / 1024 / 1024
+                    elif os.path.splitext(fn)[1].lower() in VIDEO_SAMPLE_EXTS:
+                        # sample EN USO que todavia es video (se puede comprimir a audio)
+                        info["video_n"] += 1
+                        info["video_mb"] += sz / 1024 / 1024
         except Exception:
             pass
         try:
