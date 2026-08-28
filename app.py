@@ -192,6 +192,21 @@ def create_app() -> Flask:
         if cl is not None and cl > _LIMITE_NORMAL:
             return "Archivo demasiado grande.", 413
 
+    @app.errorhandler(500)
+    def _handle_500(e):
+        # Diagnostico TEMPORAL: en la pantalla de alta combinada, mostrar el traceback
+        # real (es admin, solo lo ve Facundo). Se saca cuando este resuelto el bug.
+        try:
+            if request.path.startswith("/admin/discs/new/combo"):
+                import traceback as _tb
+                orig = getattr(e, "original_exception", None) or e
+                detalle = "".join(_tb.format_exception(type(orig), orig, orig.__traceback__))
+                return ("<h1>Debug alta combinada</h1><pre style='white-space:pre-wrap;"
+                        "font-size:12px'>" + detalle + "</pre>"), 500
+        except Exception:
+            pass
+        return "Internal Server Error", 500
+
     # --- Seguridad de cookies de sesion ---
     # HTTPONLY: el JS no puede leer la cookie (previene robo por XSS).
     # SAMESITE Lax: la cookie no viaja en requests cross-site (mitiga CSRF).
