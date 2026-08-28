@@ -7114,7 +7114,11 @@ def register_routes(app: Flask) -> None:
         filtro_estado = (request.args.get("estado") or "").strip()
         f_q = (request.args.get("q") or "").strip()
         query = Reserva.query.order_by(Reserva.fecha.desc())
-        if filtro_estado:
+        if filtro_estado == "pendiente_entrega":
+            # Todo lo que todavia no entregaste (menos las canceladas), sin importar si
+            # esta pago o no. Es la cola de "que me falta entregar".
+            query = query.filter(Reserva.entregado.isnot(True), Reserva.estado != "Cancelada")
+        elif filtro_estado:
             query = query.filter(Reserva.estado == filtro_estado)
         reservas = query.all()
 
@@ -7154,12 +7158,15 @@ def register_routes(app: Flask) -> None:
         contadores = {}
         for e in ESTADOS_RESERVA:
             contadores[e] = Reserva.query.filter_by(estado=e).count()
+        contador_pend_entrega = Reserva.query.filter(
+            Reserva.entregado.isnot(True), Reserva.estado != "Cancelada").count()
 
         return render_template(
             "admin_reservas.html",
             unidades=unidades,
             estados=ESTADOS_RESERVA,
             contadores=contadores,
+            contador_pend_entrega=contador_pend_entrega,
             filtro_estado=filtro_estado,
             f_q=f_q,
             tc=Setting.get_tc(),

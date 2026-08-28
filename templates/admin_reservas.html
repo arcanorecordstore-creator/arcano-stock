@@ -98,6 +98,9 @@
         {{ e }} ({{ contadores[e] }})
     </a>
     {% endfor %}
+    <a href="{{ url_for('admin_reservas', estado='pendiente_entrega', q=f_q or None) }}" class="reserva-filter-chip {% if filtro_estado == 'pendiente_entrega' %}active{% endif %}">
+        Pendiente de entrega ({{ contador_pend_entrega }})
+    </a>
 </div>
 
 <form method="get" action="{{ url_for('admin_reservas') }}" class="reserva-search">
