@@ -1990,100 +1990,111 @@ def register_routes(app: Flask) -> None:
                 flash("Pegá una URL de Deejay.de, subí videos, o las dos cosas.", "error")
                 return redirect(url_for("disc_new_combo"))
 
-            disc_fields = {}
-            cover_local = None
-            url_tracks = []
-            errores = []
-            source_url = None
+            try:
+                disc_fields = {}
+                cover_local = None
+                url_tracks = []
+                errores = []
+                source_url = None
 
-            # 1) URL (Deejay.de) -> datos + tracklist + portada
-            if url:
-                result = scraper.scrape_url(url)
-                if result.ok:
-                    data = dict(result.data)
-                    source_url = data.get("source_url") or url
-                    if data.get("cover_url"):
-                        covers_dir = app.config["COVERS_DIR"]
-                        cl = scraper.download_cover(data["cover_url"], covers_dir)
-                        if cl:
-                            cover_local = convertir_cover_a_webp(os.path.join(covers_dir, cl))
-                    for k in ("artista", "titulo", "sello", "anio", "genero", "formato", "costo_eur"):
-                        if data.get(k) not in (None, ""):
-                            disc_fields[k] = data.get(k)
-                    if data.get("tracklist"):
-                        disc_fields["tracklist"] = data.get("tracklist")
-                        url_tracks = parse_tracklist_text(data.get("tracklist"))
-                else:
-                    errores.append(f"URL: {result.error}")
-                    if not files:
-                        session["scrape_failed_url"] = url
-                        flash(f"No se pudo leer la URL: {result.error}", "error")
+                # 1) URL (Deejay.de) -> datos + tracklist + portada
+                if url:
+                    result = scraper.scrape_url(url)
+                    if result.ok:
+                        data = dict(result.data)
+                        source_url = data.get("source_url") or url
+                        if data.get("cover_url"):
+                            covers_dir = app.config["COVERS_DIR"]
+                            try:
+                                cl = scraper.download_cover(data["cover_url"], covers_dir)
+                                if cl:
+                                    cover_local = convertir_cover_a_webp(os.path.join(covers_dir, cl))
+                            except Exception:
+                                cover_local = None  # la portada la agrega despues; no frenar por eso
+                        for k in ("artista", "titulo", "sello", "anio", "genero", "formato", "costo_eur"):
+                            if data.get(k) not in (None, ""):
+                                disc_fields[k] = data.get(k)
+                        if data.get("tracklist"):
+                            disc_fields["tracklist"] = data.get("tracklist")
+                            url_tracks = parse_tracklist_text(data.get("tracklist"))
+                    else:
+                        errores.append(f"URL: {result.error}")
+                        if not files:
+                            session["scrape_failed_url"] = url
+                            flash(f"No se pudo leer la URL: {result.error}", "error")
+                            return redirect(url_for("disc_new_combo"))
+                        flash(f"No se pudo leer la URL ({result.error}). Sigo con los videos.", "warning")
+
+                # 2) Videos -> samples + datos de respaldo
+                videos = []
+                total_cost = 0.0
+                if files:
+                    if not api_key_set:
+                        flash("La API key de Anthropic no esta configurada; no puedo leer los videos.", "error")
                         return redirect(url_for("disc_new_combo"))
-                    flash(f"No se pudo leer la URL ({result.error}). Sigo con los videos.", "warning")
+                    samples_dir = app.config["SAMPLES_DIR"]
+                    os.makedirs(samples_dir, exist_ok=True)
+                    for f in files:
+                        r = _procesar_video_file(f, samples_dir)
+                        total_cost += r.get("cost_usd") or 0.0
+                        if r.get("error"):
+                            errores.append(r["error"])
+                        if r.get("track"):
+                            videos.append(r["track"])
+                            for k, v in (r.get("disc_fields") or {}).items():
+                                if not disc_fields.get(k) and v:
+                                    disc_fields[k] = v
+                    if total_cost > 0:
+                        _track_api_cost(total_cost)
+                        db.session.commit()
 
-            # 2) Videos -> samples + datos de respaldo
-            videos = []
-            total_cost = 0.0
-            if files:
-                if not api_key_set:
-                    flash("La API key de Anthropic no esta configurada; no puedo leer los videos.", "error")
+                # 3) Definir los tracks y emparejar los videos
+                if url_tracks:
+                    tracks = url_tracks
+                    tracks, usados = _emparejar_videos_tracks(tracks, videos)
+                    sin_asignar = [v for i, v in enumerate(videos) if i not in usados]
+                else:
+                    # Sin tracklist de URL: cada video es un track (flujo video clasico)
+                    tracks = [{
+                        "posicion": i, "lado": None,
+                        "titulo": v.get("titulo"), "artista": v.get("artista"),
+                        "sample_local": v.get("sample_local"), "sample_archivo": v.get("archivo"),
+                    } for i, v in enumerate(videos)]
+                    sin_asignar = []
+
+                if not tracks and not disc_fields:
+                    flash("No pude sacar datos ni de la URL ni de los videos. " + " · ".join(errores[:3]), "error")
                     return redirect(url_for("disc_new_combo"))
-                samples_dir = app.config["SAMPLES_DIR"]
-                os.makedirs(samples_dir, exist_ok=True)
-                for f in files:
-                    r = _procesar_video_file(f, samples_dir)
-                    total_cost += r.get("cost_usd") or 0.0
-                    if r.get("error"):
-                        errores.append(r["error"])
-                    if r.get("track"):
-                        videos.append(r["track"])
-                        for k, v in (r.get("disc_fields") or {}).items():
-                            if not disc_fields.get(k) and v:
-                                disc_fields[k] = v
-                if total_cost > 0:
-                    _track_api_cost(total_cost)
-                    db.session.commit()
 
-            # 3) Definir los tracks y emparejar los videos
-            if url_tracks:
-                tracks = url_tracks
-                tracks, usados = _emparejar_videos_tracks(tracks, videos)
-                sin_asignar = [v for i, v in enumerate(videos) if i not in usados]
-            else:
-                # Sin tracklist de URL: cada video es un track (flujo video clasico)
-                tracks = [{
-                    "posicion": i, "lado": None,
-                    "titulo": v.get("titulo"), "artista": v.get("artista"),
-                    "sample_local": v.get("sample_local"), "sample_archivo": v.get("archivo"),
-                } for i, v in enumerate(videos)]
-                sin_asignar = []
+                # Artista del disco por defecto (si la URL no lo trajo)
+                if not disc_fields.get("artista"):
+                    arts = [v.get("artista") for v in videos if v.get("artista")]
+                    if arts:
+                        disc_fields["artista"] = arts[0] if len(set(arts)) == 1 else "Various"
+                disc_fields.setdefault("formato", "Vinyl")
 
-            if not tracks and not disc_fields:
-                flash("No pude sacar datos ni de la URL ni de los videos. " + " · ".join(errores[:3]), "error")
+                # La sesion es una cookie: si el tracklist en texto es largo, no lo
+                # guardamos ahi (se reconstruye de los tracks al crear); evita romper la cookie.
+                _prefill_sesion = {k: v for k, v in disc_fields.items() if k != "tracklist"}
+                session["combo_prefill"] = _prefill_sesion
+                session["combo_tracks"] = tracks
+                session["combo_videos"] = videos
+                session["combo_cover"] = cover_local
+                session["combo_info"] = {
+                    "cost_usd": round(total_cost, 4),
+                    "errores": errores,
+                    "sin_asignar": [v.get("archivo") for v in sin_asignar],
+                    "source_url": source_url,
+                }
+                _msg = "Listo. Revisá y creá la ficha."
+                if total_cost:
+                    _msg += f" Costo IA: ${total_cost:.4f} USD."
+                flash(_msg, "success")
+                return redirect(url_for("disc_combo_review"))
+            except Exception as e:
+                app.logger.exception("Error en alta combinada (URL + Video)")
+                flash(f"Se rompió procesando: {type(e).__name__}: {e}", "error")
                 return redirect(url_for("disc_new_combo"))
-
-            # Artista del disco por defecto (si la URL no lo trajo)
-            if not disc_fields.get("artista"):
-                arts = [v.get("artista") for v in videos if v.get("artista")]
-                if arts:
-                    disc_fields["artista"] = arts[0] if len(set(arts)) == 1 else "Various"
-            disc_fields.setdefault("formato", "Vinyl")
-
-            session["combo_prefill"] = disc_fields
-            session["combo_tracks"] = tracks
-            session["combo_videos"] = videos
-            session["combo_cover"] = cover_local
-            session["combo_info"] = {
-                "cost_usd": round(total_cost, 4),
-                "errores": errores,
-                "sin_asignar": [v["archivo"] for v in sin_asignar],
-                "source_url": source_url,
-            }
-            _msg = "Listo. Revisá y creá la ficha."
-            if total_cost:
-                _msg += f" Costo IA: ${total_cost:.4f} USD."
-            flash(_msg, "success")
-            return redirect(url_for("disc_combo_review"))
 
         return render_template(
             "disc_combo.html",
