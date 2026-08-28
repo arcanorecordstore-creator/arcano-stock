@@ -194,17 +194,19 @@ def create_app() -> Flask:
 
     @app.errorhandler(500)
     def _handle_500(e):
-        # Diagnostico TEMPORAL: en la pantalla de alta combinada, mostrar el traceback
-        # real (es admin, solo lo ve Facundo). Se saca cuando este resuelto el bug.
+        # Ante un 500 dejamos la sesion de base limpia (rollback) para que el proximo
+        # request no arrastre el error. Si el disco esta lleno, avisamos claro.
+        orig = getattr(e, "original_exception", None) or e
         try:
-            if request.path.startswith("/admin/discs/new/combo"):
-                import traceback as _tb
-                orig = getattr(e, "original_exception", None) or e
-                detalle = "".join(_tb.format_exception(type(orig), orig, orig.__traceback__))
-                return ("<h1>Debug alta combinada</h1><pre style='white-space:pre-wrap;"
-                        "font-size:12px'>" + detalle + "</pre>"), 500
+            db.session.rollback()
         except Exception:
             pass
+        if "disk is full" in str(orig).lower() or "database or disk is full" in str(orig).lower():
+            return (
+                "<h1>Sin espacio en disco</h1><p>El disco del servidor esta lleno y no se "
+                "puede guardar. Libera espacio (Ajustes &rarr; limpiar samples) o agranda el "
+                "disco en Render, y volve a intentar.</p>"
+            ), 500
         return "Internal Server Error", 500
 
     # --- Seguridad de cookies de sesion ---
@@ -1567,32 +1569,62 @@ def register_routes(app: Flask) -> None:
             api_key_set=api_key_set,
         )
 
-    def _sweep_samples_huerfanos(max_horas=24):
-        """Borra samples viejos (>max_horas) que ningun Track referencia: limpia los
-        archivos que quedan de sesiones de 'desde video' abandonadas (no se completo la
-        alta). Solo samples: los covers se dejan porque ahi tambien vive el banner/hero.
-        Corre como mucho 1 vez al dia. Best-effort: cualquier error se ignora."""
+    def _limpiar_samples_huerfanos(max_horas=24):
+        """Borra samples que ningun Track referencia (archivos que quedan de altas de
+        video abandonadas). Con max_horas>0 solo toca los mas viejos que eso (sesiones
+        en curso quedan a salvo); con max_horas=0 borra TODOS los huerfanos (limpieza
+        manual para liberar espacio). Devuelve (cantidad, bytes_liberados). No escribe
+        en la base: solo borra archivos, asi funciona aunque el disco este lleno."""
         import time
+        borrados, bytes_libres = 0, 0
+        samples_dir = app.config.get("SAMPLES_DIR")
+        if not samples_dir or not os.path.isdir(samples_dir):
+            return 0, 0
+        limite = time.time() - max_horas * 3600
+        for fname in os.listdir(samples_dir):
+            path = os.path.join(samples_dir, fname)
+            try:
+                if not os.path.isfile(path):
+                    continue
+                if max_horas and os.path.getmtime(path) > limite:
+                    continue  # muy reciente: puede ser una sesion en curso
+                if Track.query.filter_by(sample_local=fname).first() is not None:
+                    continue  # en uso
+                sz = os.path.getsize(path)
+                os.remove(path)
+                borrados += 1
+                bytes_libres += sz
+            except Exception:
+                pass
+        return borrados, bytes_libres
+
+    def _sweep_samples_huerfanos(max_horas=24):
+        """Limpieza automatica diaria de samples huerfanos. Best-effort: cualquier error
+        se ignora, y si la base falla (ej: disco lleno) se hace rollback para no dejar la
+        sesion rota (evita que la pagina explote despues). Libera espacio ANTES de escribir
+        la marca del dia, asi tambien ayuda a recuperarse de un disco lleno."""
         try:
             if Setting.get("last_sweep_samples") == today_uy().isoformat():
                 return
-            Setting.set("last_sweep_samples", today_uy().isoformat())
-            samples_dir = app.config.get("SAMPLES_DIR")
-            if not samples_dir or not os.path.isdir(samples_dir):
-                return
-            limite = time.time() - max_horas * 3600
-            for fname in os.listdir(samples_dir):
-                path = os.path.join(samples_dir, fname)
-                try:
-                    if not os.path.isfile(path) or os.path.getmtime(path) > limite:
-                        continue  # muy reciente: puede ser una sesion en curso
-                    if Track.query.filter_by(sample_local=fname).first() is not None:
-                        continue  # en uso
-                    os.remove(path)
-                except Exception:
-                    pass
+        except Exception:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            return
+        # Borrar huerfanos primero (libera espacio; no toca la base)
+        try:
+            _limpiar_samples_huerfanos(max_horas)
         except Exception:
             pass
+        # Recien ahora marcar el dia (si el disco estaba lleno, ya liberamos algo)
+        try:
+            Setting.set("last_sweep_samples", today_uy().isoformat())
+        except Exception:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
 
     @app.route("/admin/discs/new/from-video", methods=["GET", "POST"])
     @auth.admin_required
@@ -5614,6 +5646,70 @@ def register_routes(app: Flask) -> None:
             mimetype="application/zip",
         )
 
+    @app.route("/admin/mantenimiento/limpiar-samples", methods=["POST"])
+    @auth.admin_required
+    def admin_limpiar_samples():
+        """Borra TODOS los samples huerfanos (no usados por ningun track) para liberar
+        espacio en disco. Manual: ignora el limite de 24h."""
+        try:
+            n, libres = _limpiar_samples_huerfanos(0)
+            mb = libres / 1024 / 1024
+            if n:
+                flash(f"Listo: borre {n} sample(s) sin usar y liberaste {mb:.1f} MB.", "success")
+            else:
+                flash("No habia samples sin usar para borrar.", "info")
+        except Exception as e:
+            flash(f"No se pudo limpiar: {e}", "error")
+        return redirect(url_for("settings_page"))
+
+    def _uso_disco():
+        """Uso del disco persistente (samples, covers, base) + espacio libre, para
+        mostrar en Ajustes. Solo lee: funciona aunque el disco este lleno."""
+        import shutil
+        info = {"samples_mb": 0.0, "samples_n": 0, "huerfanos_n": 0, "huerfanos_mb": 0.0,
+                "covers_mb": 0.0, "db_mb": 0.0, "libre_mb": None, "total_mb": None}
+        samples_dir = app.config.get("SAMPLES_DIR")
+        try:
+            if samples_dir and os.path.isdir(samples_dir):
+                usados = {t.sample_local for t in
+                          Track.query.filter(Track.sample_local.isnot(None)).all()}
+                for fn in os.listdir(samples_dir):
+                    p = os.path.join(samples_dir, fn)
+                    if not os.path.isfile(p):
+                        continue
+                    sz = os.path.getsize(p)
+                    info["samples_n"] += 1
+                    info["samples_mb"] += sz / 1024 / 1024
+                    if fn not in usados:
+                        info["huerfanos_n"] += 1
+                        info["huerfanos_mb"] += sz / 1024 / 1024
+        except Exception:
+            pass
+        try:
+            covers_dir = app.config.get("COVERS_DIR")
+            if covers_dir and os.path.isdir(covers_dir):
+                for fn in os.listdir(covers_dir):
+                    p = os.path.join(covers_dir, fn)
+                    if os.path.isfile(p):
+                        info["covers_mb"] += os.path.getsize(p) / 1024 / 1024
+        except Exception:
+            pass
+        try:
+            db_file = app.config["SQLALCHEMY_DATABASE_URI"].replace("sqlite:///", "")
+            if not os.path.isabs(db_file):
+                db_file = os.path.join(app.instance_path, db_file)
+            if os.path.exists(db_file):
+                info["db_mb"] = os.path.getsize(db_file) / 1024 / 1024
+            du = shutil.disk_usage(os.path.dirname(db_file) or ".")
+            info["libre_mb"] = du.free / 1024 / 1024
+            info["total_mb"] = du.total / 1024 / 1024
+        except Exception:
+            pass
+        for k in list(info):
+            if isinstance(info[k], float):
+                info[k] = round(info[k], 1)
+        return info
+
     @app.route("/admin/settings")
     @auth.admin_required
     def settings_page():
@@ -5645,6 +5741,7 @@ def register_routes(app: Flask) -> None:
             tc=tc,
             tc_usd=Setting.get_tc_usd(),
             tc_updated_at=tc_row.updated_at if tc_row else None,
+            uso_disco=_uso_disco(),
             discos_disponibles=discos_disponibles,
             total_discos=total_discos,
             discos_por_estado=discos_por_estado,

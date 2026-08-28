@@ -167,6 +167,30 @@
 
     <section class="settings-card">
         <header class="settings-card-head">
+            <h2 class="settings-card-title">&#128190; Espacio en disco</h2>
+            <p class="settings-card-sub">Cu&aacute;nto lugar queda en el servidor. Si se llena, no se pueden guardar cambios (ventas, reservas, altas).</p>
+        </header>
+        {% set u = uso_disco or {} %}
+        {% if u.libre_mb is not none %}
+        <p style="font-size:15px;color:var(--text-1);margin:2px 0 8px;">
+            Libre: <strong{% if u.libre_mb < 150 %} style="color:#c0341e;"{% endif %}>{{ '%.0f'|format(u.libre_mb) }} MB</strong>{% if u.total_mb %} de {{ '%.0f'|format(u.total_mb) }} MB{% endif %}
+        </p>
+        {% endif %}
+        <ul style="margin:6px 0;padding-left:18px;line-height:1.7;color:var(--text-2);font-size:13.5px;">
+            <li>Samples (audios/videos): <strong>{{ '%.0f'|format(u.samples_mb or 0) }} MB</strong> en {{ u.samples_n or 0 }} archivo(s){% if u.huerfanos_n %} &middot; <span style="color:#d6a945;">{{ u.huerfanos_n }} sin usar ({{ '%.0f'|format(u.huerfanos_mb or 0) }} MB)</span>{% endif %}</li>
+            <li>Portadas: <strong>{{ '%.0f'|format(u.covers_mb or 0) }} MB</strong></li>
+            <li>Base de datos: <strong>{{ '%.1f'|format(u.db_mb or 0) }} MB</strong></li>
+        </ul>
+        <form method="post" action="{{ url_for('admin_limpiar_samples') }}" style="padding:6px 0;" onsubmit="return confirm('¿Borrar los samples que ningún disco usa? Libera espacio y NO afecta las fichas.');">
+            <button type="submit" class="btn {% if u.huerfanos_n %}btn-primary{% else %}btn-ghost{% endif %}">&#129529; Limpiar samples sin usar{% if u.huerfanos_n %} ({{ u.huerfanos_n }}){% endif %}</button>
+        </form>
+        {% if u.libre_mb is not none and u.libre_mb < 150 %}
+        <p class="settings-card-sub" style="color:#c0341e;">Queda muy poco espacio. Limpi&aacute; los samples sin usar; si sigue lleno, hay que agrandar el disco en Render.</p>
+        {% endif %}
+    </section>
+
+    <section class="settings-card">
+        <header class="settings-card-head">
             <h2 class="settings-card-title">Resumen de inventario</h2>
             <p class="settings-card-sub">Distribucion actual de discos por estado.</p>
         </header>
