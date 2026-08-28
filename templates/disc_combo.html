@@ -26,9 +26,9 @@
 
         <form method="post" enctype="multipart/form-data" action="{{ url_for('disc_new_combo') }}" id="combo-form">
             <div class="combo-field">
-                <label for="url" class="combo-label">1 &middot; URL de Deejay.de <span class="combo-opt">(opcional)</span></label>
-                <input type="url" id="url" name="url" class="combo-url" placeholder="https://www.deejay.de/..." autocomplete="off">
-                <span class="combo-hint">De ac&aacute; salen artista, t&iacute;tulo, sello, a&ntilde;o, portada y el tracklist completo.</span>
+                <label for="url" class="combo-label">1 &middot; Link(s) de Deejay.de <span class="combo-opt">(opcional)</span></label>
+                <textarea id="url" name="url" class="combo-url" rows="3" placeholder="https://www.deejay.de/...&#10;Peg&aacute; uno o varios (uno por l&iacute;nea)" autocomplete="off"></textarea>
+                <span class="combo-hint">De ac&aacute; salen artista, t&iacute;tulo, sello, a&ntilde;o, portada y el tracklist. Pod&eacute;s pegar <strong>varios</strong> (uno por l&iacute;nea): se cargan de a uno, como antes. Con videos, un disco por vez.</span>
             </div>
 
             <div class="combo-field">
@@ -63,6 +63,14 @@
         <p class="upload-aside-text">El gasto de IA (solo por los videos) se acumula en <a href="{{ url_for('settings_page') }}" class="link">Ajustes</a>. La portada sale de la URL; si cargás solo videos, la agreg&aacute;s despu&eacute;s.</p>
     </aside>
 </div>
+
+<style>
+.combo-field{margin-bottom:16px;}
+.combo-label{display:block;font-size:13px;font-weight:600;color:var(--text-2,#bbb);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;}
+.combo-opt{font-weight:400;text-transform:none;color:var(--text-3,#888);letter-spacing:0;}
+.combo-url{width:100%;font-family:inherit;font-size:14px;resize:vertical;min-height:82px;line-height:1.5;}
+.combo-hint{display:block;font-size:12.5px;color:var(--text-3,#888);margin-top:6px;line-height:1.5;}
+</style>
 {% endblock %}
 
 {% block scripts %}

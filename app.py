@@ -2031,11 +2031,26 @@ def register_routes(app: Flask) -> None:
         api_key_set = bool(config.ANTHROPIC_API_KEY)
         _sweep_samples_huerfanos()
         if request.method == "POST":
-            url = (request.form.get("url") or "").strip()
+            urls_raw = (request.form.get("url") or "").strip()
+            urls = []
+            for _linea in urls_raw.splitlines():
+                _u = _linea.strip()
+                if _u and _u not in urls:
+                    urls.append(_u)
             files = [f for f in request.files.getlist("videos") if f and f.filename]
-            if not url and not files:
-                flash("Pegá una URL de Deejay.de, subí videos, o las dos cosas.", "error")
+            if not urls and not files:
+                flash("Pegá uno o varios links de Deejay.de, subí videos, o las dos cosas.", "error")
                 return redirect(url_for("disc_new_combo"))
+            # Varios links: van por el flujo por lotes de siempre (a la ficha, de a uno).
+            # Los videos no se pueden repartir entre varios discos, asi que ahi se ignoran.
+            if len(urls) > 1:
+                if files:
+                    flash("Pusiste varios links: los proceso de a uno (para sumar videos, cargá un disco por vez).", "warning")
+                session["url_queue"] = urls[1:]
+                session["url_queue_total"] = len(urls)
+                session["url_queue_done"] = 0
+                return _procesar_url_scrape(urls[0])
+            url = urls[0] if urls else ""
 
             try:
                 disc_fields = {}
