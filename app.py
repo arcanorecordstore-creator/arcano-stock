@@ -3885,8 +3885,13 @@ def register_routes(app: Flask) -> None:
         for d in vendidos:
             key = ("venta", d.id)
             vigentes.add(key)
-            monto = round((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas, 2)
+            _bruto = (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+            _sena_v = d.sena_efectiva  # sena ya cobrada por adelantado (0 si no hubo)
+            monto = round(max(0.0, _bruto - _sena_v), 2)
             concepto = (f"Venta: {d.artista or ''} - {d.titulo or ''}".strip(" -") or "Venta")[:300]
+            if _sena_v > 0:
+                _sfmt = f"{_sena_v:,.0f}".replace(",", ".")
+                concepto = (concepto + f" (neto de sena $ {_sfmt})")[:300]
             fecha = d.fecha_venta.date() if hasattr(d.fecha_venta, "date") else d.fecha_venta
             # El metodo de la venta lo manda el disco (editable en el panel de Ventas);
             # si no esta seteado, se infiere de la reserva web.
@@ -3911,6 +3916,46 @@ def register_routes(app: Flask) -> None:
                 # El metodo de una venta lo manda SIEMPRE el disco (fuente unica),
                 # aun con manual_override: asi la caja y el panel de Ventas quedan
                 # sincronizados en ambos sentidos.
+                if metodo and mov.metodo != metodo:
+                    mov.metodo = metodo
+                    actualizados += 1
+
+        # --- SENAS (ingresos): sena de reserva cobrada por adelantado ---
+        # Plata real que entro al reservar (el cliente pago para apartar el disco).
+        # Cuenta aunque el disco siga Reservado. Al venderse, la VENTA se cuenta NETA
+        # de esta sena (arriba) para no contar la misma plata dos veces.
+        for d in Disc.query.filter(Disc.sena_cobrada.is_(True)).all():
+            monto = round(d.sena_monto_uyu or 0, 2)
+            if monto <= 0:
+                continue
+            key = ("sena", d.id)
+            vigentes.add(key)
+            concepto = (f"Sena reserva: {d.artista or ''} - {d.titulo or ''}".strip(" -") or "Sena de reserva")[:300]
+            if d.sena_fecha:
+                fecha = d.sena_fecha
+            elif d.fecha_reserva:
+                fecha = d.fecha_reserva.date() if hasattr(d.fecha_reserva, "date") else d.fecha_reserva
+            else:
+                fecha = today_uy()
+            metodo = d.sena_metodo or metodo_por_disc.get(d.id)
+            mov = existentes.get(key)
+            if mov is None:
+                db.session.add(MovimientoCaja(
+                    fecha=fecha, tipo="ingreso", monto_uyu=monto,
+                    concepto=concepto, metodo=metodo, categoria="Sena",
+                    origen="sena", origen_id=d.id,
+                ))
+                creados += 1
+            else:
+                if not mov.manual_override:
+                    if (_difiere(mov.monto_uyu, monto) or mov.fecha != fecha
+                            or mov.tipo != "ingreso" or mov.categoria != "Sena"):
+                        mov.monto_uyu = monto
+                        mov.fecha = fecha
+                        mov.tipo = "ingreso"
+                        mov.categoria = "Sena"
+                        mov.concepto = concepto
+                        actualizados += 1
                 if metodo and mov.metodo != metodo:
                     mov.metodo = metodo
                     actualizados += 1
@@ -4157,6 +4202,8 @@ def register_routes(app: Flask) -> None:
         for m in movs_mostrados:
             if m.origen == "venta":
                 key, label, orden = "venta", "Ventas", 0
+            elif m.origen == "sena":
+                key, label, orden = "sena", "Senas de reserva", 0.6
             elif m.origen == "envio":
                 key, label, orden = "envio", "Envios", 0.5
             elif m.origen == "pedido":
@@ -4195,6 +4242,8 @@ def register_routes(app: Flask) -> None:
         def _buck_ing(m):
             if m.origen == "venta":
                 return "Ventas de discos"
+            if m.origen == "sena":
+                return "Senas de reserva cobradas"
             if m.origen == "envio":
                 return "Envios cobrados"
             if m.es_aporte:
@@ -7846,11 +7895,133 @@ def register_routes(app: Flask) -> None:
         otros = (Cliente.query.filter(Cliente.id != cli.id)
                  .order_by(Cliente.nombre.asc()).all())
         lealtad = _lealtad_estado(cli, total)
+        # Discos que se pueden agregar como compra/reserva (para el selector)
+        discs_para_agregar = (Disc.query
+                              .filter(Disc.estado.in_(["Disponible", "Pre-order", "Reservado"]))
+                              .order_by(Disc.artista.asc(), Disc.titulo.asc()).all())
+        # Discos reservados a nombre de este cliente (para ver/gestionar la sena)
+        reservados_cliente = (Disc.query
+                              .filter(Disc.estado == "Reservado", Disc.cliente_id == cli.id)
+                              .order_by(Disc.fecha_reserva.desc()).all())
         return render_template(
             "admin_cliente_detail.html", cli=cli, compras=compras,
             reservas_activas=reservas_activas, total=total, otros=otros,
-            lealtad=lealtad,
+            lealtad=lealtad, discs_para_agregar=discs_para_agregar,
+            reservados_cliente=reservados_cliente,
         )
+
+    def _volver_admin(default_endpoint="dashboard", **kw):
+        """Redirige a donde vino (next del form o referer) si es una URL /admin;
+        si no, al endpoint por defecto. Evita open-redirects."""
+        destino = request.form.get("next") or request.referrer or ""
+        if destino.startswith("/admin") or "/admin/" in destino:
+            return redirect(destino)
+        return redirect(url_for(default_endpoint, **kw))
+
+    @app.route("/admin/discs/<int:disc_id>/sena", methods=["POST"])
+    @auth.admin_required
+    def admin_disc_sena(disc_id):
+        """Marca / edita / resuelve la SENA de reserva de un disco. Central: la usan
+        la ficha del cliente, el detalle de la reserva y el dashboard.
+        Acciones: cobrar (marca la sena cobrada), editar (cambia monto/metodo),
+        devolver (se la devolviste al cliente: sale de la caja), quedar (te la
+        quedaste: queda como ingreso retenido a favor tuyo)."""
+        from models import MovimientoCaja
+        disc = Disc.query.get_or_404(disc_id)
+        accion = (request.form.get("accion") or "").strip()
+
+        if accion in ("cobrar", "editar"):
+            monto = _parse_monto_caja(request.form.get("monto"))
+            if monto <= 0:
+                flash("Pone un monto de sena valido (mayor a 0).", "error")
+                return _volver_admin()
+            disc.sena_cobrada = True
+            disc.sena_monto_uyu = round(monto, 2)
+            if not disc.sena_fecha:
+                disc.sena_fecha = today_uy()
+            met = (request.form.get("metodo") or "").strip()
+            if met:
+                disc.sena_metodo = met
+            db.session.commit()
+            flash(f"Sena de $ {monto:,.0f}".replace(",", ".") +
+                  (" marcada como cobrada." if accion == "cobrar" else " actualizada."), "success")
+            return _volver_admin()
+
+        # Resolucion (devolver / quedar): sacamos el mov automatico de sena
+        old = MovimientoCaja.query.filter_by(origen="sena", origen_id=disc.id).first()
+        monto = round(disc.sena_monto_uyu or 0, 2)
+        if accion == "quedar":
+            if monto > 0:
+                db.session.add(MovimientoCaja(
+                    fecha=today_uy(), tipo="ingreso", monto_uyu=monto,
+                    concepto=(f"Sena retenida: {disc.artista or ''} - {disc.titulo or ''}".strip(" -"))[:300],
+                    metodo=disc.sena_metodo, categoria="Sena retenida",
+                    origen="manual", origen_categoria="Sena retenida", manual_override=True,
+                ))
+            if old:
+                db.session.delete(old)
+            disc.sena_cobrada = False
+            db.session.commit()
+            flash("Sena retenida: queda como ingreso a favor tuyo en la caja.", "success")
+            return _volver_admin()
+        elif accion == "devolver":
+            if old:
+                db.session.delete(old)
+            disc.sena_cobrada = False
+            db.session.commit()
+            flash("Sena devuelta al cliente: se saco de la caja.", "success")
+            return _volver_admin()
+
+        flash("Accion de sena no reconocida.", "error")
+        return _volver_admin()
+
+    @app.route("/admin/clientes/<int:cliente_id>/agregar-disco", methods=["POST"])
+    @auth.admin_required
+    def admin_cliente_agregar_disco(cliente_id):
+        """Desde la ficha del cliente: registrar que este cliente COMPRO o RESERVO un
+        disco. Compro -> lo marca Vendido a su nombre (entra a ventas/caja/contab).
+        Reservo -> lo marca Reservado a su nombre, con sena opcional."""
+        from models import Cliente
+        cli = Cliente.query.get_or_404(cliente_id)
+        try:
+            disc_id = int(request.form.get("disc_id") or 0)
+        except (TypeError, ValueError):
+            disc_id = 0
+        disc = Disc.query.get(disc_id) if disc_id else None
+        tipo = (request.form.get("tipo") or "").strip()
+        if not disc:
+            flash("Elegi un disco de la lista.", "error")
+            return redirect(url_for("admin_cliente_detail", cliente_id=cli.id))
+
+        disc.cliente_id = cli.id
+        if tipo == "compro":
+            disc.canal_venta = (request.form.get("canal") or "instagram").strip() or "instagram"
+            met = (request.form.get("metodo") or "").strip()
+            if met:
+                disc.metodo_pago_venta = met
+            if disc.estado != "Vendido":
+                register_status_change(disc, "Vendido", nota=f"Compra cargada desde ficha de {cli.nombre}")
+            db.session.commit()
+            flash(f"Listo: {disc.artista} - {disc.titulo} quedó como compra de {cli.nombre}.", "success")
+        elif tipo == "reservo":
+            if disc.estado != "Reservado":
+                register_status_change(disc, "Reservado", nota=f"Reserva cargada desde ficha de {cli.nombre}")
+            sena = _parse_monto_caja(request.form.get("sena_monto"))
+            if sena and sena > 0:
+                disc.sena_cobrada = True
+                disc.sena_monto_uyu = round(sena, 2)
+                if not disc.sena_fecha:
+                    disc.sena_fecha = today_uy()
+                met = (request.form.get("sena_metodo") or "").strip()
+                if met:
+                    disc.sena_metodo = met
+            db.session.commit()
+            _msg = f"Listo: {disc.artista} - {disc.titulo} quedó reservado para {cli.nombre}"
+            _msg += (f" con sena de $ {sena:,.0f}.".replace(",", ".") if (sena and sena > 0) else " (sin sena).")
+            flash(_msg, "success")
+        else:
+            flash("Elegí si lo compró o lo reservó.", "error")
+        return redirect(url_for("admin_cliente_detail", cliente_id=cli.id))
 
     @app.route("/admin/clientes/<int:cliente_id>/premio/<int:hito>", methods=["POST"])
     @auth.admin_required

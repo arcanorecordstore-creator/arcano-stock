@@ -130,8 +130,116 @@
             {% endfor %}
         </div>
         {% endif %}
+
+        {% if reservados_cliente %}
+        <h2 class="cli-panel-title" style="margin-top:20px;">Discos reservados a su nombre ({{ reservados_cliente|length }})</h2>
+        <div class="cli-senas">
+            {% for d in reservados_cliente %}
+            <div class="cli-sena {% if d.sena_cobrada %}has-sena{% endif %}">
+                <div class="cli-sena-top">
+                    <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="cli-sena-disc"><strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}</a>
+                    <span class="cli-sena-precio">{{ money(d.precio_mostrar) }}</span>
+                </div>
+                {% if d.sena_cobrada %}
+                <div class="cli-sena-estado">
+                    <span class="cli-sena-tag">&#10003; Se&ntilde;a cobrada: {{ money(d.sena_efectiva) }}{% if d.sena_metodo %} &middot; {{ d.sena_metodo }}{% endif %}</span>
+                    <span class="cli-sena-falta">Falta cobrar: <strong>{{ money(d.precio_falta_uyu) }}</strong></span>
+                </div>
+                <div class="cli-sena-acc">
+                    <form method="post" action="{{ url_for('admin_disc_sena', disc_id=d.id) }}" onsubmit="return confirm('¿Le devolviste la seña al cliente? Se saca de la caja.');">
+                        <input type="hidden" name="accion" value="devolver">
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        <button type="submit" class="btn btn-ghost btn-sm">Devolví la se&ntilde;a</button>
+                    </form>
+                    <form method="post" action="{{ url_for('admin_disc_sena', disc_id=d.id) }}" onsubmit="return confirm('¿Te quedás la seña? Queda como ingreso a favor tuyo en la caja.');">
+                        <input type="hidden" name="accion" value="quedar">
+                        <input type="hidden" name="next" value="{{ request.path }}">
+                        <button type="submit" class="btn btn-ghost btn-sm">Me la qued&eacute;</button>
+                    </form>
+                </div>
+                {% else %}
+                <form method="post" action="{{ url_for('admin_disc_sena', disc_id=d.id) }}" class="cli-sena-cobrar">
+                    <input type="hidden" name="accion" value="cobrar">
+                    <input type="hidden" name="next" value="{{ request.path }}">
+                    <input type="number" name="monto" min="1" step="1" placeholder="Monto de la se&ntilde;a" required>
+                    <select name="metodo">
+                        <option value="">&mdash; c&oacute;mo pag&oacute;</option>
+                        <option value="efectivo">Efectivo</option>
+                        <option value="transferencia">Transferencia</option>
+                        <option value="mercadopago">Mercado Pago</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-sm">Cobr&eacute; la se&ntilde;a</button>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
     </section>
 </div>
+
+<!-- Agregar compra o reserva -->
+<section class="cli-panel cli-add">
+    <h2 class="cli-panel-title">Agregar un disco que compr&oacute; o reserv&oacute;</h2>
+    <form method="post" action="{{ url_for('admin_cliente_agregar_disco', cliente_id=cli.id) }}" class="cli-add-form" id="cli-add-form">
+        <div class="form-field cli-add-disc">
+            <label>Disco</label>
+            <select name="disc_id" required>
+                <option value="">&mdash; eleg&iacute; un disco &mdash;</option>
+                {% for d in discs_para_agregar %}
+                <option value="{{ d.id }}">{{ d.artista }} &mdash; {{ d.titulo }} ({{ d.estado }} &middot; {{ money(d.precio_mostrar) }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="cli-add-tipo">
+            <label class="cli-radio"><input type="radio" name="tipo" value="compro" checked> Lo compr&oacute;</label>
+            <label class="cli-radio"><input type="radio" name="tipo" value="reservo"> Lo reserv&oacute;</label>
+        </div>
+
+        <div class="cli-add-block" data-block="compro">
+            <div class="form-field">
+                <label>Canal de la venta</label>
+                <select name="canal">
+                    <option value="instagram">Instagram</option>
+                    <option value="presencial">Presencial</option>
+                    <option value="web">Web</option>
+                    <option value="otro">Otro</option>
+                </select>
+            </div>
+            <div class="form-field">
+                <label>C&oacute;mo pag&oacute; (opcional)</label>
+                <select name="metodo">
+                    <option value="">&mdash;</option>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="mercadopago">Mercado Pago</option>
+                    <option value="otro">Otro</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="cli-add-block" data-block="reservo" hidden>
+            <div class="form-field">
+                <label>Se&ntilde;a que pag&oacute; (opcional)</label>
+                <input type="number" name="sena_monto" min="1" step="1" placeholder="Ej: 500 &middot; dejalo vac&iacute;o si no pag&oacute; se&ntilde;a">
+            </div>
+            <div class="form-field">
+                <label>C&oacute;mo pag&oacute; la se&ntilde;a</label>
+                <select name="sena_metodo">
+                    <option value="">&mdash;</option>
+                    <option value="efectivo">Efectivo</option>
+                    <option value="transferencia">Transferencia</option>
+                    <option value="mercadopago">Mercado Pago</option>
+                    <option value="otro">Otro</option>
+                </select>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Agregar</button>
+    </form>
+</section>
 
 <!-- Fusionar / eliminar -->
 <section class="cli-panel cli-danger">
@@ -201,6 +309,29 @@
 .cli-premio-tag.done{color:#5bbd7a;}
 .cli-premio-tag.muted{color:var(--text-3,#888);font-weight:500;}
 .btn-sm{padding:6px 12px;font-size:13px;}
+/* Agregar compra/reserva */
+.cli-add{margin-top:16px;}
+.cli-add-form{display:flex;flex-direction:column;gap:12px;max-width:560px;}
+.cli-add-tipo{display:flex;gap:16px;flex-wrap:wrap;}
+.cli-radio{display:inline-flex;align-items:center;gap:7px;font-size:14px;color:var(--text-1,#eee);cursor:pointer;}
+.cli-add-block{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:560px){.cli-add-block{grid-template-columns:1fr;}}
+.cli-add-form select,.cli-add-form input[type=number]{width:100%;}
+/* Senas */
+.cli-senas{display:flex;flex-direction:column;gap:10px;}
+.cli-sena{background:var(--bg-2,#1e1e1e);border:1px solid var(--border-1,#2a2a2a);border-radius:10px;padding:12px 14px;}
+.cli-sena.has-sena{border-color:rgba(214,169,69,.5);background:rgba(214,169,69,.07);}
+.cli-sena-top{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.cli-sena-disc{color:var(--text-1,#eee);text-decoration:none;font-size:14px;}
+.cli-sena-disc:hover{text-decoration:underline;}
+.cli-sena-precio{font-variant-numeric:tabular-nums;font-weight:600;white-space:nowrap;}
+.cli-sena-estado{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:8px;font-size:13px;}
+.cli-sena-tag{color:#d6a945;font-weight:700;}
+.cli-sena-falta{color:var(--text-2,#bbb);}
+.cli-sena-acc{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+.cli-sena-cobrar{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center;}
+.cli-sena-cobrar input[type=number]{flex:1 1 150px;min-width:120px;}
+.cli-sena-cobrar select{flex:0 0 auto;}
 </style>
 
 <script>
@@ -224,6 +355,22 @@
             });
         });
     });
+})();
+
+// Agregar compra/reserva: mostrar el bloque segun "compro" o "reservo".
+(function () {
+    var form = document.getElementById('cli-add-form');
+    if (!form) return;
+    var blocks = form.querySelectorAll('.cli-add-block');
+    function sync() {
+        var sel = form.querySelector('input[name="tipo"]:checked');
+        var val = sel ? sel.value : 'compro';
+        blocks.forEach(function (b) { b.hidden = (b.getAttribute('data-block') !== val); });
+    }
+    form.querySelectorAll('input[name="tipo"]').forEach(function (r) {
+        r.addEventListener('change', sync);
+    });
+    sync();
 })();
 </script>
 

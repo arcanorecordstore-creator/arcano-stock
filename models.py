@@ -150,6 +150,15 @@ class Disc(db.Model):
     # desde el panel de Ventas ('g<n>'). Null = venta suelta (1 disco = 1 venta).
     venta_grupo = db.Column(db.String(40), nullable=True, index=True)
 
+    # SENA de reserva: algunos clientes pagan una sena para reservar el disco; otros de
+    # confianza reservan sin pagarla. Facundo lo marca a mano por disco. La sena cobrada
+    # entra a la caja como plata real; el 'por cobrar' del disco muestra solo lo que falta;
+    # al vender, la venta se cuenta NETA de la sena (para no contar esa plata dos veces).
+    sena_cobrada = db.Column(db.Boolean, nullable=False, default=False)
+    sena_monto_uyu = db.Column(db.Float, nullable=True)
+    sena_fecha = db.Column(db.Date, nullable=True)
+    sena_metodo = db.Column(db.String(20), nullable=True)
+
     # Orden manual para la tienda (drag-and-drop en el dashboard).
     # Mayor = aparece primero. Los discos nuevos reciben el mayor (arriba de todo).
     orden = db.Column(db.Integer, nullable=True, index=True)
@@ -228,6 +237,22 @@ class Disc(db.Model):
         if self.estado == "Vendido" and getattr(self, "precio_venta_uyu", None) is not None:
             return self.precio_venta_uyu
         return self.precio_oferta if self.en_oferta else self.precio_uyu
+
+    @property
+    def sena_efectiva(self) -> float:
+        """Monto de sena de reserva efectivamente cobrado (0 si no esta cobrada).
+        Es plata real que ya entro: se descuenta del 'por cobrar' y se resta de la
+        venta al concretarse (para no contar esa plata dos veces)."""
+        if getattr(self, "sena_cobrada", False):
+            return round(self.sena_monto_uyu or 0, 2)
+        return 0.0
+
+    @property
+    def precio_falta_uyu(self) -> float:
+        """Lo que todavia falta cobrar de este disco: el precio a cobrar menos la
+        sena ya cobrada. Nunca negativo."""
+        base = self.precio_mostrar or self.precio_uyu or 0
+        return round(max(0.0, base - self.sena_efectiva), 2)
 
     @property
     def descuento_pct(self) -> int:
@@ -1218,8 +1243,10 @@ class MovimientoCaja(db.Model):
         return {
             "manual": "Manual",
             "venta": "Venta",
+            "sena": "Sena",
             "pedido": "Pedido",
             "gasto": "Gasto",
+            "envio": "Envio",
         }.get(self.origen or "manual", "Manual")
 
     @property
@@ -1695,6 +1722,27 @@ def _migrate_schema(app):
                 conn.commit()
                 if res.rowcount:
                     print(f"Migracion: orden inicial asignado a {res.rowcount} discos")
+            # Sena de reserva (v4.64): 4 columnas
+            if "sena_cobrada" not in dcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN sena_cobrada BOOLEAN DEFAULT 0"))
+                    conn.commit()
+                print("Migracion: columna sena_cobrada agregada a discs")
+            if "sena_monto_uyu" not in dcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN sena_monto_uyu FLOAT"))
+                    conn.commit()
+                print("Migracion: columna sena_monto_uyu agregada a discs")
+            if "sena_fecha" not in dcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN sena_fecha DATE"))
+                    conn.commit()
+                print("Migracion: columna sena_fecha agregada a discs")
+            if "sena_metodo" not in dcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN sena_metodo VARCHAR(20)"))
+                    conn.commit()
+                print("Migracion: columna sena_metodo agregada a discs")
 
         # Columna play_count en tracks (contador de escuchas)
         if inspector.has_table("tracks"):
