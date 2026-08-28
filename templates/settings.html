@@ -199,6 +199,24 @@
 
     <section class="settings-card">
         <header class="settings-card-head">
+            <h2 class="settings-card-title">&#127919; Drop Hunter (crear fichas desde afuera)</h2>
+            <p class="settings-card-sub">El Drop Hunter puede crear fichas ac&aacute; solo. Peg&aacute; esta direcci&oacute;n y esta clave en el Drop Hunter (una vez). No compartas la clave.</p>
+        </header>
+        <div class="form-field">
+            <label>Direcci&oacute;n de la API</label>
+            <input type="text" value="{{ dh_api_url }}" readonly onclick="this.select();">
+        </div>
+        <div class="form-field">
+            <label>Clave secreta (header X-Api-Key)</label>
+            <input type="text" value="{{ dh_api_key }}" readonly onclick="this.select();">
+        </div>
+        <form method="post" action="{{ url_for('admin_regenerar_dh_key') }}" style="padding:6px 0;" onsubmit="return confirm('¿Regenerar la clave? La actual deja de funcionar y hay que actualizarla en el Drop Hunter.');">
+            <button type="submit" class="btn btn-ghost">Regenerar clave</button>
+        </form>
+    </section>
+
+    <section class="settings-card">
+        <header class="settings-card-head">
             <h2 class="settings-card-title">Resumen de inventario</h2>
             <p class="settings-card-sub">Distribucion actual de discos por estado.</p>
         </header>

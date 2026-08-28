@@ -264,7 +264,11 @@ def create_app() -> Flask:
     # excluye el webhook de Mercado Pago, que lo llama MP desde otro servidor.
     @app.before_request
     def csrf_origin_check():
-        if request.method in ("POST", "PUT", "DELETE") and not request.path.startswith("/mp/webhook"):
+        # El webhook de MP y la API externa (Drop Hunter) los llaman otros servidores,
+        # sin Origin del sitio; la API se protege aparte con su clave secreta.
+        if (request.method in ("POST", "PUT", "DELETE")
+                and not request.path.startswith("/mp/webhook")
+                and not request.path.startswith("/api/")):
             origin = request.headers.get("Origin") or request.headers.get("Referer") or ""
             if origin:
                 from urllib.parse import urlparse
@@ -5822,6 +5826,148 @@ def register_routes(app: Flask) -> None:
                 info[k] = round(info[k], 1)
         return info
 
+    # ------------------------------------------------------------------
+    # API externa: crear ficha desde el Drop Hunter (u otra herramienta).
+    # Protegida por clave secreta (header X-Api-Key). Ver Ajustes.
+    # ------------------------------------------------------------------
+    def _dh_api_key():
+        """Clave de la API externa: env DROP_HUNTER_API_KEY tiene prioridad; si no,
+        una guardada en settings (se genera sola la primera vez)."""
+        env = (os.environ.get("DROP_HUNTER_API_KEY") or "").strip()
+        if env:
+            return env
+        k = (Setting.get("drop_hunter_api_key", "") or "").strip()
+        if not k:
+            import secrets
+            k = secrets.token_urlsafe(24)
+            try:
+                Setting.set("drop_hunter_api_key", k)
+            except Exception:
+                pass
+        return k
+
+    @app.route("/admin/ajustes/dh-key/regenerar", methods=["POST"])
+    @auth.admin_required
+    def admin_regenerar_dh_key():
+        import secrets
+        try:
+            Setting.set("drop_hunter_api_key", secrets.token_urlsafe(24))
+            flash("Clave del Drop Hunter regenerada. Actualizala en el Drop Hunter.", "success")
+        except Exception as e:
+            flash(f"No se pudo regenerar: {e}", "error")
+        return redirect(url_for("settings_page"))
+
+    @app.route("/api/disco", methods=["POST"])
+    def api_crear_disco():
+        """Crea una ficha desde una herramienta externa (Drop Hunter). Auth por clave
+        (header X-Api-Key). Acepta JSON, o multipart con un archivo 'cover' + campo
+        'payload' (JSON). Idempotente por source_url (si ya existe, la devuelve)."""
+        import hmac
+        import json as _json
+        import uuid as _uuid
+        # --- Auth por clave ---
+        esperada = _dh_api_key()
+        recibida = (request.headers.get("X-Api-Key") or "").strip()
+        if not esperada or not recibida or not hmac.compare_digest(recibida, esperada):
+            return jsonify({"ok": False, "error": "clave invalida"}), 401
+        # --- Payload (JSON o multipart) ---
+        cover_file = None
+        if request.content_type and "multipart" in (request.content_type or ""):
+            try:
+                data = _json.loads(request.form.get("payload") or "{}")
+            except Exception:
+                return jsonify({"ok": False, "error": "payload JSON invalido"}), 400
+            cover_file = request.files.get("cover")
+        else:
+            data = request.get_json(silent=True) or {}
+        if not isinstance(data, dict):
+            return jsonify({"ok": False, "error": "payload invalido"}), 400
+        artista = (data.get("artista") or data.get("artist") or "").strip()
+        titulo = (data.get("titulo") or data.get("title") or "").strip()
+        if not artista and not titulo:
+            return jsonify({"ok": False, "error": "faltan artista y titulo"}), 400
+        source_url = (data.get("source_url") or data.get("url") or "").strip() or None
+
+        # --- Dedup por source_url ---
+        if source_url:
+            ya = Disc.query.filter_by(source_url=source_url).first()
+            if ya:
+                return jsonify({"ok": True, "disc_id": ya.id, "existing": True,
+                                "url": url_for("disc_detail", disc_id=ya.id, _external=True)})
+
+        def _f(k):
+            try:
+                return round(float(str(data.get(k)).replace(",", ".")), 2)
+            except (TypeError, ValueError):
+                return None
+
+        def _i(k):
+            try:
+                return int(data.get(k))
+            except (TypeError, ValueError):
+                return None
+
+        disc = Disc(
+            estado="Disponible", stock=1, origen="arcano",
+            artista=(artista or "Various")[:200], titulo=(titulo or "Sin título")[:300],
+            sello=((data.get("sello") or data.get("label") or "").strip() or None),
+            anio=_i("anio") or _i("year"),
+            genero=((data.get("genero") or data.get("genre") or "").strip() or None),
+            formato=((data.get("formato") or data.get("format") or "").strip() or "Vinyl"),
+            pais=((data.get("pais") or "").strip() or None),
+            tags=((data.get("catalogo") or data.get("catalog") or data.get("tags") or "").strip() or None),
+            costo_eur=_f("costo_eur") or 0.0, envio_eur=0.0,
+            precio_uyu=float(_i("precio_uyu") or _i("precio") or _i("precio_venta") or 0),
+            source_url=source_url, fecha_ingreso=now_uy(),
+        )
+        try:
+            disc.recalcular_costo_final(tc=Setting.get_tc())
+        except Exception:
+            pass
+
+        # --- Portada: archivo subido (preferido) o descarga de cover_url ---
+        try:
+            covers_dir = app.config["COVERS_DIR"]
+            cover_local = None
+            if cover_file and cover_file.filename:
+                ext = os.path.splitext(cover_file.filename)[1].lower()
+                if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+                    ext = ".jpg"
+                tmp = f"dh_{_uuid.uuid4().hex[:12]}{ext}"
+                cover_file.save(os.path.join(covers_dir, tmp))
+                cover_local = convertir_cover_a_webp(os.path.join(covers_dir, tmp))
+            elif (data.get("cover_url") or "").strip().startswith("http"):
+                cl = scraper.download_cover(data["cover_url"], covers_dir)
+                if cl:
+                    cover_local = convertir_cover_a_webp(os.path.join(covers_dir, cl))
+            if cover_local:
+                disc.cover_local = cover_local
+        except Exception:
+            pass
+
+        db.session.add(disc)
+        db.session.flush()
+        db.session.add(StatusHistory(disc_id=disc.id, estado=disc.estado, nota="Ingreso al stock (Drop Hunter API)"))
+
+        # --- Tracks (con YouTube como sample si viene) ---
+        tl_lines = []
+        for idx, t in enumerate(data.get("tracks") or []):
+            if not isinstance(t, dict):
+                continue
+            lado = ((t.get("lado") or t.get("side") or "").strip() or None)
+            art = ((t.get("artista") or t.get("artist") or "").strip() or None)
+            tit = ((t.get("titulo") or t.get("title") or "").strip() or f"Track {idx + 1}")
+            yt = ((t.get("youtube_url") or t.get("youtube") or "").strip() or None)
+            db.session.add(Track(disc_id=disc.id, posicion=idx, lado=lado, artista=art,
+                                 titulo=tit[:300], youtube_url=yt))
+            _p = (f"{lado}. " if lado else f"{idx + 1}. ")
+            tl_lines.append(_p + (f"{art} - {tit}" if art else tit))
+        if tl_lines:
+            disc.tracklist = "\n".join(tl_lines)
+        db.session.commit()
+        return jsonify({"ok": True, "disc_id": disc.id, "existing": False,
+                        "url": url_for("disc_detail", disc_id=disc.id, _external=True)}), 201
+
     @app.route("/admin/settings")
     @auth.admin_required
     def settings_page():
@@ -5854,6 +6000,8 @@ def register_routes(app: Flask) -> None:
             tc_usd=Setting.get_tc_usd(),
             tc_updated_at=tc_row.updated_at if tc_row else None,
             uso_disco=_uso_disco(),
+            dh_api_key=_dh_api_key(),
+            dh_api_url=url_for("api_crear_disco", _external=True),
             discos_disponibles=discos_disponibles,
             total_discos=total_discos,
             discos_por_estado=discos_por_estado,
@@ -6505,8 +6653,10 @@ def register_routes(app: Flask) -> None:
             .options(_selectinload(Disc.tracks))
             .filter(
                 _or(
-                    # Disponibles con stock
-                    (Disc.estado == "Disponible") & (Disc.stock > 0),
+                    # Disponibles con stock y CON PRECIO puesto (los de precio 0 quedan
+                    # ocultos hasta que Facundo les pone precio; ej: fichas creadas por la
+                    # API del Drop Hunter, que llegan sin precio en pesos).
+                    (Disc.estado == "Disponible") & (Disc.stock > 0) & (Disc.precio_uyu > 0),
                     # O agotados que el admin eligio mostrar igual
                     Disc.mostrar_agotado == True,  # noqa: E712
                     # O en estado Pre-order (se reservan por adelantado)
