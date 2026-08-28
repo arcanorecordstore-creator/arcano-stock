@@ -64,8 +64,7 @@
                     <button type="button" class="nav-link nav-group-btn {% if agregar_activo %}active{% endif %}" aria-haspopup="true" aria-expanded="false">Agregar <span class="nav-caret">&#9662;</span></button>
                     <div class="nav-group-menu">
                         <a href="{{ url_for('disc_new') }}" class="nav-link {% if ep in ['disc_new', 'disc_edit', 'disc_detail'] %}active{% endif %}">Manual</a>
-                        <a href="{{ url_for('disc_new_combo') }}" class="nav-link {% if ep in ['disc_new_combo', 'disc_combo_review', 'disc_new_from_url', 'disc_new_from_video', 'disc_video_review'] %}active{% endif %}">URL + Video</a>
-                        <a href="{{ url_for('disc_new_from_image') }}" class="nav-link {% if ep == 'disc_new_from_image' %}active{% endif %}">Desde screenshot</a>
+                        <a href="{{ url_for('disc_new_combo') }}" class="nav-link {% if ep in ['disc_new_combo', 'disc_combo_review', 'disc_new_from_url', 'disc_new_from_video', 'disc_video_review', 'disc_new_from_image'] %}active{% endif %}">URL &middot; Foto &middot; Video</a>
                         <a href="{{ url_for('disc_new_from_invoice') }}" class="nav-link {% if ep in ['disc_new_from_invoice', 'disc_invoice_review'] %}active{% endif %}">Desde factura</a>
                     </div>
                 </div>
@@ -109,7 +108,7 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v4.76 &middot; Alta unificada: ahora "URL + Video" tambi&eacute;n acepta un <strong>screenshot</strong>. Combin&aacute; link + captura + videos (una, dos o las tres): se completan entre s&iacute; y si el link falla, la captura hace el trabajo.</span>
+            <span class="footer-version">v4.77 &middot; "Desde screenshot" se fusion&oacute; en <strong>"URL &middot; Foto &middot; Video"</strong>: las 3 formas de cargar un disco (link, captura, videos) ahora est&aacute;n en un solo lugar del men&uacute; Agregar.</span>
         </footer>
     </div>
 
