@@ -8216,13 +8216,21 @@ def register_routes(app: Flask) -> None:
 
             return redirect(url_for("admin_reserva_detail", reserva_id=reserva.id))
 
-        # Detectar conflictos: discos de esta reserva que ya esten Vendidos o Reservados
-        # por otra via (para avisarte antes de confirmar)
+        # Detectar conflictos REALES antes de confirmar (evita falsos positivos: un disco
+        # marcado Reservado a mano y asignado a ESTE cliente NO es conflicto). Avisa solo si:
+        #  - esta Vendido por otra via (otra reserva / venta manual) = posible doble venta, o
+        #  - esta Reservado para OTRO cliente (cliente distinto al de esta reserva).
         conflictos = []
         if reserva.estado == "Pendiente":
+            _grp = f"r{reserva.id}"
             for item in reserva.items_efectivos:
                 disco = item.disco
-                if disco and disco.estado in ("Vendido", "Reservado"):
+                if not disco:
+                    continue
+                if disco.estado == "Vendido" and (disco.venta_grupo or "") != _grp:
+                    conflictos.append(item)
+                elif (disco.estado == "Reservado" and disco.cliente_id and reserva.cliente_id
+                      and disco.cliente_id != reserva.cliente_id):
                     conflictos.append(item)
 
         _par = mailer.RESERVA_ESTADO_MENSAJES.get(reserva.estado)
