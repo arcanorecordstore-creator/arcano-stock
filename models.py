@@ -1025,6 +1025,16 @@ class Reserva(db.Model):
         return sum((it.precio_uyu_snap or 0) for it in self.items_efectivos)
 
     @property
+    def sena_cobrada_total(self) -> float:
+        """Suma de las senas ya cobradas de los discos de esta reserva (0 si no hubo)."""
+        tot = 0.0
+        for it in self.items_efectivos:
+            d = it.disco
+            if d is not None:
+                tot += d.sena_efectiva
+        return round(tot, 2)
+
+    @property
     def cantidad_discos(self) -> int:
         return len(self.items_efectivos)
 

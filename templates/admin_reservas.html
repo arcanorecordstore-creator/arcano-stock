@@ -59,6 +59,9 @@
             {% endif %}
             {% if r.total_uyu > 0 %}<span class="reserva-card-total">$ {{ '{:,.0f}'.format(r.total_uyu).replace(',', '.') }}</span>{% endif %}
         </div>
+        {% if r.sena_cobrada_total > 0 %}
+        <div class="reserva-card-sena">&#10003; Se&ntilde;a cobrada: {{ money(r.sena_cobrada_total) }}{% if r.total_uyu > r.sena_cobrada_total %} &middot; falta {{ money(r.total_uyu - r.sena_cobrada_total) }}{% endif %}</div>
+        {% endif %}
         <div class="reserva-card-cliente">
             {{ r.nombre }} &middot; {{ r.whatsapp }}
             {% if r.email %}&middot; {{ r.email }}{% endif %}
@@ -128,6 +131,8 @@
                 <span class="reserva-grupo-tag">&#128230; Pedido agrupado</span>
                 <span class="reserva-grupo-meta">{{ u.reservas|length }} reservas &middot; {{ u.n_discos }} disco{{ 's' if u.n_discos != 1 else '' }} &middot; {{ u.cliente }}</span>
                 {% if u.entregado %}<span class="reserva-grupo-entregado">&#10003; Todo entregado</span>{% endif %}
+                {% set _sena = u.reservas | sum(attribute='sena_cobrada_total') %}
+                {% if _sena > 0 %}<span class="reserva-grupo-sena">&#10003; Se&ntilde;a {{ money(_sena) }}{% if u.total > _sena %} &middot; falta {{ money(u.total - _sena) }}{% endif %}</span>{% endif %}
                 <span class="reserva-grupo-total">{{ money(u.total) }}</span>
                 <form method="post" action="{{ url_for('reservas_desagrupar') }}"
                       onsubmit="return confirm('¿Separar este pedido? Cada reserva vuelve a ir por su cuenta.');">
@@ -167,6 +172,8 @@
 .reserva-grupo-meta{font-size:13px;color:var(--text-2,#bbb);}
 .reserva-grupo-entregado{font-size:11px;font-weight:700;color:#10b981;background:rgba(16,185,129,.12);padding:2px 8px;border-radius:999px;}
 .reserva-grupo-total{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums;color:var(--text-1,#eee);}
+.reserva-card-sena{font-size:12px;font-weight:600;color:#d6a945;margin-top:3px;}
+.reserva-grupo-sena{font-size:11px;font-weight:700;color:#d6a945;background:rgba(214,169,69,.14);padding:2px 8px;border-radius:999px;}
 .reserva-grupo-items{display:flex;flex-direction:column;gap:8px;padding:10px;}
 .reserva-grupo-items .reserva-card{background:var(--bg-2,#1e1e1e);}
 </style>
