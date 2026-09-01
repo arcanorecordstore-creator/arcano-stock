@@ -30,7 +30,7 @@
             {% if d.sello %}{{ d.sello }}{% endif %}
             {% if d.origen == 'personal' %}<span class="venta-origen-personal">colecci&oacute;n personal</span>{% endif %}
             {% if dias_venta.get(d.id) is not none %}<span class="venta-rot">se vendi&oacute; en {{ dias_venta.get(d.id) }} d&iacute;a{{ 's' if dias_venta.get(d.id) != 1 else '' }}</span>{% endif %}
-            {% if mostrar_cliente and cli %}<span class="venta-cliente"><i>{{ cli.nombre }}</i> &middot; <a href="{{ url_for('admin_reserva_detail', reserva_id=cli.reserva_id) }}">reserva #{{ cli.reserva_id }}</a></span>{% endif %}
+            {% if mostrar_cliente and cli %}<span class="venta-cliente"><i>{{ cli.nombre }}</i>{% if cli.reserva_id %} &middot; <a href="{{ url_for('admin_reserva_detail', reserva_id=cli.reserva_id) }}">reserva #{{ cli.reserva_id }}</a>{% endif %}</span>{% endif %}
         </div>
     </a>
     <div class="venta-canal">
@@ -55,7 +55,7 @@
     </div>
     <div class="venta-precio">
         $ {{ fmt(d.precio_mostrar or d.precio_uyu or 0) }}
-        <span class="venta-gan">+$ {{ fmt((d.ganancia_uyu or 0) * d.copias_facturadas) }}</span>
+        <span class="venta-gan">+$ {{ fmt(d.ganancia_negocio_uyu) }}</span>
     </div>
     {% if mostrar_eliminar %}
     <form method="post" action="{{ url_for('ventas_eliminar') }}" class="venta-elim-form" onsubmit="return confirm('¿Eliminar esta venta? El disco vuelve a Disponible y se borra de ventas, contabilidad, caja y lealtad. Si vino de un pedido web, también se borra el pedido. No se puede deshacer.');">
@@ -177,7 +177,7 @@
         {% if t.multi %}
         <div class="venta-trans">
             <div class="venta-trans-head">
-                <span class="venta-trans-label">&#128230; Una venta &middot; {{ t.discos|length }} discos{% if t.cliente %} &middot; {{ t.cliente.nombre }} &middot; <a href="{{ url_for('admin_reserva_detail', reserva_id=t.cliente.reserva_id) }}">reserva #{{ t.cliente.reserva_id }}</a>{% endif %} &middot; $ {{ fmt(t.subtotal) }} &middot; <span class="venta-gan">+$ {{ fmt(t.ganancia) }}</span>{% if t.multidia %} <span class="venta-multidia">entregada en varios d&iacute;as</span>{% endif %}</span>
+                <span class="venta-trans-label">&#128230; Una venta &middot; {{ t.discos|length }} discos{% if t.cliente %} &middot; {{ t.cliente.nombre }}{% if t.cliente.reserva_id %} &middot; <a href="{{ url_for('admin_reserva_detail', reserva_id=t.cliente.reserva_id) }}">reserva #{{ t.cliente.reserva_id }}</a>{% endif %}{% endif %} &middot; $ {{ fmt(t.subtotal) }} &middot; <span class="venta-gan">+$ {{ fmt(t.ganancia) }}</span>{% if t.multidia %} <span class="venta-multidia">entregada en varios d&iacute;as</span>{% endif %}</span>
                 <div class="venta-trans-acciones">
                     <form method="post" action="{{ url_for('ventas_desagrupar') }}" onsubmit="return confirm('¿Desagrupar esta venta? Cada disco vuelve a contar por separado.');">
                         <input type="hidden" name="grupo" value="{{ t.grupo }}">

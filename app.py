@@ -996,6 +996,15 @@ def register_status_change(disc: Disc, nuevo_estado: str, nota: str | None = Non
         if getattr(disc, "precio_venta_uyu", None) is not None:
             disc.precio_venta_uyu = None
 
+    # Sena de reserva: solo aplica mientras el disco esta Reservado (apartado) o Vendido
+    # (donde la sena fue el adelanto). Si va a cualquier otro estado (Disponible/Descartado/
+    # etc.) la reserva se cayo -> limpiar la sena para que no quede plata huerfana en la caja.
+    if nuevo_estado not in ("Reservado", "Vendido") and getattr(disc, "sena_cobrada", False):
+        disc.sena_cobrada = False
+        disc.sena_monto_uyu = None
+        disc.sena_fecha = None
+        disc.sena_metodo = None
+
     evento = StatusHistory(
         disc_id=disc.id,
         estado=nuevo_estado,
@@ -3630,20 +3639,52 @@ def register_routes(app: Flask) -> None:
         if cambios:
             db.session.commit()
 
-        kpis = metrics.kpis_de_discos(vendidos)
-        vendidos_prev = (
-            Disc.query.filter(Disc.estado == "Vendido")
-            .filter(Disc.fecha_venta >= inicio_prev_dt, Disc.fecha_venta < fin_prev_dt).all()
-        )
-        kpis_prev = metrics.kpis_de_discos(vendidos_prev)
+        # #5: ventas manuales atribuidas a un cliente (disc.cliente_id) que no vinieron de
+        # una reserva web -> que se muestren y se busquen por su nombre igual.
+        _cids = {d.cliente_id for d in vendidos if getattr(d, "cliente_id", None) and d.id not in cliente_res}
+        if _cids:
+            from models import Cliente as _Cli
+            _cmap = {c.id: c.nombre for c in _Cli.query.filter(_Cli.id.in_(_cids)).all()}
+            for d in vendidos:
+                if d.id not in cliente_res and getattr(d, "cliente_id", None) in _cmap:
+                    cliente_res[d.id] = {"nombre": _cmap[d.cliente_id], "reserva_id": None}
 
-        def _delta(cur, prev):
-            return round((cur - prev) / prev * 100) if prev else None
-        comp = {k: _delta(kpis[k], kpis_prev[k]) for k in ("ventas", "facturado", "ganancia")}
+        # Filtro (canal / metodo / buscador). Con filtro activo, los numeros de arriba se
+        # calculan sobre lo FILTRADO para que coincidan con la lista (#9).
+        _filtrando = bool(f_canal or f_metodo or f_q)
+        ql = f_q.lower()
+
+        def _pasa(d):
+            if f_canal and (canal_de(d) or "sin") != f_canal:
+                return False
+            if f_metodo and (metodo_de(d) or "sin") != f_metodo:
+                return False
+            if ql:
+                cli = (cliente_res.get(d.id) or {}).get("nombre", "")
+                blob = f"{d.artista or ''} {d.titulo or ''} {d.sello or ''} {cli}".lower()
+                if ql not in blob:
+                    return False
+            return True
+        lista = [d for d in vendidos if _pasa(d)]
+        base = lista if _filtrando else vendidos
+
+        kpis = metrics.kpis_de_discos(base)
+        if _filtrando:
+            comp = {k: None for k in ("ventas", "facturado", "ganancia")}
+        else:
+            vendidos_prev = (
+                Disc.query.filter(Disc.estado == "Vendido")
+                .filter(Disc.fecha_venta >= inicio_prev_dt, Disc.fecha_venta < fin_prev_dt).all()
+            )
+            kpis_prev = metrics.kpis_de_discos(vendidos_prev)
+
+            def _delta(cur, prev):
+                return round((cur - prev) / prev * 100) if prev else None
+            comp = {k: _delta(kpis[k], kpis_prev[k]) for k in ("ventas", "facturado", "ganancia")}
 
         def _agrupar(keyfn, defs):
             acc = {}
-            for d in vendidos:
+            for d in base:
                 k = keyfn(d)
                 a = acc.setdefault(k, {"discos": 0, "monto": 0.0})
                 a["discos"] += d.copias_facturadas
@@ -3661,7 +3702,7 @@ def register_routes(app: Flask) -> None:
         base_fin = min(fin_dt.date(), today_uy() + _td(days=1))
         dias = [base_fin - _td(days=i + 1) for i in range(ndias)][::-1]
         tmap = {dd: 0.0 for dd in dias}
-        for d in vendidos:
+        for d in base:
             fv = d.fecha_venta.date() if d.fecha_venta else None
             if fv in tmap:
                 tmap[fv] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
@@ -3670,7 +3711,7 @@ def register_routes(app: Flask) -> None:
 
         def _top(attr):
             acc = {}
-            for d in vendidos:
+            for d in base:
                 k = (getattr(d, attr) or "").strip()
                 if k:
                     acc[k] = acc.get(k, 0) + (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
@@ -3679,22 +3720,6 @@ def register_routes(app: Flask) -> None:
             k = max(acc, key=acc.get)
             return {"nombre": k, "monto": round(acc[k])}
         top_sello, top_artista = _top("sello"), _top("artista")
-
-        # Lista filtrada (canal / metodo / buscador)
-        ql = f_q.lower()
-
-        def _pasa(d):
-            if f_canal and (canal_de(d) or "sin") != f_canal:
-                return False
-            if f_metodo and (metodo_de(d) or "sin") != f_metodo:
-                return False
-            if ql:
-                cli = (cliente_res.get(d.id) or {}).get("nombre", "")
-                blob = f"{d.artista or ''} {d.titulo or ''} {d.sello or ''} {cli}".lower()
-                if ql not in blob:
-                    return False
-            return True
-        lista = [d for d in vendidos if _pasa(d)]
 
         if request.args.get("export") == "csv":
             return _ventas_csv(lista, canal_de, metodo_de, cliente_res)
@@ -3781,7 +3806,7 @@ def register_routes(app: Flask) -> None:
                 "personal" if d.origen == "personal" else "arcano",
                 _canal_lbl.get(canal_de(d), ""), _met_lbl.get(metodo_de(d), ""),
                 cli, round(d.precio_mostrar or d.precio_uyu or 0),
-                round((d.ganancia_uyu or 0) * d.copias_facturadas),
+                round(d.ganancia_negocio_uyu),
                 d.venta_grupo or "",
             ])
         from flask import Response as _Resp
@@ -4050,8 +4075,8 @@ def register_routes(app: Flask) -> None:
         """
         from models import Egreso
         e = Egreso.query.get_or_404(egreso_id)
-        raw = (request.form.get("monto_uyu") or "").strip().replace(".", "").replace(",", ".")
-        if raw == "":
+        raw_in = (request.form.get("monto_uyu") or "").strip()
+        if raw_in == "":
             # Recalcular desde la moneda original * tc (si es UYU, queda igual)
             if e.moneda == "UYU":
                 e.monto_uyu = e.monto
@@ -4060,15 +4085,14 @@ def register_routes(app: Flask) -> None:
             db.session.commit()
             flash("Monto recalculado con el tipo de cambio.", "success")
         else:
-            try:
-                val = float(raw)
-                if val < 0:
-                    raise ValueError()
-                e.monto_uyu = val
+            # Mismo parser que la Caja (punto = miles, coma = decimal, es-UY)
+            val = _parse_monto_caja(raw_in)
+            if val < 0 or (val == 0 and not any(ch.isdigit() for ch in raw_in)):
+                flash("Monto invalido.", "error")
+            else:
+                e.monto_uyu = round(val, 2)
                 db.session.commit()
                 flash(f"Monto en pesos actualizado: {val:,.0f} UYU.".replace(",", "."), "success")
-            except (ValueError, TypeError):
-                flash("Monto invalido.", "error")
         return redirect(url_for("contabilidad"))
 
     @app.route("/admin/contabilidad/egreso/<int:egreso_id>/editar", methods=["POST"])
@@ -4111,14 +4135,12 @@ def register_routes(app: Flask) -> None:
         e.moneda = moneda
 
         # Monto en pesos: si viene un valor, se respeta; si viene vacio, se recalcula.
-        raw = (request.form.get("monto_uyu") or "").strip().replace(".", "").replace(",", ".")
-        if raw:
-            try:
-                val = float(raw)
-                if val >= 0:
-                    e.monto_uyu = val
-            except (ValueError, TypeError):
-                pass
+        # Mismo parser que la Caja (punto = miles, coma = decimal, es-UY).
+        raw_in = (request.form.get("monto_uyu") or "").strip()
+        if raw_in and any(ch.isdigit() for ch in raw_in):
+            val = _parse_monto_caja(raw_in)
+            if val >= 0:
+                e.monto_uyu = round(val, 2)
         else:
             monto_uyu, tc = _convertir_a_uyu(monto, moneda)
             e.monto_uyu = monto_uyu

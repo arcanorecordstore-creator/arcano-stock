@@ -191,6 +191,14 @@ class Disc(db.Model):
         return round((self.precio_mostrar or self.precio_uyu or 0) - (self.costo_final_uyu or 0), 2)
 
     @property
+    def ganancia_negocio_uyu(self) -> float:
+        """Ganancia con el criterio del NEGOCIO: los discos de origen 'personal' no restan
+        costo (esa plata no la puso el negocio). Coincide con el KPI del panel de Ventas y
+        con la Contabilidad; por eso la suma de las filas cuadra con el total."""
+        costo = 0.0 if (self.origen or "arcano") == "personal" else (self.costo_final_uyu or 0)
+        return round(((self.precio_mostrar or self.precio_uyu or 0) - costo) * (self.copias_facturadas or 1), 2)
+
+    @property
     def mostrar_cartel_nuevo(self) -> bool:
         """Decide si mostrar el cartel 'Nuevo'. 'si'=siempre, 'no'=nunca, 'auto'=14 dias."""
         cn = getattr(self, "cartel_nuevo", "auto") or "auto"

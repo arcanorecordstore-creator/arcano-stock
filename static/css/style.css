@@ -436,6 +436,13 @@ body.app { display: block; padding: 0; }
 
 .btn-primary:hover { background-color: var(--text-2); }
 
+.btn-secondary {
+    background-color: var(--bg-3);
+    color: var(--text-1);
+    border-color: var(--border-2);
+}
+.btn-secondary:hover { background-color: var(--bg-2); border-color: var(--border-3); }
+
 .btn-ghost {
     background-color: transparent;
     color: var(--text-3);
@@ -1829,7 +1836,7 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
     transition: all 0.12s;
 }
 .pv-tab:hover { color: var(--text-1); border-color: var(--text-4); }
-.pv-tab.on { background: var(--accent, #10b981); color: #fff; border-color: var(--accent, #10b981); }
+.pv-tab.on { background: var(--text-1); color: var(--bg-0); border-color: var(--text-1); }
 .pv-rango-form { display: inline-flex; gap: 6px; align-items: center; margin-left: 4px; }
 .pv-inp {
     height: 34px;
@@ -8011,10 +8018,10 @@ td.num,
 .conta-hero-value {
     font-size: 42px;
     font-weight: 700;
-    color: var(--accent, #10b981);
+    color: var(--gain);
     line-height: 1.1;
 }
-.conta-hero-value.negativo { color: #ef4444; }
+.conta-hero-value.negativo { color: var(--loss); }
 .conta-hero-cur { font-size: 20px; font-weight: 500; opacity: 0.7; }
 .conta-hero-foot { font-size: 13px; color: var(--text-3, #888); }
 
@@ -8038,8 +8045,8 @@ td.num,
 .conta-row-label { grid-area: label; font-weight: 600; }
 .conta-row-value { grid-area: value; align-self: center; font-variant-numeric: tabular-nums; font-size: 18px; }
 .conta-row-detail { grid-area: detail; font-size: 12px; color: var(--text-3, #888); }
-.conta-row-ingreso .conta-row-value { color: var(--accent, #10b981); }
-.conta-row-egreso .conta-row-value { color: #ef4444; }
+.conta-row-ingreso .conta-row-value { color: var(--gain); }
+.conta-row-egreso .conta-row-value { color: var(--loss); }
 .conta-subtotal {
     background: rgba(255,255,255,0.02);
     margin: 0 -20px;
@@ -8054,7 +8061,7 @@ td.num,
     border-radius: 0 0 12px 12px;
 }
 .conta-total .conta-row-label { font-size: 17px; }
-.conta-total .conta-row-value { font-size: 22px; font-weight: 700; color: var(--accent, #10b981); }
+.conta-total .conta-row-value { font-size: 22px; font-weight: 700; color: var(--gain); }
 
 /* Bloques */
 .conta-block { margin-bottom: 32px; }
