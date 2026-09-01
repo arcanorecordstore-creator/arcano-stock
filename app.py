@@ -8201,6 +8201,25 @@ def register_routes(app: Flask) -> None:
                 else:
                     flash("Eleg&iacute; un cliente v&aacute;lido.", "warning")
 
+            elif accion == "editar":
+                # Editar los datos de la reserva a mano (igual que al cargar una manual):
+                # contacto, canal, metodo, y una NOTA libre para anotar el estado / la
+                # coordinacion ("ya hable, retira el sabado", "falta que pase", etc.).
+                _nom = (request.form.get("nombre") or "").strip()
+                if _nom:
+                    reserva.nombre = _nom[:200]
+                reserva.whatsapp = (request.form.get("whatsapp") or "").strip()[:50]
+                reserva.email = ((request.form.get("email") or "").strip()[:200] or None)
+                reserva.nota = ((request.form.get("nota") or "").strip() or None)
+                _canal = (request.form.get("canal") or "").strip()
+                if _canal in dict(_CANALES_RESERVA):
+                    reserva.canal = _canal
+                _met = (request.form.get("metodo_pago") or "").strip()
+                if _met in dict(_METODOS_RESERVA):
+                    reserva.metodo_pago = (_met or None)
+                db.session.commit()
+                flash("Datos de la reserva actualizados.", "success")
+
             elif accion == "delete":
                 # Revertir los discos de la reserva: los Reservados Y los Vendidos vuelven
                 # a Disponible y se les limpian los datos de venta. Sin esto, borrar una
@@ -8243,6 +8262,8 @@ def register_routes(app: Flask) -> None:
             mail_subject=mail_subject,
             clientes=clientes,
             cliente_actual_reserva=cliente_actual_reserva,
+            canales=_CANALES_RESERVA,
+            metodos=_METODOS_RESERVA,
         )
 
     # ----------------------------------------------------------------------

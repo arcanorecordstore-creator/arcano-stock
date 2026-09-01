@@ -56,7 +56,7 @@
 
             {% if reserva.nota %}
             <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-1);">
-                <span class="detail-meta-label">Nota del cliente</span>
+                <span class="detail-meta-label">Nota</span>
                 <p class="detail-notas">{{ reserva.nota }}</p>
             </div>
             {% endif %}
@@ -111,6 +111,26 @@
                 </form>
             </div>
         </div>
+
+        <details class="detail-card">
+            <summary class="reserva-edit-summary">&#9998; Editar datos de la reserva</summary>
+            <form method="post" action="{{ url_for('admin_reserva_detail', reserva_id=reserva.id) }}" class="reserva-edit-form">
+                <input type="hidden" name="accion" value="editar">
+                <label class="rev-f"><span>Nombre</span><input type="text" name="nombre" value="{{ reserva.nombre or '' }}" maxlength="200"></label>
+                <label class="rev-f"><span>WhatsApp</span><input type="text" name="whatsapp" value="{{ reserva.whatsapp or '' }}" maxlength="50" placeholder="099123456"></label>
+                <label class="rev-f"><span>Email</span><input type="email" name="email" value="{{ reserva.email or '' }}" maxlength="200"></label>
+                <label class="rev-f"><span>Canal</span>
+                    <select name="canal">{% for val, lbl in canales %}<option value="{{ val }}" {% if reserva.canal == val %}selected{% endif %}>{{ lbl }}</option>{% endfor %}</select>
+                </label>
+                <label class="rev-f"><span>M&eacute;todo de pago</span>
+                    <select name="metodo_pago">{% for val, lbl in metodos %}<option value="{{ val }}" {% if (reserva.metodo_pago or '') == val %}selected{% endif %}>{{ lbl }}</option>{% endfor %}</select>
+                </label>
+                <label class="rev-f"><span>Nota / estado <em>(para vos)</em></span>
+                    <textarea name="nota" rows="3" placeholder="Ej: ya hablé, retira el sábado · falta que pase · coordinar envío">{{ reserva.nota or '' }}</textarea>
+                </label>
+                <button type="submit" class="btn btn-primary btn-sm">Guardar cambios</button>
+            </form>
+        </details>
 
         <div class="detail-actions">
             <p class="detail-actions-label">Cambiar estado</p>
@@ -258,6 +278,18 @@ Montevideo, Uruguay</div>
         </div>
     </div>
 </div>
+
+<style>
+.reserva-edit-summary{cursor:pointer;list-style:none;font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);font-weight:600;}
+.reserva-edit-summary::-webkit-details-marker{display:none;}
+.reserva-edit-summary:hover{color:var(--text-1);}
+.reserva-edit-form{display:flex;flex-direction:column;gap:11px;margin-top:15px;}
+.rev-f{display:flex;flex-direction:column;gap:4px;}
+.rev-f > span{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--text-3);font-weight:600;}
+.rev-f > span em{text-transform:none;letter-spacing:0;color:var(--text-3);font-weight:400;font-style:normal;}
+.reserva-edit-form input,.reserva-edit-form select,.reserva-edit-form textarea{width:100%;font-family:inherit;font-size:14px;}
+.reserva-edit-form textarea{resize:vertical;min-height:60px;line-height:1.5;}
+</style>
 
 {% endblock %}
 
