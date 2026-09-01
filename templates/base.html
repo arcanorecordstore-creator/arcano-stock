@@ -73,18 +73,18 @@
                 <a href="{{ url_for('home') }}" target="_blank" class="nav-link nav-link-external" title="Ver tienda publica">Tienda &nearr;</a>
             </nav>
             <div class="topbar-meta">
+                <div class="tc-strip" title="Tipos de cambio a pesos (UYU)">
+                    <span class="tc-item"><span class="tc-lbl">EUR</span><span class="tc-val">{{ tc }}</span></span>
+                    <span class="tc-item"><span class="tc-lbl">USD</span><span class="tc-val">{{ tc_usd }}</span></span>
+                </div>
                 <button type="button" class="admin-theme-toggle" id="admin-theme-toggle" title="Cambiar tema claro/oscuro" aria-label="Cambiar entre tema claro y oscuro">
                     <span class="admin-theme-icon-dark">&#9789;</span>
                     <span class="admin-theme-icon-light">&#9788;</span>
                 </button>
-                <span class="meta-label">TC EUR&rarr;UYU</span>
-                <span class="meta-value">{{ tc }}</span>
-                <span class="meta-label">TC USD&rarr;UYU</span>
-                <span class="meta-value">{{ tc_usd }}</span>
                 {% if session.get('admin_user') %}
                 <span class="meta-user">
-                    {{ session.get('admin_user') }}
-                    <a href="{{ url_for('admin_logout') }}" class="meta-logout" title="Cerrar sesion">&#x21AA;</a>
+                    <span class="meta-user-name">{{ session.get('admin_user') }}</span>
+                    <a href="{{ url_for('admin_logout') }}" class="meta-logout" title="Cerrar sesion" aria-label="Cerrar sesi&oacute;n">&#x21AA;</a>
                 </span>
                 {% endif %}
             </div>
@@ -108,11 +108,41 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v4.83 &middot; Caja: marcar una reserva Pagada ya no la asume Mercado Pago (si coordinaste el cobro por privado no queda "retenida en MP" y suma bien a "Plata en caja ahora") + limpia la etiqueta MP fantasma; UI: los globos de desglose de la Caja ya no quedan tapados por la tarjeta de mercader&iacute;a ni se desbordan; tooltip con fecha + monto al pasar el mouse por las barras de "Facturado por d&iacute;a".</span>
+            <span class="footer-version">v4.84 &middot; Auditor&iacute;a UI/UX (mirando la web en vivo): header prolijo (tipos de cambio/tema/usuario) en todo el admin; bot&oacute;n de per&iacute;odo de Contabilidad legible; Reservas se ven bien en el celular (contenido a todo el ancho, mail completo, badges parejos, hora local sin UTC); portadas con placeholder de vinilo cuando no cargan (admin y tienda); Dashboard m&aacute;s compacto en el celu (acciones en 2 columnas, precio+ganancia juntos); leyenda de marcas siempre visible; t&iacute;tulos de secci&oacute;n unificados; tienda: buscador m&aacute;s corto y aviso de cookies fino en el celular.</span>
         </footer>
     </div>
 
     {% block scripts %}{% endblock %}
+    <script>
+        // Fallback de portada: si un cover no carga, en vez del icono roto del
+        // navegador mostramos un placeholder de vinilo (neutro, sirve claro y oscuro).
+        (function () {
+            var FB = "data:image/svg+xml;utf8," + encodeURIComponent(
+                "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'>" +
+                "<rect width='120' height='120' fill='rgba(128,128,128,0.10)'/>" +
+                "<g fill='none' stroke='rgba(140,140,140,0.55)' stroke-width='2'>" +
+                "<circle cx='60' cy='60' r='34'/><circle cx='60' cy='60' r='23'/></g>" +
+                "<circle cx='60' cy='60' r='9' fill='rgba(140,140,140,0.5)'/>" +
+                "<circle cx='60' cy='60' r='2.6' fill='rgba(128,128,128,0.15)'/></svg>"
+            );
+            function isCover(img) {
+                if (!img || img.tagName !== 'IMG' || img.dataset.fb === '1') return false;
+                var src = img.getAttribute('src') || '';
+                if (!src || src.indexOf('data:') === 0) return false;
+                return /covers\//i.test(src) || /cover|thumb/i.test(img.className || '');
+            }
+            function fix(img) { if (isCover(img)) { img.dataset.fb = '1'; img.src = FB; img.classList.add('cover-fallback'); } }
+            document.addEventListener('error', function (e) { fix(e.target); }, true);
+            function sweep() {
+                var imgs = document.querySelectorAll('img');
+                for (var i = 0; i < imgs.length; i++) {
+                    var im = imgs[i];
+                    if (im.complete && im.naturalWidth === 0 && im.getAttribute('src')) fix(im);
+                }
+            }
+            if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sweep); else sweep();
+        })();
+    </script>
     <script>
         // Toggle de tema del admin (independiente del de la tienda publica)
         (function () {

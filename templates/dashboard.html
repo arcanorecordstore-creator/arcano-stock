@@ -147,8 +147,9 @@
     <div class="dash-kpi-top"><span>Gan. realizada</span><strong>$ {{ '{:,.0f}'.format(totals.ganancia_realizada_uyu).replace(',', '.') }}</strong></div>
 </div>
 
-{# M6 - Leyenda de la columna Home (las marcas de curaduria son crípticas sin tooltip) #}
-<details class="dash-home-legend">
+{# M6 - Leyenda de la columna Home (las marcas de curaduria son crípticas sin tooltip;
+   en el celular no hay hover, asi que la dejamos abierta como referencia siempre visible) #}
+<details class="dash-home-legend" open>
     <summary>&iquest;Qu&eacute; son las marcas de la columna <strong>Home</strong>?</summary>
     <div class="dash-home-legend-body">
         <span><b>SP</b> Staff Pick</span>

@@ -245,18 +245,43 @@ body.app { display: block; padding: 0; }
 
 .topbar-meta {
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
     line-height: 1.2;
 }
 
+/* Tira compacta de tipos de cambio: dos pares "EUR 49.3 · USD 41.5" en una linea */
+.tc-strip {
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+}
+.tc-item {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 6px;
+}
+.tc-lbl {
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--text-4);
+}
+.tc-val {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-1);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Compatibilidad con usos viejos de estas clases fuera del header */
 .meta-label {
     font-size: 10px;
     letter-spacing: 1.5px;
     text-transform: uppercase;
     color: var(--text-4);
 }
-
 .meta-value {
     font-size: 16px;
     font-weight: 700;
@@ -595,6 +620,10 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
 .badge-apartado   { background-color: var(--status-apartado-bg);   color: var(--status-apartado-fg);   border-color: var(--status-apartado-border); }
 .badge-descartado { background-color: var(--status-descartado-bg); color: var(--status-descartado-fg); border-color: var(--status-descartado-border); }
 .badge-default    { background-color: var(--bg-3); color: var(--text-3); border-color: var(--border-2); }
+
+/* Placeholder de portada (lo aplica el JS de base.html cuando un cover no carga):
+   un vinilo neutro en vez del icono de imagen rota del navegador. */
+img.cover-fallback { object-fit: cover; background: transparent; }
 
 /* v3.28 - Columna "Audio" del dashboard (estado de digitalizacion, editable inline) */
 .badge-audio-digital    { background-color: #10b981; color: #fff; border-color: #10b981; }  /* En digital - verde */
@@ -4138,6 +4167,28 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
     border-left: 2px solid var(--border-2);
 }
 
+/* Celular: la tarjeta se apila. Arriba el check + la barra "Entregado" a lo ancho;
+   abajo el contenido usando TODO el ancho (antes la franja lateral se comia ~40%
+   y el mail quedaba cortado). */
+@media (max-width: 600px) {
+    .reserva-card { flex-wrap: wrap; align-items: stretch; }
+    .reserva-chk-col { order: 1; display: flex; align-items: center; padding: 10px 12px; }
+    .reserva-entrega-col {
+        order: 2; flex: 1 1 auto;
+        border-right: none;
+        border-bottom: 1px solid var(--border-1);
+    }
+    .entrega-toggle {
+        width: 100%;
+        flex-direction: row;
+        justify-content: center;
+        gap: 8px;
+        padding: 11px 10px;
+    }
+    .reserva-card-link { order: 3; flex: 1 1 100%; width: 100%; padding: 14px 16px; }
+    .reserva-card-cliente { word-break: break-word; }
+}
+
 /* =========================================================================
    FASE 2 - Mejoras finales: badges, share, 404, responsive
    ========================================================================= */
@@ -5446,10 +5497,14 @@ td.num,
 }
 
 @media (max-width: 600px) {
-    .public-filters-top { flex-direction: column; align-items: stretch; }
-    .public-filters-top .public-filter-search,
-    .public-filters-top .public-filter-select,
-    .public-filters-top .btn { width: 100%; box-sizing: border-box; }
+    /* Dos filas en vez de cuatro bloques apilados: [Buscar + boton] y [Orden + Filtros].
+       Ocupa la mitad de alto y deja los discos mas arriba. */
+    .public-filters-top { flex-direction: row; flex-wrap: wrap; align-items: stretch; gap: 8px; }
+    .public-filters-top .public-search-wrap { order: 1; flex: 1 1 auto; min-width: 0; }
+    .public-filters-top .public-filter-search { width: 100%; box-sizing: border-box; }
+    .public-filters-top .btn.btn-primary { order: 2; flex: 0 0 auto; }
+    .public-filters-top .public-filter-select { order: 3; flex: 1 1 55%; min-width: 0; box-sizing: border-box; }
+    .public-filters-top .public-sidebar-toggle { order: 4; flex: 0 0 auto; }
     .public-filters-panel.open { grid-template-columns: 1fr; }
 }
 
@@ -6431,7 +6486,6 @@ td.num,
     align-items: center;
     justify-content: center;
     transition: background 0.15s, border-color 0.15s;
-    margin-right: 12px;
 }
 .admin-theme-toggle:hover {
     background: var(--bg-3);
@@ -7550,9 +7604,12 @@ td.num,
     .topbar-brand { flex: 0 1 auto; order: 1; }
     .brand-logo { font-size: 18px; letter-spacing: 3px; }
     .brand-sub { display: none; }
-    .nav-toggle { display: inline-flex; order: 2; }
-    .topbar-meta { order: 3; flex: 1 1 auto; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 2px 8px; }
-    .topbar-meta .meta-label { font-size: 9px; }
+    .nav-toggle { display: inline-flex; order: 2; margin-left: auto; }
+    /* Logo + hamburguesa en la fila 1; los tipos de cambio + tema + usuario en su
+       propia fila (fila 2), asi nada queda pegado al borde ni amontonado. */
+    .topbar-meta { order: 3; width: 100%; flex-direction: row; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 8px 16px; }
+    .topbar-meta .tc-lbl { font-size: 9.5px; }
+    .topbar-meta .meta-user { margin-left: auto; }
     .topbar-nav {
         order: 4;
         width: 100%;
@@ -7813,7 +7870,9 @@ td.num,
 
 /* Pantallas muy chicas (celulares angostos) */
 @media (max-width: 400px) {
-    .quick-actions, .dashboard-cards, .action-cards {
+    /* Las tarjetas de accion se mantienen en 2 columnas hasta en celulares angostos
+       (antes volvian a 1 columna y comian pantalla antes de llegar al stock). */
+    .dashboard-cards, .action-cards {
         grid-template-columns: 1fr !important;
     }
     .stock-table td.col-main { width: calc(100% - 84px); }
@@ -8006,11 +8065,15 @@ td.num,
     font-size: 14px;
     transition: all 0.15s ease;
 }
-.conta-periodo-btn:hover { border-color: var(--accent, #10b981); }
+.conta-periodo-btn:hover { border-color: var(--text-2); }
 .conta-periodo-btn.active {
-    background: var(--accent, #10b981);
-    color: #fff;
-    border-color: var(--accent, #10b981);
+    /* --accent es blanco en oscuro y casi negro en claro; con color:#fff daba
+       blanco/blanco (invisible). Usamos texto/fondo del tema para contraste seguro
+       en ambos modos, igual que las pestanas del panel de Ventas. */
+    background: var(--text-1);
+    color: var(--bg-0);
+    border-color: var(--text-1);
+    font-weight: 600;
 }
 
 /* Hero: ganancia real */
@@ -8808,12 +8871,20 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
         padding: 10px 12px;
         margin-bottom: 12px;
     }
-    /* Precio y ganancia como linea compacta con etiqueta */
+    /* Precio y ganancia en DOS columnas (mini-KPI: etiqueta arriba, valor abajo) para
+       ahorrar alto vertical; antes cada uno ocupaba una fila entera. */
     .stock-table td.col-num::before {
-        min-width: 88px;
-        font-size: 11px;
+        display: block;
+        min-width: 0;
+        font-size: 10.5px;
+        margin-bottom: 1px;
     }
-    .stock-table td.col-editable[data-edit="precio_uyu"] {
+    .stock-table td.col-editable[data-edit="precio_uyu"],
+    .stock-table td.col-ganancia {
+        display: inline-block;
+        width: 49%;
+        vertical-align: top;
+        padding: 2px 0;
         font-size: 16px;
         font-weight: 700;
     }
@@ -9063,11 +9134,17 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     #fp-youtube-slot .fp-sc-iframe { height: 96px; }
     #fp-youtube-slot .fp-yt-iframe { width: 200px; height: 112px; }
 
-    /* El aviso de cookies tampoco tapa la bottom-nav: se apoya encima de ella */
+    /* El aviso de cookies tampoco tapa la bottom-nav: se apoya encima de ella.
+       Ademas lo hacemos una barra fina (texto + boton en la misma fila) para que
+       no tape contenido en la primera visita. */
     .cookie-banner {
         bottom: calc(var(--arcano-navh) + env(safe-area-inset-bottom, 0px));
         z-index: 210;
+        padding: 10px 14px;
     }
+    .cookie-banner-inner { gap: 10px; flex-wrap: nowrap; align-items: center; }
+    .cookie-banner-text { font-size: 11.5px; line-height: 1.4; min-width: 0; }
+    .cookie-banner .btn { flex: 0 0 auto; white-space: nowrap; }
     /* Si ademas el reproductor esta abierto, el aviso sube por encima de el.
        El player flotante en movil apila varias filas (~224px con iframe de
        SoundCloud/YouTube), asi que despejamos esa altura para que no se pisen. */
@@ -9368,23 +9445,37 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .cart-btn-full.btn-primary { padding: 13px 18px; font-size: 15px; font-weight: 700; }
 
 /* v2.97 - Chips de metodo de pago y comprobante en el listado de reservas */
+/* Chips del encabezado de la reserva: TODOS con la misma forma/tamano/linea base
+   (como .badge). Solo cambia el color segun el rol. Antes mezclaban estilos. */
+.reserva-card-head .badge,
+.reserva-card-head .reserva-card-num,
+.reserva-card-head .reserva-metodo-chip,
+.reserva-card-head .reserva-comprobante-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+    line-height: 1.45;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+.reserva-card-head .reserva-card-num {
+    background-color: var(--bg-3);
+    color: var(--text-3);
+    font-variant-numeric: tabular-nums;
+}
 .reserva-metodo-chip {
     background-color: var(--bg-3);
     color: var(--text-3);
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 11px;
-    white-space: nowrap;
+    border-color: var(--border-2);
 }
 .reserva-comprobante-chip {
     background-color: rgba(16, 185, 129, 0.15);
     color: #10b981;
-    border: 1px solid rgba(16, 185, 129, 0.4);
-    padding: 2px 8px;
-    border-radius: 10px;
-    font-size: 11px;
-    font-weight: 600;
-    white-space: nowrap;
+    border-color: rgba(16, 185, 129, 0.4);
 }
 
 /* v2.98 - Reordenar discos por drag-and-drop en el dashboard */
@@ -10301,6 +10392,27 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .cli-gastado { color: #6366f1; font-weight: 700; }
 :root:not([data-theme="light"]) .cli-gastado,
 :root[data-theme="dark"] .cli-gastado { color: #8f92ff; }
+
+/* #7 - Titulo de seccion UNIFICADO en todo el admin: mismo tamano, peso y barra de
+   acento. Antes cada pagina tenia su propio estilo ("cada pagina se ve de otra
+   familia"). Extiende el estandar de Radar (.gest-sec-title) a Contabilidad y Caja. */
+.conta-block-title,
+.caja-section-title {
+    position: relative;
+    padding-left: 15px;
+    font-size: 18px;
+    font-weight: 600;
+}
+.conta-block-title::before,
+.caja-section-title::before {
+    content: "";
+    position: absolute;
+    left: 0; top: 50%;
+    transform: translateY(-50%);
+    width: 5px; height: 1.05em;
+    border-radius: 3px;
+    background: #6366f1;
+}
 
 /* =========================================================================
    AUDITORIA UI/UX v4.48 - Tanda 3: Caja en tarjetas (celular) + edicion en hoja

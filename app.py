@@ -573,6 +573,18 @@ self.addEventListener('notificationclick', function(e){
             "tc_usd": Setting.get_tc_usd(),
         }
 
+    @app.template_filter("hora_uy")
+    def _hora_uy(dt, fmt="%d/%m/%Y %H:%M"):
+        """Muestra un datetime (guardado en UTC por default=datetime.utcnow) en hora
+        de Montevideo (UTC-3). Evita mostrar 'UTC' 3 horas adelantado."""
+        if dt is None:
+            return ""
+        try:
+            from datetime import timedelta as _td
+            return (dt - _td(hours=3)).strftime(fmt)
+        except Exception:
+            return ""
+
     return app
 
 

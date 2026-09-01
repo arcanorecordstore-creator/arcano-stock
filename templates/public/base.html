@@ -356,6 +356,36 @@
 })();
 </script>
 {% block scripts %}{% endblock %}
+<script>
+    // Fallback de portada: si un cover no carga, mostramos un placeholder de vinilo
+    // en vez del icono roto del navegador (neutro, sirve en claro y oscuro).
+    (function () {
+        var FB = "data:image/svg+xml;utf8," + encodeURIComponent(
+            "<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 120 120'>" +
+            "<rect width='120' height='120' fill='rgba(128,128,128,0.10)'/>" +
+            "<g fill='none' stroke='rgba(140,140,140,0.55)' stroke-width='2'>" +
+            "<circle cx='60' cy='60' r='34'/><circle cx='60' cy='60' r='23'/></g>" +
+            "<circle cx='60' cy='60' r='9' fill='rgba(140,140,140,0.5)'/>" +
+            "<circle cx='60' cy='60' r='2.6' fill='rgba(128,128,128,0.15)'/></svg>"
+        );
+        function isCover(img) {
+            if (!img || img.tagName !== 'IMG' || img.dataset.fb === '1') return false;
+            var src = img.getAttribute('src') || '';
+            if (!src || src.indexOf('data:') === 0) return false;
+            return /covers\//i.test(src) || /cover|thumb/i.test(img.className || '');
+        }
+        function fix(img) { if (isCover(img)) { img.dataset.fb = '1'; img.src = FB; img.classList.add('cover-fallback'); } }
+        document.addEventListener('error', function (e) { fix(e.target); }, true);
+        function sweep() {
+            var imgs = document.querySelectorAll('img');
+            for (var i = 0; i < imgs.length; i++) {
+                var im = imgs[i];
+                if (im.complete && im.naturalWidth === 0 && im.getAttribute('src')) fix(im);
+            }
+        }
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sweep); else sweep();
+    })();
+</script>
 
 </body>
 </html>

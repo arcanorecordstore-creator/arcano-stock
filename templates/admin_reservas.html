@@ -44,7 +44,7 @@
         {% if r.comprobante_file %}
         <span class="reserva-comprobante-chip">&#128206; Comprobante</span>
         {% endif %}
-        <span class="reserva-card-date">{{ r.fecha.strftime('%d/%m/%Y %H:%M') }} UTC</span>
+        <span class="reserva-card-date">{{ r.fecha|hora_uy }}</span>
     </div>
     <div class="reserva-card-body">
         <div class="reserva-card-disc">
