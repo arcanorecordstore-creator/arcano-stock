@@ -3581,8 +3581,11 @@ def register_routes(app: Flask) -> None:
         web_ids, metodo_res, cliente_res, reserva_discs = set(), {}, {}, {}
         try:
             for r in Reserva.query.all():
-                met = ("mercadopago" if (r.pagado or r.mp_status == "approved" or r.metodo_pago == "mercadopago")
-                       else ("transferencia" if r.metodo_pago == "transferencia" else None))
+                # NO derivar de 'pagado' (Pagada != Mercado Pago; puede ser transferencia
+                # o efectivo coordinado por privado).
+                met = ("mercadopago" if (r.mp_status == "approved" or r.metodo_pago == "mercadopago")
+                       else ("transferencia" if r.metodo_pago == "transferencia"
+                       else ("efectivo" if r.metodo_pago == "efectivo" else None)))
                 for it in r.items_efectivos:
                     if it.disc_id:
                         web_ids.add(it.disc_id)
@@ -4331,11 +4334,17 @@ def register_routes(app: Flask) -> None:
         try:
             for r in Reserva.query.all():
                 met = None
-                if r.pagado or (r.mp_status == "approved") or (r.metodo_pago == "mercadopago"):
+                # NO derivar de 'pagado': marcar una reserva Pagada NO implica Mercado
+                # Pago. Muchas reservas web se cobran coordinando por privado
+                # (transferencia/efectivo). Solo es MP si el metodo real es MP o MP la
+                # aprobo; si no, queda 'sin especificar' (plata en la mano, no retenida).
+                if (r.mp_status == "approved") or (r.metodo_pago == "mercadopago"):
                     met = "mercadopago"
                 elif r.metodo_pago == "transferencia":
                     met = "transferencia"
-                # 'coordinar' u otro -> lo deja sin especificar para que Facundo lo defina
+                elif r.metodo_pago == "efectivo":
+                    met = "efectivo"
+                # 'coordinar'/vacio/'otro' -> lo deja sin especificar para que Facundo lo defina
                 if not met:
                     continue
                 for it in r.items_efectivos:
@@ -4384,8 +4393,11 @@ def register_routes(app: Flask) -> None:
                         actualizados += 1
                 # El metodo de una venta lo manda SIEMPRE el disco (fuente unica),
                 # aun con manual_override: asi la caja y el panel de Ventas quedan
-                # sincronizados en ambos sentidos.
-                if metodo and mov.metodo != metodo:
+                # sincronizados en ambos sentidos. Si el disco no implica metodo (venta
+                # coordinada por fuera), la caja queda 'sin especificar' en vez de quedar
+                # pegada a un metodo viejo (ej: un Mercado Pago fantasma que restaba de
+                # 'plata en la mano').
+                if mov.metodo != metodo:
                     mov.metodo = metodo
                     actualizados += 1
 

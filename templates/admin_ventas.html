@@ -136,7 +136,9 @@
     </div>
     <div class="pv-trend">
         {% for t in trend %}
-        <span class="pv-bar" style="height: {{ (t.monto / trend_max * 100)|round(1) }}%" title="{{ t.label }} · $ {{ fmt(t.monto) }}"></span>
+        <span class="pv-col" data-label="{{ t.label }}" data-monto="$ {{ fmt(t.monto) }}">
+            <span class="pv-bar" style="height: {{ (t.monto / trend_max * 100)|round(1) }}%"></span>
+        </span>
         {% endfor %}
     </div>
     <div class="pv-trend-labels"><span>{{ trend[0].label if trend }}</span><span>{{ trend[-1].label if trend }}</span></div>

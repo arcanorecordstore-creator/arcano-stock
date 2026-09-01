@@ -1895,8 +1895,23 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
 .pv-bar-amt small { color: var(--text-4); }
 .pv-empty { color: var(--text-4); font-size: 13px; margin: 4px 0; }
 .pv-trend { display: flex; align-items: flex-end; gap: 3px; height: 76px; margin-top: 6px; }
-.pv-trend .pv-bar { flex: 1; background: var(--accent, #10b981); border-radius: 3px 3px 0 0; min-height: 3px; opacity: 0.85; }
-.pv-trend .pv-bar:hover { opacity: 1; }
+/* Cada columna ocupa toda la altura: asi se puede pasar el mouse aunque el dia no
+   tenga ventas (barra minima), y sostiene el tooltip con la fecha + el monto. */
+.pv-trend .pv-col { flex: 1; display: flex; align-items: flex-end; height: 100%; position: relative; }
+.pv-trend .pv-bar { width: 100%; background: var(--accent, #10b981); border-radius: 3px 3px 0 0; min-height: 3px; opacity: 0.85; }
+.pv-trend .pv-col:hover .pv-bar { opacity: 1; }
+/* Tooltip inmediato: "fecha · $ monto" del dia al pasar el mouse por la columna. */
+.pv-trend .pv-col::after {
+    content: attr(data-label) " \00b7  " attr(data-monto);
+    position: absolute; bottom: 100%; left: 50%;
+    transform: translateX(-50%) translateY(-6px);
+    background: var(--text-1, #111); color: var(--bg-0, #fff);
+    padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 600;
+    white-space: nowrap; pointer-events: none; z-index: 6;
+    opacity: 0; transition: opacity .12s ease;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
+}
+.pv-trend .pv-col:hover::after { opacity: 1; }
 .pv-trend-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-4); margin-top: 4px; }
 .pv-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 16px 0 6px; }
 .pv-search { flex: 1; min-width: 180px; }
@@ -9559,6 +9574,12 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     border: 1px solid var(--border-2, #333);
     border-radius: 14px;
     margin-bottom: 20px;
+    /* El hero es su propia capa (transform de la animacion) y la seccion de liquidez
+       de abajo tambien: sin esto, los popover de desglose quedan ATRAPADOS dentro del
+       hero y la tarjeta "En mercaderia" (que viene despues en el HTML) los tapa.
+       Subimos la capa del hero por encima para que los globos floten bien. */
+    position: relative;
+    z-index: 3;
 }
 .caja-hero-main { display: flex; flex-direction: column; gap: 6px; }
 .caja-hero-label {
@@ -10211,6 +10232,9 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .caja-hero-caret { font-size: 15px; opacity: .5; }
 .caja-hero-value.caja-chip-desglose { cursor: pointer; }
 .caja-hero-pop { left: 0; }
+/* El chip "Capital que pusiste" es el de mas a la derecha: su popover se ancla a la
+   derecha para no desbordar el borde del hero (si abre hacia la derecha se sale). */
+.caja-chip.cap .caja-chip-pop { left: auto; right: 0; }
 @media (max-width: 560px) {
     .caja-chip-pop { min-width: 200px; max-width: 78vw; }
 }
