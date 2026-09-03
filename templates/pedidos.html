@@ -328,6 +328,10 @@
                 <input type="number" id="ped-usd" name="costo_usd" min="0" step="0.01" placeholder="ej: 0">
             </div>
             <div class="form-field form-field-sm">
+                <label for="ped-uyu">Costo en pesos <span class="form-field-hint">(UYU &middot; manda)</span></label>
+                <input type="number" id="ped-uyu" name="costo_uyu_manual" min="0" step="1" placeholder="opcional">
+            </div>
+            <div class="form-field form-field-sm">
                 <label for="ped-envio">Env&iacute;o EUR <span class="form-field-hint">(solo dato)</span></label>
                 <input type="number" id="ped-envio" name="envio_eur" min="0" step="0.01" placeholder="opcional">
             </div>
@@ -341,7 +345,7 @@
             <input type="text" id="ped-notas" name="notas" placeholder="lo que quieras anotar del pedido">
         </div>
         <button type="submit" class="btn btn-primary">Agregar pedido</button>
-        <p class="conta-form-hint">TC actual: 1 EUR = {{ tc }} UYU &middot; 1 USD = {{ tc_usd }} UYU. Despues, al editar cada disco, elegis a que pedido pertenece.</p>
+        <p class="conta-form-hint">TC actual: 1 EUR = {{ tc }} UYU &middot; 1 USD = {{ tc_usd }} UYU. Si carg&aacute;s el <strong>costo en pesos</strong>, ese manda y se ignora la conversi&oacute;n de EUR/USD. Despu&eacute;s, al editar cada disco, eleg&iacute;s a qu&eacute; pedido pertenece.</p>
     </form>
 </section>
 {% endblock %}

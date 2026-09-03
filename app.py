@@ -5315,6 +5315,9 @@ def register_routes(app: Flask) -> None:
             numero=numero, fecha=fecha, cant_discos=cant,
             costo_eur=costo_eur, costo_usd=costo_usd, proveedor=proveedor, notas=notas,
             envio_eur=_opt_float("envio_eur"), servicio_eur=_opt_float("servicio_eur"),
+            # Si Facundo carga el costo en pesos directo, ese manda sobre la conversion
+            # de EUR/USD (mismo comportamiento que editar 'costo manual' despues).
+            costo_uyu_manual=_opt_float("costo_uyu_manual"),
         )
         db.session.add(ped)
         db.session.commit()
