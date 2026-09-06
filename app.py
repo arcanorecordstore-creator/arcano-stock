@@ -3559,6 +3559,36 @@ def register_routes(app: Flask) -> None:
             [f for f in con_escuchas if f["disc"].estado == "Vendido"],
             key=lambda f: f["interes"], reverse=True,
         )
+
+        # --- Búsquedas de la tienda (últimos 30 días): qué busca la gente ---
+        # Radar unificado: además de las escuchas, sumamos lo que se busca. Lo que se
+        # busca y NO se encuentra (resultados=0) es "demanda no satisfecha".
+        from models import SearchQuery
+        from datetime import datetime as _dtb, timedelta as _tdb
+        _cut = _dtb.utcnow() - _tdb(days=30)
+        _agg = {}
+        _total_busq = 0
+        try:
+            for r in SearchQuery.query.filter(SearchQuery.fecha >= _cut).all():
+                t = (r.termino or "").strip().lower()
+                if not t:
+                    continue
+                _total_busq += 1
+                a = _agg.setdefault(t, {"termino": t, "veces": 0, "sin_resultado": 0})
+                a["veces"] += 1
+                if (r.resultados or 0) == 0:
+                    a["sin_resultado"] += 1
+        except Exception:
+            _agg = {}
+        _all_busq = list(_agg.values())
+        # Demanda no satisfecha: las que alguna vez dieron 0, ordenadas por cuántas veces
+        sin_resultado = sorted(
+            [a for a in _all_busq if a["sin_resultado"] > 0],
+            key=lambda a: (a["sin_resultado"], a["veces"]), reverse=True,
+        )[:25]
+        # Lo más buscado en general (con o sin resultado)
+        top_busquedas = sorted(_all_busq, key=lambda a: a["veces"], reverse=True)[:25]
+
         return render_template(
             "radar.html",
             disponibles=disponibles,
@@ -3566,6 +3596,9 @@ def register_routes(app: Flask) -> None:
             con_escuchas=len(con_escuchas),
             sin_escuchas=len(filas) - len(con_escuchas),
             total_discos=len(filas),
+            sin_resultado=sin_resultado,
+            top_busquedas=top_busquedas,
+            busquedas_total=_total_busq,
         )
 
     def _nuevo_venta_grupo():
@@ -6843,6 +6876,17 @@ def register_routes(app: Flask) -> None:
             pagina = total_paginas
         inicio = (pagina - 1) * POR_PAGINA
         discs_pagina = discs[inicio:inicio + POR_PAGINA]
+
+        # Log de busqueda para el panel "Demanda no satisfecha" del Radar. Solo la
+        # busqueda REAL de texto (no la paginacion ni el autocompletado), guardando
+        # cuantos resultados dio. Lo que se busca y da 0 = lista de compras.
+        if q and len(q) >= 2 and pagina == 1:
+            try:
+                from models import SearchQuery
+                db.session.add(SearchQuery(termino=q[:120], resultados=total_resultados))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
         # Facetas con contadores (a partir de TODO el catalogo disponible)
         from collections import Counter

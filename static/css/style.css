@@ -9296,6 +9296,22 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .radar-table tbody tr:first-child .ra-interes { font-size: 15px; }
 .radar-empty { padding: 22px; text-align: center; color: var(--text-3); background: var(--bg-1); border: 1px dashed var(--border-2); border-radius: 12px; font-size: 14px; }
 
+/* Lista de terminos buscados (Demanda no satisfecha / Lo mas buscado) */
+.radar-search-list { display: flex; flex-direction: column; gap: 6px; }
+.radar-search-row {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+    padding: 10px 14px;
+    background: var(--bg-1);
+    border: 1px solid var(--border-1);
+    border-radius: 10px;
+}
+/* Termino que dio 0 resultados: lo resaltamos (es lo accionable para comprar). */
+.radar-search-row.nores { border-left: 3px solid #f59e0b; }
+.rs-term { font-weight: 600; color: var(--text-1); font-size: 15px; word-break: break-word; }
+.radar-search-row.nores .rs-term { color: #f59e0b; }
+.rs-meta { color: var(--text-3); font-size: 12.5px; white-space: nowrap; flex-shrink: 0; }
+.rs-count { font-weight: 700; color: var(--text-2); font-variant-numeric: tabular-nums; }
+
 /* Celular: el ranking del Radar pasa a tarjetas (se lee sin arrastrar de costado).
    El # queda como franja a la izquierda, el disco arriba, el estado en la esquina y
    las metricas (Interes/dia, Escuchas, Dias) con su etiqueta. */

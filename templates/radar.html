@@ -11,7 +11,7 @@
                 Qué está despertando ganas, medido por <strong>escuchas por día disponible</strong>
                 (no solo escuchas totales). Así un disco nuevo con pocas escuchas pero mucha intensidad
                 aparece arriba, y no queda tapado por uno viejo que juntó escuchas de a poco.
-                <br>{{ con_escuchas }} discos con escuchas · {{ sin_escuchas }} todavía sin escuchas · {{ total_discos }} en total.
+                <br>{{ con_escuchas }} discos con escuchas · {{ sin_escuchas }} todavía sin escuchas · {{ total_discos }} en total{% if busquedas_total %} · {{ busquedas_total }} búsqueda{{ 's' if busquedas_total != 1 else '' }} en la tienda (30 días){% endif %}.
             </p>
         </div>
     </section>
@@ -57,6 +57,26 @@
         {% endif %}
     {% endmacro %}
 
+    {# Radar unificado: lo que BUSCA la gente, no solo lo que escucha. #}
+    <section class="radar-section">
+        <h2 class="gest-sec-title">Demanda no satisfecha</h2>
+        <p class="radar-hint">Lo que la gente <strong>buscó y no encontró</strong> en los últimos 30 días. Es tu lista de compras para el próximo pedido a Deejay.de.</p>
+        {% if sin_resultado %}
+        <div class="radar-search-list">
+            {% for b in sin_resultado %}
+            <div class="radar-search-row nores">
+                <span class="rs-term">{{ b.termino }}</span>
+                <span class="rs-meta"><span class="rs-count">{{ b.sin_resultado }}&times;</span> sin resultado</span>
+            </div>
+            {% endfor %}
+        </div>
+        {% elif busquedas_total %}
+        <p class="radar-empty">Buenas noticias: en los últimos 30 días todas las búsquedas encontraron algo. Nadie se fue con las manos vacías.</p>
+        {% else %}
+        <p class="radar-empty">Todavía no hay búsquedas registradas. Cuando la gente use el buscador de la tienda, vas a ver acá qué piden &mdash; sobre todo lo que <strong>no</strong> encontraron.</p>
+        {% endif %}
+    </section>
+
     <section class="radar-section">
         <h2 class="gest-sec-title">Calientes y disponibles</h2>
         <p class="radar-hint">Los que más ganas despiertan por día <strong>y todavía tenés</strong>. Candidatos para subir a la primera fila de la home, destacar, o hacerles una story hoy.</p>
@@ -68,5 +88,20 @@
         <p class="radar-hint">Discos que se escucharon fuerte y se vendieron: validación de que el sonido que elegís mueve. Si el interés/día es alto, ese es tu tipo de disco ganador.</p>
         {{ tabla_radar(vendidos, 'Todavía no hay ventas de discos con escuchas registradas.') }}
     </section>
+
+    {% if top_busquedas %}
+    <section class="radar-section">
+        <h2 class="gest-sec-title">Lo más buscado (30 días)</h2>
+        <p class="radar-hint">Los términos que más buscó tu gente en la tienda. Señal de qué tienen en la cabeza &mdash; útil para destacar, postear o decidir qué traer.</p>
+        <div class="radar-search-list">
+            {% for b in top_busquedas %}
+            <div class="radar-search-row{% if b.sin_resultado and b.sin_resultado == b.veces %} nores{% endif %}">
+                <span class="rs-term">{{ b.termino }}</span>
+                <span class="rs-meta"><span class="rs-count">{{ b.veces }}&times;</span>{% if b.sin_resultado %} &middot; {{ b.sin_resultado }} sin resultado{% endif %}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
 </div>
 {% endblock %}

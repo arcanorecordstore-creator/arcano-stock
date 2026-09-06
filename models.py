@@ -799,6 +799,21 @@ class PlayEvent(db.Model):
     fecha = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
 
 
+class SearchQuery(db.Model):
+    """Cada búsqueda de texto real de la tienda pública, con cuántos resultados dio.
+
+    Alimenta el panel "Demanda no satisfecha" del Radar: lo que la gente busca y
+    NO encuentra (resultados=0) es la lista de compras para el próximo pedido.
+    """
+
+    __tablename__ = "search_queries"
+
+    id = db.Column(db.Integer, primary_key=True)
+    termino = db.Column(db.String(120), nullable=False, index=True)
+    resultados = db.Column(db.Integer, nullable=False, default=0)
+    fecha = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+
 class Cliente(db.Model):
     """Cuenta de cliente de la tienda publica.
 
