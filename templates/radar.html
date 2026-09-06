@@ -39,14 +39,14 @@
                 {% for f in filas %}
                 <tr>
                     <td class="ra-rank">{{ loop.index }}</td>
-                    <td class="ra-num ra-interes">{{ '%.2f'|format(f.interes) }}</td>
+                    <td class="ra-num ra-interes" data-label="Interés/día">{{ '%.2f'|format(f.interes) }}</td>
                     <td class="ra-disco">
                         <a href="{{ url_for('disc_detail', disc_id=f.disc.id) }}">{{ f.disc.artista }} &mdash; {{ f.disc.titulo }}</a>
                         {% if f.disc.sello %}<span class="ra-sello">{{ f.disc.sello }}</span>{% endif %}
                     </td>
-                    <td><span class="badge {{ estado_class.get(f.disc.estado, 'badge-default') }}">{{ f.disc.estado }}</span></td>
-                    <td class="ra-num">{{ f.plays }}</td>
-                    <td class="ra-num">{{ f.dias }}</td>
+                    <td class="ra-estado"><span class="badge {{ estado_class.get(f.disc.estado, 'badge-default') }}">{{ f.disc.estado }}</span></td>
+                    <td class="ra-num" data-label="Escuchas">{{ f.plays }}</td>
+                    <td class="ra-num" data-label="Días">{{ f.dias }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

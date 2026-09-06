@@ -173,7 +173,7 @@
                     <span class="timeline-dot"></span>
                     <div class="timeline-body">
                         <span class="timeline-event">Ingreso al stock</span>
-                        <span class="timeline-date">{{ disc.fecha_ingreso.strftime('%d/%m/%Y %H:%M') if disc.fecha_ingreso else '—' }} UTC</span>
+                        <span class="timeline-date">{{ disc.fecha_ingreso|hora_uy if disc.fecha_ingreso else '—' }}</span>
                     </div>
                 </div>
                 {% if disc.fecha_reserva %}
@@ -181,7 +181,7 @@
                     <span class="timeline-dot timeline-dot-reservado"></span>
                     <div class="timeline-body">
                         <span class="timeline-event">Reservado</span>
-                        <span class="timeline-date">{{ disc.fecha_reserva.strftime('%d/%m/%Y %H:%M') }} UTC</span>
+                        <span class="timeline-date">{{ disc.fecha_reserva.strftime('%d/%m/%Y %H:%M') }}</span>
                     </div>
                 </div>
                 {% endif %}
@@ -190,7 +190,7 @@
                     <span class="timeline-dot timeline-dot-vendido"></span>
                     <div class="timeline-body">
                         <span class="timeline-event">Vendido</span>
-                        <span class="timeline-date">{{ disc.fecha_venta.strftime('%d/%m/%Y %H:%M') }} UTC</span>
+                        <span class="timeline-date">{{ disc.fecha_venta.strftime('%d/%m/%Y %H:%M') }}</span>
                     </div>
                 </div>
                 {% endif %}
@@ -203,7 +203,7 @@
                     <div class="timeline-body">
                         <span class="timeline-event">{{ h.estado }}</span>
                         {% if h.nota %}<span class="timeline-note">{{ h.nota }}</span>{% endif %}
-                        <span class="timeline-date">{{ h.fecha.strftime('%d/%m/%Y %H:%M') }} UTC</span>
+                        <span class="timeline-date">{{ h.fecha.strftime('%d/%m/%Y %H:%M') }}</span>
                     </div>
                 </div>
                 {% endfor %}
@@ -213,7 +213,7 @@
 
         <p class="detail-footer-meta">
             ID interno: #{{ disc.id }} &middot;
-            Ultima modificacion: {{ disc.fecha_modificacion.strftime('%d/%m/%Y %H:%M') if disc.fecha_modificacion else '—' }} UTC
+            Ultima modificacion: {{ disc.fecha_modificacion|hora_uy if disc.fecha_modificacion else '—' }}
         </p>
     </div>
 </div>

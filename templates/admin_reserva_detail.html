@@ -7,7 +7,7 @@
 <section class="page-head">
     <div>
         <h1 class="page-title">Reserva #{{ reserva.id }}</h1>
-        <p class="page-sub">{{ reserva.fecha.strftime('%d/%m/%Y %H:%M') }} UTC &middot; Estado: <span class="badge badge-{{ 'reservado' if reserva.estado == 'Pendiente' else 'vendido' if reserva.estado == 'Pagada' else 'descartado' }}">{{ reserva.estado }}</span></p>
+        <p class="page-sub">{{ reserva.fecha|hora_uy }} &middot; Estado: <span class="badge badge-{{ 'reservado' if reserva.estado == 'Pendiente' else 'vendido' if reserva.estado == 'Pagada' else 'descartado' }}">{{ reserva.estado }}</span></p>
     </div>
     <div class="page-actions">
         <a href="{{ url_for('admin_reservas') }}" class="btn btn-ghost">&larr; Volver</a>

@@ -37,7 +37,7 @@
                 <span class="tc-label">Valores actuales</span>
                 <span class="tc-value">1 EUR = {{ tc }} UYU &nbsp;&middot;&nbsp; 1 USD = {{ tc_usd }} UYU</span>
                 {% if tc_updated_at %}
-                    <span class="tc-meta">Ultima modificacion: {{ tc_updated_at.strftime('%d/%m/%Y %H:%M') }} UTC</span>
+                    <span class="tc-meta">Ultima modificacion: {{ tc_updated_at|hora_uy }}</span>
                 {% endif %}
             </div>
 
