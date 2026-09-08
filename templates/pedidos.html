@@ -171,51 +171,85 @@
             <details class="ped-editar">
                 <summary class="action-btn">&#9998; Editar pedido</summary>
                 <form method="post" action="{{ url_for('pedido_editar', pedido_id=p.id) }}" class="ped-editar-form">
-                    <div class="ped-editar-grid">
-                        <div class="form-field">
-                            <label>Numero de pedido</label>
-                            <input type="text" name="numero" value="{{ p.numero or '' }}" placeholder="ej: 1, 2, 3...">
-                        </div>
-                        <div class="form-field">
-                            <label>Proveedor</label>
-                            <select name="proveedor">
-                                {% for prov in proveedores %}<option value="{{ prov }}" {% if p.proveedor == prov %}selected{% endif %}>{{ prov }}</option>{% endfor %}
-                            </select>
-                        </div>
-                        <div class="form-field">
-                            <label>Fecha</label>
-                            <input type="date" name="fecha" value="{{ p.fecha.strftime('%Y-%m-%d') if p.fecha else '' }}">
-                        </div>
-                        <div class="form-field">
-                            <label>Discos declarados</label>
-                            <input type="number" name="cant_discos" min="0" value="{{ p.cant_discos }}">
-                        </div>
-                        <div class="form-field">
-                            <label>Costo EUR</label>
-                            <input type="number" name="costo_eur" min="0" step="0.01" value="{{ '%.2f'|format(p.costo_eur or 0) }}">
-                        </div>
-                        <div class="form-field">
-                            <label>Costo USD</label>
-                            <input type="number" name="costo_usd" min="0" step="0.01" value="{{ '%.2f'|format(p.costo_usd or 0) }}">
-                        </div>
-                        <div class="form-field">
-                            <label>Costo de env&iacute;o EUR <span class="form-field-hint">(solo dato)</span></label>
-                            <input type="number" name="envio_eur" min="0" step="0.01"
-                                   value="{{ '%.2f'|format(p.envio_eur) if p.envio_eur is not none else '' }}" placeholder="opcional">
-                        </div>
-                        <div class="form-field">
-                            <label>Costo de servicio EUR <span class="form-field-hint">(solo dato)</span></label>
-                            <input type="number" name="servicio_eur" min="0" step="0.01"
-                                   value="{{ '%.2f'|format(p.servicio_eur) if p.servicio_eur is not none else '' }}" placeholder="opcional">
-                        </div>
-                        <div class="form-field">
-                            <label>Costo real UYU <span class="form-field-hint">(opcional)</span></label>
-                            <input type="number" name="costo_uyu_manual" min="0" step="0.01"
-                                   value="{{ '%.0f'|format(p.costo_uyu_manual) if p.costo_uyu_manual is not none else '' }}"
-                                   placeholder="auto desde EUR/USD">
+                    <div class="ped-form-block">
+                        <span class="ped-form-block-tit">Datos</span>
+                        <div class="ped-editar-grid">
+                            <div class="form-field">
+                                <label>Numero de pedido</label>
+                                <input type="text" name="numero" value="{{ p.numero or '' }}" placeholder="ej: 1, 2, 3...">
+                            </div>
+                            <div class="form-field">
+                                <label>Proveedor</label>
+                                <select name="proveedor">
+                                    {% for prov in proveedores %}<option value="{{ prov }}" {% if p.proveedor == prov %}selected{% endif %}>{{ prov }}</option>{% endfor %}
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label>Fecha</label>
+                                <input type="date" name="fecha" value="{{ p.fecha.strftime('%Y-%m-%d') if p.fecha else '' }}">
+                            </div>
+                            <div class="form-field">
+                                <label>Discos declarados</label>
+                                <input type="number" name="cant_discos" min="0" value="{{ p.cant_discos }}">
+                            </div>
                         </div>
                     </div>
-                    <p class="ped-editar-tc form-field-hint">Tipo de cambio EUR&rarr;USD (seg&uacute;n los precios de arriba): <strong class="ped-tc-valor">&mdash;</strong></p>
+                    <div class="ped-form-block">
+                        <span class="ped-form-block-tit">Costo del pedido</span>
+                        <div class="ped-editar-grid">
+                            <div class="form-field">
+                                <label>Costo EUR</label>
+                                <input type="number" name="costo_eur" min="0" step="0.01" value="{{ '%.2f'|format(p.costo_eur or 0) }}">
+                            </div>
+                            <div class="form-field">
+                                <label>Costo USD</label>
+                                <input type="number" name="costo_usd" min="0" step="0.01" value="{{ '%.2f'|format(p.costo_usd or 0) }}">
+                            </div>
+                            <div class="form-field">
+                                <label>Costo real UYU <span class="form-field-hint">(opcional)</span></label>
+                                <input type="number" name="costo_uyu_manual" min="0" step="0.01"
+                                       value="{{ '%.0f'|format(p.costo_uyu_manual) if p.costo_uyu_manual is not none else '' }}"
+                                       placeholder="auto desde EUR/USD">
+                            </div>
+                            <div class="form-field">
+                                <label>Comisi&oacute;n del banco <span class="form-field-hint">(UYU)</span></label>
+                                <input type="number" name="comision_banco_uyu" min="0" step="1" class="ped-comision-input"
+                                       value="{{ '%.0f'|format(p.comision_banco_uyu) if p.comision_banco_uyu is not none else '' }}"
+                                       placeholder="0">
+                            </div>
+                        </div>
+                        <p class="ped-editar-tc form-field-hint">Tipo de cambio EUR&rarr;USD (seg&uacute;n los precios de arriba): <strong class="ped-tc-valor">&mdash;</strong></p>
+                        <!-- Costo total = costo del pedido + comisión del banco (se actualiza al tipear la comisión). -->
+                        <div class="ped-costo-box" data-pedido="{{ '%.0f'|format(p.costo_pedido_uyu) }}">
+                            <div class="ped-costo-row">
+                                <span class="ped-costo-lbl">Costo del pedido</span>
+                                <span class="ped-costo-val ped-costo-pedido-val">$ {{ fmt_uyu(p.costo_pedido_uyu) }}</span>
+                            </div>
+                            <div class="ped-costo-row">
+                                <span class="ped-costo-lbl">+ Comisi&oacute;n del banco</span>
+                                <span class="ped-costo-val ped-costo-com-val">$ {{ fmt_uyu(p.comision_uyu) }}</span>
+                            </div>
+                            <div class="ped-costo-row ped-costo-total-row">
+                                <span class="ped-costo-lbl">= Costo total</span>
+                                <span class="ped-costo-val ped-costo-total-val">$ {{ fmt_uyu(p.costo_total_uyu) }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="ped-form-block">
+                        <span class="ped-form-block-tit">Informativo <span class="form-field-hint">(solo dato, no entra en el cálculo)</span></span>
+                        <div class="ped-editar-grid">
+                            <div class="form-field">
+                                <label>Costo de env&iacute;o EUR</label>
+                                <input type="number" name="envio_eur" min="0" step="0.01"
+                                       value="{{ '%.2f'|format(p.envio_eur) if p.envio_eur is not none else '' }}" placeholder="opcional">
+                            </div>
+                            <div class="form-field">
+                                <label>Costo de servicio EUR</label>
+                                <input type="number" name="servicio_eur" min="0" step="0.01"
+                                       value="{{ '%.2f'|format(p.servicio_eur) if p.servicio_eur is not none else '' }}" placeholder="opcional">
+                            </div>
+                        </div>
+                    </div>
                     <div class="form-field">
                         <label>Notas</label>
                         <textarea name="notas" rows="2" placeholder="Notas del pedido...">{{ p.notas or '' }}</textarea>
@@ -332,6 +366,10 @@
                 <input type="number" id="ped-uyu" name="costo_uyu_manual" min="0" step="1" placeholder="opcional">
             </div>
             <div class="form-field form-field-sm">
+                <label for="ped-comision">Comisi&oacute;n del banco <span class="form-field-hint">(UYU &middot; suma)</span></label>
+                <input type="number" id="ped-comision" name="comision_banco_uyu" min="0" step="1" placeholder="opcional">
+            </div>
+            <div class="form-field form-field-sm">
                 <label for="ped-envio">Env&iacute;o EUR <span class="form-field-hint">(solo dato)</span></label>
                 <input type="number" id="ped-envio" name="envio_eur" min="0" step="0.01" placeholder="opcional">
             </div>
@@ -367,6 +405,23 @@
         eur.addEventListener('input', calc);
         usd.addEventListener('input', calc);
         calc();
+    });
+    // Comisión del banco -> "Costo total" en vivo (costo del pedido + comisión).
+    document.querySelectorAll('.ped-editar-form').forEach(function (form) {
+        var box = form.querySelector('.ped-costo-box');
+        var comInput = form.querySelector('.ped-comision-input');
+        if (!box || !comInput) return;
+        var base = parseFloat(box.getAttribute('data-pedido')) || 0;
+        var comVal = box.querySelector('.ped-costo-com-val');
+        var totVal = box.querySelector('.ped-costo-total-val');
+        function fmtPesos(n) {
+            return '$ ' + Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+        }
+        comInput.addEventListener('input', function () {
+            var c = parseFloat(comInput.value) || 0;
+            if (comVal) comVal.textContent = fmtPesos(c);
+            if (totVal) totVal.textContent = fmtPesos(base + c);
+        });
     });
 })();
 </script>

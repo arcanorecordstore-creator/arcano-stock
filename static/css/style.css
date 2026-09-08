@@ -8438,6 +8438,44 @@ td.num,
 .ped-editar-tc { margin: 0 0 12px; }
 .ped-editar-tc .ped-tc-valor { color: var(--text-1); font-weight: 600; }
 
+/* Form de editar pedido en bloques (Datos / Costo del pedido / Informativo): antes
+   entraban ~9 campos en una sola fila y quedaba desordenado. */
+.ped-form-block { margin-bottom: 16px; }
+.ped-form-block:last-of-type { margin-bottom: 4px; }
+.ped-form-block-tit {
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-3);
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+.ped-form-block-tit .form-field-hint { text-transform: none; letter-spacing: 0; font-weight: 400; }
+/* Cuadro: costo del pedido + comisión del banco = costo total */
+.ped-costo-box {
+    margin-top: 6px;
+    background: var(--bg-2);
+    border: 1px solid var(--border-2);
+    border-radius: 10px;
+    padding: 12px 14px;
+    max-width: 380px;
+}
+.ped-costo-row {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 16px;
+    padding: 3px 0;
+    font-size: 14px;
+    color: var(--text-2);
+}
+.ped-costo-val { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ped-costo-total-row {
+    border-top: 1px solid var(--border-2);
+    margin-top: 5px; padding-top: 8px;
+    font-weight: 700; font-size: 16px;
+    color: var(--text-1);
+}
+.ped-costo-total-row .ped-costo-val { color: var(--text-1); }
+
 /* Selector de pedido en el dashboard */
 .pedido-select {
     font-size: 12px;

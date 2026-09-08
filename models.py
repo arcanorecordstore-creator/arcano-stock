@@ -1317,18 +1317,34 @@ class Pedido(db.Model):
     # ningun calculo: el costo total lo pone Facundo a mano (costo_usd / costo_uyu_manual).
     envio_eur = db.Column(db.Float, nullable=True)
     servicio_eur = db.Column(db.Float, nullable=True)
+    # Comisión del banco (en UYU) que se cobró por el pago del pedido. SUMA al total:
+    # es plata real que saliste pagando además del costo de los discos.
+    comision_banco_uyu = db.Column(db.Float, nullable=True)
     creado = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     # Relacion con los discos asignados a este pedido
     discos = db.relationship("Disc", backref="pedido", lazy=True)
 
     @property
-    def costo_total_uyu(self) -> float:
-        """Costo total del pedido en UYU. Si hay un monto manual (lo que
-        debito el banco), se usa ese; si no, se calcula desde la moneda del pedido."""
+    def costo_pedido_uyu(self) -> float:
+        """Costo de los discos del pedido en UYU, SIN la comisión del banco. Si hay un
+        monto manual (lo que debitó el banco por los discos), se usa ese; si no, se
+        calcula desde la moneda del pedido."""
         if self.costo_uyu_manual is not None:
             return round(self.costo_uyu_manual, 2)
         return self.costo_total_uyu_calculado
+
+    @property
+    def comision_uyu(self) -> float:
+        """Comisión del banco en UYU (0 si no se cargó)."""
+        return round(self.comision_banco_uyu or 0.0, 2)
+
+    @property
+    def costo_total_uyu(self) -> float:
+        """Costo TOTAL real del pedido en UYU = costo del pedido + comisión del banco.
+        Es lo que realmente saliste pagando; alimenta la caja, el resultado y la
+        recuperación."""
+        return round(self.costo_pedido_uyu + self.comision_uyu, 2)
 
     @property
     def costo_total_uyu_calculado(self) -> float:
@@ -1685,6 +1701,11 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE pedidos ADD COLUMN servicio_eur FLOAT"))
                     conn.commit()
                 print("Migracion: columna servicio_eur agregada a pedidos")
+            if "comision_banco_uyu" not in pcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE pedidos ADD COLUMN comision_banco_uyu FLOAT"))
+                    conn.commit()
+                print("Migracion: columna comision_banco_uyu agregada a pedidos")
 
         # Columnas es_tip y resena_corta en discs (curaduria visible)
         if inspector.has_table("discs"):

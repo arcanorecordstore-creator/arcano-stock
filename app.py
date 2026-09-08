@@ -5351,6 +5351,8 @@ def register_routes(app: Flask) -> None:
             # Si Facundo carga el costo en pesos directo, ese manda sobre la conversion
             # de EUR/USD (mismo comportamiento que editar 'costo manual' despues).
             costo_uyu_manual=_opt_float("costo_uyu_manual"),
+            # Comisión del banco (UYU): suma al costo total del pedido.
+            comision_banco_uyu=_opt_float("comision_banco_uyu"),
         )
         db.session.add(ped)
         db.session.commit()
@@ -5450,6 +5452,15 @@ def register_routes(app: Flask) -> None:
                     setattr(ped, _campo, max(0.0, float(_raw)))
                 except (ValueError, TypeError):
                     pass
+
+        # Comisión del banco (UYU): plata real que SUMA al total del pedido. Vacío => None.
+        # Mismo parseo es-UY que el costo manual (puntos=miles, coma=decimal).
+        raw_com = (request.form.get("comision_banco_uyu") or "").strip()
+        if raw_com == "":
+            ped.comision_banco_uyu = None
+        elif any(c.isdigit() for c in raw_com):
+            vc = _parse_monto_caja(raw_com)
+            ped.comision_banco_uyu = vc if vc >= 0 else None
 
         ped.notas = (request.form.get("notas") or "").strip() or None
 
