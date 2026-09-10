@@ -34,6 +34,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet">
+    {# Favicon = logo secundario (vinilo) de la identidad de marca #}
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='brand/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='brand/favicon-512.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='brand/apple-touch-icon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script>
     // Anti-flash: setear tema ANTES de renderizar el body.
@@ -72,9 +76,9 @@
         <button type="button" class="public-hamburger" id="public-hamburger" aria-label="Abrir menu" aria-expanded="false">
             <span></span><span></span><span></span>
         </button>
-        <a href="{{ url_for('home') }}" class="public-brand">
-            <span class="brand-logo">ARCANO</span>
-            <span class="public-brand-sub">Record store &middot; Montevideo</span>
+        <a href="{{ url_for('home') }}" class="public-brand" aria-label="Arcano Record Store">
+            <img class="public-brand-img brand-neg" src="{{ url_for('static', filename='brand/logo-primary-negro.png') }}" alt="Arcano Record Store" width="616" height="240">
+            <img class="public-brand-img brand-bla" src="{{ url_for('static', filename='brand/logo-primary-blanco.png') }}" alt="Arcano Record Store" width="616" height="240">
         </a>
         <nav class="public-nav public-nav-desktop">
             <a href="{{ url_for('home') }}" class="public-nav-link {% if request.endpoint == 'home' %}active{% endif %}">Catalogo</a>
@@ -152,7 +156,10 @@
 <div class="public-drawer-overlay" id="public-drawer-overlay" hidden></div>
 <aside class="public-drawer" id="public-drawer" aria-hidden="true">
     <div class="public-drawer-head">
-        <span class="public-drawer-brand">ARCANO</span>
+        <span class="public-drawer-brand" aria-label="Arcano Record Store">
+            <img class="public-drawer-brand-img brand-neg" src="{{ url_for('static', filename='brand/logo-primary-negro.png') }}" alt="Arcano Record Store" width="616" height="240">
+            <img class="public-drawer-brand-img brand-bla" src="{{ url_for('static', filename='brand/logo-primary-blanco.png') }}" alt="Arcano Record Store" width="616" height="240">
+        </span>
         <button type="button" class="public-drawer-close" id="public-drawer-close" aria-label="Cerrar menu">&times;</button>
     </div>
     <nav class="public-drawer-nav">

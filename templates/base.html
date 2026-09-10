@@ -6,7 +6,10 @@
     <title>{% block title %}Arcano Stock{% endblock %}</title>
     <!-- App instalable (PWA) del admin: icono + pantalla completa -->
     <link rel="manifest" href="/admin/manifest.webmanifest">
-    <meta name="theme-color" content="#0a0a0c">
+    <meta name="theme-color" content="#1E1C1C">
+    {# Favicon = logo secundario (vinilo) de la identidad de marca #}
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='brand/favicon-32.png') }}">
+    <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='brand/favicon-512.png') }}">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
     <meta name="apple-mobile-web-app-title" content="Arcano">
@@ -30,9 +33,9 @@
     <div class="app-shell">
         <header class="topbar">
             <div class="topbar-brand">
-                <a href="{{ url_for('dashboard') }}" class="brand-link">
-                    <span class="brand-logo">ARCANO</span>
-                    <span class="brand-sub">Stock Manager</span>
+                <a href="{{ url_for('dashboard') }}" class="brand-link" aria-label="Arcano Record Store">
+                    <img class="brand-img brand-neg" src="{{ url_for('static', filename='brand/logo-primary-negro.png') }}" alt="Arcano Record Store" width="616" height="240">
+                    <img class="brand-img brand-bla" src="{{ url_for('static', filename='brand/logo-primary-blanco.png') }}" alt="Arcano Record Store" width="616" height="240">
                 </a>
             </div>
             <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="topbar-nav">&#9776;</button>
@@ -108,7 +111,7 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v4.89</span>
+            <span class="footer-version">v4.90</span>
         </footer>
     </div>
 

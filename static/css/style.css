@@ -2,6 +2,17 @@
    ARCANO STOCK - Estilos completos
    ========================================================================= */
 
+/* Paleta de la identidad de marca (Manual de marca, set. 2026). Base para el
+   re-skin. Crema y negro dominan; beige y marrón acompañan; blanco es el neutro.
+   Sin color de acento saturado: la marca es sobria a propósito. */
+:root {
+    --arcano-crema: #FFF7EC;
+    --arcano-beige: #E9D1AF;
+    --arcano-blanco: #FFFFFF;
+    --arcano-marron: #3D3033;
+    --arcano-negro: #1E1C1C;
+}
+
 :root {
     /* Modo oscuro "Alto contraste" (v3.35): fondo casi negro + superficies (cards)
        claramente mas claras para que se separen del fondo. */
@@ -148,10 +159,16 @@ body.app { display: block; padding: 0; }
 
 .brand-link {
     display: flex;
-    align-items: baseline;
-    gap: 14px;
+    align-items: center;
     text-decoration: none;
 }
+/* Logo de marca (imagen). El admin arranca OSCURO (sin data-theme) -> logo blanco;
+   en tema claro (data-theme=light) -> logo negro. */
+.brand-img { height: 34px; width: auto; display: block; }
+.brand-img.brand-neg { display: none; }
+.brand-img.brand-bla { display: block; }
+[data-theme="light"] .brand-img.brand-neg { display: block; }
+[data-theme="light"] .brand-img.brand-bla { display: none; }
 
 .brand-logo {
     font-size: 22px;
@@ -3110,21 +3127,18 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 .public-brand {
     text-decoration: none;
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    align-items: center;
 }
-
-.public-brand .brand-logo {
-    font-size: 24px;
-    letter-spacing: 6px;
-}
-
-.public-brand-sub {
-    font-size: 10px;
-    letter-spacing: 2px;
-    color: var(--text-5);
-    text-transform: uppercase;
-}
+/* Logo de marca (imagen). La tienda arranca en tema CLARO (data-theme=light) -> logo
+   negro; en tema oscuro (sin data-theme) -> logo blanco. */
+.public-brand-img { height: 40px; width: auto; display: block; }
+.public-drawer-brand-img { height: 30px; width: auto; display: block; }
+/* Toggle de logo por tema: data-theme=light -> logo negro; sin data-theme (oscuro)
+   -> logo blanco. Vale para tienda, admin y drawer. */
+.brand-neg { display: none; }
+.brand-bla { display: block; }
+[data-theme="light"] .brand-neg { display: block; }
+[data-theme="light"] .brand-bla { display: none; }
 
 .public-nav {
     display: flex;
