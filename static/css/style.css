@@ -4234,15 +4234,15 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 }
 
 .public-card-badge-new {
-    background-color: #10b981 !important;
-    color: #fff !important;
-    font-weight: 700;
+    background-color: var(--arcano-beige) !important;
+    color: var(--arcano-negro) !important;
+    font-weight: 500;
 }
 
 .public-card-badge-last {
-    background-color: #f97316 !important;
-    color: #fff !important;
-    font-weight: 700;
+    background-color: var(--arcano-marron) !important;
+    color: var(--arcano-crema) !important;
+    font-weight: 500;
 }
 
 /* Share button */
@@ -7502,9 +7502,9 @@ td.num,
    Sistema de ofertas (SALE): precio tachado, badge de descuento
    ========================================================================= */
 .public-card-badge-sale {
-    background: #ef4444;
-    color: #fff;
-    font-weight: 700;
+    background: var(--arcano-marron);
+    color: var(--arcano-crema);
+    font-weight: 500;
 }
 .public-card-price-oferta {
     display: flex;
@@ -7536,10 +7536,10 @@ td.num,
     font-size: 32px;
 }
 .public-disc-sale-badge {
-    background: #ef4444;
-    color: #fff;
+    background: var(--arcano-marron);
+    color: var(--arcano-crema);
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
     padding: 4px 12px;
     border-radius: 8px;
     letter-spacing: 0.5px;
@@ -8022,14 +8022,14 @@ td.num,
 
 /* Badge y aviso de Pre-order */
 .public-card-badge-preorder {
-    background: #3b82f6 !important;
-    color: #fff !important;
-    font-weight: 700;
+    background: var(--arcano-marron) !important;
+    color: var(--arcano-crema) !important;
+    font-weight: 500;
 }
 .public-disc-preorder-notice {
-    background: rgba(59, 130, 246, 0.12);
-    border: 1px solid rgba(59, 130, 246, 0.4);
-    color: #3b82f6;
+    background: rgba(233, 209, 175, 0.30);
+    border: 1px solid rgba(61, 48, 51, 0.30);
+    color: var(--text-1);
     border-radius: 8px;
     padding: 10px 14px;
     margin-bottom: 14px;
@@ -8746,9 +8746,9 @@ td.num,
 
 /* --- Badge Tip (card del catalogo y carruseles) --- */
 .public-card-badge-tip {
-    background: linear-gradient(135deg, #b8860b, #daa520);
-    color: #0a0a0a;
-    font-weight: 700;
+    background: var(--arcano-beige);
+    color: var(--arcano-negro);
+    font-weight: 500;
 }
 /* Sticker diagonal "Staff Picks" en la esquina superior derecha de la card
    (grilla y carrusel), para los discos con es_tip prendido. La card recorta el
@@ -8759,11 +8759,11 @@ td.num,
     right: -54px;
     width: 190px;
     transform: rotate(45deg);
-    background: linear-gradient(135deg, #b8860b, #daa520);
-    color: #0a0a0a;
+    background: var(--arcano-beige);
+    color: var(--arcano-negro);
     text-align: center;
     font-size: 13px;
-    font-weight: 700;
+    font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.07em;
     padding: 8px 0;
@@ -8785,9 +8785,9 @@ td.num,
 }
 /* --- Badge Tip en la ficha --- */
 .public-badge-tip-ficha {
-    background: linear-gradient(135deg, #b8860b, #daa520);
-    color: #0a0a0a;
-    font-weight: 700;
+    background: var(--arcano-beige);
+    color: var(--arcano-negro);
+    font-weight: 500;
     border: none;
 }
 
@@ -9265,6 +9265,10 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .audio-part { background: #f59e0b; color: #fff; }   /* algunos */
 .audio-none { background: #ef4444; color: #fff; }   /* ninguno */
 .audio-notracks { background: var(--bg-2, #1a1a1a); color: var(--text-4, #777); border: 1px solid var(--border-2, #333); }
+/* En la TIENDA el badge de audio va a la paleta cálida (beige); el admin mantiene el
+   semáforo verde/ámbar/rojo, que ahí sí es info útil para gestionar. */
+.public-body .audio-full,
+.public-body .audio-part { background: var(--arcano-beige); color: var(--arcano-negro); }
 
 /* v2.83 - Boton "Al carrito" dentro del reproductor flotante.
    Aparece solo cuando suena un disco DISPONIBLE, para reservar en el momento. */
@@ -10386,13 +10390,13 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .public-cuenta-bar {
     display: flex; align-items: center; justify-content: center; gap: 12px;
     flex-wrap: wrap; padding: 8px 16px; font-size: 13.5px; text-align: center;
-    background: rgba(255, 90, 60, 0.08);
-    border-bottom: 1px solid rgba(255, 90, 60, 0.25);
+    background: rgba(233, 209, 175, 0.30);
+    border-bottom: 1px solid rgba(61, 48, 51, 0.18);
     color: var(--text-1, #111);
 }
 .public-cuenta-bar .cuenta-bar-cta {
-    background: var(--fire, #ff5a3c); color: #fff; text-decoration: none;
-    font-weight: 700; font-size: 12.5px; padding: 5px 13px; border-radius: 999px;
+    background: var(--arcano-marron); color: var(--arcano-crema); text-decoration: none;
+    font-weight: 500; font-size: 12.5px; padding: 5px 13px; border-radius: 999px;
     white-space: nowrap;
 }
 .public-cuenta-bar .cuenta-bar-cta:hover { filter: brightness(1.06); }
