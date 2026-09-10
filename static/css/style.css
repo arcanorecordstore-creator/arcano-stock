@@ -14,27 +14,28 @@
 }
 
 :root {
-    /* Modo oscuro "Alto contraste" (v3.35): fondo casi negro + superficies (cards)
-       claramente mas claras para que se separen del fondo. */
-    --bg-0: #0d0d0f;
-    --bg-1: #20222a;
-    --bg-2: #262932;
-    --bg-3: #2c2f39;
-    --bg-hover: #30333d;
+    /* Modo oscuro alto contraste + CÁLIDO (identidad de marca, v4.92): fondo negro de
+       marca (#1E1C1C) y superficies en marrón cálido, sin el tinte azul de antes.
+       "Más madera y papel que luz de club". */
+    --bg-0: #1E1C1C;
+    --bg-1: #272320;
+    --bg-2: #2f2a26;
+    --bg-3: #37312c;
+    --bg-hover: #3d362f;
 
-    --border-1: #2a2d36;
-    --border-2: #34373f;
-    --border-3: #414550;
+    --border-1: #322c27;
+    --border-2: #3e362f;
+    --border-3: #4c4139;
 
     /* Sombra sutil de las cards para que se separen del fondo (v3.64). En oscuro
        la separacion viene sobre todo del contraste de fondo; la sombra suma poco. */
     --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
 
-    --text-1: #ffffff;
-    --text-2: #cbced4;
-    --text-3: #9a9da4;
-    --text-4: #9498a1;
-    --text-5: #83868f;
+    --text-1: #f6f1e8;
+    --text-2: #cfc7ba;
+    --text-3: #a89f92;
+    --text-4: #9a9186;
+    --text-5: #8a8175;
 
     --accent: #ffffff;
     --gain: #10b981;
