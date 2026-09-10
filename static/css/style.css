@@ -3228,10 +3228,12 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 }
 
 .public-results-count {
-    color: var(--text-4);
+    /* Estaba en un gris tan claro que casi no se leia. */
+    color: var(--text-3);
     font-size: 12px;
     letter-spacing: 1px;
     text-transform: uppercase;
+    font-weight: 500;
     margin: 16px 0;
 }
 
@@ -3336,11 +3338,15 @@ img.cover-fallback { object-fit: cover; background: transparent; }
     -webkit-box-orient: vertical;
 }
 
+/* Sello · año: una sola línea. Antes se partía feo ("Morning People ·" / "2026"). */
 .public-card-label {
     font-size: 11px;
-    color: var(--text-4);
+    color: var(--text-3);
     letter-spacing: 0.5px;
     margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .public-card-price {
@@ -8074,9 +8080,21 @@ td.num,
    ============================================================ */
 .conta-periodo {
     display: flex;
-    gap: 8px;
+    gap: 8px 16px;
     flex-wrap: wrap;
+    align-items: center;
     margin-bottom: 24px;
+}
+/* Filtros (izquierda) separados de las acciones (derecha), con un divisor sutil. */
+.conta-periodo-filtros { display: flex; gap: 8px; flex-wrap: wrap; }
+.conta-periodo-acciones {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    margin-left: auto;
+    padding-left: 16px;
+    border-left: 1px solid var(--border-2);
+}
+@media (max-width: 720px) {
+    .conta-periodo-acciones { margin-left: 0; padding-left: 0; border-left: none; }
 }
 .conta-periodo-btn {
     padding: 8px 16px;

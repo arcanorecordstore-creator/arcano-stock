@@ -57,14 +57,20 @@
 <!-- ============================================================
      Selector de periodo + exportar
      ============================================================ -->
+{# Filtros a la izquierda, acciones a la derecha: antes eran todos pills del mismo
+   peso y no se distinguia que filtraba de que ejecutaba. #}
 <section class="conta-periodo">
-    {% set periodos = [('mes_actual', 'Este mes'), ('mes_pasado', 'Mes pasado'), ('anio', 'Este año'), ('todo', 'Todo')] %}
-    {% for val, label in periodos %}
-    <a href="{{ url_for('contabilidad', periodo=val) }}"
-       class="conta-periodo-btn {% if periodo == val %}active{% endif %}">{{ label }}</a>
-    {% endfor %}
-    <a href="{{ url_for('contabilidad_exportar', periodo=periodo, desde=desde, hasta=hasta) }}" class="btn btn-ghost">&#8595; Exportar Excel</a>
-    <a href="{{ url_for('contabilidad_informe_pdf', periodo=periodo, desde=desde, hasta=hasta) }}" class="btn btn-ghost">&#128196; Bajar informe PDF</a>
+    <div class="conta-periodo-filtros">
+        {% set periodos = [('mes_actual', 'Este mes'), ('mes_pasado', 'Mes pasado'), ('anio', 'Este año'), ('todo', 'Todo')] %}
+        {% for val, label in periodos %}
+        <a href="{{ url_for('contabilidad', periodo=val) }}"
+           class="conta-periodo-btn {% if periodo == val %}active{% endif %}">{{ label }}</a>
+        {% endfor %}
+    </div>
+    <div class="conta-periodo-acciones">
+        <a href="{{ url_for('contabilidad_exportar', periodo=periodo, desde=desde, hasta=hasta) }}" class="btn btn-ghost">&#8595; Excel</a>
+        <a href="{{ url_for('contabilidad_informe_pdf', periodo=periodo, desde=desde, hasta=hasta) }}" class="btn btn-ghost">&#8595; Informe PDF</a>
+    </div>
 </section>
 
 <!-- Indice para saltar a cada bloque (la pagina es larga) -->
