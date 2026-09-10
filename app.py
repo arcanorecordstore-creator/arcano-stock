@@ -315,12 +315,12 @@ def create_app() -> Flask:
             "scope": "/admin/",
             "display": "standalone",
             "orientation": "portrait",
-            "background_color": "#0a0a0c",
-            "theme_color": "#0a0a0c",
+            "background_color": "#1E1C1C",
+            "theme_color": "#1E1C1C",
             "icons": [
-                {"src": url_for("static", filename="icon-192.png"), "sizes": "192x192", "type": "image/png"},
-                {"src": url_for("static", filename="icon-512.png"), "sizes": "512x512", "type": "image/png"},
-                {"src": url_for("static", filename="icon-maskable-512.png"), "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+                {"src": url_for("static", filename="brand/app-icon-192.png"), "sizes": "192x192", "type": "image/png"},
+                {"src": url_for("static", filename="brand/app-icon-512.png"), "sizes": "512x512", "type": "image/png"},
+                {"src": url_for("static", filename="brand/app-icon-maskable-512.png"), "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
             ],
         }
         return _Resp(_json.dumps(data), mimetype="application/manifest+json")
@@ -363,8 +363,8 @@ self.addEventListener('push', function(e){
   try { data = e.data ? e.data.json() : {}; } catch(err) {}
   var opts = {
     body: data.body || '',
-    icon: '/static/icon-192.png',
-    badge: '/static/icon-192.png',
+    icon: '/static/brand/app-icon-192.png',
+    badge: '/static/brand/app-icon-192.png',
     vibrate: [80, 40, 80],
     data: { url: data.url || '/admin/' }
   };

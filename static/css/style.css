@@ -150,7 +150,10 @@ body.app { display: block; padding: 0; }
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 18px 32px;
+    /* Alinea el contenido de la barra (logo/nav/usuario) con el contenido de la
+       pagina (max-width 1600 centrado): en pantallas anchas el logo deja de quedar
+       pegado al borde y se alinea con los titulos. En angostas cae a 32px. */
+    padding: 18px max(32px, calc((100% - 1600px) / 2 + 32px));
     background-color: var(--bg-1);
     border-bottom: 1px solid var(--border-1);
     position: sticky;
