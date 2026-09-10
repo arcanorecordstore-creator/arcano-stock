@@ -117,7 +117,7 @@
 
 {% if not cliente_actual and request.endpoint not in ['cliente_login_page', 'cliente_registro', 'public_checkout'] %}
 <div class="public-cuenta-bar" id="cuenta-bar" hidden>
-    <span class="cuenta-bar-txt">&#128293; Cre&aacute; tu cuenta y desbloque&aacute; <strong>descuentos exclusivos</strong> + <strong>premios</strong> por tus compras.</span>
+    <span class="cuenta-bar-txt">Cre&aacute; tu cuenta y desbloque&aacute; <strong>descuentos exclusivos</strong> + <strong>premios</strong> por tus compras.</span>
     <a href="{{ url_for('cliente_registro') }}" class="cuenta-bar-cta">Crear cuenta</a>
     <button type="button" class="cuenta-bar-close" id="cuenta-bar-close" aria-label="Cerrar">&times;</button>
 </div>

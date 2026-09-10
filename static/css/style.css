@@ -5446,16 +5446,19 @@ td.num,
 
 /* Corazon flotante sobre la card */
 .fav-btn-card {
+    /* Arriba a la IZQUIERDA: la esquina superior derecha la ocupa la cinta Staff Pick
+       y la inferior derecha los badges (Nuevo / Ultima copia). Asi no se pisan y el
+       play centrado queda con aire. */
     position: absolute;
-    bottom: 8px;
-    right: 8px;
-    width: 34px;
-    height: 34px;
+    top: 8px;
+    left: 8px;
+    width: 32px;
+    height: 32px;
     border-radius: 50%;
-    background: rgba(0,0,0,0.55);
+    background: rgba(30, 28, 28, 0.62);
     backdrop-filter: blur(4px);
     color: #fff;
-    font-size: 16px;
+    font-size: 15px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -5463,7 +5466,7 @@ td.num,
     transition: transform 0.15s, background 0.15s;
     line-height: 1;
 }
-.fav-btn-card:hover { background: rgba(0,0,0,0.8); transform: scale(1.1); }
+.fav-btn-card:hover { background: rgba(30, 28, 28, 0.85); transform: scale(1.1); }
 .fav-btn-card.is-fav { color: #f43f5e; }
 
 /* Boton favorito full en ficha */
@@ -6178,10 +6181,10 @@ td.num,
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%) scale(0.9);
-    width: 52px;
-    height: 52px;
+    width: 50px;
+    height: 50px;
     border-radius: 50%;
-    background: rgba(0,0,0,0.65);
+    background: rgba(30, 28, 28, 0.62);
     backdrop-filter: blur(4px);
     color: #fff;
     border: none;
@@ -6220,10 +6223,10 @@ td.num,
     .card-play-btn {
         opacity: 1;
         transform: translate(-50%, -50%) scale(1);
-        width: 44px;
-        height: 44px;
-        font-size: 17px;
-        background: rgba(0,0,0,0.55);
+        width: 42px;
+        height: 42px;
+        font-size: 16px;
+        background: rgba(30, 28, 28, 0.55);
     }
 }
 
@@ -6446,10 +6449,11 @@ td.num,
         height: 40px;
     }
 
-    /* El boton de play de la card ya es 44px en tactil; asegurar visible */
+    /* El play de la card ya es 42px en tactil (suficiente para el dedo sin comerse
+       la portada, que es el producto). */
     .card-play-btn {
-        width: 48px;
-        height: 48px;
+        width: 42px;
+        height: 42px;
     }
 
     /* Botones de accion (reservar, agregar, etc): altura comoda */
@@ -8749,9 +8753,11 @@ td.num,
    ============================================================ */
 
 /* --- Badge Tip (card del catalogo y carruseles) --- */
+/* Staff Pick / Tip: marca curatorial. Va NEGRO sobre la card clara (el manual prohíbe
+   beige sobre blanco) y así queda distinta de los badges de estado, que son marrón. */
 .public-card-badge-tip {
-    background: var(--arcano-beige);
-    color: var(--arcano-negro);
+    background: var(--arcano-negro);
+    color: var(--arcano-crema);
     font-weight: 500;
 }
 /* Sticker diagonal "Staff Picks" en la esquina superior derecha de la card
@@ -8763,8 +8769,8 @@ td.num,
     right: -54px;
     width: 190px;
     transform: rotate(45deg);
-    background: var(--arcano-beige);
-    color: var(--arcano-negro);
+    background: var(--arcano-negro);
+    color: var(--arcano-crema);
     text-align: center;
     font-size: 13px;
     font-weight: 500;
@@ -8789,8 +8795,8 @@ td.num,
 }
 /* --- Badge Tip en la ficha --- */
 .public-badge-tip-ficha {
-    background: var(--arcano-beige);
-    color: var(--arcano-negro);
+    background: var(--arcano-negro);
+    color: var(--arcano-crema);
     font-weight: 500;
     border: none;
 }
@@ -10620,8 +10626,22 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 /* M8 - h1 oculto visualmente (SEO/accesibilidad, sin ocupar espacio) */
 .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 /* M8 - tira de confianza / como funciona */
-.public-trust { display:flex; flex-wrap:wrap; gap:8px 18px; justify-content:center; margin:4px 0 16px; font-size:13.5px; color:var(--text-2); }
-.public-trust-item { white-space:nowrap; }
+/* Tira de confianza: sin emojis y con la voz tipografica del manual (Medium en
+   mayusculas con tracking amplio). Separador tipografico sutil entre items. */
+.public-trust { display:flex; flex-wrap:wrap; gap:6px 0; justify-content:center; margin:6px 0 18px; font-size:11px; color:var(--text-3); }
+.public-trust-item {
+    white-space:nowrap;
+    text-transform:uppercase;
+    letter-spacing:.14em;
+    font-weight:500;
+    padding:0 16px;
+    position:relative;
+}
+.public-trust-item + .public-trust-item::before {
+    content:"";
+    position:absolute; left:0; top:50%; transform:translateY(-50%);
+    width:1px; height:11px; background:var(--border-2);
+}
 /* M9 - invitacion a crear cuenta en la pantalla de gracias */
 .public-reserve-ok-cuenta { margin:18px 0 6px; padding:16px 18px; border:1px solid var(--border-2); border-radius:12px; background:var(--bg-2); text-align:center; }
 .public-reserve-ok-cuenta strong { display:block; font-size:15px; margin-bottom:4px; }
