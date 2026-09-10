@@ -45,7 +45,7 @@
     </div>
     <div class="venta-metodo">
         <span class="venta-col-label">M&eacute;todo</span>
-        <select class="venta-select" data-disc-id="{{ d.id }}" data-campo="metodo_pago_venta" aria-label="Metodo de pago">
+        <select class="venta-select" data-disc-id="{{ d.id }}" data-campo="metodo_pago_venta" aria-label="Método de pago">
             <option value="" {% if not met %}selected{% endif %}>&mdash;</option>
             <option value="mercadopago" {% if met == 'mercadopago' %}selected{% endif %}>Mercado Pago</option>
             <option value="transferencia" {% if met == 'transferencia' %}selected{% endif %}>Transferencia</option>

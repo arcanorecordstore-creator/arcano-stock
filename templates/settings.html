@@ -37,7 +37,7 @@
                 <span class="tc-label">Valores actuales</span>
                 <span class="tc-value">1 EUR = {{ tc }} UYU &nbsp;&middot;&nbsp; 1 USD = {{ tc_usd }} UYU</span>
                 {% if tc_updated_at %}
-                    <span class="tc-meta">Ultima modificacion: {{ tc_updated_at|hora_uy }}</span>
+                    <span class="tc-meta">Última modificación: {{ tc_updated_at|hora_uy }}</span>
                 {% endif %}
             </div>
 
@@ -290,12 +290,12 @@
 
             <div class="settings-subsection-head">
                 <h3 class="settings-subsection-title">Hero (texto sobrepuesto al banner)</h3>
-                <p class="settings-subsection-sub">Titulo y subtitulo grandes que aparecen sobre el banner de la home. Si los dejas vacios se usa "Vinilos electronicos" y el tagline.</p>
+                <p class="settings-subsection-sub">Título y subtítulo grandes que aparecen sobre el banner de la home. Si los dejas vacios se usa "Vinilos electronicos" y el tagline.</p>
             </div>
 
             <div class="form-row">
                 <div class="form-field">
-                    <label for="public_hero_title">Titulo del hero</label>
+                    <label for="public_hero_title">Título del hero</label>
                     <input type="text" id="public_hero_title" name="public_hero_title" value="{{ public_hero_title or '' }}" placeholder="Vinilos electronicos">
                 </div>
                 <div class="form-field">
@@ -368,7 +368,7 @@
             </div>
 
             <div class="form-field" style="margin-top: 14px;">
-                <label for="analytics_snippet">Codigo de Analytics <span class="form-field-hint">(pega aca el snippet completo de Google Analytics u otro; se inserta en todas las paginas de la tienda)</span></label>
+                <label for="analytics_snippet">Código de Analytics <span class="form-field-hint">(pegá acá el snippet completo de Google Analytics u otro; se inserta en todas las paginas de la tienda)</span></label>
                 <textarea id="analytics_snippet" name="analytics_snippet" rows="4" placeholder="&lt;script async src=&quot;https://www.googletagmanager.com/gtag/js?id=G-XXXX&quot;&gt;&lt;/script&gt;..." style="font-family: monospace; font-size: 12px;">{{ analytics_snippet or '' }}</textarea>
             </div>
 

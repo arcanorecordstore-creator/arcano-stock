@@ -1,6 +1,6 @@
 {% extends "public/base.html" %}
 
-{% block title %}Catalogo &middot; Arcano Record Store{% endblock %}
+{% block title %}Catálogo &middot; Arcano Record Store{% endblock %}
 
 {% block content %}
 
@@ -211,7 +211,7 @@
 
             {% if generos %}
             <div class="filter-block">
-                <div class="filter-block-title">Genero</div>
+                <div class="filter-block-title">Género</div>
                 <div class="filter-checks">
                     {% for g, cnt in generos %}
                     <label class="filter-check">
@@ -256,7 +256,7 @@
 
             {% if paises %}
             <div class="filter-block">
-                <div class="filter-block-title">Pais</div>
+                <div class="filter-block-title">País</div>
                 <div class="filter-checks">
                     {% for p, cnt in paises %}
                     <label class="filter-check">
@@ -354,7 +354,7 @@
                 <span class="public-card-badge public-card-badge-sale">-{{ d.descuento_pct }}%</span>
                 {% endif %}
                 {% if d.mostrar_cartel_ultima and not d.esta_agotado %}
-                <span class="public-card-badge public-card-badge-last">Ultima copia</span>
+                <span class="public-card-badge public-card-badge-last">Última copia</span>
                 {% endif %}
             </div>
             {% set ps = d.primer_track_sample %}

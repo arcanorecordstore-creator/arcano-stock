@@ -63,7 +63,7 @@
 
             {% if reserva.metodo_pago %}
             <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-1);">
-                <span class="detail-meta-label">Metodo de pago</span>
+                <span class="detail-meta-label">Método de pago</span>
                 <p class="detail-meta-value" style="margin-top: 4px;">
                     {% if reserva.metodo_pago == 'transferencia' %}Transferencia bancaria
                     {% elif reserva.metodo_pago == 'mercadopago' %}Mercado Pago{% if reserva.pagado %} &middot; <strong style="color: var(--gain);">PAGADO</strong>{% elif reserva.mp_status %} &middot; {{ reserva.mp_status }}{% endif %}

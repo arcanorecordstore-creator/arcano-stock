@@ -87,7 +87,7 @@
                            value="{{ field_value('artista', disc.artista) }}">
                 </div>
                 <div class="form-field">
-                    <label for="titulo">Titulo <span class="req">*</span></label>
+                    <label for="titulo">Título <span class="req">*</span></label>
                     <input type="text" id="titulo" name="titulo" required
                            value="{{ field_value('titulo', disc.titulo) }}">
                 </div>
@@ -122,12 +122,12 @@
 
             <div class="form-row">
                 <div class="form-field">
-                    <label for="genero">Genero</label>
+                    <label for="genero">Género</label>
                     <input type="text" id="genero" name="genero"
                            value="{{ field_value('genero', disc.genero) }}">
                 </div>
                 <div class="form-field form-field-sm">
-                    <label for="pais">Pais de origen</label>
+                    <label for="pais">País de origen</label>
                     <input type="text" id="pais" name="pais" list="pais-list" placeholder="Alemania"
                            value="{{ field_value('pais', disc.pais) }}">
                     <datalist id="pais-list">
@@ -148,7 +148,7 @@
                 <div class="form-field form-field-full">
                     <label for="tracklist">Tracklist (texto)</label>
                     <textarea id="tracklist" name="tracklist" rows="4"
-                              placeholder="A1. Artista - Titulo&#10;A2. Artista - Titulo&#10;B1. ...">{{ field_value('tracklist', disc.tracklist) }}</textarea>
+                              placeholder="A1. Artista - Título&#10;A2. Artista - Título&#10;B1. ...">{{ field_value('tracklist', disc.tracklist) }}</textarea>
                     <span class="form-field-hint">Se usa como fallback. Abajo podes buscar el audio de cada track.</span>
                 </div>
             </div>
@@ -385,8 +385,8 @@
 
             <div class="form-row">
                 <div class="form-field form-field-full">
-                    <label for="descripcion_publica">Descripcion publica <span class="form-field-hint">(visible en la ficha de tienda)</span></label>
-                    <textarea id="descripcion_publica" name="descripcion_publica" rows="4" placeholder="Descripcion editorial: como descubriste el disco, que te gusta, recomendacion DJ, contexto del sello...">{{ field_value('descripcion_publica', disc.descripcion_publica) }}</textarea>
+                    <label for="descripcion_publica">Descripción pública <span class="form-field-hint">(visible en la ficha de tienda)</span></label>
+                    <textarea id="descripcion_publica" name="descripcion_publica" rows="4" placeholder="Descripción editorial: como descubriste el disco, que te gusta, recomendacion DJ, contexto del sello...">{{ field_value('descripcion_publica', disc.descripcion_publica) }}</textarea>
                 </div>
             </div>
 
@@ -460,7 +460,7 @@
                 <div class="form-field">
                     <label class="checkbox-field" style="margin-top: 28px;">
                         <input type="checkbox" name="cartel_ultima" value="1" {% if disc.cartel_ultima %}checked{% endif %}>
-                        <span>Mostrar cartel "Ultima copia"</span>
+                        <span>Mostrar cartel "Última copia"</span>
                     </label>
                     <label class="checkbox-field">
                         <input type="checkbox" name="mostrar_agotado" value="1" {% if disc.mostrar_agotado %}checked{% endif %}>

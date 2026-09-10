@@ -87,7 +87,7 @@
                 {% if session.get('admin_user') %}
                 <span class="meta-user">
                     <span class="meta-user-name">{{ session.get('admin_user') }}</span>
-                    <a href="{{ url_for('admin_logout') }}" class="meta-logout" title="Cerrar sesion" aria-label="Cerrar sesi&oacute;n">&#x21AA;</a>
+                    <a href="{{ url_for('admin_logout') }}" class="meta-logout" title="Cerrar sesión" aria-label="Cerrar sesi&oacute;n">&#x21AA;</a>
                 </span>
                 {% endif %}
             </div>
@@ -111,7 +111,7 @@
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v4.94</span>
+            <span class="footer-version">v4.95</span>
         </footer>
     </div>
 
@@ -174,7 +174,7 @@
             });
         })();
 
-        // Grupos del nav (Gestion / Agregar): click para abrir/cerrar el desplegable
+        // Grupos del nav (Gestión / Agregar): click para abrir/cerrar el desplegable
         (function () {
             var groups = document.querySelectorAll('.nav-group');
             if (!groups.length) return;

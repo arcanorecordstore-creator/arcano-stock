@@ -88,7 +88,7 @@
                     <span class="detail-meta-value">{{ disc.formato or '—' }}</span>
                 </div>
                 <div class="detail-meta">
-                    <span class="detail-meta-label">Genero</span>
+                    <span class="detail-meta-label">Género</span>
                     <span class="detail-meta-value">{{ disc.genero or '—' }}</span>
                 </div>
                 <div class="detail-meta">
@@ -213,7 +213,7 @@
 
         <p class="detail-footer-meta">
             ID interno: #{{ disc.id }} &middot;
-            Ultima modificacion: {{ disc.fecha_modificacion|hora_uy if disc.fecha_modificacion else '—' }}
+            Última modificación: {{ disc.fecha_modificación|hora_uy if disc.fecha_modificación else '—' }}
         </p>
     </div>
 </div>

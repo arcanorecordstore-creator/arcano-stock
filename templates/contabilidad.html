@@ -58,7 +58,7 @@
      Selector de periodo + exportar
      ============================================================ -->
 <section class="conta-periodo">
-    {% set periodos = [('mes_actual', 'Este mes'), ('mes_pasado', 'Mes pasado'), ('anio', 'Este ano'), ('todo', 'Todo')] %}
+    {% set periodos = [('mes_actual', 'Este mes'), ('mes_pasado', 'Mes pasado'), ('anio', 'Este año'), ('todo', 'Todo')] %}
     {% for val, label in periodos %}
     <a href="{{ url_for('contabilidad', periodo=val) }}"
        class="conta-periodo-btn {% if periodo == val %}active{% endif %}">{{ label }}</a>
@@ -202,7 +202,7 @@
                 <input type="date" id="eg-fecha" name="fecha" value="{{ now.strftime('%Y-%m-%d') }}">
             </div>
             <div class="form-field">
-                <label for="eg-categoria">Categoria</label>
+                <label for="eg-categoria">Categoría</label>
                 <select id="eg-categoria" name="categoria">
                     {% for c in categorias %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
                 </select>
@@ -212,7 +212,7 @@
                 <input type="text" id="eg-cat-nueva" name="categoria_nueva" placeholder="opcional">
             </div>
             <div class="form-field">
-                <label for="eg-desc">Descripcion</label>
+                <label for="eg-desc">Descripción</label>
                 <input type="text" id="eg-desc" name="descripcion" placeholder="ej: campana Meta abril">
             </div>
             <div class="form-field form-field-sm">
@@ -278,8 +278,8 @@
     <table class="conta-table">
         <thead>
             <tr>
-                <th>Categoria</th>
-                <th>Descripcion</th>
+                <th>Categoría</th>
+                <th>Descripción</th>
                 <th class="col-num">Monto</th>
                 <th></th>
             </tr>
@@ -310,13 +310,13 @@
     <form method="post" action="{{ url_for('recurrente_agregar') }}" class="conta-form" style="margin-top: 16px;">
         <div class="conta-form-grid">
             <div class="form-field">
-                <label for="rec-categoria">Categoria</label>
+                <label for="rec-categoria">Categoría</label>
                 <select id="rec-categoria" name="categoria">
                     {% for c in categorias %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
                 </select>
             </div>
             <div class="form-field">
-                <label for="rec-desc">Descripcion</label>
+                <label for="rec-desc">Descripción</label>
                 <input type="text" id="rec-desc" name="descripcion" placeholder="ej: Render hosting">
             </div>
             <div class="form-field form-field-sm">
@@ -667,7 +667,7 @@
     </p>
     {% if stock_frenado.filas %}
     <table class="rank-table">
-        <thead><tr><th class="rank-num">Dias</th><th>Disco</th><th>Sello</th><th class="rank-num-cell">Costo (quieto)</th><th class="rank-num-cell">Precio</th><th>Ingreso</th></tr></thead>
+        <thead><tr><th class="rank-num">Días</th><th>Disco</th><th>Sello</th><th class="rank-num-cell">Costo (quieto)</th><th class="rank-num-cell">Precio</th><th>Ingreso</th></tr></thead>
         <tbody>
             {% for f in stock_frenado.filas[:20] %}
             <tr class="{% if f.dias is not none and f.dias >= stock_frenado.umbral %}row-frenado{% endif %}">
