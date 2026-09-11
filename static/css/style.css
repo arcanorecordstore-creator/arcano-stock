@@ -3250,6 +3250,7 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 }
 
 .public-card {
+    position: relative;
     text-decoration: none;
     color: inherit;
     display: flex;
@@ -8915,26 +8916,27 @@ td.num,
 /* Sticker diagonal "Staff Picks" en la esquina superior derecha de la card
    (grilla y carrusel), para los discos con es_tip prendido. La card recorta el
    sobrante (overflow:hidden) dejando la banda diagonal en la esquina. */
+/* Banda diagonal (cinta) en la esquina superior IZQUIERDA, color que destaca */
 .card-staff-sticker {
     position: absolute;
-    top: 8px;
-    left: 8px;
-    right: auto;
-    width: auto;
-    transform: none;
+    top: 19px;
+    left: -54px;
+    width: 190px;
+    transform: rotate(-45deg);
     background: #d6a945;
     color: var(--arcano-negro);
-    text-align: left;
-    font-size: 10px;
+    text-align: center;
+    font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    padding: 3px 8px;
-    border-radius: 4px;
+    letter-spacing: 0.06em;
+    padding: 7px 0;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.34);
-    z-index: 5;
+    z-index: 6;
     pointer-events: none;
 }
+/* Cuando hay banda, los demas carteles bajan para no cruzarse con ella */
+.public-card-cover .public-card-badges.has-ribbon { top: 46px; }
 /* En celular el sticker queda grande para las cards chicas de la GRILLA -> se
    achica. En el carrusel (mobile) queda como esta (Facundo dijo que esta bien). */
 @media (max-width: 720px) {
