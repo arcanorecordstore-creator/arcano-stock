@@ -4395,6 +4395,16 @@ img.cover-fallback { object-fit: cover; background: transparent; }
     box-sizing: border-box;
 }
 
+/* Portada de marca (imagen sin titulo grande encima): sin velo oscuro,
+   la imagen ya trae su propio contraste. Solo un apoyo minimo abajo por si
+   hay bajada de texto. */
+.public-hero-overlay-clean {
+    background: linear-gradient(180deg, rgba(30, 28, 28, 0) 60%, rgba(30, 28, 28, 0.32) 100%);
+}
+.public-hero-overlay-clean .public-hero-tagline {
+    text-shadow: 0 1px 8px rgba(0, 0, 0, 0.7);
+}
+
 .public-hero-with-banner .public-hero-title {
     font-size: 36px;
     color: #fff;

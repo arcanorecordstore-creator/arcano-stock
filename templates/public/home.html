@@ -12,14 +12,14 @@
     <video class="public-hero-video-bg" autoplay muted loop playsinline{% if banner_url %} poster="{{ banner_url }}"{% endif %}>
         <source src="{{ banner_video_url }}" type="video/mp4">
     </video>
-    <div class="public-hero-overlay">
+    <div class="public-hero-overlay{% if not hero_h %} public-hero-overlay-clean{% endif %}">
         {% if hero_h %}<h1 class="public-hero-title">{{ hero_h }}</h1>{% endif %}
         {% if hero_sub %}<p class="public-hero-tagline">{{ hero_sub }}</p>{% endif %}
     </div>
 </section>
 {% elif banner_url %}
 <section class="public-hero public-hero-with-banner" style="background-image: url('{{ banner_url }}');">
-    <div class="public-hero-overlay">
+    <div class="public-hero-overlay{% if not hero_h %} public-hero-overlay-clean{% endif %}">
         {% if hero_h %}<h1 class="public-hero-title">{{ hero_h }}</h1>{% endif %}
         {% if hero_sub %}<p class="public-hero-tagline">{{ hero_sub }}</p>{% endif %}
     </div>
