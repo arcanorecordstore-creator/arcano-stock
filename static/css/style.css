@@ -3827,6 +3827,25 @@ img.cover-fallback { object-fit: cover; background: transparent; }
     gap: 16px;
     margin: 0 0 18px;
 }
+.public-related-title-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    color: inherit;
+    text-decoration: none;
+    transition: color 0.15s;
+}
+.public-related-title-link:hover { color: var(--text-1); }
+.public-related-title-arrow {
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: opacity 0.18s, transform 0.18s;
+    color: var(--arcano-beige, #E9D1AF);
+}
+.public-related-title-link:hover .public-related-title-arrow {
+    opacity: 1;
+    transform: translateX(0);
+}
 .public-related-navs { display: flex; gap: 8px; flex: none; }
 .public-related-nav {
     width: 38px;
@@ -9167,24 +9186,34 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     .cart-btn.is-in-cart { animation: none; }
 }
 
-/* ===== Micro-interacciones (v5.06) ===== */
+/* ===== Micro-interacciones (v5.06 / suavizadas v5.08) ===== */
 @media (prefers-reduced-motion: no-preference) {
-    /* Feedback tactil al presionar botones (el transform ya lo transicionan) */
+    /* Easing elegante para el feedback de presionado */
+    .btn, .cart-btn, .public-share-btn, .public-wsp-btn, .fav-btn-full,
+    .disc-buybar-btn, .public-related-nav, .public-track-play-btn {
+        transition-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
+    }
+    /* Hundimiento sutil (no agresivo) al presionar botones */
     .btn:active,
     .cart-btn:active,
     .public-share-btn:active,
     .public-wsp-btn:active,
     .fav-btn-full:active,
-    .disc-buybar-btn:active { transform: scale(0.96); }
-    .public-related-nav:active:not(:disabled) { transform: scale(0.9); }
+    .disc-buybar-btn:active { transform: scale(0.985); }
+    .public-related-nav:active:not(:disabled) { transform: scale(0.94); }
 
-    /* Pop al quedar "Agregado" en el carrito */
+    /* Tracklist: hundimiento suave al tocar la fila y su boton */
+    .public-track-row { transition: background-color 0.2s ease, border-left-color 0.2s ease, transform 0.18s cubic-bezier(0.22, 0.61, 0.36, 1); }
+    .public-track-row:active { transform: scale(0.992); }
+    .public-track-play-btn:active { transform: scale(0.92); }
+
+    /* Pop suave al quedar "Agregado" en el carrito */
     @keyframes cartAdded {
         0% { transform: scale(1); }
-        38% { transform: scale(1.07); }
+        45% { transform: scale(1.025); }
         100% { transform: scale(1); }
     }
-    .cart-btn.is-in-cart { animation: cartAdded 0.34s ease; }
+    .cart-btn.is-in-cart { animation: cartAdded 0.45s cubic-bezier(0.22, 0.61, 0.36, 1); }
 }
 
 /* ============================================================

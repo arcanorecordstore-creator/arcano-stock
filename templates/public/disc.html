@@ -406,7 +406,15 @@
 {% if relacionados %}
 <section class="public-related">
     <div class="public-related-head">
-        <h2 class="public-related-title">Similares a este disco{% if disc.genero %} <span class="public-related-genre">{{ disc.genero }}</span>{% endif %}</h2>
+        <h2 class="public-related-title">
+            {%- if disc.genero -%}
+            {%- set _gen = [] -%}
+            {%- for g in disc.genero.split(',') if g.strip() -%}{%- set _ = _gen.append(g.strip()) -%}{%- endfor -%}
+            <a href="{{ url_for('home', genero=_gen) }}" class="public-related-title-link" title="Ver todo el catalogo de este genero">Similares a este disco <span class="public-related-genre">{{ disc.genero }}</span> <span class="public-related-title-arrow">&rarr;</span></a>
+            {%- else -%}
+            Similares a este disco
+            {%- endif -%}
+        </h2>
         <div class="public-related-navs">
             <button type="button" class="public-related-nav prev" aria-label="Ver anteriores" disabled>&#8249;</button>
             <button type="button" class="public-related-nav next" aria-label="Ver siguientes">&#8250;</button>
