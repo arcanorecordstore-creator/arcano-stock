@@ -9163,6 +9163,28 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     @view-transition { navigation: none; }
     .public-card, .public-card-cover img, .listen-all-btn { transition: none; }
     .public-card-cover, .carrusel-cover { animation: none; }
+    .public-card.will-fade { transition: none; }
+    .cart-btn.is-in-cart { animation: none; }
+}
+
+/* ===== Micro-interacciones (v5.06) ===== */
+@media (prefers-reduced-motion: no-preference) {
+    /* Feedback tactil al presionar botones (el transform ya lo transicionan) */
+    .btn:active,
+    .cart-btn:active,
+    .public-share-btn:active,
+    .public-wsp-btn:active,
+    .fav-btn-full:active,
+    .disc-buybar-btn:active { transform: scale(0.96); }
+    .public-related-nav:active { transform: translateY(-50%) scale(0.9); }
+
+    /* Pop al quedar "Agregado" en el carrito */
+    @keyframes cartAdded {
+        0% { transform: scale(1); }
+        38% { transform: scale(1.07); }
+        100% { transform: scale(1); }
+    }
+    .cart-btn.is-in-cart { animation: cartAdded 0.34s ease; }
 }
 
 /* ============================================================

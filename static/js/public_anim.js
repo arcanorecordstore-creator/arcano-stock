@@ -49,14 +49,29 @@ window.arcanoGA = function (name, params) {
         return;
     }
 
-    // Marcar todos como no visibles inicialmente
-    targets.forEach(function (el) { el.classList.add('will-fade'); });
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    // Marcar todos como no visibles inicialmente + cascada por posicion (solo cards)
+    targets.forEach(function (el) {
+        el.classList.add('will-fade');
+        if (!reduce && el.classList.contains('public-card') && el.parentElement) {
+            var idx = Array.prototype.indexOf.call(el.parentElement.children, el);
+            el.style.transitionDelay = Math.min((idx % 6) * 0.06, 0.3) + 's';
+        }
+    });
 
     var observer = new IntersectionObserver(function (entries) {
         entries.forEach(function (entry) {
             if (entry.isIntersecting) {
-                entry.target.classList.add('is-visible');
-                observer.unobserve(entry.target);
+                var el = entry.target;
+                el.classList.add('is-visible');
+                observer.unobserve(el);
+                // Al terminar la entrada, sacar will-fade y el delay para que el
+                // hover quede instantaneo (no arrastre la transicion lenta de entrada).
+                setTimeout(function () {
+                    el.classList.remove('will-fade');
+                    el.style.transitionDelay = '';
+                }, 900);
             }
         });
     }, {
