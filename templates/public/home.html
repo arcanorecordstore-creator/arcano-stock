@@ -53,7 +53,7 @@
             {% for d in discos %}
             {% set ps = d.primer_track_sample %}
             <div class="carrusel-card">
-                {% if d.es_tip %}<span class="card-staff-sticker">Staff Pick</span>{% endif %}
+                {% if d.es_tip %}<span class="card-staff-sticker">&#9733; Staff Pick</span>{% endif %}
                 <div class="carrusel-body">
                 <div class="carrusel-cover">
                     {% if d.cover_local %}
@@ -344,7 +344,7 @@
             {% if d.esta_agotado and not d.mostrar_preorder %}<div class="public-card-agotado-overlay"><span>Agotado</span></div>{% endif %}
             <div class="public-card-badges">
                 {% if d.es_tip and not d.esta_agotado %}
-                <span class="public-card-badge public-card-badge-staff">Staff Pick</span>
+                <span class="public-card-badge public-card-badge-staff">&#9733; Staff Pick</span>
                 {% endif %}
                 {% if d.mostrar_preorder %}
                 <span class="public-card-badge public-card-badge-preorder">Pre-order</span>

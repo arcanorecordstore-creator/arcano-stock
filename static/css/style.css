@@ -3314,9 +3314,9 @@ img.cover-fallback { object-fit: cover; background: transparent; }
     white-space: nowrap;
 }
 .public-card-badge-staff {
-    background: var(--arcano-negro) !important;
-    color: var(--arcano-crema) !important;
-    font-weight: 500;
+    background: #d6a945 !important;   /* ambar calido: el pick del curador, mas llamativo */
+    color: var(--arcano-negro) !important;
+    font-weight: 600;
 }
 
 .public-card-info {
@@ -4428,11 +4428,11 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 @media (max-width: 600px) {
     .public-hero-with-banner {
         min-height: 0;
-        /* La imagen panoramica se ve completa, el contenedor toma su forma */
-        background-size: contain;
+        /* Llena el banner sin barras blancas; el contenido esta centrado en la imagen */
+        background-size: cover;
         background-position: center;
-        background-color: var(--bg-1, #111);
-        aspect-ratio: 16 / 5;
+        background-color: var(--arcano-negro, #1E1C1C);
+        aspect-ratio: 16 / 6;
     }
     .public-hero-overlay {
         min-height: 0;
@@ -8815,11 +8815,11 @@ td.num,
     right: auto;
     width: auto;
     transform: none;
-    background: var(--arcano-negro);
-    color: var(--arcano-crema);
+    background: #d6a945;
+    color: var(--arcano-negro);
     text-align: left;
     font-size: 10px;
-    font-weight: 500;
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 1px;
     padding: 3px 8px;
@@ -10849,14 +10849,15 @@ body.app .flash.flash-fade { opacity: 0; transform: translateY(-8px); }
 .sena-add:hover { border-color: #d6a945; color: #d6a945; }
 .sena-chip { background: rgba(214,169,69,.14); border-color: rgba(214,169,69,.5); color: #d6a945; font-weight: 700; }
 
-/* v4.97: targets separados, sin ocultar desbordes de la pagina. */
+/* Carteles apilados arriba-izquierda; corazon grande arriba-derecha; play centrado. */
 .public-card-cover .public-card-badges {
-    top: auto; bottom: 10px; left: 10px; right: 10px;
+    top: 8px; bottom: auto; left: 8px; right: auto;
+    max-width: calc(100% - 58px);
     align-items: flex-start; z-index: 3;
 }
-.public-card-cover .fav-btn-card { top: 8px; left: 8px; width: 38px; height: 38px; }
+.public-card-cover .fav-btn-card { top: 8px; left: auto; right: 8px; width: 40px; height: 40px; }
 .public-card-cover .card-play-btn {
-    width: 64px; height: 64px; font-size: 27px;
+    width: 56px; height: 56px; font-size: 23px;
     opacity: 1; transform: translate(-50%, -50%);
 }
 .public-card-cover .card-play-btn:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
@@ -10870,5 +10871,5 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
     body.app .settings-grid > * { min-width: 0; max-width: 100%; }
     body.app .rank-table, body.app .conta-table { width: 100%; max-width: 100%; overflow-x: auto; }
     body.app .page-actions .btn { white-space: normal; }
-    .public-card-cover .card-play-btn { width: 60px; height: 60px; font-size: 26px; }
+    .public-card-cover .card-play-btn { width: 46px; height: 46px; font-size: 19px; }
 }
