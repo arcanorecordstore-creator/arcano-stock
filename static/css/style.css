@@ -3302,15 +3302,21 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 }
 
 .public-card-badge {
-    position: absolute;
-    bottom: 8px;
-    right: 8px;
+    position: static;
+    display: inline-block;
     background-color: rgba(0, 0, 0, 0.75);
     color: var(--text-1);
     font-size: 10px;
     padding: 3px 8px;
     border-radius: 4px;
     letter-spacing: 1px;
+    line-height: 1.4;
+    white-space: nowrap;
+}
+.public-card-badge-staff {
+    background: var(--arcano-negro) !important;
+    color: var(--arcano-crema) !important;
+    font-weight: 500;
 }
 
 .public-card-info {
@@ -4222,12 +4228,14 @@ img.cover-fallback { object-fit: cover; background: transparent; }
     position: absolute;
     top: 8px;
     left: 8px;
-    right: 8px;
+    right: auto;
+    max-width: calc(100% - 58px);   /* deja libre la esquina del corazon */
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 4px;
     justify-content: flex-start;
+    z-index: 2;
     pointer-events: none;
 }
 
@@ -5462,23 +5470,23 @@ td.num,
 
 /* Corazon flotante sobre la card */
 .fav-btn-card {
-    /* Arriba a la IZQUIERDA: la esquina superior derecha la ocupa la cinta Staff Pick
-       y la inferior derecha los badges (Nuevo / Ultima copia). Asi no se pisan y el
-       play centrado queda con aire. */
+    /* Corazon arriba a la DERECHA (grande). Los carteles (Staff Pick / Nuevo /
+       Ultima copia / etc.) van apilados arriba a la IZQUIERDA. El play queda centrado. */
     position: absolute;
     top: 8px;
-    left: 8px;
-    width: 32px;
-    height: 32px;
+    right: 8px;
+    left: auto;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     background: rgba(30, 28, 28, 0.62);
     backdrop-filter: blur(4px);
     color: #fff;
-    font-size: 15px;
+    font-size: 20px;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 3;
+    z-index: 6;
     transition: transform 0.15s, background 0.15s;
     line-height: 1;
 }
@@ -8802,18 +8810,20 @@ td.num,
    sobrante (overflow:hidden) dejando la banda diagonal en la esquina. */
 .card-staff-sticker {
     position: absolute;
-    top: 24px;
-    right: -54px;
-    width: 190px;
-    transform: rotate(45deg);
+    top: 8px;
+    left: 8px;
+    right: auto;
+    width: auto;
+    transform: none;
     background: var(--arcano-negro);
     color: var(--arcano-crema);
-    text-align: center;
-    font-size: 13px;
+    text-align: left;
+    font-size: 10px;
     font-weight: 500;
     text-transform: uppercase;
-    letter-spacing: 0.07em;
-    padding: 8px 0;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 4px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.34);
     z-index: 5;
     pointer-events: none;
