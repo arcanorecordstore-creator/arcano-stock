@@ -3576,7 +3576,14 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 }
 /* En tactil no hay hover: el play siempre visible y discreto, el vinilo asoma fijo */
 @media (hover: none) {
-    .public-disc-cover-play .play-icon { width: 54px; height: 54px; font-size: 21px; }
+    .public-disc-cover-play .play-icon {
+        width: 62px;
+        height: 62px;
+        font-size: 24px;
+        background: rgba(30, 28, 28, 0.82);
+        border: 2px solid rgba(255, 255, 255, 0.9);
+        box-shadow: 0 6px 22px rgba(0, 0, 0, 0.55);
+    }
     .public-disc-cover-hint { display: none; }
     .public-disc-coverwrap.has-sample .public-disc-vinyl { transform: translateX(18%) rotate(6deg); }
 }
@@ -3784,16 +3791,55 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 
 /* Relacionados */
 .public-related {
-    margin-top: 60px;
-    padding-top: 40px;
+    margin-top: 56px;
+    padding-top: 34px;
     border-top: 1px solid var(--border-1);
 }
 
 .public-related-title {
-    font-size: 16px;
-    color: var(--text-1);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.16em;
+    color: var(--text-3);
     margin: 0 0 20px;
-    font-weight: 500;
+    font-weight: 600;
+}
+.public-related-title::before {
+    content: "";
+    width: 26px;
+    height: 2px;
+    background: var(--arcano-beige, #E9D1AF);
+    flex: none;
+}
+
+/* Carrusel horizontal de similares: se ven ~8 y se scrollea para ver mas */
+.public-related-scroll {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    padding: 2px 2px 14px;
+    margin: 0 -2px;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-2) transparent;
+}
+.public-related-scroll::-webkit-scrollbar { height: 8px; }
+.public-related-scroll::-webkit-scrollbar-thumb {
+    background: var(--border-2);
+    border-radius: 999px;
+}
+.public-related-scroll::-webkit-scrollbar-track { background: transparent; }
+.public-related-card {
+    flex: 0 0 178px;
+    width: 178px;
+    scroll-snap-align: start;
+}
+@media (max-width: 600px) {
+    .public-related-card { flex-basis: 150px; width: 150px; }
 }
 
 /* Reserva form */
@@ -7614,16 +7660,16 @@ td.num,
 /* Badge de genero en el titulo de "Similares" */
 .public-related-genre {
     display: inline-block;
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--accent);
-    background: var(--bg-2);
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--arcano-negro, #1E1C1C);
+    background: var(--arcano-beige, #E9D1AF);
     padding: 3px 10px;
-    border-radius: 12px;
-    margin-left: 8px;
+    border-radius: 999px;
+    margin-left: 2px;
     vertical-align: middle;
-    text-transform: none;
-    letter-spacing: 0;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
 }
 
 /* Aviso de cliente logueado en el form de reserva */
@@ -8916,18 +8962,18 @@ td.num,
 /* Sticker diagonal "Staff Picks" en la esquina superior derecha de la card
    (grilla y carrusel), para los discos con es_tip prendido. La card recorta el
    sobrante (overflow:hidden) dejando la banda diagonal en la esquina. */
-/* Banda diagonal (cinta) en la esquina superior IZQUIERDA, color que destaca */
+/* Banda diagonal (cinta) en la esquina superior IZQUIERDA, en beige de marca */
 .card-staff-sticker {
     position: absolute;
     top: 19px;
     left: -54px;
     width: 190px;
     transform: rotate(-45deg);
-    background: #d6a945;
-    color: var(--arcano-negro);
+    background: var(--arcano-beige, #E9D1AF);
+    color: var(--arcano-negro, #1E1C1C);
     text-align: center;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     padding: 7px 0;
@@ -8935,8 +8981,13 @@ td.num,
     z-index: 6;
     pointer-events: none;
 }
-/* Cuando hay banda, los demas carteles bajan para no cruzarse con ella */
-.public-card-cover .public-card-badges.has-ribbon { top: 46px; }
+/* Cuando hay banda Staff Pick (esquina sup-izq), los demas carteles se van
+   ABAJO-izquierda para no solaparse con la cinta. */
+.public-card-cover .public-card-badges.has-ribbon {
+    top: auto;
+    bottom: 8px;
+    left: 8px;
+}
 /* En celular el sticker queda grande para las cards chicas de la GRILLA -> se
    achica. En el carrusel (mobile) queda como esta (Facundo dijo que esta bien). */
 @media (max-width: 720px) {

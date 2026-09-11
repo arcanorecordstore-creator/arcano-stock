@@ -406,16 +406,32 @@
 {% if relacionados %}
 <section class="public-related">
     <h2 class="public-related-title">Similares a este disco{% if disc.genero %} <span class="public-related-genre">{{ disc.genero }}</span>{% endif %}</h2>
-    <div class="public-grid public-grid-small">
+    <div class="public-related-scroll">
         {% for r in relacionados %}
-        <a href="{{ url_for('public_disc', disc_id=r.id) }}" class="public-card">
+        {% set rcover = url_for('serve_cover', filename=r.cover_local) if r.cover_local else (r.cover_url if r.cover_url else '') %}
+        {% set rps = r.primer_track_sample %}
+        <a href="{{ url_for('public_disc', disc_id=r.id) }}" class="public-card public-related-card">
             <div class="public-card-cover">
-                {% if r.cover_local %}
-                    <img src="{{ url_for('serve_cover', filename=r.cover_local) }}" alt="" loading="lazy">
-                {% elif r.cover_url %}
-                    <img src="{{ r.cover_url }}" alt="" loading="lazy">
+                {% if rcover %}
+                    <img src="{{ rcover }}" alt="{{ r.artista }} - {{ r.titulo }}" loading="lazy">
                 {% else %}
                     <div class="public-card-cover-empty">&#9834;</div>
+                {% endif %}
+                {% if rps and not r.esta_agotado %}
+                <button type="button" class="card-play-btn" data-play="{{ rps.sample_kind }}"
+                        data-track-id="{{ rps.id }}"
+                        data-disc-id="{{ r.id }}"
+                        data-disponible="{{ '1' if not r.esta_agotado else '0' }}"
+                        {% if rps.sample_kind == 'local' %}data-audio-url="{{ url_for('serve_sample', filename=rps.sample_local) }}"{% endif %}
+                        {% if rps.sample_kind == 'youtube' %}data-youtube-id="{{ rps.youtube_video_id }}" data-youtube-start="{{ rps.youtube_start or 0 }}"{% endif %}
+                        {% if rps.sample_kind == 'soundcloud' %}data-soundcloud-url="{{ rps.youtube_url }}"{% endif %}
+                        data-cover-url="{{ rcover }}"
+                        data-track-title="{{ rps.titulo }}"
+                        data-track-artist="{{ rps.artista or r.artista }}"
+                        aria-label="Escuchar {{ r.artista }} - {{ r.titulo }}" title="Escuchar preview">
+                    <span class="play-icon">&#9654;</span>
+                    <span class="pause-icon" hidden>&#9724;</span>
+                </button>
                 {% endif %}
             </div>
             <div class="public-card-info">

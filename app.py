@@ -7113,23 +7113,24 @@ def register_routes(app: Flask) -> None:
             .filter(Disc.stock > 0)
         )
 
+        _N_REL = 16  # se muestran en un carrusel horizontal con scroll
         # 1. Mismo genero (lo mas relevante para diggear)
         if disc.genero:
             relacionados += _agregar(
                 base.filter(Disc.genero == disc.genero).order_by(Disc.fecha_ingreso.desc()),
-                4 - len(relacionados),
+                _N_REL - len(relacionados),
             )
         # 2. Completar con mismo sello
-        if len(relacionados) < 4 and disc.sello:
+        if len(relacionados) < _N_REL and disc.sello:
             relacionados += _agregar(
                 base.filter(Disc.sello == disc.sello).order_by(Disc.fecha_ingreso.desc()),
-                4 - len(relacionados),
+                _N_REL - len(relacionados),
             )
         # 3. Completar con otros recientes si aun faltan
-        if len(relacionados) < 4:
+        if len(relacionados) < _N_REL:
             relacionados += _agregar(
                 base.order_by(Disc.fecha_ingreso.desc()),
-                4 - len(relacionados),
+                _N_REL - len(relacionados),
             )
 
         return render_template(
