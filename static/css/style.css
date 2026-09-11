@@ -9186,34 +9186,28 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     .cart-btn.is-in-cart { animation: none; }
 }
 
-/* ===== Micro-interacciones (v5.06 / suavizadas v5.08) ===== */
+/* ===== Micro-interacciones (v5.11: suave y sin rebote) =====
+   El feedback al presionar es un leve atenuado (opacity), no un salto de
+   escala ni un rebote: se siente elegante y nunca brusco, tampoco en el celu. */
 @media (prefers-reduced-motion: no-preference) {
-    /* Easing elegante para el feedback de presionado */
     .btn, .cart-btn, .public-share-btn, .public-wsp-btn, .fav-btn-full,
     .disc-buybar-btn, .public-related-nav, .public-track-play-btn {
+        transition-property: opacity, background-color, border-color, color, transform;
+        transition-duration: 0.2s;
         transition-timing-function: cubic-bezier(0.22, 0.61, 0.36, 1);
     }
-    /* Hundimiento sutil (no agresivo) al presionar botones */
     .btn:active,
     .cart-btn:active,
     .public-share-btn:active,
     .public-wsp-btn:active,
     .fav-btn-full:active,
-    .disc-buybar-btn:active { transform: scale(0.985); }
-    .public-related-nav:active:not(:disabled) { transform: scale(0.94); }
+    .disc-buybar-btn:active,
+    .public-related-nav:active:not(:disabled),
+    .public-track-play-btn:active { opacity: 0.6; }
 
-    /* Tracklist: hundimiento suave al tocar la fila y su boton */
-    .public-track-row { transition: background-color 0.2s ease, border-left-color 0.2s ease, transform 0.18s cubic-bezier(0.22, 0.61, 0.36, 1); }
-    .public-track-row:active { transform: scale(0.992); }
-    .public-track-play-btn:active { transform: scale(0.92); }
-
-    /* Pop suave al quedar "Agregado" en el carrito */
-    @keyframes cartAdded {
-        0% { transform: scale(1); }
-        45% { transform: scale(1.025); }
-        100% { transform: scale(1); }
-    }
-    .cart-btn.is-in-cart { animation: cartAdded 0.45s cubic-bezier(0.22, 0.61, 0.36, 1); }
+    /* Tracklist: al tocar la fila se oscurece suave (sensacion de "hundido" sin salto) */
+    .public-track-row { transition: background-color 0.2s ease, border-left-color 0.2s ease; }
+    .public-track-row:active { background-color: var(--bg-3); }
 }
 
 /* ============================================================
