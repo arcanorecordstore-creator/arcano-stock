@@ -24,6 +24,7 @@
 {% endif %}
 
 <form method="post" action="{{ url_for('disc_combo_review') }}" class="videorev-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <section class="videorev-card">
         <h2 class="videorev-title">Datos del disco</h2>
         <div class="combo-rev-top">

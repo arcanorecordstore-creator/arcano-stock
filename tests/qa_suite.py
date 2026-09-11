@@ -38,6 +38,26 @@ from models import (  # noqa: E402
 )
 
 app = create_app()
+from flask.testing import FlaskClient
+
+
+class AdminBrowserClient(FlaskClient):
+    """Simula el token que envian los formularios y fetch del navegador."""
+    def open(self, *args, **kwargs):
+        method = kwargs.get('method', 'GET').upper()
+        path = args[0] if args and isinstance(args[0], str) else kwargs.get('path', '')
+        if method in ('POST', 'PUT', 'PATCH', 'DELETE') and path.startswith('/admin/'):
+            with self.session_transaction() as sess:
+                token = sess.get('_csrf_token')
+            if not token:
+                super().open('/admin/login', method='GET')
+                with self.session_transaction() as sess:
+                    token = sess.get('_csrf_token')
+            kwargs['headers'] = dict(kwargs.get('headers') or {}, **{'X-CSRF-Token': token or ''})
+        return super().open(*args, **kwargs)
+
+
+app.test_client_class = AdminBrowserClient
 
 # ---------------------------------------------------------------------------
 # Mini framework de aserciones (sin dependencias)

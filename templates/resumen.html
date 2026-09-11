@@ -32,7 +32,7 @@
 
     <div class="kpi-card kpi-highlight">
         <span class="kpi-label">Ganancia potencial</span>
-        <span class="kpi-value">{{ fmt_uyu(kpis.ganancia_potencial_uyu) }}</span>
+        <span class="kpi-value{% if kpis.ganancia_potencial_uyu < 0 %} negativo{% endif %}">{{ fmt_uyu(kpis.ganancia_potencial_uyu) }}</span>
         <span class="kpi-foot">Si vendes todo el stock al precio cargado</span>
     </div>
 
@@ -62,7 +62,7 @@
 
     <div class="kpi-card kpi-highlight">
         <span class="kpi-label">Ganancia realizada</span>
-        <span class="kpi-value">{{ fmt_uyu(kpis.ganancia_realizada_uyu) }}</span>
+        <span class="kpi-value{% if kpis.ganancia_realizada_uyu < 0 %} negativo{% endif %}">{{ fmt_uyu(kpis.ganancia_realizada_uyu) }}</span>
         <span class="kpi-foot">UYU netos en ventas concretadas</span>
     </div>
 </section>
@@ -89,7 +89,7 @@
             </div>
             <div class="month-stat highlight">
                 <span class="month-stat-label">Ganancia neta</span>
-                <span class="month-stat-value">{{ fmt_uyu(mes_actual.ganancia_uyu) }}</span>
+                <span class="month-stat-value{% if mes_actual.ganancia_uyu < 0 %} negativo{% endif %}">{{ fmt_uyu(mes_actual.ganancia_uyu) }}</span>
             </div>
         </div>
         <p class="month-period">Desde {{ mes_actual.mes_inicio }}</p>
@@ -225,7 +225,7 @@
                 </td>
                 <td>{{ d.sello or '—' }}</td>
                 <td class="rank-num-cell">{{ fmt_uyu(d.precio_uyu) }}</td>
-                <td class="rank-num-cell rank-gain">{{ fmt_uyu(d.ganancia_uyu) }}</td>
+                <td class="rank-num-cell rank-gain{% if d.ganancia_uyu < 0 %} negativo{% endif %}">{{ fmt_uyu(d.ganancia_uyu) }}</td>
                 <td class="rank-num-cell rank-strong">{{ '%.1f'|format(d.margen_pct) }}%</td>
                 <td>{{ d.fecha_venta.strftime('%d/%m/%Y') if d.fecha_venta else '—' }}</td>
             </tr>

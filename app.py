@@ -17,6 +17,7 @@ from flask import (
     Response,
 )
 from sqlalchemy import or_
+from sqlalchemy.orm import selectinload
 
 import config
 from models import (
@@ -45,6 +46,7 @@ import metrics
 import auth
 import mailer
 import mp
+from operation_history import register_history, visible_records, archived_ids
 
 
 # Registro en memoria de intentos de login fallidos por IP (rate limiting).
@@ -148,6 +150,9 @@ def convertir_cover_a_webp(path_original: str) -> str:
 
 def create_app() -> Flask:
     app = Flask(__name__)
+    if os.environ.get("RENDER"):
+        from werkzeug.middleware.proxy_fix import ProxyFix
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=0, x_proto=1, x_host=0)
 
     # Ruta de la base de datos: configurable para produccion (disco persistente).
     # En local usa instance/arcano_stock.db como siempre.
@@ -507,6 +512,9 @@ self.addEventListener('notificationclick', function(e){
     init_db(app)
     _backfill_ventas_sin_cliente(app)
     register_routes(app)
+    from security import init_security
+    init_security(app)
+    register_history(app)
 
     # Context processor: vars disponibles en todos los templates
     @app.context_processor
@@ -1298,6 +1306,8 @@ def _purgar_archivos_huerfanos(covers_dir, samples_dir, static_folder, covers, s
     archivo puede seguir en uso por otro disco/track -> por eso se verifica que
     no quede ninguna referencia antes de borrarlo (si no, romperiamos la copia)."""
     from models import DiscImage, Track
+    # Las bajas son recuperables: los archivos deben seguir disponibles.
+    return
 
     def _rm(path):
         try:
@@ -1354,6 +1364,7 @@ def register_routes(app: Flask) -> None:
         _res = query_discs(request.args)
         discs = _res if isinstance(_res, list) else _res.all()
         totals = compute_totals(discs)  # totales sobre TODO lo filtrado
+        discs = visible_records(discs, 'discs')
         sellos = get_sellos_unicos()
         tc = Setting.get_tc()
 
@@ -1379,6 +1390,10 @@ def register_routes(app: Flask) -> None:
         else:
             total_paginas = 1
             pagina_actual = 1
+
+        # Relaciones solo de la pagina renderizada; evita una consulta por disco.
+        if discs:
+            Disc.query.options(selectinload(Disc.tracks)).filter(Disc.id.in_([d.id for d in discs])).all()
 
         filtros = {
             "q": request.args.get("q", ""),
@@ -1606,7 +1621,11 @@ def register_routes(app: Flask) -> None:
         if not samples_dir or not os.path.isdir(samples_dir):
             return 0, 0
         limite = time.time() - max_horas * 3600
+        from operation_history import retained_samples
+        protegidos = retained_samples()
         for fname in os.listdir(samples_dir):
+            if fname in protegidos:
+                continue
             path = os.path.join(samples_dir, fname)
             try:
                 if not os.path.isfile(path):
@@ -2744,13 +2763,7 @@ def register_routes(app: Flask) -> None:
     def disc_image_delete(image_id: int):
         img = DiscImage.query.get_or_404(image_id)
         disc_id = img.disc_id
-        # Borrar el archivo fisico (best-effort)
-        try:
-            path = os.path.join(app.config["COVERS_DIR"], img.filename)
-            if os.path.exists(path):
-                os.remove(path)
-        except Exception:
-            pass
+        # Se conserva el archivo para recuperar esta baja desde Historial.
         db.session.delete(img)
         db.session.commit()
         return jsonify({"ok": True, "disc_id": disc_id})
@@ -3141,16 +3154,9 @@ def register_routes(app: Flask) -> None:
             return jsonify({"ok": False, "error": f"Tipo no soportado: {media_type}. Usar MP3, WAV, M4A o video MP4/MOV."}), 400
         ext = ext_map.get(media_type, ".mp3")
 
-        # Borrar sample anterior si habia
+        # Conservar el sample anterior para recuperacion desde Historial.
         samples_dir = app.config["SAMPLES_DIR"]
         os.makedirs(samples_dir, exist_ok=True)
-        if t.sample_local:
-            old_path = os.path.join(samples_dir, t.sample_local)
-            if os.path.exists(old_path):
-                try:
-                    os.remove(old_path)
-                except OSError:
-                    pass
 
         import uuid as _uuid
         filename = f"sample_{_uuid.uuid4().hex[:12]}{ext}"
@@ -3185,13 +3191,6 @@ def register_routes(app: Flask) -> None:
         """Borra el sample MP3 local del track."""
         t = Track.query.get_or_404(track_id)
         if t.sample_local:
-            samples_dir = app.config["SAMPLES_DIR"]
-            old_path = os.path.join(samples_dir, t.sample_local)
-            if os.path.exists(old_path):
-                try:
-                    os.remove(old_path)
-                except OSError:
-                    pass
             t.sample_local = None
             db.session.commit()
         return jsonify({"ok": True, "track": t.to_dict()})
@@ -3538,7 +3537,7 @@ def register_routes(app: Flask) -> None:
         disponibles (accionables) de los vendidos (validacion del ojo)."""
         ahora = now_uy()
         filas = []
-        for d in Disc.query.filter(Disc.estado != "Descartado").all():
+        for d in Disc.query.options(selectinload(Disc.tracks)).filter(Disc.estado != "Descartado").all():
             plays = sum((t.play_count or 0) for t in d.tracks)
             if d.fecha_ingreso:
                 fin = d.fecha_venta if (d.estado == "Vendido" and d.fecha_venta) else ahora
@@ -3625,7 +3624,7 @@ def register_routes(app: Flask) -> None:
         """Mapas desde las reservas: discos web, metodo y cliente por disco."""
         web_ids, metodo_res, cliente_res, reserva_discs = set(), {}, {}, {}
         try:
-            for r in Reserva.query.all():
+            for r in Reserva.query.options(selectinload(Reserva.items)).all():
                 # NO derivar de 'pagado' (Pagada != Mercado Pago; puede ser transferencia
                 # o efectivo coordinado por privado).
                 met = ("mercadopago" if (r.mp_status == "approved" or r.metodo_pago == "mercadopago")
@@ -3771,6 +3770,7 @@ def register_routes(app: Flask) -> None:
 
         if request.args.get("export") == "csv":
             return _ventas_csv(lista, canal_de, metodo_de, cliente_res)
+        lista = visible_records(lista, 'discs')
 
         # 1) Agrupar por TRANSACCION primero (misma reserva/grupo = una venta), aunque
         #    sus discos se hayan vendido en dias distintos. La fecha de la venta = la
@@ -4039,9 +4039,9 @@ def register_routes(app: Flask) -> None:
             periodo=periodo,
             desde=desde or "",
             hasta=hasta or "",
-            egresos=egresos,
-            retiros=retiros,
-            recurrentes=recurrentes,
+            egresos=visible_records(egresos, 'egresos'),
+            retiros=visible_records(retiros, 'egresos'),
+            recurrentes=visible_records(recurrentes, 'egresos_recurrentes'),
             categorias=Setting.get_categorias_egreso(),
             cat_retiro=CAT_RETIRO_PERSONAL,
             monedas=["UYU", "USD", "EUR"],
@@ -4377,7 +4377,7 @@ def register_routes(app: Flask) -> None:
         # --- Mapa disco -> metodo de pago, desde las reservas ---
         metodo_por_disc = {}
         try:
-            for r in Reserva.query.all():
+            for r in Reserva.query.options(selectinload(Reserva.items)).all():
                 met = None
                 # NO derivar de 'pagado': marcar una reserva Pagada NO implica Mercado
                 # Pago. Muchas reservas web se cobran coordinando por privado
@@ -4852,6 +4852,7 @@ def register_routes(app: Flask) -> None:
         else:
             mes = mes_param or None
         resumen = _resumen_caja(mes)
+        resumen["filas"] = [f for f in resumen["filas"] if f["mov"].id not in archived_ids("movimientos_caja")]
         # Lista GESTIONADA de categorias de origen propias (agregar/eliminar)
         categorias_origen = _categorias_origen_lista()
         # Colores elegidos (clave -> hex). La clave es la categoria propia (si el
@@ -5301,7 +5302,7 @@ def register_routes(app: Flask) -> None:
         total_recaudado = sum(p.recaudado_uyu for p in lista)
         return render_template(
             "pedidos.html",
-            pedidos=lista,
+            pedidos=visible_records(lista, 'pedidos'),
             proveedores=PROVEEDORES_PEDIDO,
             tc=Setting.get_tc(),
             tc_usd=Setting.get_tc_usd(),
@@ -5764,20 +5765,14 @@ def register_routes(app: Flask) -> None:
     def backup_db():
         """Descarga la base de datos SQLite completa (discos, ventas, reservas,
         clientes, egresos, pedidos, todo). Para el backup semanal."""
-        from flask import send_file
-        db_uri = app.config["SQLALCHEMY_DATABASE_URI"]
-        db_file = db_uri.replace("sqlite:///", "")
-        if not os.path.isabs(db_file):
-            db_file = os.path.join(app.instance_path, db_file)
-        if not os.path.exists(db_file):
-            flash("No se encontro el archivo de la base de datos.", "error")
-            return redirect(url_for("settings_page"))
-        fecha = datetime.utcnow().strftime("%Y%m%d")
-        return send_file(
-            db_file, as_attachment=True,
-            download_name=f"arcano_backup_{fecha}.db",
-            mimetype="application/octet-stream",
-        )
+        from backups_service import download_database
+        return download_database()
+
+    @app.route("/admin/backup/completo")
+    @auth.admin_required
+    def backup_completo():
+        from backups_service import download_complete
+        return download_complete(app)
 
     @app.route("/admin/backup/covers")
     @auth.admin_required
@@ -5840,7 +5835,7 @@ def register_routes(app: Flask) -> None:
                     t.sample_local = audio_fname
                     db.session.commit()
                     try:
-                        os.remove(src)
+                        None  # original conservado para recuperacion; limpieza respeta Historial
                     except Exception:
                         pass
                     conv += 1
@@ -7935,14 +7930,14 @@ def register_routes(app: Flask) -> None:
             pass
         filtro_estado = (request.args.get("estado") or "").strip()
         f_q = (request.args.get("q") or "").strip()
-        query = Reserva.query.order_by(Reserva.fecha.desc())
+        query = Reserva.query.options(selectinload(Reserva.items).selectinload(ReservaItem.disc), selectinload(Reserva.cliente)).order_by(Reserva.fecha.desc())
         if filtro_estado == "pendiente_entrega":
             # Todo lo que todavia no entregaste (menos las canceladas), sin importar si
             # esta pago o no. Es la cola de "que me falta entregar".
             query = query.filter(Reserva.entregado.isnot(True), Reserva.estado != "Cancelada")
         elif filtro_estado:
             query = query.filter(Reserva.estado == filtro_estado)
-        reservas = query.all()
+        reservas = visible_records(query.all(), 'reservas')
 
         # Filtro por cliente (nombre / whatsapp / email / instagram de la reserva)
         if f_q:
@@ -8080,7 +8075,7 @@ def register_routes(app: Flask) -> None:
                 canal=canal, estado=estado, metodo_pago=metodo,
                 entrega_tipo=entrega_tipo, envio_costo_uyu=envio_costo,
                 envio_direccion=envio_direccion, envio_agencia=envio_agencia,
-                fecha=now_uy(), pagado=(estado == "Pagada"),
+                fecha=datetime.utcnow(), fecha_es_utc=True, pagado=(estado == "Pagada"),
                 total_cobrado_uyu=round(total_discos + envio_costo, 2),
             )
             db.session.add(reserva)
@@ -8701,7 +8696,7 @@ def register_routes(app: Flask) -> None:
                     premios[c.id] = est
         con_cuenta = Cliente.query.filter(Cliente.password_hash.isnot(None)).count()
         return render_template(
-            "admin_clientes.html", clientes=clientes, compras=compras,
+            "admin_clientes.html", clientes=visible_records(clientes, 'clientes'), compras=compras,
             activas=activas, q=q, total=Cliente.query.count(),
             con_cuenta=con_cuenta, wa_default=Setting.get("public_whatsapp", ""),
             lealtad_activa=lcfg["activa"], premios=premios,

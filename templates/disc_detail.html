@@ -44,6 +44,7 @@
             <div class="detail-status-buttons">
                 {% for e in estados if e != disc.estado %}
                 <form method="post" action="{{ url_for('disc_status', disc_id=disc.id) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="estado" value="{{ e }}">
                     <button type="submit" class="action-btn">{{ e }}</button>
                 </form>
@@ -53,6 +54,7 @@
             <p class="detail-actions-label">Acciones</p>
             <form method="post" action="{{ url_for('disc_delete', disc_id=disc.id) }}"
                   data-confirm="¿Eliminar '{{ disc.artista }} - {{ disc.titulo }}'? Esta accion no se puede deshacer.">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="action-btn danger" style="width: 100%;">Eliminar disco</button>
             </form>
         </div>

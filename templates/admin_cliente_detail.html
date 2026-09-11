@@ -54,6 +54,7 @@
             </div>
             {% if lealtad.premio1_disponible %}
             <form method="post" action="{{ url_for('admin_cliente_premio', cliente_id=cli.id, hito=1) }}" onsubmit="return confirm('¿Marcar el premio 1 como entregado?');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-primary btn-sm">Marcar entregado</button>
             </form>
             {% elif lealtad.premio1_cobrado %}<span class="cli-premio-tag done">&#10003; Entregado</span>
@@ -66,6 +67,7 @@
             </div>
             {% if lealtad.premio2_disponible %}
             <form method="post" action="{{ url_for('admin_cliente_premio', cliente_id=cli.id, hito=2) }}" onsubmit="return confirm('¿Entregar el premio 2 y REINICIAR la barra? El excedente queda a favor del cliente.');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-primary btn-sm">Entregar y reiniciar</button>
             </form>
             {% else %}<span class="cli-premio-tag muted">Falta llegar</span>{% endif %}
@@ -79,6 +81,7 @@
     <section class="cli-panel">
         <h2 class="cli-panel-title">Datos</h2>
         <form method="post" action="{{ url_for('admin_cliente_editar', cliente_id=cli.id) }}" class="cli-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-field"><label>Nombre</label><input type="text" name="nombre" value="{{ cli.nombre }}" maxlength="200"></div>
             <div class="form-field"><label>Celular / WhatsApp</label><input type="text" name="whatsapp" value="{{ cli.whatsapp or '' }}" maxlength="50"></div>
             <div class="form-field">
@@ -147,11 +150,13 @@
                 </div>
                 <div class="cli-sena-acc">
                     <form method="post" action="{{ url_for('admin_disc_sena', disc_id=d.id) }}" onsubmit="return confirm('¿Le devolviste la seña al cliente? Se saca de la caja.');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="accion" value="devolver">
                         <input type="hidden" name="next" value="{{ request.path }}">
                         <button type="submit" class="btn btn-ghost btn-sm">Devolví la se&ntilde;a</button>
                     </form>
                     <form method="post" action="{{ url_for('admin_disc_sena', disc_id=d.id) }}" onsubmit="return confirm('¿Te quedás la seña? Queda como ingreso a favor tuyo en la caja.');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="accion" value="quedar">
                         <input type="hidden" name="next" value="{{ request.path }}">
                         <button type="submit" class="btn btn-ghost btn-sm">Me la qued&eacute;</button>
@@ -159,6 +164,7 @@
                 </div>
                 {% else %}
                 <form method="post" action="{{ url_for('admin_disc_sena', disc_id=d.id) }}" class="cli-sena-cobrar">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="accion" value="cobrar">
                     <input type="hidden" name="next" value="{{ request.path }}">
                     <input type="number" name="monto" min="1" step="1" placeholder="Monto de la se&ntilde;a" required>
@@ -183,6 +189,7 @@
 <section class="cli-panel cli-add">
     <h2 class="cli-panel-title">Agregar un disco que compr&oacute; o reserv&oacute;</h2>
     <form method="post" action="{{ url_for('admin_cliente_agregar_disco', cliente_id=cli.id) }}" class="cli-add-form" id="cli-add-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="form-field cli-add-disc">
             <label>Disco</label>
             <div class="disc-picker">
@@ -252,6 +259,7 @@
     <h2 class="cli-panel-title">Fusionar o eliminar</h2>
     {% if otros %}
     <form method="post" action="{{ url_for('admin_cliente_fusionar', cliente_id=cli.id) }}" class="cli-merge" onsubmit="return confirm('¿Fusionar este cliente dentro del elegido? Sus compras y reservas pasan al otro y este se borra.');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <span class="cli-merge-lbl">Si qued&oacute; duplicado, fusionarlo dentro de:</span>
         <select name="destino_id" required>
             <option value="">&mdash; eleg&iacute; el cliente que se queda &mdash;</option>
@@ -261,6 +269,7 @@
     </form>
     {% endif %}
     <form method="post" action="{{ url_for('admin_cliente_eliminar', cliente_id=cli.id) }}" onsubmit="return confirm('¿Eliminar este cliente? Las ventas NO se borran, solo se desvinculan.');" style="margin-top:10px;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-danger">Eliminar cliente</button>
         <span class="form-field-hint">Las ventas quedan; solo se saca el vínculo con este cliente.</span>
     </form>

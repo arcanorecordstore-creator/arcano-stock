@@ -1,0 +1,130 @@
+{
+  "borrar_reserva_ajena": {
+    "http": 302,
+    "estado_venta_despues": "Disponible"
+  },
+  "pagar_reserva_conflictiva": {
+    "http": 302,
+    "precio_antes": 1000,
+    "precio_despues": 800.0,
+    "grupo": "venta-ajena"
+  },
+  "costo_eur": {
+    "http": 200,
+    "respuesta": {
+      "campo": "costo_eur",
+      "costo_final_uyu": 588,
+      "ganancia_uyu": 212,
+      "margen_pct": 26.6,
+      "ok": true,
+      "valor": 12.5
+    }
+  },
+  "envio_eur": {
+    "http": 200,
+    "respuesta": {
+      "campo": "envio_eur",
+      "costo_final_uyu": 1175,
+      "ganancia_uyu": -375,
+      "margen_pct": -46.9,
+      "ok": true,
+      "valor": 12.5
+    }
+  },
+  "retiro_comparacion": {
+    "cambio_resultado_anterior": -500.0,
+    "retiros_excluidos_en_vista": 500.0
+  },
+  "pedido_tc_variable": {
+    "antes": 4100.0,
+    "despues": 5000.0
+  },
+  "recurrente_futuro_bloquea_mes": 0,
+  "validacion_formulario": {
+    "http": 302,
+    "precio": -100.0,
+    "stock_enviado": 0,
+    "stock_guardado": 1,
+    "costo_eur": -10.0
+  },
+  "cancelar_manual_un_disco": {
+    "reserva": "Cancelada",
+    "disco": "Vendido",
+    "grupo": null
+  },
+  "fusion_cliente": {
+    "cuenta_web_conservada": false,
+    "lealtad_base": 0,
+    "premio_cobrado": false,
+    "acepta_avisos": true
+  },
+  "reventa_formulario": {
+    "lista_nueva": 1500.0,
+    "precio_venta_heredado": 800.0,
+    "ingreso_computado": 800.0
+  },
+  "hora_reserva_manual": {
+    "hora_guardada_local": "19:35",
+    "hora_mostrada": "16:35"
+  },
+  "caja_idempotente": {
+    "antes": 10,
+    "despues": 10,
+    "mismos_montos": true
+  },
+  "paginas_GET": {
+    "/admin/manifest.webmanifest": 200,
+    "/admin/sw.js": 200,
+    "/admin/push/key": 200,
+    "/admin/": 200,
+    "/admin/discs/new": 200,
+    "/admin/discs/new/from-image": 200,
+    "/admin/discs/new/from-video": 200,
+    "/admin/discs/new/from-video/review": 302,
+    "/admin/discs/new/from-url": 200,
+    "/admin/discs/new/combo": 200,
+    "/admin/discs/new/combo/review": 302,
+    "/admin/discs/new/from-invoice": 200,
+    "/admin/discs/invoice-review": 302,
+    "/admin/resumen": 302,
+    "/admin/radar": 200,
+    "/admin/ventas": 200,
+    "/admin/ventas/cargar": 200,
+    "/admin/contabilidad": 200,
+    "/admin/contabilidad/exportar": 200,
+    "/admin/contabilidad/informe-pdf": 200,
+    "/admin/informe-ejecutivo.pdf": 200,
+    "/admin/caja": 200,
+    "/admin/pedidos": 200,
+    "/admin/pedidos/exportar/excel": 200,
+    "/admin/pedidos/exportar/pdf": 200,
+    "/admin/backup/db": 200,
+    "/admin/settings": 200,
+    "/admin/export/csv": 200,
+    "/admin/reservas": 200,
+    "/admin/reservas/nueva": 200,
+    "/admin/clientes": 200,
+    "/admin/clientes/export.csv": 200,
+    "/admin/login": 302
+  },
+  "auth": {
+    "rutas": 119,
+    "no_redireccion_login": {}
+  },
+  "python_sintaxis": 17,
+  "jinja_compiladas": 47,
+  "js_sintaxis": {
+    "static\\js\\app.js": 0,
+    "static\\js\\dashboard_quick_edit.js": 0,
+    "static\\js\\dashboard_reorder.js": 0,
+    "static\\js\\dashboard_resize.js": 0,
+    "static\\js\\gallery_editor.js": 0,
+    "static\\js\\pjax.js": 0,
+    "static\\js\\player.js": 0,
+    "static\\js\\public_anim.js": 0,
+    "static\\js\\tracks_editor.js": 0,
+    "static\\js\\tracks_new_editor.js": 0,
+    "static\\js\\upload.js": 0
+  },
+  "css_balance": 0
+}

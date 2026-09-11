@@ -1,0 +1,33 @@
+{
+  "entorno": "Servidor temporal local con datos ficticios; v4.96",
+  "dashboard_precio": {
+    "precio_antes": 1200,
+    "precio_despues": 1500,
+    "total_antes": 7500,
+    "total_sin_recargar": 7500,
+    "total_despues_de_recargar": 7800
+  },
+  "error_consola": {
+    "mensaje": "ReferenceError: tabla is not defined",
+    "archivo": "static/js/dashboard_quick_edit.js",
+    "linea": 409
+  },
+  "mobile_viewport": {"width":390,"height":844},
+  "mobile_document_scroll_width": {
+    "/admin/":375,
+    "/admin/reservas":375,
+    "/admin/ventas":389,
+    "/admin/clientes":375,
+    "/admin/contabilidad":441,
+    "/admin/caja":375,
+    "/admin/pedidos":375,
+    "/admin/radar":375,
+    "/admin/settings":398,
+    "/admin/discs/new":492,
+    "/admin/discs/new/combo":375,
+    "/admin/discs/new/from-invoice":375
+  },
+  "desktop_viewport_width":1280,
+  "desktop_resultado":"Sin desborde de pagina en las mismas 12 pantallas",
+  "mobile_formulario":"Fila page-actions alcanza x=492; Cancelar queda fuera del ancho inicial"
+}

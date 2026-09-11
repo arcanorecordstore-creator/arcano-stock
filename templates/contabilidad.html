@@ -9,6 +9,7 @@
 {% macro gasto_row(e, categorias) %}
 <div class="egreso-edit-row">
     <form method="post" action="{{ url_for('egreso_editar', egreso_id=e.id) }}" class="egreso-edit-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <label class="egf-field egf-fecha">
             <span class="egf-lbl">Fecha</span>
             <input type="date" name="fecha" value="{{ e.fecha.isoformat() }}">
@@ -40,8 +41,9 @@
         </label>
         <button type="submit" class="btn btn-primary btn-sm egf-save">Guardar</button>
     </form>
-    <form method="post" action="{{ url_for('egreso_borrar', egreso_id=e.id) }}" class="inline-form egf-del" data-confirm="Eliminar este movimiento?">
-        <button type="submit" class="action-btn danger">Borrar</button>
+    <form method="post" action="{{ url_for('egreso_borrar', egreso_id=e.id) }}" class="inline-form egf-del" data-confirm="Anular este movimiento?">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="action-btn danger">Anular</button>
     </form>
 </div>
 {% endmacro %}
@@ -147,7 +149,7 @@
         <span class="conta-row-value">&minus; {{ fmt_uyu(conta.costo_discos_uyu) }}</span>
         <span class="conta-row-detail">Solo los de Arcano; los personales no costaron al negocio</span>
     </div>
-    <div class="conta-row conta-subtotal">
+    <div class="conta-row conta-subtotal{% if conta.ganancia_bruta_uyu < 0 %} negativo{% endif %}">
         <span class="conta-row-label">Ganancia bruta</span>
         <span class="conta-row-value">= {{ fmt_uyu(conta.ganancia_bruta_uyu) }}</span>
         <span class="conta-row-detail">Margen de los discos vendidos, antes de gastos</span>
@@ -167,7 +169,7 @@
         <span class="conta-row-value">&minus; {{ fmt_uyu(conta.egresos_uyu) }}</span>
         <span class="conta-row-detail">{{ conta.egresos_count }} egreso(s) en el periodo</span>
     </div>
-    <div class="conta-row conta-total">
+    <div class="conta-row conta-total{% if conta.ganancia_real_uyu < 0 %} negativo{% endif %}">
         <span class="conta-row-label">Ganancia real</span>
         <span class="conta-row-value">= {{ fmt_uyu(conta.ganancia_real_uyu) }}</span>
         <span class="conta-row-detail">{% if conta.stock_en_ganancia %}Ventas menos costos de Arcano (vendido + stock) menos gastos{% else %}Ventas menos costo de lo vendido menos gastos (resultado del periodo){% endif %}</span>
@@ -202,6 +204,7 @@
 <section class="conta-block">
     <h2 class="conta-block-title">Registrar un gasto</h2>
     <form method="post" action="{{ url_for('egreso_agregar') }}" class="conta-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="conta-form-grid">
             <div class="form-field">
                 <label for="eg-fecha">Fecha</label>
@@ -299,7 +302,8 @@
                 <td class="col-num">
                     <form method="post" action="{{ url_for('recurrente_borrar', rec_id=r.id) }}" class="inline-form"
                           data-confirm="Eliminar este gasto mensual?">
-                        <button type="submit" class="action-btn danger">Borrar</button>
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="action-btn danger">Anular</button>
                     </form>
                 </td>
             </tr>
@@ -307,6 +311,7 @@
         </tbody>
     </table>
     <form method="post" action="{{ url_for('generar_gastos_mes') }}" class="inline-form" style="margin-top: 12px;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-secondary">Generar gastos de este mes</button>
     </form>
     {% else %}
@@ -314,6 +319,7 @@
     {% endif %}
 
     <form method="post" action="{{ url_for('recurrente_agregar') }}" class="conta-form" style="margin-top: 16px;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="conta-form-grid">
             <div class="form-field">
                 <label for="rec-categoria">Categoría</label>
@@ -554,7 +560,7 @@
         </div>
         <div class="kpi-card kpi-highlight">
             <span class="kpi-label">Ganancia potencial</span>
-            <span class="kpi-value">{{ fmt_uyu(kpis.ganancia_potencial_uyu) }}</span>
+            <span class="kpi-value{% if kpis.ganancia_potencial_uyu < 0 %} negativo{% endif %}">{{ fmt_uyu(kpis.ganancia_potencial_uyu) }}</span>
             <span class="kpi-foot">Si vendes todo el stock</span>
         </div>
         <div class="kpi-card">
@@ -574,7 +580,7 @@
         </div>
         <div class="kpi-card kpi-highlight">
             <span class="kpi-label">Ganancia realizada</span>
-            <span class="kpi-value">{{ fmt_uyu(kpis.ganancia_realizada_uyu) }}</span>
+            <span class="kpi-value{% if kpis.ganancia_realizada_uyu < 0 %} negativo{% endif %}">{{ fmt_uyu(kpis.ganancia_realizada_uyu) }}</span>
             <span class="kpi-foot">Margen de discos vendidos (sin gastos)</span>
         </div>
         <div class="kpi-card">
@@ -604,7 +610,7 @@
             </div>
             <div class="month-stat highlight">
                 <span class="month-stat-label">Ganancia neta</span>
-                <span class="month-stat-value">{{ fmt_uyu(mes_actual.ganancia_uyu) }}</span>
+                <span class="month-stat-value{% if mes_actual.ganancia_uyu < 0 %} negativo{% endif %}">{{ fmt_uyu(mes_actual.ganancia_uyu) }}</span>
             </div>
         </div>
         <p class="month-period">Desde {{ mes_actual.mes_inicio }}</p>
@@ -717,7 +723,7 @@
                 </td>
                 <td>{{ d.sello or '—' }}</td>
                 <td class="rank-num-cell">{{ fmt_uyu(d.precio_uyu) }}</td>
-                <td class="rank-num-cell rank-gain">{{ fmt_uyu(d.ganancia_uyu) }}</td>
+                <td class="rank-num-cell rank-gain{% if d.ganancia_uyu < 0 %} negativo{% endif %}">{{ fmt_uyu(d.ganancia_uyu) }}</td>
                 <td class="rank-num-cell rank-strong">{{ '%.1f'|format(d.margen_pct) }}%</td>
                 <td>{{ d.fecha_venta.strftime('%d/%m/%Y') if d.fecha_venta else '—' }}</td>
             </tr>

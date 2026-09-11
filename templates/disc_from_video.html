@@ -22,6 +22,7 @@
         {% endif %}
 
         <form method="post" enctype="multipart/form-data" action="{{ url_for('disc_new_from_video') }}" id="video-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <label class="video-drop" for="videos">
                 <span class="video-drop-icon">&#9654;</span>
                 <span class="video-drop-title">Elegí los videos del disco</span>

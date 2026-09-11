@@ -12,6 +12,7 @@
     </label>
     {% endif %}
     <form method="post" action="{{ url_for('reserva_toggle_entrega', reserva_id=r.id) }}" class="reserva-entrega-col">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="entrega-toggle {{ 'on' if r.entregado else 'off' }}" title="Toc&aacute; para cambiar entre entregado y pendiente">
             {% if r.entregado %}
             <span class="entrega-ico">&#10003;</span><span class="entrega-txt">Entregado</span>
@@ -44,7 +45,7 @@
         {% if r.comprobante_file %}
         <span class="reserva-comprobante-chip">&#128206; Comprobante</span>
         {% endif %}
-        <span class="reserva-card-date">{{ r.fecha|hora_uy }}</span>
+        <span class="reserva-card-date">{{ r.fecha_utc|hora_uy }}</span>
     </div>
     <div class="reserva-card-body">
         <div class="reserva-card-disc">
@@ -116,6 +117,7 @@
 <!-- Barra para unir reservas en un pedido (aparece al elegir 2+) -->
 <form method="post" action="{{ url_for('reservas_agrupar') }}" id="reserva-bulk-form"
       onsubmit="return confirm('¿Unir las reservas elegidas en un solo pedido? Se van a tratar juntas (un envío).');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="ids" id="reserva-bulk-ids">
     <div class="reserva-bulkbar" id="reserva-bulkbar" hidden>
         <span>&#128230; <strong id="reserva-bulk-n">0</strong> reservas elegidas</span>
@@ -136,6 +138,7 @@
                 <span class="reserva-grupo-total">{{ money(u.total) }}</span>
                 <form method="post" action="{{ url_for('reservas_desagrupar') }}"
                       onsubmit="return confirm('¿Separar este pedido? Cada reserva vuelve a ir por su cuenta.');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="grupo" value="{{ u.grupo }}">
                     <button type="submit" class="btn btn-ghost btn-sm">Separar</button>
                 </form>

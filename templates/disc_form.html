@@ -21,10 +21,12 @@
     <div class="url-queue-actions">
         {% if url_queue_pendientes > 0 %}
         <form method="post" action="{{ url_for('disc_url_queue_next') }}" style="display:inline;" data-confirm="Saltear este disco sin guardarlo?">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-ghost btn-sm">Saltear este &rarr;</button>
         </form>
         {% endif %}
         <form method="post" action="{{ url_for('disc_url_queue_cancel') }}" style="display:inline;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-ghost btn-sm">Cancelar tanda</button>
         </form>
     </div>
@@ -72,6 +74,7 @@
 <form method="post" class="disc-form"
       action="{% if mode == 'edit' %}{{ url_for('disc_edit', disc_id=disc.id) }}{% else %}{{ url_for('disc_new') }}{% endif %}"
       data-tc="{{ disc.tc_usado if disc.tc_usado else tc }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
     <input type="hidden" name="cover_local" value="{{ disc.cover_local or '' }}">
 

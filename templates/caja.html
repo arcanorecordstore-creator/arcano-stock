@@ -35,6 +35,7 @@
         <details class="caja-cuadrar">
             <summary>&#9878;&#65039; &iquest;Tu banco marca otra cosa? Cuadrar la caja</summary>
             <form method="post" action="{{ url_for('caja_cuadrar') }}" class="caja-cuadrar-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <label class="caja-cuadrar-lbl">Escrib&iacute; el saldo REAL de tu banco:</label>
                 <div class="caja-cuadrar-row">
                     <span class="caja-cuadrar-cur">$</span>
@@ -100,6 +101,7 @@
         <span class="caja-liq-foot">Ventas por MP que MP todav&iacute;a no liber&oacute; y que vos <strong>no adelantaste</strong>. Lo que ya adelantaste es tuyo y lo ves abajo en &laquo;Adelantos a recuperar&raquo;.</span>
         {% if resumen.por_adelantar > 0 %}
         <form method="post" action="{{ url_for('caja_adelantar_mp') }}" class="caja-adelantar-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-primary btn-sm">Adelantar $ {{ fmt_uyu(resumen.por_adelantar) }} con mi plata</button>
             <span class="caja-field-hint">Ponés tu plata ahora para tener la liquidez; la recuperás cuando MP pague.</span>
         </form>
@@ -127,6 +129,7 @@
                 <span class="caja-adelanto-fecha">Adelantado el {{ a.fecha.strftime('%d/%m/%y') if a.fecha else '—' }}</span>
             </div>
             <form method="post" action="{{ url_for('caja_saldar_adelanto', mov_id=a.id) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-ghost btn-sm">MP ya me pagó &rarr; cerrar</button>
             </form>
         </div>
@@ -170,6 +173,7 @@
     <details class="caja-panel">
         <summary class="caja-panel-toggle">&#9881; Saldo inicial de la caja</summary>
         <form method="post" action="{{ url_for('caja_saldo_inicial') }}" class="caja-form-inline">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <p class="caja-hint">La plata que ya había en la caja antes de empezar a registrar acá. Se suma al saldo.</p>
             <div class="caja-form-row">
                 <label>Saldo inicial (UYU)
@@ -184,6 +188,7 @@
     <details class="caja-panel" open>
         <summary class="caja-panel-toggle">&#43; Agregar movimiento manual (aporte / retiro / ajuste)</summary>
         <form method="post" action="{{ url_for('caja_movimiento_agregar') }}" class="caja-form" id="caja-add-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="caja-form-grid">
                 <label>Fecha
                     <input type="date" name="fecha" value="{{ hoy }}">
@@ -242,6 +247,7 @@
         <div class="caja-colores-grid">
             {% for item in origen_fijos %}
             <form method="post" action="{{ url_for('caja_origen_fijo') }}" class="caja-color-item caja-cat-item" style="gap:6px;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="clave" value="{{ item.clave }}">
                 <span class="caja-origen-tag" style="background: {{ item.color }}; color: {{ item.fg }};">{{ item.label }}</span>
                 <input type="text" name="label" value="{{ item.label }}" onchange="this.form.submit()" class="caja-cat-name-input" title="Renombrar" aria-label="Nombre de {{ item.label }}">
@@ -255,11 +261,13 @@
             {% for item in origen_propias %}
             <div class="caja-color-item caja-cat-item">
                 <form method="post" action="{{ url_for('caja_origen_color') }}" class="caja-color-item" style="gap:6px;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="categoria" value="{{ item.clave }}">
                     <span class="caja-origen-tag" style="background: {{ item.color }}; color: {{ item.fg }};">{{ item.label }}</span>
                     <input type="color" name="color" value="{{ item.color }}" onchange="this.form.submit()" title="Color de {{ item.label }}" aria-label="Color de {{ item.label }}">
                 </form>
                 <form method="post" action="{{ url_for('caja_origen_categoria_eliminar') }}" onsubmit="return confirm('¿Eliminar la categoría «{{ item.label }}»? Los movimientos que la usen quedan como Manual.');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="nombre" value="{{ item.clave }}">
                     <button type="submit" class="caja-cat-del" title="Eliminar categoría" aria-label="Eliminar {{ item.label }}">&times;</button>
                 </form>
@@ -269,6 +277,7 @@
         </div>
 
         <form method="post" action="{{ url_for('caja_origen_categoria_agregar') }}" class="caja-cat-add">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <input type="text" name="nombre" placeholder="Nueva categoría (ej: Compra, Regalo...)" maxlength="60" required>
             <input type="color" name="color" value="#14b8a6" title="Color (opcional)" aria-label="Color de la nueva categoría">
             <button type="submit" class="btn btn-primary">Agregar categoría</button>
@@ -349,6 +358,7 @@
                             <summary class="caja-editar-toggle" title="Editar">&#9998;</summary>
                             <div class="caja-editar-pop">
                                 <form method="post" action="{{ url_for('caja_movimiento_editar', mov_id=m.id) }}" class="caja-editar-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                                     <div class="caja-editar-grid">
                                         <label>Fecha
                                             <input type="date" name="fecha" value="{{ m.fecha.strftime('%Y-%m-%d') if m.fecha else '' }}">
@@ -386,7 +396,7 @@
                                         <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
                                         <button type="button" class="btn btn-ghost btn-sm caja-editar-cancelar" onclick="this.closest('details').removeAttribute('open')">Cancelar</button>
                                         {% if m.es_manual %}
-                                        <button type="submit" formaction="{{ url_for('caja_movimiento_eliminar', mov_id=m.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('¿Eliminar este movimiento?')">Eliminar</button>
+                                        <button type="submit" formaction="{{ url_for('caja_movimiento_eliminar', mov_id=m.id) }}" class="btn btn-danger btn-sm" onclick="return confirm('¿Anular este movimiento? Podés recuperarlo desde Historial.')">Anular</button>
                                         {% else %}
                                         <span class="caja-editar-nota">Automático (de {{ m.origen_label|lower }}). Para sacarlo, editá su origen.</span>
                                         {% endif %}

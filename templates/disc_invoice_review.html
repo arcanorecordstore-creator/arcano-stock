@@ -19,6 +19,7 @@
     </div>
     <div class="page-actions">
         <form method="post" action="{{ url_for('disc_invoice_cancel') }}" style="display:inline">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-ghost">Descartar todo</button>
         </form>
     </div>
@@ -84,6 +85,7 @@
 </div>
 
 <form method="post" action="{{ url_for('disc_invoice_review') }}" class="invoice-form" id="invoice-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="item_count" value="{{ items|length }}">
 
     <div class="invoice-cards">

@@ -46,6 +46,7 @@
         </header>
 
         <form method="post" enctype="multipart/form-data" style="padding: 16px 0;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-field" style="margin-bottom: 20px;">
                 <label for="db_file">1. Base de datos <span class="form-field-hint">(el archivo arcano_stock.db de tu PC)</span></label>
                 <input type="file" id="db_file" name="db_file" accept=".db">

@@ -33,6 +33,7 @@
         </header>
 
         <form method="post" action="{{ url_for('settings_update_tc') }}" class="settings-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="tc-current">
                 <span class="tc-label">Valores actuales</span>
                 <span class="tc-value">1 EUR = {{ tc }} UYU &nbsp;&middot;&nbsp; 1 USD = {{ tc_usd }} UYU</span>
@@ -88,6 +89,7 @@
 
         <form method="post" action="{{ url_for('settings_recalculate') }}"
               data-confirm="Esto va a recalcular {{ discos_disponibles }} discos disponibles con TC = {{ tc }}. Los costos finales anteriores se pierden. ¿Continuar?">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="settings-actions">
                 <button type="submit" class="btn btn-primary" {% if discos_disponibles == 0 %}disabled{% endif %}>
                     Recalcular {{ discos_disponibles }} discos
@@ -126,6 +128,7 @@
 
         <form method="post" action="{{ url_for('settings_reset_api_counter') }}"
               data-confirm="¿Reiniciar el contador de gasto API a 0? Esta accion no afecta tu cuenta de Anthropic, solo el contador local.">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="settings-actions">
                 <button type="submit" class="btn btn-ghost">Reiniciar contador</button>
             </div>
@@ -156,13 +159,14 @@
     <section class="settings-card">
         <header class="settings-card-head">
             <h2 class="settings-card-title">Backup</h2>
-            <p class="settings-card-sub">Descarga una copia completa de tus datos. Recomendado: todos los viernes.</p>
+            <p class="settings-card-sub">Resguardá los datos y los archivos. Recomendado: todos los viernes y antes de cambios importantes.</p>
         </header>
         <div style="display: flex; gap: 10px; flex-wrap: wrap; padding: 4px 0 8px;">
+            <a href="{{ url_for('backup_completo') }}" class="btn btn-primary">&#8595; Respaldo completo (ZIP)</a>
             <a href="{{ url_for('backup_db') }}" class="btn btn-primary">&#8595; Descargar base de datos</a>
             <a href="{{ url_for('backup_covers') }}" class="btn btn-ghost">&#8595; Descargar portadas (ZIP)</a>
         </div>
-        <p class="settings-card-sub" style="margin-top: 6px;">La base incluye discos, ventas, reservas, clientes, egresos y pedidos. Guarda el archivo en tu computadora o Drive.</p>
+        <p class="settings-card-sub" style="margin-top: 6px;">El ZIP completo incluye una copia verificada de la base, portadas, audios, videos y comprobantes, con un listado para verificar cada archivo. Los enlaces separados sirven para copias parciales. Guardalo en un lugar privado: contiene datos de clientes. Puede demorar si hay muchos videos.</p>
     </section>
 
     <section class="settings-card">
@@ -185,11 +189,13 @@
         <div style="background:rgba(214,169,69,.08);border:1px solid rgba(214,169,69,.3);border-radius:10px;padding:12px 14px;margin:4px 0 12px;">
             <p style="margin:0 0 8px;font-size:13.5px;color:var(--text-2);"><strong>{{ u.video_n }}</strong> sample(s) todav&iacute;a en video ({{ '%.0f'|format(u.video_mb or 0) }} MB). Convertilos a audio para liberar la mayor parte &mdash; el cliente escucha igual. Se hace de a poco: toc&aacute; y repet&iacute; hasta que llegue a 0.</p>
             <form method="post" action="{{ url_for('admin_comprimir_samples') }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-primary">&#127925; Comprimir videos a audio</button>
             </form>
         </div>
         {% endif %}
         <form method="post" action="{{ url_for('admin_limpiar_samples') }}" style="padding:6px 0;" onsubmit="return confirm('¿Borrar los samples que ningún disco usa? Libera espacio y NO afecta las fichas.');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn {% if u.huerfanos_n %}btn-primary{% else %}btn-ghost{% endif %}">&#129529; Limpiar samples sin usar{% if u.huerfanos_n %} ({{ u.huerfanos_n }}){% endif %}</button>
         </form>
         {% if u.libre_mb is not none and u.libre_mb < 150 %}
@@ -211,6 +217,7 @@
             <input type="text" value="{{ dh_api_key }}" readonly onclick="this.select();">
         </div>
         <form method="post" action="{{ url_for('admin_regenerar_dh_key') }}" style="padding:6px 0;" onsubmit="return confirm('¿Regenerar la clave? La actual deja de funcionar y hay que actualizarla en el Drop Hunter.');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="btn btn-ghost">Regenerar clave</button>
         </form>
     </section>
@@ -228,6 +235,7 @@
         </header>
 
         <form method="post" action="{{ url_for('settings_update_public') }}" class="settings-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-row">
                 <div class="form-field form-field-full">
                     <label for="public_tagline">Tagline <span class="form-field-hint">(frase corta en la home)</span></label>
@@ -524,6 +532,7 @@
         <!-- Avisar del Fire Sale por mail (form aparte para no anidar) -->
         <form method="post" action="{{ url_for('fire_sale_avisar') }}" class="settings-form" style="margin-top: 12px;"
               data-confirm="Enviar el aviso de Fire Sale por mail a {{ clientes_con_email }} cliente(s)?">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-field" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                 <button type="submit" class="btn btn-ghost">&#9993; Avisar del Fire Sale por mail</button>
                 <span class="form-field-hint">Le manda el aviso a los <strong>{{ clientes_con_email }}</strong> cliente(s) con email cargado. Activ&aacute; y guard&aacute; el Fire Sale antes de avisar.</span>
@@ -539,12 +548,14 @@
         <div class="settings-banner-preview">
             <img src="{{ public_banner_url }}" alt="Banner actual">
             <form method="post" action="{{ url_for('settings_clear_banner') }}" data-confirm="Quitar el banner actual?">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="btn btn-ghost danger btn-sm">Quitar banner</button>
             </form>
         </div>
         {% endif %}
 
         <form method="post" action="{{ url_for('settings_upload_banner') }}" enctype="multipart/form-data" class="settings-form" style="margin-top: 12px;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-row">
                 <div class="form-field form-field-full">
                     <label for="banner">{% if public_banner_url %}Cambiar banner{% else %}Subir banner{% endif %}</label>
@@ -557,6 +568,7 @@
         </form>
 
         <form method="post" action="{{ url_for('settings_update_video') }}" class="settings-form" style="margin-top: 16px;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-row">
                 <div class="form-field form-field-full">
                     <label for="public_banner_video_url">Video de fondo <span class="form-field-hint">(URL de un .mp4; opcional, reemplaza la imagen)</span></label>
@@ -577,6 +589,7 @@
         </header>
 
         <form method="post" action="{{ url_for('settings_update_legal') }}" class="settings-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-row">
                 <div class="form-field form-field-full">
                     <label for="public_legal_terminos">Terminos y condiciones</label>

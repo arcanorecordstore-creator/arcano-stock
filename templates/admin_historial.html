@@ -1,0 +1,30 @@
+{% extends 'base.html' %}
+{% block title %}Historial y recuperación · Arcano{% endblock %}
+{% block content %}
+<div class="page-head"><div><h1 class="page-title">Historial y recuperación</h1><p class="page-sub">Cambios registrados desde v4.97. Anular revierte una operación; archivar solo la oculta.</p></div></div>
+<section class="settings-card">
+<h2>Archivar o volver a mostrar</h2>
+<p>Archivar no cambia importes, stock ni disponibilidad en la tienda pública. Se oculta solamente de las listas del admin.</p>
+<form method="get"><label for="history-type">Apartado</label><select id="history-type" name="tipo">{% for key,label in labels.items() %}<option value="{{ key }}" {% if key == tipo %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><button class="btn btn-ghost">Ver</button></form>
+<form method="post" action="{{ url_for('admin_historial_archivar') }}">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="tipo" value="{{ tipo }}">
+<label for="history-record">Registro (últimos 100)</label><select id="history-record" name="registro_id" required>{% for r in records %}<option value="{{ r.id }}">#{{ r.id }} · {{ r.nombre or r.titulo or r.descripcion or r.concepto or r.numero or 'Registro' }}{% if is_archived(tipo,r.id) %} · archivado{% endif %}</option>{% endfor %}</select>
+<button name="accion" value="archivar" class="btn btn-ghost">Archivar</button><button name="accion" value="mostrar" class="btn btn-ghost">Volver a mostrar</button>
+</form></section>
+<h2>Cambios recientes</h2>
+<p>Recuperar deshace todos los cambios de esa operación juntos. Si algún registro cambió después, se bloquea para no pisar información nueva. No envía mails ni deshace pagos bancarios. Las bajas conservan sus datos en este historial; los registros anteriores a esta versión no pueden reconstruirse.</p>
+{% for group in groups %}
+<section class="settings-card" style="margin-bottom:12px">
+<h3>{{ group.fecha|hora_uy }} · {{ group.actor }}</h3>
+<p>{{ group.accion }}{% if group.motivo %} · {{ group.motivo }}{% endif %}</p>
+<details><summary>{{ group.changes|length }} cambio(s): ver registros y campos</summary><ul>
+{% for change in group.changes %}<li>{{ labels.get(change.tabla, change.tabla) }} #{{ change.registro_id }}: {{ 'alta' if not change.antes else ('baja recuperable' if not change.despues else 'modificación') }}</li>{% endfor %}
+</ul></details>
+<form method="post" action="{{ url_for('admin_historial_recuperar', batch=group.batch) }}" data-confirm="¿Recuperar el estado anterior a esta operación? No se deshacen pagos externos.">
+<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+<label>Motivo de la recuperación <input name="motivo" required maxlength="400" placeholder="Ej.: anulación cargada por error"></label>
+<button class="btn btn-ghost">Recuperar estado anterior</button>
+</form></section>
+{% else %}<p>Todavía no hay cambios registrados.</p>{% endfor %}
+<div class="page-actions">{% if pagina > 1 %}<a class="btn btn-ghost" href="{{ url_for('admin_historial',pagina=pagina-1,tipo=tipo) }}">Anterior</a>{% endif %}{% if groups|length == 50 %}<a class="btn btn-ghost" href="{{ url_for('admin_historial',pagina=pagina+1,tipo=tipo) }}">Siguiente</a>{% endif %}</div>
+{% endblock %}

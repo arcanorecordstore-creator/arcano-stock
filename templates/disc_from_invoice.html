@@ -25,6 +25,7 @@
         {% endif %}
 
         <form method="post" enctype="multipart/form-data" action="{{ url_for('disc_new_from_invoice') }}" id="upload-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="dropzone" id="dropzone">
                 <div class="dropzone-icon">&#8682;</div>
                 <p class="dropzone-title">Arrastra la factura aqui</p>

@@ -27,6 +27,7 @@
 
     <section class="upload-card">
         <form method="post" action="{{ url_for('disc_new_from_url') }}" id="url-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="form-row">
                 <div class="form-field form-field-full">
                     <label for="urls">URL(s) del disco</label>

@@ -330,9 +330,11 @@
                         <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="action-btn" title="Ver detalle">Ver</a>
                         <a href="{{ url_for('disc_edit', disc_id=d.id) }}" class="action-btn" title="Editar">Editar</a>
                         <form method="post" action="{{ url_for('disc_duplicate', disc_id=d.id) }}" class="inline-form" data-confirm="¿Duplicar '{{ d.artista }} - {{ d.titulo }}'? Se creara una copia identica que podes editar.">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="action-btn" title="Crear una copia de este disco">Duplicar</button>
                         </form>
                         <form method="post" action="{{ url_for('disc_delete', disc_id=d.id) }}" class="inline-form" data-confirm="¿Eliminar el disco '{{ d.artista }} - {{ d.titulo }}'? Esta accion no se puede deshacer.">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="action-btn danger">Eliminar</button>
                         </form>
                     </div>
@@ -347,7 +349,7 @@
                 <td class="col-num">{{ '%.2f'|format(totals.suma_envio_eur) }}</td>
                 <td class="col-num">{{ '{:,.0f}'.format(totals.suma_costo_final_uyu).replace(',', '.') }}</td>
                 <td class="col-num">{{ '{:,.0f}'.format(totals.suma_precio_uyu).replace(',', '.') }}</td>
-                <td class="col-num gain">{{ '{:,.0f}'.format(totals.suma_ganancia_uyu).replace(',', '.') }}</td>
+                <td class="col-num {% if totals.suma_ganancia_uyu >= 0 %}gain{% else %}loss{% endif %}">{{ '{:,.0f}'.format(totals.suma_ganancia_uyu).replace(',', '.') }}</td>
                 <td class="col-num">—</td>
                 <td class="col-status">—</td>
                 <td class="col-origen">—</td>
@@ -412,7 +414,7 @@
     </div>
     <div class="summary-card highlight">
         <span class="summary-label">Ganancia potencial</span>
-        <span class="summary-value">{{ '{:,.0f}'.format(totals.ganancia_potencial_uyu).replace(',', '.') }}</span>
+        <span class="summary-value{% if totals.ganancia_potencial_uyu < 0 %} negativo{% endif %}">{{ '{:,.0f}'.format(totals.ganancia_potencial_uyu).replace(',', '.') }}</span>
         <span class="summary-foot">Solo discos disponibles</span>
     </div>
     <div class="summary-card">
@@ -439,6 +441,7 @@
     <span class="bulk-count"><span id="bulk-count-num">0</span> seleccionados</span>
     <div class="bulk-actions-buttons">
         <form method="post" action="{{ url_for('disc_bulk_action') }}" id="bulk-field-form" style="display:inline-flex; gap:6px; align-items:center; flex-wrap:wrap;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div id="bulk-field-ids"></div>
             <select id="bulk-field-selector" class="bulk-select">
                 <option value="">Cambiar...</option>
@@ -477,6 +480,7 @@
         </form>
         <form method="post" action="{{ url_for('disc_bulk_action') }}" id="bulk-delete-form"
               data-confirm="¿Eliminar los discos seleccionados? Esta accion no se puede deshacer.">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="delete">
             <div id="bulk-delete-ids"></div>
             <button type="submit" class="btn btn-ghost danger">Eliminar</button>

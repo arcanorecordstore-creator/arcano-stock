@@ -25,6 +25,7 @@
         {% endif %}
 
         <form method="post" enctype="multipart/form-data" action="{{ url_for('disc_new_combo') }}" id="combo-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <div class="combo-field">
                 <label for="url" class="combo-label">1 &middot; Link(s) de Deejay.de <span class="combo-opt">(opcional)</span></label>
                 <textarea id="url" name="url" class="combo-url" rows="3" placeholder="https://www.deejay.de/...&#10;Peg&aacute; uno o varios (uno por l&iacute;nea)" autocomplete="off"></textarea>

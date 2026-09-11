@@ -935,6 +935,17 @@ class Reserva(db.Model):
     """Una reserva hecha por un cliente desde la tienda publica."""
 
     __tablename__ = "reservas"
+    # None conserva el formato historico: web UTC, manual hora local.
+    # Nuevas reservas siempre guardan fecha UTC, sin reescribir fechas antiguas.
+    fecha_es_utc = db.Column(db.Boolean, nullable=True, default=True)
+
+    @property
+    def fecha_utc(self):
+        if self.fecha is None:
+            return None
+        if self.fecha_es_utc is False or (self.fecha_es_utc is None and self.canal != 'web'):
+            return self.fecha + _UY_OFFSET
+        return self.fecha
 
     id = db.Column(db.Integer, primary_key=True)
     disc_id = db.Column(
@@ -1556,6 +1567,9 @@ def _migrate_schema(app):
         # Campos de pago Mercado Pago en la tabla reservas
         if inspector.has_table("reservas"):
             _rcols = [c["name"] for c in inspector.get_columns("reservas")]
+            if "fecha_es_utc" not in _rcols:
+                with db.engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE reservas ADD COLUMN fecha_es_utc BOOLEAN"))
             _radds = {
                 "pagado": "BOOLEAN DEFAULT 0",
                 "mp_preference_id": "VARCHAR(120)",

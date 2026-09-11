@@ -7,7 +7,7 @@
 <section class="page-head">
     <div>
         <h1 class="page-title">Reserva #{{ reserva.id }}</h1>
-        <p class="page-sub">{{ reserva.fecha|hora_uy }} &middot; Estado: <span class="badge badge-{{ 'reservado' if reserva.estado == 'Pendiente' else 'vendido' if reserva.estado == 'Pagada' else 'descartado' }}">{{ reserva.estado }}</span></p>
+        <p class="page-sub">{{ reserva.fecha_utc|hora_uy }} &middot; Estado: <span class="badge badge-{{ 'reservado' if reserva.estado == 'Pendiente' else 'vendido' if reserva.estado == 'Pagada' else 'descartado' }}">{{ reserva.estado }}</span></p>
     </div>
     <div class="page-actions">
         <a href="{{ url_for('admin_reservas') }}" class="btn btn-ghost">&larr; Volver</a>
@@ -40,6 +40,7 @@
 
             {# Asignar esta reserva (y sus discos) a un cliente ya cargado, o cambiarlo. #}
             <form method="post" class="reserva-asignar" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-1);">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="accion" value="asignar_cliente">
                 <span class="detail-meta-label">Ficha de cliente {% if cliente_actual_reserva %}&mdash; asignada a <strong style="color: var(--text-1);">{{ cliente_actual_reserva.nombre }}</strong>{% else %}&mdash; sin asignar{% endif %}</span>
                 <div style="display:flex; gap:8px; margin-top:6px; flex-wrap:wrap;">
@@ -101,6 +102,7 @@
             <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-1);">
                 <span class="detail-meta-label">&iquest;Ya lo entregaste?</span>
                 <form method="post" action="{{ url_for('reserva_toggle_entrega', reserva_id=reserva.id) }}" style="margin-top: 8px;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="entrega-toggle {{ 'on' if reserva.entregado else 'off' }}" title="Tocá para cambiar entre entregado y pendiente de entrega">
                         {% if reserva.entregado %}
                         <span class="entrega-ico">&#10003;</span><span class="entrega-txt">Entregado</span>
@@ -115,6 +117,7 @@
         <details class="detail-card">
             <summary class="reserva-edit-summary">&#9998; Editar datos de la reserva</summary>
             <form method="post" action="{{ url_for('admin_reserva_detail', reserva_id=reserva.id) }}" class="reserva-edit-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="accion" value="editar">
                 <label class="rev-f"><span>Nombre</span><input type="text" name="nombre" value="{{ reserva.nombre or '' }}" maxlength="200"></label>
                 <label class="rev-f"><span>WhatsApp</span><input type="text" name="whatsapp" value="{{ reserva.whatsapp or '' }}" maxlength="50" placeholder="099123456"></label>
@@ -135,6 +138,7 @@
         <div class="detail-actions">
             <p class="detail-actions-label">Cambiar estado</p>
             <form method="post" action="{{ url_for('admin_reserva_detail', reserva_id=reserva.id) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="accion" value="estado">
                 <div class="detail-status-buttons">
                     {% for e in estados if e != reserva.estado %}
@@ -151,6 +155,7 @@
             {% else %}
             <form method="post" action="{{ url_for('admin_reserva_detail', reserva_id=reserva.id) }}"
                   data-confirm="¿Enviar este mail a {{ reserva.email }}?">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="accion" value="enviar_mail">
                 <label for="texto-mail" style="display:block; font-size: 12px; color: var(--text-4); margin: 0 0 4px;">Mensaje (podés editarlo):</label>
                 <textarea id="texto-mail" name="texto_mail" rows="3" class="detail-mail-textarea">{{ texto_mail_default }}</textarea>
@@ -183,9 +188,10 @@ Montevideo, Uruguay</div>
 
             <p class="detail-actions-label">Acciones</p>
             <form method="post" action="{{ url_for('admin_reserva_detail', reserva_id=reserva.id) }}"
-                  data-confirm="¿Eliminar reserva #{{ reserva.id }}? Esto no se puede deshacer.">
+                  data-confirm="¿Anular reserva #{{ reserva.id }}? Podés recuperarla desde Historial.">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="accion" value="delete">
-                <button type="submit" class="action-btn danger" style="width: 100%;">Eliminar reserva</button>
+                <button type="submit" class="action-btn danger" style="width: 100%;">Anular reserva</button>
             </form>
         </div>
     </aside>
@@ -234,16 +240,19 @@ Montevideo, Uruguay</div>
                         <div class="disc-sena">
                             <span class="disc-sena-tag">&#10003; Se&ntilde;a $ {{ '{:,.0f}'.format(d.sena_efectiva).replace(',', '.') }} cobrada &middot; falta $ {{ '{:,.0f}'.format(d.precio_falta_uyu).replace(',', '.') }}</span>
                             <form method="post" action="{{ url_for('admin_disc_sena', disc_id=d.id) }}" onsubmit="return confirm('¿Le devolviste la seña al cliente? Se saca de la caja.');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="accion" value="devolver"><input type="hidden" name="next" value="{{ request.path }}">
                                 <button type="submit" class="btn btn-ghost btn-xs">Devolv&iacute;</button>
                             </form>
                             <form method="post" action="{{ url_for('admin_disc_sena', disc_id=d.id) }}" onsubmit="return confirm('¿Te quedás la seña? Queda como ingreso a favor tuyo.');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="accion" value="quedar"><input type="hidden" name="next" value="{{ request.path }}">
                                 <button type="submit" class="btn btn-ghost btn-xs">Me la qued&eacute;</button>
                             </form>
                         </div>
                         {% elif d.estado == 'Reservado' %}
                         <form method="post" action="{{ url_for('admin_disc_sena', disc_id=d.id) }}" class="disc-sena">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="accion" value="cobrar"><input type="hidden" name="next" value="{{ request.path }}">
                             <input type="number" name="monto" min="1" step="1" placeholder="Se&ntilde;a $" class="disc-sena-monto" required>
                             <select name="metodo">

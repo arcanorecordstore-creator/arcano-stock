@@ -29,6 +29,7 @@
 <details class="cli-nuevo">
     <summary class="btn btn-primary" style="display:inline-block;">+ Nuevo cliente</summary>
     <form method="post" action="{{ url_for('admin_cliente_nuevo') }}" class="cli-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div class="cli-form-grid">
             <div class="form-field"><label for="cli-nombre">Nombre</label><input id="cli-nombre" type="text" name="nombre" maxlength="200" placeholder="Nombre y apellido"></div>
             <div class="form-field"><label for="cli-wa">Celular / WhatsApp</label><input id="cli-wa" type="text" name="whatsapp" maxlength="50" placeholder="099 123 456"></div>
@@ -63,6 +64,7 @@
 {% if clientes %}
 <form method="post" action="{{ url_for('admin_clientes_eliminar_multiple') }}" id="cli-bulk-form"
       onsubmit="return confirm('¿Eliminar los clientes seleccionados? Las ventas NO se borran, solo se desvinculan.');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 <div class="cli-bulkbar" id="cli-bulkbar" hidden>
     <span><strong id="cli-bulk-n">0</strong> seleccionado(s)</span>
     <button type="submit" class="btn btn-danger btn-sm">Eliminar seleccionados</button>

@@ -3,6 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <script src="{{ url_for('static', filename='js/admin_security.js') }}"></script>
     <title>{% block title %}Arcano Stock{% endblock %}</title>
     <!-- App instalable (PWA) del admin: icono + pantalla completa -->
     <link rel="manifest" href="/admin/manifest.webmanifest">
@@ -73,6 +75,7 @@
                 </div>
 
                 <a href="{{ url_for('settings_page') }}" class="nav-link {% if ep.startswith('settings') %}active{% endif %}">Ajustes</a>
+                <a href="{{ url_for('admin_historial') }}" class="nav-link {% if ep.startswith('admin_historial') %}active{% endif %}">Historial</a>
                 <a href="{{ url_for('home') }}" target="_blank" class="nav-link nav-link-external" title="Ver tienda publica">Tienda &nearr;</a>
             </nav>
             <div class="topbar-meta">
@@ -106,12 +109,15 @@
         {% endwith %}
 
         <main class="app-main">
+            {% if request.endpoint in ['dashboard', 'ventas_panel', 'admin_reservas', 'admin_clientes', 'contabilidad', 'caja', 'pedidos'] %}
+            <p class="page-sub">Los registros archivados se ocultan de las listas; los totales los siguen incluyendo. Podés volver a mostrarlos desde <a href="{{ url_for('admin_historial') }}">Historial</a>.</p>
+            {% endif %}
             {% block content %}{% endblock %}
         </main>
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v4.96</span>
+            <span class="footer-version">v4.97</span>
         </footer>
     </div>
 
