@@ -67,17 +67,41 @@
 <article class="public-disc {% if cover_bg %}public-disc-cinematic{% endif %}">
     <div class="public-disc-left">
         {% set cover_main = url_for('serve_cover', filename=disc.cover_local) if disc.cover_local else (disc.cover_url if disc.cover_url else '') %}
-        <div class="public-disc-cover" id="disc-cover-main">
-            {% if cover_main %}
-                <img src="{{ cover_main }}" alt="{{ disc.artista }} - {{ disc.titulo }}" id="disc-cover-img">
-            {% else %}
-                <div class="public-disc-cover-empty">&#9834;</div>
+        {% set ps_cover = disc.primer_track_sample %}
+        {% set puede_sonar = ps_cover and not (disc.esta_agotado and not disc.mostrar_preorder) %}
+        <div class="public-disc-coverwrap{% if puede_sonar %} has-sample{% endif %}">
+            {% if puede_sonar %}
+            <div class="public-disc-vinyl" aria-hidden="true"><span class="public-disc-vinyl-label"></span></div>
             {% endif %}
-            {% if disc.estado == "Vendido" %}
-                <div class="public-disc-cover-overlay"><span>Vendido</span></div>
-            {% elif disc.esta_agotado and not disc.mostrar_preorder %}
-                <div class="public-disc-cover-overlay"><span>Agotado</span></div>
-            {% endif %}
+            <div class="public-disc-cover" id="disc-cover-main">
+                {% if cover_main %}
+                    <img src="{{ cover_main }}" alt="{{ disc.artista }} - {{ disc.titulo }}" id="disc-cover-img">
+                {% else %}
+                    <div class="public-disc-cover-empty">&#9834;</div>
+                {% endif %}
+                {% if disc.estado == "Vendido" %}
+                    <div class="public-disc-cover-overlay"><span>Vendido</span></div>
+                {% elif disc.esta_agotado and not disc.mostrar_preorder %}
+                    <div class="public-disc-cover-overlay"><span>Agotado</span></div>
+                {% endif %}
+                {% if puede_sonar %}
+                <button type="button" class="public-disc-cover-play" data-play="{{ ps_cover.sample_kind }}"
+                        data-track-id="{{ ps_cover.id }}"
+                        data-disc-id="{{ disc.id }}"
+                        data-disponible="{{ '1' if not disc.esta_agotado else '0' }}"
+                        {% if ps_cover.sample_kind == 'local' %}data-audio-url="{{ url_for('serve_sample', filename=ps_cover.sample_local) }}"{% endif %}
+                        {% if ps_cover.sample_kind == 'youtube' %}data-youtube-id="{{ ps_cover.youtube_video_id }}" data-youtube-start="{{ ps_cover.youtube_start or 0 }}"{% endif %}
+                        {% if ps_cover.sample_kind == 'soundcloud' %}data-soundcloud-url="{{ ps_cover.youtube_url }}"{% endif %}
+                        data-cover-url="{{ cover_main }}"
+                        data-track-title="{{ ps_cover.titulo }}"
+                        data-track-artist="{{ ps_cover.artista or disc.artista }}"
+                        aria-label="Escuchar preview de {{ disc.artista }} - {{ disc.titulo }}" title="Escuchar preview">
+                    <span class="play-icon">&#9654;</span>
+                    <span class="pause-icon" hidden>&#9724;</span>
+                    <span class="public-disc-cover-hint">Escuchar</span>
+                </button>
+                {% endif %}
+            </div>
         </div>
 
         {% if disc.imagenes %}

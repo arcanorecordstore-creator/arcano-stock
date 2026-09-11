@@ -3471,6 +3471,113 @@ img.cover-fallback { object-fit: cover; background: transparent; }
     border-radius: 8px;
     overflow: hidden;
     position: relative;
+    z-index: 2;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.28);
+}
+
+/* ===== Tapa interactiva: vinilo que asoma + play al tocar la foto ===== */
+.public-disc-coverwrap {
+    position: relative;
+}
+.public-disc-vinyl {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    z-index: 1;
+    background:
+        repeating-radial-gradient(circle at 50% 50%, rgba(255,255,255,0.045) 0 1px, rgba(0,0,0,0) 1px 5px),
+        radial-gradient(circle at 38% 32%, #3a3632 0%, #201d1a 60%, #17140f 100%);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
+    transform: translateX(0) rotate(0deg);
+    transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+    pointer-events: none;
+}
+.public-disc-vinyl-label {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 34%;
+    height: 34%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: #d6a945;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,0.25);
+}
+.public-disc-vinyl-label::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 14%;
+    height: 14%;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    background: var(--bg-0, #1E1C1C);
+}
+.public-disc-coverwrap.has-sample:hover .public-disc-vinyl {
+    transform: translateX(30%) rotate(10deg);
+}
+.public-disc-cover-play {
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: #fff;
+    transition: background 0.2s;
+}
+.public-disc-coverwrap:hover .public-disc-cover-play {
+    background: rgba(30, 28, 28, 0.30);
+}
+.public-disc-cover-play .play-icon,
+.public-disc-cover-play .pause-icon {
+    width: 62px;
+    height: 62px;
+    border-radius: 50%;
+    background: rgba(30, 28, 28, 0.66);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    line-height: 1;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
+    transition: transform 0.18s, background 0.18s;
+}
+.public-disc-cover-play .play-icon { padding-left: 4px; }  /* centrar el triangulo */
+.public-disc-coverwrap:hover .public-disc-cover-play .play-icon {
+    transform: scale(1.08);
+    background: #d6a945;
+    color: var(--arcano-negro);
+}
+.public-disc-cover-play.is-playing .play-icon { background: #d6a945; color: var(--arcano-negro); }
+.public-disc-cover-hint {
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    background: rgba(30, 28, 28, 0.66);
+    padding: 4px 10px;
+    border-radius: 999px;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.2s, transform 0.2s;
+}
+.public-disc-coverwrap:hover .public-disc-cover-hint {
+    opacity: 1;
+    transform: translateY(0);
+}
+/* En tactil no hay hover: el play siempre visible y discreto, el vinilo asoma fijo */
+@media (hover: none) {
+    .public-disc-cover-play .play-icon { width: 54px; height: 54px; font-size: 21px; }
+    .public-disc-cover-hint { display: none; }
+    .public-disc-coverwrap.has-sample .public-disc-vinyl { transform: translateX(18%) rotate(6deg); }
 }
 
 /* Overlay grande VENDIDO / Agotado sobre la portada */
