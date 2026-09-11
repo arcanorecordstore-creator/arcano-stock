@@ -3574,7 +3574,7 @@ img.cover-fallback { object-fit: cover; background: transparent; }
     opacity: 1;
     transform: translateY(0);
 }
-/* En tactil no hay hover: el play siempre visible y discreto, el vinilo asoma fijo */
+/* En tactil no hay hover: el play siempre visible y discreto */
 @media (hover: none) {
     .public-disc-cover-play .play-icon {
         width: 62px;
@@ -3585,7 +3585,11 @@ img.cover-fallback { object-fit: cover; background: transparent; }
         box-shadow: 0 6px 22px rgba(0, 0, 0, 0.55);
     }
     .public-disc-cover-hint { display: none; }
-    .public-disc-coverwrap.has-sample .public-disc-vinyl { transform: translateX(18%) rotate(6deg); }
+}
+/* En una sola columna (celular) la tapa ocupa casi todo el ancho: el vinilo que
+   asoma se saldria de la pantalla, asi que se oculta. Queda solo en desktop. */
+@media (max-width: 800px) {
+    .public-disc-vinyl { display: none; }
 }
 
 /* Overlay grande VENDIDO / Agotado sobre la portada */
@@ -3804,7 +3808,7 @@ img.cover-fallback { object-fit: cover; background: transparent; }
     text-transform: uppercase;
     letter-spacing: 0.16em;
     color: var(--text-3);
-    margin: 0 0 20px;
+    margin: 0;
     font-weight: 600;
 }
 .public-related-title::before {
@@ -3816,40 +3820,36 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 }
 
 /* Carrusel horizontal de similares: se ven ~6 y se scrollea para ver mas */
-.public-related-wrap {
-    position: relative;
+.public-related-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin: 0 0 18px;
 }
+.public-related-navs { display: flex; gap: 8px; flex: none; }
 .public-related-nav {
-    position: absolute;
-    top: 112px;
-    transform: translateY(-50%);
-    z-index: 4;
-    width: 42px;
-    height: 42px;
+    width: 38px;
+    height: 38px;
     border-radius: 50%;
     border: 1px solid var(--border-2);
     background: var(--bg-1);
     color: var(--text-1);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.20);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 24px;
+    font-size: 21px;
     line-height: 1;
-    padding-bottom: 3px;
-    transition: background 0.15s, color 0.15s, transform 0.15s, opacity 0.15s;
+    padding-bottom: 2px;
+    transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.15s, opacity 0.15s;
 }
-.public-related-nav:hover {
+.public-related-nav:hover:not(:disabled) {
     background: var(--arcano-beige, #E9D1AF);
     color: var(--arcano-negro, #1E1C1C);
     border-color: var(--arcano-beige, #E9D1AF);
 }
-.public-related-nav.prev { left: -8px; }
-.public-related-nav.next { right: -8px; }
-@media (max-width: 600px) {
-    .public-related-nav { top: 100px; width: 36px; height: 36px; font-size: 20px; }
-}
+.public-related-nav:disabled { opacity: 0.35; cursor: default; }
 .public-related-scroll {
     display: flex;
     gap: 26px;
@@ -9176,7 +9176,7 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     .public-wsp-btn:active,
     .fav-btn-full:active,
     .disc-buybar-btn:active { transform: scale(0.96); }
-    .public-related-nav:active { transform: translateY(-50%) scale(0.9); }
+    .public-related-nav:active:not(:disabled) { transform: scale(0.9); }
 
     /* Pop al quedar "Agregado" en el carrito */
     @keyframes cartAdded {

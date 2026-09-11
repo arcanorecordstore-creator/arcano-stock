@@ -405,11 +405,14 @@
 
 {% if relacionados %}
 <section class="public-related">
-    <h2 class="public-related-title">Similares a este disco{% if disc.genero %} <span class="public-related-genre">{{ disc.genero }}</span>{% endif %}</h2>
-    <div class="public-related-wrap">
-        <button type="button" class="public-related-nav prev" aria-label="Ver anteriores" hidden>&#8249;</button>
-        <button type="button" class="public-related-nav next" aria-label="Ver siguientes">&#8250;</button>
-        <div class="public-related-scroll">
+    <div class="public-related-head">
+        <h2 class="public-related-title">Similares a este disco{% if disc.genero %} <span class="public-related-genre">{{ disc.genero }}</span>{% endif %}</h2>
+        <div class="public-related-navs">
+            <button type="button" class="public-related-nav prev" aria-label="Ver anteriores" disabled>&#8249;</button>
+            <button type="button" class="public-related-nav next" aria-label="Ver siguientes">&#8250;</button>
+        </div>
+    </div>
+    <div class="public-related-scroll">
         {% for r in relacionados %}
         {% set rcover = url_for('serve_cover', filename=r.cover_local) if r.cover_local else (r.cover_url if r.cover_url else '') %}
         {% set rps = r.primer_track_sample %}
@@ -447,7 +450,6 @@
         </a>
         {% endfor %}
         </div>
-    </div>
 </section>
 {% endif %}
 
@@ -488,8 +490,8 @@
         var relNext = document.querySelector('.public-related-nav.next');
         var actualizar = function () {
             var max = relScroll.scrollWidth - relScroll.clientWidth - 4;
-            if (relPrev) relPrev.hidden = relScroll.scrollLeft <= 4;
-            if (relNext) relNext.hidden = relScroll.scrollLeft >= max;
+            if (relPrev) relPrev.disabled = relScroll.scrollLeft <= 4;
+            if (relNext) relNext.disabled = relScroll.scrollLeft >= max;
         };
         var paso = function (dir) {
             relScroll.scrollBy({ left: dir * relScroll.clientWidth * 0.85, behavior: 'smooth' });
