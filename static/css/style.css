@@ -3818,10 +3818,10 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 /* Carrusel horizontal de similares: se ven ~8 y se scrollea para ver mas */
 .public-related-scroll {
     display: flex;
-    gap: 16px;
+    gap: 26px;
     overflow-x: auto;
     scroll-snap-type: x proximity;
-    padding: 2px 2px 14px;
+    padding: 2px 2px 16px;
     margin: 0 -2px;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: thin;
@@ -3834,12 +3834,12 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 }
 .public-related-scroll::-webkit-scrollbar-track { background: transparent; }
 .public-related-card {
-    flex: 0 0 178px;
-    width: 178px;
+    flex: 0 0 224px;
+    width: 224px;
     scroll-snap-align: start;
 }
 @media (max-width: 600px) {
-    .public-related-card { flex-basis: 150px; width: 150px; }
+    .public-related-card { flex-basis: 200px; width: 200px; }
 }
 
 /* Reserva form */

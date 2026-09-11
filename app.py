@@ -7113,7 +7113,7 @@ def register_routes(app: Flask) -> None:
             .filter(Disc.stock > 0)
         )
 
-        _N_REL = 16  # se muestran en un carrusel horizontal con scroll
+        _N_REL = 12  # se muestran en un carrusel horizontal con scroll (6 + 6)
         # 1. Mismo genero (lo mas relevante para diggear)
         if disc.genero:
             relacionados += _agregar(
