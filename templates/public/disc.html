@@ -406,7 +406,10 @@
 {% if relacionados %}
 <section class="public-related">
     <h2 class="public-related-title">Similares a este disco{% if disc.genero %} <span class="public-related-genre">{{ disc.genero }}</span>{% endif %}</h2>
-    <div class="public-related-scroll">
+    <div class="public-related-wrap">
+        <button type="button" class="public-related-nav prev" aria-label="Ver anteriores" hidden>&#8249;</button>
+        <button type="button" class="public-related-nav next" aria-label="Ver siguientes">&#8250;</button>
+        <div class="public-related-scroll">
         {% for r in relacionados %}
         {% set rcover = url_for('serve_cover', filename=r.cover_local) if r.cover_local else (r.cover_url if r.cover_url else '') %}
         {% set rps = r.primer_track_sample %}
@@ -443,6 +446,7 @@
             </div>
         </a>
         {% endfor %}
+        </div>
     </div>
 </section>
 {% endif %}
@@ -476,6 +480,26 @@
     }
     // El reproductor flotante ahora es compartido (static/js/player.js),
     // funciona automaticamente con los botones [data-play] de esta pagina.
+
+    // ---- Flechas del carrusel de "Similares" ----
+    var relScroll = document.querySelector('.public-related-scroll');
+    if (relScroll) {
+        var relPrev = document.querySelector('.public-related-nav.prev');
+        var relNext = document.querySelector('.public-related-nav.next');
+        var actualizar = function () {
+            var max = relScroll.scrollWidth - relScroll.clientWidth - 4;
+            if (relPrev) relPrev.hidden = relScroll.scrollLeft <= 4;
+            if (relNext) relNext.hidden = relScroll.scrollLeft >= max;
+        };
+        var paso = function (dir) {
+            relScroll.scrollBy({ left: dir * relScroll.clientWidth * 0.85, behavior: 'smooth' });
+        };
+        if (relPrev) relPrev.addEventListener('click', function () { paso(-1); });
+        if (relNext) relNext.addEventListener('click', function () { paso(1); });
+        relScroll.addEventListener('scroll', actualizar, { passive: true });
+        window.addEventListener('resize', actualizar);
+        actualizar();
+    }
 })();
 </script>
 
