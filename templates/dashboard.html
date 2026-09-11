@@ -185,7 +185,6 @@
                 <th class="col-cover"></th>
                 {{ th_sort('artista', 'Artista &mdash; Título', 'col-main') }}
                 {{ th_sort('sello', 'Sello', 'col-label') }}
-                {{ th_sort('formato', 'Fmt', 'col-fmt') }}
                 {{ th_sort('audio_estado', 'Audio', 'col-audio') }}
                 {{ th_sort('costo_eur', 'Costo &euro;', 'col-num') }}
                 {{ th_sort('envio_eur', 'Envio &euro;', 'col-num') }}
@@ -233,7 +232,6 @@
                     <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="main-ver-ficha" title="Abrir ficha completa">ver ficha &rarr;</a>
                 </td>
                 <td class="col-label col-editable-text" data-edit="sello" data-disc-id="{{ d.id }}" data-raw="{{ d.sello or '' }}" title="Click para editar el sello">{{ d.sello or '—' }}</td>
-                <td class="col-fmt col-editable-text" data-edit="formato" data-disc-id="{{ d.id }}" data-raw="{{ d.formato or '' }}" title="Click para editar el formato">{{ d.formato or '—' }}</td>
                 <td class="col-audio col-editable-audio" data-disc-id="{{ d.id }}" data-audio="{{ d.audio_estado or '' }}" title="Click para cambiar el estado de audio">
                     {% if d.audio_estado %}
                     <span class="badge badge-audio-{{ {'En digital':'digital','Grabado':'grabado','Para grabar':'paragrabar','F':'f'}.get(d.audio_estado, 'default') }}">{{ d.audio_estado }}</span>
@@ -344,7 +342,7 @@
         </tbody>
         <tfoot>
             <tr class="totals-row">
-                <td colspan="7" class="totals-label">Totales</td>
+                <td colspan="6" class="totals-label">Totales</td>
                 <td class="col-num">{{ '%.2f'|format(totals.suma_costo_eur) }}</td>
                 <td class="col-num">{{ '%.2f'|format(totals.suma_envio_eur) }}</td>
                 <td class="col-num">{{ '{:,.0f}'.format(totals.suma_costo_final_uyu).replace(',', '.') }}</td>

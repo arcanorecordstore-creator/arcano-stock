@@ -1518,7 +1518,7 @@ def register_routes(app: Flask) -> None:
                 titulo=prefill.get("titulo"),
                 sello=prefill.get("sello"),
                 anio=prefill.get("anio"),
-                formato=prefill.get("formato"),
+                formato="Vinyl",  # tienda de vinilos: siempre por defecto
                 pais=prefill.get("pais"),
                 genero=prefill.get("genero"),
                 tracklist=prefill.get("tracklist"),
@@ -2494,7 +2494,7 @@ def register_routes(app: Flask) -> None:
 
                 sello = _str_or_none(request.form.get(prefix + "sello"))
                 anio = _parse_int(request.form.get(prefix + "anio"))
-                formato = _str_or_none(request.form.get(prefix + "formato"))
+                formato = _str_or_none(request.form.get(prefix + "formato")) or "Vinyl"
                 pais = _str_or_none(request.form.get(prefix + "pais"))
                 costo_eur = _parse_float(request.form.get(prefix + "costo_eur"), 0.0)
                 envio_eur = _parse_float(request.form.get(prefix + "envio_eur"), 0.0)

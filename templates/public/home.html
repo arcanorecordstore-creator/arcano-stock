@@ -240,19 +240,6 @@
                 </label>
             </div>
 
-            {% if formatos %}
-            <div class="filter-block">
-                <div class="filter-block-title">Formato</div>
-                <div class="filter-checks">
-                    {% for f, cnt in formatos %}
-                    <label class="filter-check">
-                        <input type="checkbox" name="formato" value="{{ f }}" {% if f in filtro_formatos %}checked{% endif %}>
-                        <span>{{ f }}</span><span class="filter-count">{{ cnt }}</span>
-                    </label>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
 
             {% if paises %}
             <div class="filter-block">
