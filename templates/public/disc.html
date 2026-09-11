@@ -409,7 +409,7 @@
         <h2 class="public-related-title">
             {%- if disc.genero -%}
             {%- set _gen = [] -%}
-            {%- for g in disc.genero.split(',') if g.strip() -%}{%- set _ = _gen.append(g.strip()) -%}{%- endfor -%}
+            {%- for g in disc.genero.replace(' - ', ',').replace(' / ', ',').split(',') if g.strip() -%}{%- set _ = _gen.append(g.strip()) -%}{%- endfor -%}
             <a href="{{ url_for('home', genero=_gen) }}" class="public-related-title-link" title="Ver todo el catalogo de este genero">Similares a este disco <span class="public-related-genre">{{ disc.genero }}</span> <span class="public-related-title-arrow">&rarr;</span></a>
             {%- else -%}
             Similares a este disco
