@@ -232,15 +232,6 @@
                 </div>
             </div>
 
-            <div class="filter-block">
-                <div class="filter-block-title">Audio</div>
-                <label class="filter-check filter-check-inline">
-                    <input type="checkbox" name="con_sample" value="1" {% if filtro_con_sample %}checked{% endif %}>
-                    <span>Solo con sample escuchable</span>
-                </label>
-            </div>
-
-
             {% if paises %}
             <div class="filter-block">
                 <div class="filter-block-title">País</div>
@@ -255,19 +246,6 @@
             </div>
             {% endif %}
 
-            {% if decadas %}
-            <div class="filter-block">
-                <div class="filter-block-title">Decada</div>
-                <div class="filter-checks">
-                    {% for dec, cnt in decadas %}
-                    <label class="filter-check">
-                        <input type="checkbox" name="decada" value="{{ dec }}" {% if dec in filtro_decadas %}checked{% endif %}>
-                        <span>{{ dec }}</span><span class="filter-count">{{ cnt }}</span>
-                    </label>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
 
             {% if tags_disponibles %}
             <div class="filter-block">

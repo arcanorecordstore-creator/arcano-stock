@@ -657,6 +657,24 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 /* Row actions */
 .col-actions { text-align: right; white-space: nowrap; }
 
+/* La columna Acciones queda fija a la derecha aunque la tabla scrollee de
+   costado: asi "Ver / Editar" nunca quedan cortados. (En el celu la tabla
+   pasa a tarjetas y esto se resetea mas abajo.) */
+.stock-table td.col-actions {
+    position: sticky;
+    right: 0;
+    z-index: 3;
+    background-color: var(--bg-1);
+    box-shadow: -10px 0 12px -8px rgba(0, 0, 0, 0.22);
+}
+.stock-table thead th.col-actions {
+    position: sticky;
+    right: 0;
+    z-index: 4;
+    background-color: var(--bg-2);
+    box-shadow: -10px 0 12px -8px rgba(0, 0, 0, 0.22);
+}
+
 .row-actions {
     display: inline-flex;
     gap: 4px;
@@ -8080,6 +8098,9 @@ td.num,
         gap: 8px;
         flex-wrap: wrap;
         padding-top: 8px;
+        position: static;
+        box-shadow: none;
+        background-color: transparent;
     }
     .stock-table td.col-actions .btn {
         flex: 1 1 auto;
