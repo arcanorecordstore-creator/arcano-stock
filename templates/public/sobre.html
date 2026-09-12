@@ -5,26 +5,56 @@
 {% block content %}
 
 <section class="public-sobre">
-    <header class="public-sobre-header">
+    <header class="public-sobre-hero">
+        <span class="public-sobre-mark" aria-hidden="true">
+            <svg viewBox="0 0 96 96" width="96" height="96" fill="none">
+                <g stroke="currentColor" stroke-width="2.4" stroke-linecap="round">
+                    <path d="M48 12 A36 36 0 0 1 84 48"/>
+                    <path d="M48 22 A26 26 0 0 1 74 48"/>
+                    <path d="M48 32 A16 16 0 0 1 64 48"/>
+                    <path d="M12 48 A36 36 0 0 1 48 12" opacity="0.4"/>
+                    <path d="M22 48 A26 26 0 0 1 48 22" opacity="0.4"/>
+                </g>
+                <circle cx="48" cy="48" r="4" fill="currentColor"/>
+            </svg>
+        </span>
+        <p class="public-sobre-eyebrow">Record store &middot; Montevideo, Uruguay</p>
         <h1 class="public-sobre-title">Sobre Arcano</h1>
-        <p class="public-sobre-subtitle">Record store &middot; Montevideo, Uruguay</p>
+        <p class="public-sobre-ethos">Lo que no se encuentra en el algoritmo.</p>
     </header>
 
     {% if about %}
-    <section class="public-sobre-block">
-        <div class="public-sobre-block-body">
-            {% for paragraph in about.split('\n\n') %}
-                {% if paragraph.strip() %}
-                <p>{{ paragraph.strip() }}</p>
-                {% endif %}
-            {% endfor %}
-        </div>
-    </section>
+    <div class="public-sobre-lead">
+        {% for paragraph in about.split('\n\n') %}
+            {% if paragraph.strip() %}
+            <p>{{ paragraph.strip() }}</p>
+            {% endif %}
+        {% endfor %}
+    </div>
     {% endif %}
+
+    <div class="public-sobre-values">
+        <div class="public-sobre-value">
+            <span class="public-sobre-value-name">Misterio</span>
+            <span class="public-sobre-value-desc">Lo que s&oacute;lo encuentra quien busca.</span>
+        </div>
+        <div class="public-sobre-value">
+            <span class="public-sobre-value-name">Anal&oacute;gico</span>
+            <span class="public-sobre-value-desc">El objeto f&iacute;sico frente al streaming.</span>
+        </div>
+        <div class="public-sobre-value">
+            <span class="public-sobre-value-name">Precisi&oacute;n</span>
+            <span class="public-sobre-value-desc">Geometr&iacute;a, ritmo, repetici&oacute;n.</span>
+        </div>
+        <div class="public-sobre-value">
+            <span class="public-sobre-value-name">Calidez</span>
+            <span class="public-sobre-value-desc">Tonos tierra, madera, papel.</span>
+        </div>
+    </div>
 
     {% if about_curaduria %}
     <section class="public-sobre-block">
-        <h2 class="public-sobre-block-title">Curaduria</h2>
+        <h2 class="public-sobre-block-title">Curadur&iacute;a</h2>
         <div class="public-sobre-block-body">
             {% for paragraph in about_curaduria.split('\n\n') %}
                 {% if paragraph.strip() %}
@@ -37,7 +67,7 @@
 
     {% if about_como_funciona %}
     <section class="public-sobre-block">
-        <h2 class="public-sobre-block-title">Como funciona</h2>
+        <h2 class="public-sobre-block-title">C&oacute;mo funciona</h2>
         <div class="public-sobre-block-body">
             {% for paragraph in about_como_funciona.split('\n\n') %}
                 {% if paragraph.strip() %}
@@ -51,7 +81,7 @@
     <div class="public-sobre-grid">
         {% if envios %}
         <div class="public-sobre-card">
-            <h2 class="public-sobre-card-title">Envios</h2>
+            <h2 class="public-sobre-card-title">Env&iacute;os</h2>
             <p>{{ envios }}</p>
         </div>
         {% endif %}
