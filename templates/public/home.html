@@ -232,6 +232,15 @@
                 </div>
             </div>
 
+            <div class="filter-block">
+                <div class="filter-block-title">A&ntilde;o</div>
+                <div class="filter-price-row">
+                    <input type="number" name="anio_min" class="filter-price-input" placeholder="Desde" value="{{ filtro_anio_min if filtro_anio_min is not none else '' }}" min="1900" max="2100" step="1" inputmode="numeric">
+                    <span class="filter-price-sep">&mdash;</span>
+                    <input type="number" name="anio_max" class="filter-price-input" placeholder="Hasta" value="{{ filtro_anio_max if filtro_anio_max is not none else '' }}" min="1900" max="2100" step="1" inputmode="numeric">
+                </div>
+            </div>
+
             {% if paises %}
             <div class="filter-block">
                 <div class="filter-block-title">País</div>
@@ -446,7 +455,7 @@
 
 {% else %}
 <div class="public-empty">
-    {% if filtro_q or filtro_sellos or filtro_generos or filtro_tags or filtro_formatos or filtro_paises or filtro_decadas or filtro_con_sample or filtro_precio_min is not none or filtro_precio_max is not none %}
+    {% if filtro_q or filtro_sellos or filtro_generos or filtro_tags or filtro_formatos or filtro_paises or filtro_decadas or filtro_con_sample or filtro_precio_min is not none or filtro_precio_max is not none or filtro_anio_min is not none or filtro_anio_max is not none %}
         <p>No encontramos discos con esos filtros.</p>
         <a href="{{ url_for('home') }}" class="btn btn-ghost">Ver todo el catalogo</a>
     {% else %}

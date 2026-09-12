@@ -815,6 +815,42 @@ def _parse_int(value, default=None):
         return default
 
 
+_GENERO_EXCLUIR = {"vinyl only", "vinyl", "vinilo", "only", ""}
+
+
+def _norm_generos(genero_str):
+    """Separa un campo 'genero' en generos individuales.
+
+    - Separadores: coma, ' - ' y ' / ' (con espacios). Un guion SIN espacios
+      (Trip-Hop, Break-Beat) NO separa: es parte del nombre.
+    - Excluye no-generos (Vinyl Only, etc.).
+    - Dedupe case-insensitive, conservando el primer texto visto.
+    """
+    if not genero_str:
+        return []
+    import re as _re
+    out = []
+    seen = set()
+    for tok in _re.split(r",|\s+-\s+|\s+/\s+", genero_str):
+        t = tok.strip()
+        if not t or t.lower() in _GENERO_EXCLUIR:
+            continue
+        k = t.lower()
+        if k in seen:
+            continue
+        seen.add(k)
+        out.append(t)
+    return out
+
+
+def _pretty_genero(t):
+    """Forma de display: Title Case, salvo siglas cortas en mayuscula (IDM, EBM)."""
+    t = t.strip()
+    if t.isupper() and len(t) <= 4:
+        return t
+    return t.title()
+
+
 def _str_or_none(value):
     if value is None:
         return None
@@ -6811,6 +6847,8 @@ def register_routes(app: Flask) -> None:
         con_sample = request.args.get("con_sample") == "1"
         precio_min = _parse_int(request.args.get("precio_min"), None)
         precio_max = _parse_int(request.args.get("precio_max"), None)
+        anio_min = _parse_int(request.args.get("anio_min"), None)
+        anio_max = _parse_int(request.args.get("anio_max"), None)
 
         def _decada(anio):
             if not anio:
@@ -6832,7 +6870,7 @@ def register_routes(app: Flask) -> None:
         if genero_sel:
             gl = {g.lower() for g in genero_sel}
             discs = [d for d in discs
-                     if any(part.strip().lower() in gl for part in (d.genero or "").split(","))]
+                     if any(tok.lower() in gl for tok in _norm_generos(d.genero))]
         if tags_sel:
             tl = {t.lower() for t in tags_sel}
             discs = [d for d in discs if any(tag.lower() in tl for tag in d.tags_list)]
@@ -6851,6 +6889,10 @@ def register_routes(app: Flask) -> None:
             discs = [d for d in discs if (d.precio_uyu or 0) >= precio_min]
         if precio_max is not None:
             discs = [d for d in discs if (d.precio_uyu or 0) <= precio_max]
+        if anio_min is not None:
+            discs = [d for d in discs if d.anio and d.anio >= anio_min]
+        if anio_max is not None:
+            discs = [d for d in discs if d.anio and d.anio <= anio_max]
 
         # Ordenamiento
         if orden == "precio_asc":
@@ -6897,7 +6939,8 @@ def register_routes(app: Flask) -> None:
         # Facetas con contadores (a partir de TODO el catalogo disponible)
         from collections import Counter
         sellos_count = Counter()
-        generos_count = Counter()
+        generos_count = Counter()   # clave = genero en minuscula (agrupa May/min)
+        generos_display = {}         # clave minuscula -> texto lindo para mostrar
         tags_count = Counter()
         formatos_count = Counter()
         paises_count = Counter()
@@ -6906,9 +6949,10 @@ def register_routes(app: Flask) -> None:
         for d in all_disponibles:
             if d.sello:
                 sellos_count[d.sello] += 1
-            for g in (d.genero or "").split(","):
-                if g.strip():
-                    generos_count[g.strip()] += 1
+            for g in _norm_generos(d.genero):
+                key = g.lower()
+                generos_count[key] += 1
+                generos_display.setdefault(key, _pretty_genero(g))
             for tg in d.tags_list:
                 tags_count[tg] += 1
             if d.formato:
@@ -6923,7 +6967,10 @@ def register_routes(app: Flask) -> None:
 
         sellos = sorted(sellos_count.keys())
         sellos_destacados = sellos_count.most_common(8)
-        generos = sorted(generos_count.items())
+        generos = sorted(
+            ((generos_display[k], cnt) for k, cnt in generos_count.items()),
+            key=lambda x: x[0].lower(),
+        )
         tags_disponibles = sorted(tags_count.items())
         formatos = sorted(formatos_count.items())
         paises = sorted(paises_count.items())
@@ -6937,6 +6984,7 @@ def register_routes(app: Flask) -> None:
             bool(sellos_sel), bool(genero_sel), bool(tags_sel),
             bool(formato_sel), bool(pais_sel), bool(decada_sel),
             con_sample, precio_min is not None, precio_max is not None,
+            anio_min is not None, anio_max is not None,
         ])
 
         # Secciones de la home: solo en pagina 1, sin filtros ni busqueda
@@ -7058,6 +7106,8 @@ def register_routes(app: Flask) -> None:
             filtro_con_sample=con_sample,
             filtro_precio_min=precio_min,
             filtro_precio_max=precio_max,
+            filtro_anio_min=anio_min,
+            filtro_anio_max=anio_max,
             filtros_activos=filtros_activos,
             **_public_context(),
         )
