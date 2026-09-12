@@ -4106,8 +4106,11 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 }
 .public-sobre-mark {
     display: inline-flex;
-    color: var(--arcano-marron, #3D3033);
-    margin-bottom: 20px;
+    margin-bottom: 22px;
+}
+.public-sobre-mark-img {
+    height: 84px;
+    width: auto;
 }
 .public-sobre-eyebrow {
     text-transform: uppercase;
