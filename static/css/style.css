@@ -4416,6 +4416,32 @@ img.cover-fallback { object-fit: cover; background: transparent; }
     flex-direction: column;
     gap: 10px;
 }
+/* Separador por mes en el panel de Reservas */
+.reserva-mes-sep {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 22px 2px 6px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-weight: 600;
+    color: var(--text-2);
+}
+.reserva-mes-sep::before {
+    content: "";
+    width: 20px;
+    height: 2px;
+    background: var(--arcano-beige, #E9D1AF);
+    flex: none;
+}
+.reserva-mes-sep::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border-1);
+}
+.reserva-list > .reserva-mes-sep:first-child { margin-top: 0; }
 
 .reserva-card {
     display: flex;

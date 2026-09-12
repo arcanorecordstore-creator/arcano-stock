@@ -125,8 +125,15 @@
     </div>
 </form>
 
+{% set MESES = ['', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'] %}
 <div class="reserva-list">
+    {% set _mes = namespace(prev='') %}
     {% for u in unidades %}
+        {% set _mk = (u.reservas[0].fecha_utc|hora_uy('%Y-%m')) if u.reservas and u.reservas[0].fecha_utc else '' %}
+        {% if _mk and _mk != _mes.prev %}
+        {% set _mes.prev = _mk %}
+        <div class="reserva-mes-sep"><span>{{ MESES[_mk[5:7]|int] }} {{ _mk[:4] }}</span></div>
+        {% endif %}
         {% if u.es_grupo %}
         <div class="reserva-grupo">
             <div class="reserva-grupo-head">
