@@ -9465,28 +9465,36 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 /* Gastos del periodo: filas editables (todos los campos) */
 .egreso-edit-list { display: flex; flex-direction: column; gap: 10px; }
 .egreso-edit-row {
-    display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap;
-    padding: 10px 12px; border: 1px solid var(--border-1, #2a2a2a);
-    border-radius: 10px; background: var(--bg-1, #1a1a1a);
+    display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap;
+    padding: 14px 16px; border: 1px solid var(--border-1, #2a2a2a);
+    border-radius: 12px; background: var(--bg-1, #1a1a1a);
+    transition: border-color 0.15s, box-shadow 0.15s;
 }
-.egreso-edit-form { display: flex; align-items: flex-end; gap: 8px; flex-wrap: wrap; flex: 1 1 auto; }
-.egf-field { display: flex; flex-direction: column; gap: 3px; }
-.egf-lbl { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--text-3, #888); }
+.egreso-edit-row:hover { border-color: var(--border-2, #333); box-shadow: 0 2px 10px rgba(0,0,0,0.06); }
+.egreso-edit-form { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; flex: 1 1 auto; }
+.egf-field { display: flex; flex-direction: column; gap: 6px; }
+.egf-lbl { font-size: 9.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-3, #888); font-weight: 600; }
 .egf-field input, .egf-field select {
-    padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-2, #333);
+    height: 38px; padding: 0 11px; border-radius: 8px; border: 1px solid var(--border-2, #333);
     background: var(--bg-2, #1e1e1e); color: var(--text-1, #eee);
-    font-family: inherit; font-size: 13.5px;
+    font-family: inherit; font-size: 14px; box-sizing: border-box;
+    transition: border-color 0.15s, box-shadow 0.15s;
 }
-.egf-field input:focus, .egf-field select:focus { outline: none; border-color: var(--accent, #10b981); }
-.egf-fecha input { width: 140px; }
-.egf-cat select { min-width: 120px; }
-.egf-desc { flex: 1 1 150px; min-width: 120px; }
+.egf-field input:focus, .egf-field select:focus {
+    outline: none; border-color: var(--accent, #10b981);
+    box-shadow: 0 0 0 3px rgba(214, 169, 69, 0.20);
+}
+.egf-field input:hover, .egf-field select:hover { border-color: var(--border-3, #444); }
+.egf-fecha input { width: 150px; }
+.egf-cat select { min-width: 130px; }
+.egf-desc { flex: 1 1 180px; min-width: 140px; }
 .egf-desc input { width: 100%; }
-.egf-monto input { width: 92px; text-align: right; font-variant-numeric: tabular-nums; }
-.egf-moneda select { width: 74px; }
-.egf-uyu input { width: 100px; text-align: right; font-variant-numeric: tabular-nums; }
-.egf-save { flex-shrink: 0; }
-.egf-del { flex-shrink: 0; }
+.egf-monto input { width: 100px; text-align: right; font-variant-numeric: tabular-nums; }
+.egf-moneda select { width: 82px; }
+.egf-uyu input { width: 108px; text-align: right; font-variant-numeric: tabular-nums; }
+.egf-save { flex-shrink: 0; height: 38px; align-self: flex-end; }
+.egf-del { flex-shrink: 0; align-self: flex-end; }
+.egf-del .action-btn { height: 38px; display: inline-flex; align-items: center; }
 .egreso-edit-total {
     display: flex; justify-content: space-between; align-items: baseline;
     padding: 12px; margin-top: 2px; border-top: 1px solid var(--border-1, #2a2a2a);

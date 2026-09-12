@@ -177,10 +177,10 @@
         <p class="public-disc-resena">&ldquo;{{ disc.resena_corta }}&rdquo;<span class="public-disc-resena-firma">&mdash; Arcano</span></p>
         {% endif %}
 
-        {% if disc.genero %}
+        {% if disc_generos %}
         <div class="public-disc-tags">
-            {% for g in disc.genero.split(',') %}
-            <span class="public-tag">{{ g.strip() }}</span>
+            {% for g in disc_generos %}
+            <span class="public-tag">{{ g }}</span>
             {% endfor %}
         </div>
         {% endif %}
@@ -407,10 +407,8 @@
 <section class="public-related">
     <div class="public-related-head">
         <h2 class="public-related-title">
-            {%- if disc.genero -%}
-            {%- set _gen = [] -%}
-            {%- for g in disc.genero.replace(' - ', ',').replace(' / ', ',').split(',') if g.strip() -%}{%- set _ = _gen.append(g.strip()) -%}{%- endfor -%}
-            <a href="{{ url_for('home', genero=_gen) }}" class="public-related-title-link" title="Ver todo el catalogo de este genero">Similares a este disco <span class="public-related-genre">{{ disc.genero }}</span> <span class="public-related-title-arrow">&rarr;</span></a>
+            {%- if disc_generos -%}
+            <a href="{{ url_for('home', genero=disc_generos) }}" class="public-related-title-link" title="Ver todo el catalogo de este genero">Similares a este disco <span class="public-related-genre">{{ disc_generos | join(' · ') }}</span> <span class="public-related-title-arrow">&rarr;</span></a>
             {%- else -%}
             Similares a este disco
             {%- endif -%}

@@ -232,14 +232,19 @@
                 </div>
             </div>
 
+            {% if anios %}
             <div class="filter-block">
                 <div class="filter-block-title">A&ntilde;o</div>
-                <div class="filter-price-row">
-                    <input type="number" name="anio_min" class="filter-price-input" placeholder="Desde" value="{{ filtro_anio_min if filtro_anio_min is not none else '' }}" min="1900" max="2100" step="1" inputmode="numeric">
-                    <span class="filter-price-sep">&mdash;</span>
-                    <input type="number" name="anio_max" class="filter-price-input" placeholder="Hasta" value="{{ filtro_anio_max if filtro_anio_max is not none else '' }}" min="1900" max="2100" step="1" inputmode="numeric">
+                <div class="filter-checks">
+                    {% for a, cnt in anios %}
+                    <label class="filter-check">
+                        <input type="checkbox" name="anio" value="{{ a }}" {% if a in filtro_anios %}checked{% endif %}>
+                        <span>{{ a }}</span><span class="filter-count">{{ cnt }}</span>
+                    </label>
+                    {% endfor %}
                 </div>
             </div>
+            {% endif %}
 
             {% if paises %}
             <div class="filter-block">
@@ -455,7 +460,7 @@
 
 {% else %}
 <div class="public-empty">
-    {% if filtro_q or filtro_sellos or filtro_generos or filtro_tags or filtro_formatos or filtro_paises or filtro_decadas or filtro_con_sample or filtro_precio_min is not none or filtro_precio_max is not none or filtro_anio_min is not none or filtro_anio_max is not none %}
+    {% if filtro_q or filtro_sellos or filtro_generos or filtro_tags or filtro_formatos or filtro_paises or filtro_decadas or filtro_con_sample or filtro_precio_min is not none or filtro_precio_max is not none or filtro_anios %}
         <p>No encontramos discos con esos filtros.</p>
         <a href="{{ url_for('home') }}" class="btn btn-ghost">Ver todo el catalogo</a>
     {% else %}

@@ -6847,8 +6847,11 @@ def register_routes(app: Flask) -> None:
         con_sample = request.args.get("con_sample") == "1"
         precio_min = _parse_int(request.args.get("precio_min"), None)
         precio_max = _parse_int(request.args.get("precio_max"), None)
-        anio_min = _parse_int(request.args.get("anio_min"), None)
-        anio_max = _parse_int(request.args.get("anio_max"), None)
+        anio_sel = []
+        for _a in request.args.getlist("anio"):
+            _ai = _parse_int(_a, None)
+            if _ai is not None:
+                anio_sel.append(_ai)
 
         def _decada(anio):
             if not anio:
@@ -6889,10 +6892,9 @@ def register_routes(app: Flask) -> None:
             discs = [d for d in discs if (d.precio_uyu or 0) >= precio_min]
         if precio_max is not None:
             discs = [d for d in discs if (d.precio_uyu or 0) <= precio_max]
-        if anio_min is not None:
-            discs = [d for d in discs if d.anio and d.anio >= anio_min]
-        if anio_max is not None:
-            discs = [d for d in discs if d.anio and d.anio <= anio_max]
+        if anio_sel:
+            _aset = set(anio_sel)
+            discs = [d for d in discs if d.anio in _aset]
 
         # Ordenamiento
         if orden == "precio_asc":
@@ -6945,6 +6947,7 @@ def register_routes(app: Flask) -> None:
         formatos_count = Counter()
         paises_count = Counter()
         decadas_count = Counter()
+        anios_count = Counter()
         precios = []
         for d in all_disponibles:
             if d.sello:
@@ -6962,6 +6965,8 @@ def register_routes(app: Flask) -> None:
             dc = _decada(d.anio)
             if dc:
                 decadas_count[dc] += 1
+            if d.anio:
+                anios_count[d.anio] += 1
             if d.precio_uyu and d.precio_uyu > 0:
                 precios.append(d.precio_uyu)
 
@@ -6975,6 +6980,7 @@ def register_routes(app: Flask) -> None:
         formatos = sorted(formatos_count.items())
         paises = sorted(paises_count.items())
         decadas = sorted(decadas_count.items(), reverse=True)
+        anios = sorted(anios_count.items(), reverse=True)
         precio_rango = {
             "min": int(min(precios)) if precios else 0,
             "max": int(max(precios)) if precios else 0,
@@ -6984,7 +6990,7 @@ def register_routes(app: Flask) -> None:
             bool(sellos_sel), bool(genero_sel), bool(tags_sel),
             bool(formato_sel), bool(pais_sel), bool(decada_sel),
             con_sample, precio_min is not None, precio_max is not None,
-            anio_min is not None, anio_max is not None,
+            bool(anio_sel),
         ])
 
         # Secciones de la home: solo en pagina 1, sin filtros ni busqueda
@@ -7106,8 +7112,8 @@ def register_routes(app: Flask) -> None:
             filtro_con_sample=con_sample,
             filtro_precio_min=precio_min,
             filtro_precio_max=precio_max,
-            filtro_anio_min=anio_min,
-            filtro_anio_max=anio_max,
+            anios=anios,
+            filtro_anios=anio_sel,
             filtros_activos=filtros_activos,
             **_public_context(),
         )
@@ -7186,6 +7192,7 @@ def register_routes(app: Flask) -> None:
         return render_template(
             "public/disc.html",
             disc=disc,
+            disc_generos=[_pretty_genero(g) for g in _norm_generos(disc.genero)],
             relacionados=relacionados,
             **_public_context(),
         )
