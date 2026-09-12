@@ -14,7 +14,7 @@
 {% set met = d.metodo_pago_venta or metodo_por_disc.get(d.id) %}
 {% set canal = d.canal_venta or ('web' if d.id in disc_ids_web else '') %}
 {% set cli = cliente_por_disc.get(d.id) %}
-<div class="venta-row">
+<div class="venta-row data-clean">
     <input type="checkbox" class="venta-check" value="{{ d.id }}" aria-label="Seleccionar para agrupar">
     {% if d.cover_local %}
     <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="venta-cover-link">

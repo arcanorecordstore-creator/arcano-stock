@@ -42,7 +42,9 @@
     }
 
     function init() {
-        document.querySelectorAll('[data-edit-row]').forEach(initRow);
+        // data-edit-row  = look "dato limpio" + botones al cambiar
+        // data-edit-watch = solo botones al cambiar (sin tocar el estilo)
+        document.querySelectorAll('[data-edit-row], [data-edit-watch]').forEach(initRow);
     }
 
     if (document.readyState === 'loading') {

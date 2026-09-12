@@ -9482,7 +9482,9 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
    Por defecto los inputs/selects se ven como datos (transparentes); al pasar el
    mouse o enfocar aparece el chrome de input (borde + fondo). */
 [data-edit-row] input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=submit]),
-[data-edit-row] select {
+[data-edit-row] select,
+.data-clean input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=submit]),
+.data-clean select {
     height: 38px; padding: 0 11px; border-radius: 8px;
     border: 1px solid transparent; background: transparent;
     color: var(--text-1, #eee);
@@ -9490,11 +9492,13 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
     cursor: text;
 }
-[data-edit-row] select { cursor: pointer; }
-[data-edit-row] input:not([type=hidden]):hover, [data-edit-row] select:hover {
+[data-edit-row] select, .data-clean select { cursor: pointer; }
+[data-edit-row] input:not([type=hidden]):hover, [data-edit-row] select:hover,
+.data-clean input:not([type=hidden]):hover, .data-clean select:hover {
     border-color: var(--border-2, #333); background: var(--bg-2, #1e1e1e);
 }
-[data-edit-row] input:not([type=hidden]):focus, [data-edit-row] select:focus {
+[data-edit-row] input:not([type=hidden]):focus, [data-edit-row] select:focus,
+.data-clean input:not([type=hidden]):focus, .data-clean select:focus {
     outline: none; border-color: var(--accent, #10b981); background: var(--bg-2, #1e1e1e);
     box-shadow: 0 0 0 3px rgba(214, 169, 69, 0.20);
 }
@@ -9511,8 +9515,8 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 
 /* Edicion inline (todos los paneles de gestion): las acciones aparecen solo
    cuando se cambio algun dato de la fila (JS agrega .is-dirty). */
-[data-edit-row] .edit-actions { display: none; }
-[data-edit-row].is-dirty .edit-actions { display: inline-flex; }
+[data-edit-row] .edit-actions, [data-edit-watch] .edit-actions { display: none; }
+[data-edit-row].is-dirty .edit-actions, [data-edit-watch].is-dirty .edit-actions { display: inline-flex; }
 [data-edit-row] { transition: box-shadow 0.15s, border-color 0.15s; }
 [data-edit-row].is-dirty { border-color: rgba(214,169,69,.55); box-shadow: 0 2px 12px rgba(214,169,69,.12); }
 .egreso-edit-total {
