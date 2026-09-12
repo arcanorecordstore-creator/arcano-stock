@@ -9478,9 +9478,11 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .egreso-edit-form { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; flex: 1 1 auto; }
 .egf-field { display: flex; flex-direction: column; gap: 6px; }
 .egf-lbl { font-size: 9.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--text-3, #888); font-weight: 600; }
-/* Look "dato limpio" por defecto (transparente); al pasar el mouse o enfocar
-   aparece el chrome de input (borde + fondo), asi se ve que es editable. */
-.egf-field input, .egf-field select {
+/* Look "dato limpio" GENERICO para filas editables inline (todos los paneles).
+   Por defecto los inputs/selects se ven como datos (transparentes); al pasar el
+   mouse o enfocar aparece el chrome de input (borde + fondo). */
+[data-edit-row] input:not([type=hidden]):not([type=checkbox]):not([type=radio]):not([type=submit]),
+[data-edit-row] select {
     height: 38px; padding: 0 11px; border-radius: 8px;
     border: 1px solid transparent; background: transparent;
     color: var(--text-1, #eee);
@@ -9488,11 +9490,11 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
     cursor: text;
 }
-.egf-field select { cursor: pointer; }
-.egf-field input:hover, .egf-field select:hover {
+[data-edit-row] select { cursor: pointer; }
+[data-edit-row] input:not([type=hidden]):hover, [data-edit-row] select:hover {
     border-color: var(--border-2, #333); background: var(--bg-2, #1e1e1e);
 }
-.egf-field input:focus, .egf-field select:focus {
+[data-edit-row] input:not([type=hidden]):focus, [data-edit-row] select:focus {
     outline: none; border-color: var(--accent, #10b981); background: var(--bg-2, #1e1e1e);
     box-shadow: 0 0 0 3px rgba(214, 169, 69, 0.20);
 }
@@ -9506,6 +9508,13 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .egf-save { flex-shrink: 0; height: 38px; align-self: flex-end; }
 .egf-del { flex-shrink: 0; align-self: flex-end; }
 .egf-del .action-btn { height: 38px; display: inline-flex; align-items: center; }
+
+/* Edicion inline (todos los paneles de gestion): las acciones aparecen solo
+   cuando se cambio algun dato de la fila (JS agrega .is-dirty). */
+[data-edit-row] .edit-actions { display: none; }
+[data-edit-row].is-dirty .edit-actions { display: inline-flex; }
+[data-edit-row] { transition: box-shadow 0.15s, border-color 0.15s; }
+[data-edit-row].is-dirty { border-color: rgba(214,169,69,.55); box-shadow: 0 2px 12px rgba(214,169,69,.12); }
 .egreso-edit-total {
     display: flex; justify-content: space-between; align-items: baseline;
     padding: 12px; margin-top: 2px; border-top: 1px solid var(--border-1, #2a2a2a);

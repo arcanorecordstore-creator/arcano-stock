@@ -7,7 +7,7 @@
 {%- endmacro %}
 
 {% macro gasto_row(e, categorias) %}
-<div class="egreso-edit-row">
+<div class="egreso-edit-row" data-edit-row>
     <form method="post" action="{{ url_for('egreso_editar', egreso_id=e.id) }}" class="egreso-edit-form">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <label class="egf-field egf-fecha">
@@ -39,9 +39,9 @@
             <span class="egf-lbl">En pesos</span>
             <input type="number" step="1" min="0" name="monto_uyu" value="{{ '%.0f'|format(e.monto_uyu) }}" title="Lo que te debito el banco en pesos. Vacio = recalcular con el tipo de cambio.">
         </label>
-        <button type="submit" class="btn btn-primary btn-sm egf-save">Guardar</button>
+        <button type="submit" class="btn btn-primary btn-sm egf-save edit-actions">Guardar</button>
     </form>
-    <form method="post" action="{{ url_for('egreso_borrar', egreso_id=e.id) }}" class="inline-form egf-del" data-confirm="Anular este movimiento?">
+    <form method="post" action="{{ url_for('egreso_borrar', egreso_id=e.id) }}" class="inline-form egf-del edit-actions" data-confirm="Anular este movimiento?">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="action-btn danger">Anular</button>
     </form>
