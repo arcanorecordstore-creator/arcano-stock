@@ -109,15 +109,12 @@
         {% endwith %}
 
         <main class="app-main">
-            {% if request.endpoint in ['dashboard', 'ventas_panel', 'admin_reservas', 'admin_clientes', 'contabilidad', 'caja', 'pedidos'] %}
-            <p class="page-sub">Los registros archivados se ocultan de las listas; los totales los siguen incluyendo. Podés volver a mostrarlos desde <a href="{{ url_for('admin_historial') }}">Historial</a>.</p>
-            {% endif %}
             {% block content %}{% endblock %}
         </main>
 
         <footer class="app-footer">
             <span>Arcano Record Store &middot; Montevideo</span>
-            <span class="footer-version">v5.18</span>
+            <span class="footer-version">v5.19</span>
         </footer>
     </div>
 

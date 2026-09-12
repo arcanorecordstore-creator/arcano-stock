@@ -24,6 +24,9 @@
         <div class="cuenta-lealtad-bar">
             <div class="cuenta-lealtad-fill" style="width: {{ lealtad.pct }}%;"></div>
             <div class="cuenta-lealtad-ms {% if lealtad.progreso >= lealtad.u1 %}reached{% endif %}" style="left: {{ lealtad.pct_u1 }}%;"></div>
+            <div class="cuenta-lealtad-knob" style="left: {{ lealtad.pct }}%;">
+                <span class="cuenta-lealtad-knob-lbl">$ {{ '{:,.0f}'.format(lealtad.progreso).replace(',', '.') }}</span>
+            </div>
         </div>
         <div class="cuenta-lealtad-scale">
             <span class="ms-start">$0</span>
