@@ -4278,33 +4278,56 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 .public-footer {
     background-color: var(--bg-1);
     border-top: 1px solid var(--border-1);
-    padding: 40px 24px 20px;
-    margin-top: 60px;
+    padding: 56px 24px 22px;
+    margin-top: 72px;
 }
 
 .public-footer-inner {
     max-width: 1200px;
     margin: 0 auto;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 40px;
-    padding-bottom: 32px;
+    grid-template-columns: 1.5fr 1fr 1fr 1fr;
+    gap: 48px;
+    padding-bottom: 36px;
     border-bottom: 1px solid var(--border-1);
 }
+@media (max-width: 760px) {
+    .public-footer-inner { grid-template-columns: 1fr 1fr; gap: 32px 24px; }
+    .public-footer-brand { grid-column: 1 / -1; }
+}
+
+/* Columna de marca con el logo primario como firma */
+.public-footer-brand-link { display: inline-block; }
+.public-footer-brand-logo {
+    height: 40px;
+    width: auto;
+    display: block;
+    margin-bottom: 14px;
+}
+.public-footer-brand .public-footer-text { max-width: 280px; }
 
 .public-footer-title {
     font-size: 11px;
     text-transform: uppercase;
-    letter-spacing: 2px;
-    color: var(--text-4);
-    margin: 0 0 12px;
-    font-weight: 500;
+    letter-spacing: 0.18em;
+    color: var(--text-2);
+    margin: 0 0 16px;
+    font-weight: 600;
+    display: inline-flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.public-footer-title::after {
+    content: "";
+    width: 20px;
+    height: 2px;
+    background: var(--arcano-beige, #E9D1AF);
 }
 
 .public-footer-text {
     color: var(--text-3);
     font-size: 13px;
-    line-height: 1.6;
+    line-height: 1.7;
     margin: 0;
 }
 
@@ -4315,28 +4338,30 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 }
 
 .public-footer-list li {
-    padding: 4px 0;
+    padding: 5px 0;
 }
 
 .public-footer-list a {
     color: var(--text-2);
     text-decoration: none;
-    font-size: 13px;
+    font-size: 13.5px;
+    transition: color 0.15s;
 }
 
 .public-footer-list a:hover {
-    color: var(--text-1);
+    color: var(--arcano-marron, #3D3033);
 }
 
 .public-footer-bottom {
     max-width: 1200px;
-    margin: 20px auto 0;
+    margin: 22px auto 0;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    color: var(--text-5);
+    color: var(--text-4);
     font-size: 11px;
-    letter-spacing: 1px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
 }
 
 /* Numero de version discreto en el pie de la tienda publica.

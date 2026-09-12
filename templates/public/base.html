@@ -229,9 +229,12 @@
 
 <footer class="public-footer">
     <div class="public-footer-inner">
-        <div class="public-footer-col">
-            <h3 class="public-footer-title">Arcano Record Store</h3>
-            {% if tagline %}<p class="public-footer-text">{{ tagline }}</p>{% endif %}
+        <div class="public-footer-col public-footer-brand">
+            <a href="{{ url_for('home') }}" class="public-footer-brand-link" aria-label="Arcano Record Store">
+                <img class="public-footer-brand-logo brand-neg" src="{{ url_for('static', filename='brand/logo-primary-negro.png') }}" alt="Arcano Record Store" width="616" height="240">
+                <img class="public-footer-brand-logo brand-bla" src="{{ url_for('static', filename='brand/logo-primary-blanco.png') }}" alt="Arcano Record Store" width="616" height="240">
+            </a>
+            <p class="public-footer-text">{% if tagline %}{{ tagline }}{% else %}Vinilos de m&uacute;sica electr&oacute;nica. Curado a mano en Montevideo.{% endif %}</p>
         </div>
         <div class="public-footer-col">
             <h3 class="public-footer-title">Contacto</h3>
