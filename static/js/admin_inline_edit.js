@@ -53,3 +53,50 @@
         init();
     }
 })();
+
+
+/* Ctrl+Z (o Cmd+Z) global en el admin: deshace la ultima operacion.
+ * Si el foco esta en un campo editable NO interfiere (deja el undo nativo). */
+(function () {
+    'use strict';
+
+    function esEditable(el) {
+        if (!el) return false;
+        var tag = el.tagName;
+        return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || el.isContentEditable;
+    }
+
+    function deshacer() {
+        fetch('/admin/deshacer', { headers: { 'Accept': 'application/json' }, credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (!d || !d.hay) {
+                    alert('No hay ninguna operación reciente para deshacer.');
+                    return;
+                }
+                if (!confirm('¿Deshacer la última operación?\n\n' + d.resumen + '  ·  ' + d.fecha)) return;
+                var f = document.createElement('form');
+                f.method = 'POST';
+                f.action = '/admin/deshacer';
+                var meta = document.querySelector('meta[name="csrf-token"]');
+                if (meta) {
+                    var i = document.createElement('input');
+                    i.type = 'hidden';
+                    i.name = '_csrf_token';
+                    i.value = meta.getAttribute('content') || '';
+                    f.appendChild(i);
+                }
+                document.body.appendChild(f);
+                f.submit();
+            })
+            .catch(function () { alert('No se pudo consultar la última operación.'); });
+    }
+
+    document.addEventListener('keydown', function (e) {
+        if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
+        if ((e.key || '').toLowerCase() !== 'z') return;
+        if (esEditable(e.target)) return;   // respetar el deshacer nativo de los campos
+        e.preventDefault();
+        deshacer();
+    });
+})();

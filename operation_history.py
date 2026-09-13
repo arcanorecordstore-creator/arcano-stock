@@ -6,7 +6,7 @@ UPDATE/DELETE masivos y cascadas. No se guardan secretos de configuracion.
 import json
 import uuid
 from datetime import datetime, date
-from flask import g, has_request_context, request, session, render_template, redirect, url_for, flash
+from flask import g, has_request_context, request, session, render_template, redirect, url_for, flash, jsonify
 from sqlalchemy import event, text
 from sqlalchemy.engine import Engine
 from models import db
@@ -181,6 +181,49 @@ def register_history(app):
         except Exception:
             db.session.rollback(); flash('No se pudo recuperar: hay datos relacionados que requieren revisión. No se aplicó la recuperación.', 'error')
         return redirect(url_for('admin_historial'))
+
+    # Endpoints (vistas GET) que hacen escrituras "de sincronizacion" solas al
+    # abrirse (ej. la caja se sincroniza). No son acciones deliberadas, asi que
+    # Ctrl+Z las saltea para deshacer lo ultimo que hizo el usuario a proposito.
+    _VISTAS_SYNC = {'caja', 'dashboard', 'contabilidad', 'ventas_panel',
+                    'admin_reservas', 'pedidos', 'radar_demanda', 'admin_clientes',
+                    'home', 'admin_historial'}
+
+    def _ultima_operacion_deshacible():
+        actor = str(session.get('admin_user') or '')
+        q = OperationChange.query
+        if actor:
+            q = q.filter_by(actor=actor)
+        q = q.filter(~OperationChange.accion.in_(_VISTAS_SYNC))
+        return q.order_by(OperationChange.id.desc()).first()
+
+    @app.route('/admin/deshacer', methods=['GET', 'POST'])
+    @auth.admin_required
+    def admin_deshacer():
+        last = _ultima_operacion_deshacible()
+        if not last:
+            if request.method == 'GET':
+                return jsonify({'hay': False})
+            flash('No hay ninguna operación reciente para deshacer.', 'error')
+            return redirect(request.referrer or url_for('dashboard'))
+        batch = last.batch
+        changes = OperationChange.query.filter_by(batch=batch).order_by(OperationChange.id).all()
+        tablas = sorted({TABLE_LABELS.get(c.tabla, c.tabla) for c in changes})
+        resumen = ' · '.join(tablas) or 'cambios'
+        if request.method == 'GET':
+            return jsonify({
+                'hay': True,
+                'resumen': resumen,
+                'fecha': changes[0].fecha.strftime('%d/%m %H:%M'),
+            })
+        try:
+            restore_batch(batch)
+            flash(f'Se deshizo la última operación ({resumen}). Quedó registrada en Historial.', 'success')
+        except ValueError as exc:
+            db.session.rollback(); flash(str(exc), 'error')
+        except Exception:
+            db.session.rollback(); flash('No se pudo deshacer: hay datos relacionados que requieren revisión. Revisá el Historial.', 'error')
+        return redirect(request.referrer or url_for('dashboard'))
 
     @app.route('/admin/historial/archivar', methods=['POST'])
     @auth.admin_required
