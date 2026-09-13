@@ -512,10 +512,30 @@ body.app { display: block; padding: 0; }
     overflow-x: auto;
     margin-bottom: 24px;
 }
+/* En la web (tabla ancha) la tabla queda en un panel de alto fijo con scroll
+   propio: asi la barra de scroll HORIZONTAL queda siempre a la vista al pie del
+   panel (no al fondo de las 145 filas) y se llega facil a Ver/Editar. El
+   encabezado queda fijo arriba al scrollear. En tarjetas (<=1300) no aplica. */
+@media (min-width: 1301px) {
+    .table-wrap {
+        max-height: calc(100vh - 210px);
+        overflow: auto;
+    }
+    /* !important para ganarle al position:relative inline que el JS de orden de
+       columnas pone en cada th (sticky tambien es contexto de posicion, no rompe). */
+    .stock-table thead th {
+        position: sticky !important;
+        top: 0;
+        z-index: 6;
+    }
+}
 
 .stock-table {
     width: 100%;
-    border-collapse: collapse;
+    /* separate + spacing 0 se ve igual que collapse (los bordes son solo
+       horizontales) y permite el encabezado fijo (position:sticky) en la web. */
+    border-collapse: separate;
+    border-spacing: 0;
     font-size: 13px;
     min-width: 1300px;
 }
