@@ -8134,6 +8134,11 @@ td.num,
         flex: 1 1 auto;
         min-height: 44px;
     }
+}
+/* El dashboard pasa a TARJETAS en pantallas medianas/angostas (no solo el celu):
+   asi no hay tabla ancha con scroll de costado y "Ver / Editar" nunca se cortan.
+   La tabla completa solo aparece cuando entra sin scroll (pantallas grandes). */
+@media (max-width: 1300px) {
     /* Espacio abajo para que la barra fija no tape el ultimo disco */
     .stock-table { padding-bottom: 90px; }
     .stock-table {
@@ -8242,7 +8247,19 @@ td.num,
         text-align: center;
         padding: 10px;
     }
-
+}
+/* En el rango mediano (tablet / laptop chico) las tarjetas van en 2 columnas
+   para que no queden absurdamente anchas. En el celu (<=768) siguen en 1. */
+@media (min-width: 769px) and (max-width: 1300px) {
+    .stock-table tbody {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+        align-items: start;
+    }
+    .stock-table tbody tr { margin-bottom: 0; }
+}
+@media (max-width: 768px) {
     /* --- Formularios del admin: campos a ancho completo --- */
     .form-row {
         grid-template-columns: 1fr !important;
