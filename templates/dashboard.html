@@ -198,7 +198,6 @@
                 {{ th_sort('stock', 'Stock', 'col-stock') }}
                 <th class="col-home" title="Marcar para las secciones de la home">Home</th>
                 <th class="col-fecha">Fechas</th>
-                <th class="col-actions">Acciones</th>
             </tr>
         </thead>
         <tbody>
@@ -229,7 +228,15 @@
                         <span class="audio-ind audio-notracks" title="Este disco no tiene tracks cargados">sin tracks</span>
                         {% endif %}
                     </div>
-                    <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="main-ver-ficha" title="Abrir ficha completa">ver ficha &rarr;</a>
+                    <div class="main-bottom">
+                        <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="main-ver-ficha" title="Abrir ficha completa">ver ficha &rarr;</a>
+                        <button type="button" class="row-menu-btn" title="Acciones"
+                                data-nombre="{{ d.artista }} - {{ d.titulo }}"
+                                data-ver="{{ url_for('disc_detail', disc_id=d.id) }}"
+                                data-editar="{{ url_for('disc_edit', disc_id=d.id) }}"
+                                data-duplicar="{{ url_for('disc_duplicate', disc_id=d.id) }}"
+                                data-eliminar="{{ url_for('disc_delete', disc_id=d.id) }}">&#9881; Acciones</button>
+                    </div>
                 </td>
                 <td class="col-label col-editable-text" data-edit="sello" data-disc-id="{{ d.id }}" data-raw="{{ d.sello or '' }}" title="Click para editar el sello">{{ d.sello or '—' }}</td>
                 <td class="col-audio col-editable-audio" data-disc-id="{{ d.id }}" data-audio="{{ d.audio_estado or '' }}" title="Click para cambiar el estado de audio">
@@ -323,20 +330,6 @@
                     <div class="fecha-venta" title="Fecha de venta">&#8593; {{ d.fecha_venta.strftime('%d/%m/%y') }}</div>
                     {% endif %}
                 </td>
-                <td class="col-actions">
-                    <div class="row-actions">
-                        <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="action-btn" title="Ver detalle">Ver</a>
-                        <a href="{{ url_for('disc_edit', disc_id=d.id) }}" class="action-btn" title="Editar">Editar</a>
-                        <form method="post" action="{{ url_for('disc_duplicate', disc_id=d.id) }}" class="inline-form" data-confirm="¿Duplicar '{{ d.artista }} - {{ d.titulo }}'? Se creara una copia identica que podes editar.">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="action-btn" title="Crear una copia de este disco">Duplicar</button>
-                        </form>
-                        <form method="post" action="{{ url_for('disc_delete', disc_id=d.id) }}" class="inline-form" data-confirm="¿Eliminar el disco '{{ d.artista }} - {{ d.titulo }}'? Esta accion no se puede deshacer.">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="action-btn danger">Eliminar</button>
-                        </form>
-                    </div>
-                </td>
             </tr>
             {% endfor %}
         </tbody>
@@ -355,7 +348,6 @@
                 <td class="col-stock">{{ totals.stock_total }}</td>
                 <td class="col-home">—</td>
                 <td class="col-fecha">—</td>
-                <td class="col-actions">—</td>
             </tr>
         </tfoot>
     </table>
@@ -486,6 +478,17 @@
         <button type="button" class="btn btn-ghost" id="bulk-clear">Cancelar</button>
     </div>
 </div>
+
+{# Cajon lateral de acciones por disco (Ver / Editar / Duplicar / Eliminar) #}
+<div class="row-drawer-overlay" id="row-drawer-overlay" hidden></div>
+<aside class="row-drawer" id="row-drawer" hidden aria-label="Acciones del disco" aria-hidden="true">
+    <div class="row-drawer-head">
+        <span class="row-drawer-eyebrow">Acciones</span>
+        <button type="button" class="row-drawer-close" id="row-drawer-close" aria-label="Cerrar">&times;</button>
+    </div>
+    <p class="row-drawer-title" id="row-drawer-title"></p>
+    <div class="row-drawer-actions" id="row-drawer-actions"></div>
+</aside>
 {% endblock %}
 
 {% block scripts %}
@@ -494,4 +497,5 @@
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="{{ url_for('static', filename='js/dashboard_reorder.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_resize.js') }}"></script>
+<script src="{{ url_for('static', filename='js/dashboard_actions_drawer.js') }}"></script>
 {% endblock %}

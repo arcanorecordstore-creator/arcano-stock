@@ -512,30 +512,10 @@ body.app { display: block; padding: 0; }
     overflow-x: auto;
     margin-bottom: 24px;
 }
-/* En la web (tabla ancha) la tabla queda en un panel de alto fijo con scroll
-   propio: asi la barra de scroll HORIZONTAL queda siempre a la vista al pie del
-   panel (no al fondo de las 145 filas) y se llega facil a Ver/Editar. El
-   encabezado queda fijo arriba al scrollear. En tarjetas (<=1300) no aplica. */
-@media (min-width: 1301px) {
-    .table-wrap {
-        max-height: calc(100vh - 210px);
-        overflow: auto;
-    }
-    /* !important para ganarle al position:relative inline que el JS de orden de
-       columnas pone en cada th (sticky tambien es contexto de posicion, no rompe). */
-    .stock-table thead th {
-        position: sticky !important;
-        top: 0;
-        z-index: 6;
-    }
-}
 
 .stock-table {
     width: 100%;
-    /* separate + spacing 0 se ve igual que collapse (los bordes son solo
-       horizontales) y permite el encabezado fijo (position:sticky) en la web. */
-    border-collapse: separate;
-    border-spacing: 0;
+    border-collapse: collapse;
     font-size: 13px;
     min-width: 1300px;
 }
@@ -676,6 +656,58 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 
 /* Row actions */
 .col-actions { text-align: right; white-space: nowrap; }
+
+/* Disparador "Acciones" (en la celda del artista, siempre visible) + cajon lateral */
+.main-bottom { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+.row-menu-btn {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-family: inherit; font-size: 12px; font-weight: 600;
+    padding: 5px 12px; border-radius: 8px;
+    border: 1px solid var(--border-2); background: var(--bg-2); color: var(--text-1);
+    cursor: pointer; transition: background 0.15s, border-color 0.15s;
+}
+.row-menu-btn:hover { background: var(--bg-3); border-color: var(--border-3); }
+
+.row-drawer-overlay {
+    position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45);
+    z-index: 900; opacity: 0; transition: opacity 0.2s;
+}
+.row-drawer-overlay.is-open { opacity: 1; }
+.row-drawer {
+    position: fixed; top: 0; right: 0; height: 100%;
+    width: 340px; max-width: 88vw;
+    background: var(--bg-1); border-left: 1px solid var(--border-2);
+    box-shadow: -14px 0 44px rgba(0, 0, 0, 0.32);
+    z-index: 901; padding: 22px;
+    transform: translateX(100%);
+    transition: transform 0.22s cubic-bezier(0.22, 0.61, 0.36, 1);
+    display: flex; flex-direction: column;
+}
+.row-drawer.is-open { transform: translateX(0); }
+.row-drawer-head { display: flex; align-items: center; justify-content: space-between; }
+.row-drawer-eyebrow {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 0.14em;
+    color: var(--text-3); font-weight: 600;
+}
+.row-drawer-close {
+    background: none; border: none; color: var(--text-2);
+    font-size: 26px; line-height: 1; cursor: pointer; padding: 0 4px;
+}
+.row-drawer-close:hover { color: var(--text-1); }
+.row-drawer-title { font-size: 17px; font-weight: 600; margin: 14px 0 20px; color: var(--text-1); }
+.row-drawer-actions { display: flex; flex-direction: column; gap: 10px; }
+.row-drawer-actions form { margin: 0; }
+.drawer-action {
+    display: block; width: 100%; box-sizing: border-box;
+    text-align: left; text-decoration: none;
+    font-family: inherit; font-size: 15px; font-weight: 500;
+    padding: 13px 16px; border-radius: 10px;
+    border: 1px solid var(--border-2); background: var(--bg-2); color: var(--text-1);
+    cursor: pointer; transition: background 0.15s, border-color 0.15s;
+}
+.drawer-action:hover { background: var(--bg-3); border-color: var(--border-3); }
+.drawer-action.danger { color: var(--loss); border-color: rgba(239, 68, 68, 0.4); }
+.drawer-action.danger:hover { background: rgba(239, 68, 68, 0.1); }
 
 .row-actions {
     display: inline-flex;
