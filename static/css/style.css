@@ -11357,6 +11357,21 @@ body.app .flash.flash-fade { opacity: 0; transform: translateY(-8px); }
 .sena-add, .sena-chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; cursor: pointer; border: 1px solid var(--border-1, #2a2a2a); background: var(--bg-2, #1e1e1e); color: var(--text-2, #bbb); line-height: 1.4; }
 .sena-add:hover { border-color: #d6a945; color: #d6a945; }
 .sena-chip { background: rgba(214,169,69,.14); border-color: rgba(214,169,69,.5); color: #d6a945; font-weight: 700; }
+/* Edicion inline de la sena (input + botones, en vez de prompt) */
+.sena-edit { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.sena-input {
+    width: 78px; font-family: inherit; font-size: 12px; padding: 3px 7px;
+    border-radius: 6px; border: 1px solid var(--border-2, #333);
+    background: var(--bg-2, #1e1e1e); color: var(--text-1, #eee);
+}
+.sena-input:focus { outline: none; border-color: #d6a945; }
+.sena-ok, .sena-cancel, .sena-res {
+    font-family: inherit; font-size: 11px; padding: 3px 8px; border-radius: 6px;
+    cursor: pointer; border: 1px solid var(--border-2, #333);
+    background: var(--bg-2, #1e1e1e); color: var(--text-2, #bbb); line-height: 1.4;
+}
+.sena-ok { color: #d6a945; font-weight: 700; }
+.sena-ok:hover, .sena-cancel:hover, .sena-res:hover { border-color: #d6a945; color: #d6a945; }
 
 /* Carteles apilados arriba-izquierda; corazon grande arriba-derecha; play centrado. */
 .public-card-cover .public-card-badges {
