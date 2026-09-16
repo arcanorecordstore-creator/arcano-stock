@@ -3454,6 +3454,16 @@ img.cover-fallback { object-fit: cover; background: transparent; }
     transition: transform 0.12s, opacity 0.15s, background 0.15s;
 }
 .cart-btn-inline:hover { transform: translateY(-1px); opacity: 0.9; }
+
+/* Regla GENERICA: cualquier boton de carrito muestra una sola etiqueta segun si
+   el disco ya esta en el carrito. Antes solo la tenian .cart-btn-inline y
+   .cart-btn-full, asi que la barra de compra del celu (.disc-buybar-btn)
+   mostraba "+ Agregar" y "En el carrito" al mismo tiempo. */
+.cart-btn .cart-label-in { display: none; }
+.cart-btn .cart-label-add { display: inline; }
+.cart-btn.is-in-cart .cart-label-in { display: inline; }
+.cart-btn.is-in-cart .cart-label-add { display: none; }
+
 .cart-btn-inline .cart-label-in { display: none; }
 .cart-btn-inline .cart-label-add { display: inline; }
 .cart-btn-inline.is-in-cart { background: #047857; color: #fff; }  /* v3.25 - verde mas oscuro: contraste AA con el texto blanco */

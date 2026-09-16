@@ -258,7 +258,9 @@ window.arcanoGA = function (name, params) {
                 e.stopPropagation();
                 var id = btn.dataset.cartId;
                 var added = toggle(id);
-                btn.classList.toggle('is-in-cart', added);
+                // Sincroniza TODOS los botones del mismo disco (el de la ficha y
+                // el de la barra de compra fija del celu), no solo el tocado.
+                paintButtons();
                 updateCount();
                 btn.classList.remove('cart-pop');
                 void btn.offsetWidth;
