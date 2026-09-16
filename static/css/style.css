@@ -11186,6 +11186,12 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
     .disc-buybar-name { font-size: 12px; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 48vw; }
     .disc-buybar-price { font-size: 18px; font-weight: 700; color: var(--text-1); }
     .disc-buybar-btn { flex-shrink: 0; }
+    /* Ya en el carrito: verde (mismo tono AA que usan las cards). */
+    .disc-buybar-btn.is-in-cart {
+        background: #047857;
+        border-color: #047857;
+        color: #fff;
+    }
     /* que el contenido no quede tapado por la barra de compra + la bottom-nav */
     body:has(.disc-buybar) .public-body { padding-bottom: 132px; }
 }
