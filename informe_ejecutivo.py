@@ -33,51 +33,29 @@ import metrics
 from models import Disc, Pedido, Reserva, Setting
 
 # ---------------------------------------------------------------------------
-# Tipografia de marca: Space Grotesk (la misma de la web). Se registra una vez;
-# si por lo que sea faltan los .ttf, cae a Helvetica sin romper.
+# Identidad de marca (manual set. 2026): tipografia, paleta y logo salen de
+# marca_pdf, unica fuente de verdad compartida con los otros PDF.
 # ---------------------------------------------------------------------------
-FONT, FONT_M, FONT_B = "Helvetica", "Helvetica", "Helvetica-Bold"
+import marca_pdf as MARCA
 
+FONT, FONT_M, FONT_B = MARCA.FONT, MARCA.FONT_M, MARCA.FONT_B
 
-def _registrar_fuentes():
-    global FONT, FONT_M, FONT_B
-    fdir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static", "fonts")
-    pares = [("SpaceGrotesk", "SpaceGrotesk-Regular.ttf"),
-             ("SpaceGrotesk-Med", "SpaceGrotesk-Medium.ttf"),
-             ("SpaceGrotesk-Bold", "SpaceGrotesk-Bold.ttf")]
-    try:
-        for nombre, arch in pares:
-            ruta = os.path.join(fdir, arch)
-            if not os.path.exists(ruta):
-                return  # falta alguna: quedarse con Helvetica
-            if nombre not in pdfmetrics.getRegisteredFontNames():
-                pdfmetrics.registerFont(TTFont(nombre, ruta))
-        pdfmetrics.registerFontFamily(
-            "SpaceGrotesk", normal="SpaceGrotesk", bold="SpaceGrotesk-Bold",
-            italic="SpaceGrotesk", boldItalic="SpaceGrotesk-Bold")
-        FONT, FONT_M, FONT_B = "SpaceGrotesk", "SpaceGrotesk-Med", "SpaceGrotesk-Bold"
-    except Exception:
-        FONT, FONT_M, FONT_B = "Helvetica", "Helvetica", "Helvetica-Bold"
-
-
-_registrar_fuentes()
-
-# ---------------------------------------------------------------------------
-# Paleta e identidad
-# ---------------------------------------------------------------------------
-INK    = colors.HexColor("#121212")   # negro de marca
-INK2   = colors.HexColor("#3a3a3a")
-GREEN  = colors.HexColor("#0E7A53")   # positivo
-RED    = colors.HexColor("#C0392B")   # negativo
-GOLD   = colors.HexColor("#A8801F")   # destacado / staff
-BLUE   = colors.HexColor("#2E5C9E")   # coleccion personal / secundario
-GREY   = colors.HexColor("#6B6B6B")
-GREY2  = colors.HexColor("#9A9A9A")
-LINE   = colors.HexColor("#E4E1D9")
-PANEL  = colors.HexColor("#F5F3EE")   # off-white calido
-PANEL2 = colors.HexColor("#ECE8DF")
-ROWALT = colors.HexColor("#FAF9F6")
-PAPER  = colors.white
+# Se mantienen los nombres historicos (no cambia una linea de layout) pero
+# apuntan a los colores del manual.
+INK    = MARCA.NEGRO           # negro de marca
+INK2   = MARCA.MARRON          # marron de marca
+GREEN  = MARCA.POSITIVO        # positivo
+RED    = MARCA.NEGATIVO        # negativo
+GOLD   = MARCA.MARRON_MEDIO    # destacado / staff (paso tonal, sin acento saturado)
+BLUE   = MARCA.MARRON          # coleccion personal / secundario
+GREY   = MARCA.TEXTO_2
+GREY2  = MARCA.TEXTO_3
+LINE   = MARCA.LINEA
+PANEL  = MARCA.CREMA           # crema de marca
+PANEL2 = MARCA.BEIGE
+ROWALT = MARCA.FILA_ALT
+PAPER  = MARCA.BLANCO
+BEIGE  = MARCA.BEIGE           # solo sobre fondo oscuro (nunca beige sobre blanco)
 
 PAGE_W, PAGE_H = A4
 MARGIN = 16 * mm
@@ -88,7 +66,7 @@ _styles = getSampleStyleSheet()
 # (asi el numero grande de las tarjetas KPI no queda pegado a la etiqueta y al subtexto).
 H1    = ParagraphStyle("eH1", parent=_styles["Title"], fontName=FONT_B, fontSize=26, leading=31, textColor=INK, spaceAfter=0)
 LEAD  = ParagraphStyle("eLead", parent=_styles["Normal"], fontName=FONT, fontSize=11, leading=18, textColor=INK2)
-BODY  = ParagraphStyle("eBody", parent=_styles["Normal"], fontName=FONT, fontSize=9.5, leading=16, textColor=colors.HexColor("#1a1a1a"))
+BODY  = ParagraphStyle("eBody", parent=_styles["Normal"], fontName=FONT, fontSize=9.5, leading=16, textColor=INK)
 SMALL = ParagraphStyle("eSmall", parent=_styles["Normal"], fontName=FONT, fontSize=8, leading=13, textColor=GREY)
 CARDL = ParagraphStyle("eCardL", parent=_styles["Normal"], fontName=FONT, fontSize=9, leading=14, autoLeading="max")
 NUMST = ParagraphStyle("eNum", parent=CARDL, alignment=1, autoLeading="off")  # 1 = centrado
@@ -158,9 +136,9 @@ def kpi_row(cards, total_w=CONTENT_W):
     w = total_w / n
     cells = []
     for c in cards:
-        html = ('<font size=7 color="#6B6B6B">%s</font><br/>'
-                '<font size=16 color="#121212"><b>%s</b></font>'
-                % (c["label"].upper(), c["value"]))
+        html = ('<font size=7 color="%s">%s</font><br/>'
+                '<font size=16 color="%s"><b>%s</b></font>'
+                % (_hx(GREY), c["label"].upper(), _hx(INK), c["value"]))
         sub = c.get("sub")
         if sub:
             col = c.get("subcolor", GREY)
@@ -192,7 +170,7 @@ def section(num, title, subtitle=None):
         ("BOTTOMPADDING", (0, 0), (-1, -1), 0), ("LEFTPADDING", (0, 0), (-1, -1), 0),
         ("RIGHTPADDING", (0, 0), (-1, -1), 0),
     ]))
-    title_p = Paragraph('<font size=14.5 color="#121212"><b>%s</b></font>' % title, CARDL)
+    title_p = Paragraph('<font size=14.5 color="%s"><b>%s</b></font>' % (_hx(INK), title), CARDL)
     row = Table([[numbox, title_p]], colWidths=[10.5 * mm, CONTENT_W - 10.5 * mm])
     row.setStyle(TableStyle([
         ("VALIGN", (0, 0), (-1, -1), "MIDDLE"), ("LEFTPADDING", (0, 0), (0, 0), 0),
@@ -208,7 +186,7 @@ def section(num, title, subtitle=None):
 
 
 def sub_h(text):
-    return Paragraph('<font size=10.5 color="#121212"><b>%s</b></font>' % text, BODY)
+    return Paragraph('<font size=10.5 color="%s"><b>%s</b></font>' % (_hx(INK), text), BODY)
 
 
 def dtable(header, rows, widths, aligns=None, color_map=None, zebra=True, fs=8.5):
@@ -218,7 +196,7 @@ def dtable(header, rows, widths, aligns=None, color_map=None, zebra=True, fs=8.5
     st = [
         ("FONT", (0, 0), (-1, 0), FONT_B, fs), ("BACKGROUND", (0, 0), (-1, 0), INK),
         ("TEXTCOLOR", (0, 0), (-1, 0), PAPER), ("FONT", (0, 1), (-1, -1), FONT, fs),
-        ("TEXTCOLOR", (0, 1), (-1, -1), colors.HexColor("#1f1f1f")),
+        ("TEXTCOLOR", (0, 1), (-1, -1), INK),
         ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
         ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
         ("LINEBELOW", (0, 0), (-1, -1), 0.4, LINE), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
@@ -261,7 +239,7 @@ def bar_chart(labels, series, series_colors, width=CONTENT_W, height=46 * mm):
     bc.valueAxis.labels.fontSize = 6.5
     bc.valueAxis.labels.fillColor = GREY
     bc.valueAxis.labelTextFormat = _kfmt
-    bc.valueAxis.gridStrokeColor = colors.HexColor("#EDEBE4")
+    bc.valueAxis.gridStrokeColor = LINE
     bc.valueAxis.visibleGrid = True
     bc.categoryAxis.categoryNames = labels
     bc.categoryAxis.labels.fontName = FONT
@@ -284,7 +262,7 @@ def legend(items):
         sw = Table([[""]], colWidths=[3.2 * mm], rowHeights=[3.2 * mm])
         sw.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), col)]))
         cells.append(sw)
-        cells.append(Paragraph('<font size=8 color="#6B6B6B">%s</font>' % txt, SMALL))
+        cells.append(Paragraph('<font size=8 color="%s">%s</font>' % (_hx(GREY), txt), SMALL))
         widths.append(3.2 * mm)
         widths.append(min(46 * mm, 6 * mm + len(txt) * 1.7 * mm))
     t = Table([cells], colWidths=widths, hAlign="LEFT")
@@ -409,8 +387,10 @@ _PER_LABEL = {
     "mes_pasado": "Mes pasado", "anio": "Este ano", "todo": "Todo el historial",
     "custom": "Periodo elegido",
 }
-_CANAL_COL = {"Web": GREEN, "Instagram": GOLD, "Presencial": BLUE, "Otro": GREY2, "Sin definir": GREY2}
-_METODO_COL = {"Mercado Pago": BLUE, "Transferencia": GREEN, "Efectivo": GOLD, "Otro": GREY2, "Sin definir": GREY2}
+# Categorias: se distinguen por intensidad dentro de la paleta (no por matiz).
+# El verde/rojo queda reservado SOLO para el signo de las cifras.
+_CANAL_COL = {"Web": INK, "Instagram": GOLD, "Presencial": BLUE, "Otro": GREY2, "Sin definir": GREY2}
+_METODO_COL = {"Mercado Pago": INK, "Transferencia": BLUE, "Efectivo": GOLD, "Otro": GREY2, "Sin definir": GREY2}
 
 
 # ---------------------------------------------------------------------------
@@ -429,33 +409,46 @@ def _draw_footer(canvas, doc):
 
 
 def _first_page(canvas, doc):
-    # Banda negra full-bleed arriba con el wordmark
+    # Banda negra full-bleed arriba con el logo primario en blanco (regla del
+    # manual: fondo oscuro -> logo blanco).
     canvas.saveState()
     band_h = 46 * mm
     canvas.setFillColor(INK)
     canvas.rect(0, PAGE_H - band_h, PAGE_W, band_h, fill=1, stroke=0)
-    canvas.setFillColor(PAPER)
-    canvas.setFont(FONT_B, 30)
-    canvas.drawString(MARGIN, PAGE_H - 24 * mm, "ARCANO")
-    canvas.setFont(FONT, 10.5)
-    canvas.setFillColor(colors.HexColor("#C9C4BB"))
-    canvas.drawString(MARGIN + 1, PAGE_H - 30 * mm, "RECORD STORE  ·  MONTEVIDEO")
-    # acento
-    canvas.setStrokeColor(GOLD)
-    canvas.setLineWidth(2)
-    canvas.line(MARGIN, PAGE_H - 34 * mm, MARGIN + 22 * mm, PAGE_H - 34 * mm)
+
+    lw, lh = MARCA.logo_size(52 * mm)
+    logo = MARCA.logo_path(sobre_oscuro=True)
+    if logo:
+        canvas.drawImage(logo, MARGIN, PAGE_H - 10 * mm - lh, width=lw, height=lh,
+                         mask="auto", preserveAspectRatio=True, anchor="sw")
+    else:
+        canvas.setFillColor(PAPER)
+        canvas.setFont(FONT_B, 30)
+        canvas.drawString(MARGIN, PAGE_H - 24 * mm, "ARCANO")
+    canvas.setFont(FONT_M, 8.5)
+    canvas.setFillColor(BEIGE)
+    canvas.drawString(MARGIN + 1, PAGE_H - 36 * mm, "M O N T E V I D E O   ·   U R U G U A Y")
+    canvas.setStrokeColor(BEIGE)
+    canvas.setLineWidth(1)
+    canvas.line(MARGIN, PAGE_H - 40 * mm, MARGIN + 22 * mm, PAGE_H - 40 * mm)
     canvas.restoreState()
     _draw_footer(canvas, doc)
 
 
 def _later_pages(canvas, doc):
     canvas.saveState()
-    canvas.setFont(FONT_B, 8)
-    canvas.setFillColor(INK)
-    canvas.drawString(MARGIN, PAGE_H - 11 * mm, "ARCANO")
+    lw, lh = MARCA.logo_size(19 * mm)
+    logo = MARCA.logo_path(sobre_oscuro=False)
+    if logo:
+        canvas.drawImage(logo, MARGIN, PAGE_H - 11.5 * mm, width=lw, height=lh,
+                         mask="auto", preserveAspectRatio=True, anchor="sw")
+    else:
+        canvas.setFont(FONT_B, 8)
+        canvas.setFillColor(INK)
+        canvas.drawString(MARGIN, PAGE_H - 11 * mm, "ARCANO")
     canvas.setFont(FONT, 8)
     canvas.setFillColor(GREY)
-    canvas.drawString(MARGIN + 17 * mm, PAGE_H - 11 * mm, "Informe ejecutivo de gestion")
+    canvas.drawString(MARGIN + 23 * mm, PAGE_H - 11 * mm, "Informe ejecutivo de gestion")
     canvas.drawRightString(PAGE_W - MARGIN, PAGE_H - 11 * mm, doc._per_label)
     canvas.setStrokeColor(LINE)
     canvas.setLineWidth(0.5)

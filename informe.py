@@ -11,13 +11,25 @@ from reportlab.lib.units import mm
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import (SimpleDocTemplate, Paragraph, Spacer, Table,
-                                TableStyle, HRFlowable, PageBreak)
+                                TableStyle, HRFlowable, PageBreak, Image)
 from reportlab.graphics.shapes import Drawing
 from reportlab.graphics.charts.barcharts import VerticalBarChart
 from reportlab.graphics.charts.legends import Legend
 
 import metrics
+import marca_pdf as MARCA
 from models import Disc, Pedido, MovimientoCaja, Setting
+
+# Identidad de marca (manual set. 2026) desde marca_pdf: misma paleta, misma
+# tipografia y mismo logo que el resto de los informes.
+FONT, FONT_M, FONT_B = MARCA.FONT, MARCA.FONT_M, MARCA.FONT_B
+BLACK = MARCA.NEGRO
+GREEN = MARCA.POSITIVO
+RED = MARCA.NEGATIVO
+GREY = MARCA.TEXTO_2
+LIGHT = MARCA.CREMA
+LINEA = MARCA.LINEA
+FILA_ALT = MARCA.FILA_ALT
 
 
 def _money(n):
@@ -32,12 +44,12 @@ def _ts_tabla():
     """Estilo reutilizable para las tablas de tops/pedidos del informe."""
     from reportlab.lib import colors as _c
     return TableStyle([
-        ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 8.5), ("BACKGROUND", (0, 0), (-1, 0), _c.HexColor("#0A0A0A")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), _c.white), ("FONT", (0, 1), (-1, -1), "Helvetica", 8.5),
+        ("FONT", (0, 0), (-1, 0), FONT_B, 8.5), ("BACKGROUND", (0, 0), (-1, 0), BLACK),
+        ("TEXTCOLOR", (0, 0), (-1, 0), _c.white), ("FONT", (0, 1), (-1, -1), FONT, 8.5),
         ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
         ("TOPPADDING", (0, 0), (-1, -1), 4.2), ("BOTTOMPADDING", (0, 0), (-1, -1), 4.2),
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_c.white, _c.HexColor("#faf9f6")]),
-        ("LINEBELOW", (0, 0), (-1, -1), 0.4, _c.HexColor("#e3e2dc")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [_c.white, FILA_ALT]),
+        ("LINEBELOW", (0, 0), (-1, -1), 0.4, LINEA),
     ])
 
 
@@ -71,7 +83,12 @@ def _grafico_barras(labels, series, colores, ancho_mm=174, alto=130):
     bc.data = series
     bc.categoryAxis.categoryNames = labels
     bc.categoryAxis.labels.fontSize = 7
+    bc.categoryAxis.labels.fontName = FONT
     bc.valueAxis.labels.fontSize = 7
+    bc.valueAxis.labels.fontName = FONT
+    bc.categoryAxis.strokeColor = LINEA
+    bc.valueAxis.strokeColor = LINEA
+    bc.valueAxis.gridStrokeColor = LINEA
     todos = [v for s in series for v in s]
     bc.valueAxis.valueMin = min(0, min(todos)) if todos else 0
     bc.groupSpacing = 8
@@ -130,27 +147,31 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None,
         "anio": "Este ano", "todo": "Todo el historial", "custom": "Periodo elegido",
     }.get(periodo, periodo)
 
-    BLACK = colors.HexColor("#0A0A0A"); GREEN = colors.HexColor("#0f7a53")
-    RED = colors.HexColor("#c0392b"); GREY = colors.HexColor("#6b6b6b")
-    LIGHT = colors.HexColor("#f2f1ec")
     styles = getSampleStyleSheet()
-    h1 = ParagraphStyle("h1", parent=styles["Title"], fontName="Helvetica-Bold", fontSize=19, textColor=BLACK, spaceAfter=2, leading=22)
-    sub = ParagraphStyle("sub", parent=styles["Normal"], fontSize=9.5, textColor=GREY)
-    h2 = ParagraphStyle("h2", parent=styles["Heading2"], fontName="Helvetica-Bold", fontSize=13, textColor=BLACK, spaceBefore=14, spaceAfter=6, leading=15)
-    body = ParagraphStyle("body", parent=styles["Normal"], fontSize=10, leading=15, textColor=colors.HexColor("#1a1a1a"))
-    small = ParagraphStyle("small", parent=styles["Normal"], fontSize=8.5, leading=12, textColor=GREY)
+    h1 = ParagraphStyle("h1", parent=styles["Title"], fontName=FONT_B, fontSize=19, textColor=BLACK, spaceAfter=2, leading=22)
+    sub = ParagraphStyle("sub", parent=styles["Normal"], fontName=FONT, fontSize=9.5, textColor=GREY)
+    h2 = ParagraphStyle("h2", parent=styles["Heading2"], fontName=FONT_M, fontSize=13, textColor=BLACK, spaceBefore=14, spaceAfter=6, leading=15)
+    body = ParagraphStyle("body", parent=styles["Normal"], fontName=FONT, fontSize=10, leading=15, textColor=BLACK)
+    small = ParagraphStyle("small", parent=styles["Normal"], fontName=FONT, fontSize=8.5, leading=12, textColor=GREY)
 
     out = io.BytesIO()
     doc = SimpleDocTemplate(out, pagesize=A4, leftMargin=18*mm, rightMargin=18*mm,
-                            topMargin=16*mm, bottomMargin=15*mm, title="Informe Arcano")
+                            topMargin=20*mm, bottomMargin=16*mm, title="Informe Arcano")
     E = []
-    E.append(Paragraph("ARCANO RECORD STORE", h1))
+    # Cabecera de marca: logo primario en negro sobre fondo claro (regla del manual).
+    logo = MARCA.logo_path()
+    if logo:
+        lw, lh = MARCA.logo_size(46 * mm)
+        E.append(Image(logo, width=lw, height=lh, hAlign="LEFT"))
+        E.append(Spacer(1, 6))
+    else:
+        E.append(Paragraph("ARCANO RECORD STORE", h1))
     E.append(Paragraph("Informe de contabilidad &middot; %s (%s a %s) &middot; generado el %s"
                        % (per_label, conta["inicio"], conta["fin"], datetime.now().strftime("%d/%m/%Y")), sub))
     E.append(HRFlowable(width="100%", thickness=2, color=BLACK, spaceBefore=6, spaceAfter=10))
 
     def mrow(items):
-        data = [[Paragraph("<font size=8 color='#6b6b6b'>%s</font><br/><font size=15><b>%s</b></font>" % (l, v), body) for l, v in items]]
+        data = [[Paragraph("<font size=8 color='#6B5F60'>%s</font><br/><font size=15><b>%s</b></font>" % (l, v), body) for l, v in items]]
         t = Table(data, colWidths=[(174*mm)/len(items)]*len(items))
         t.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), LIGHT), ("INNERGRID", (0, 0), (-1, -1), 4, colors.white),
             ("TOPPADDING", (0, 0), (-1, -1), 10), ("BOTTOMPADDING", (0, 0), (-1, -1), 10), ("LEFTPADDING", (0, 0), (-1, -1), 10)]))
@@ -204,17 +225,17 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None,
         serie_ing = [round(m["ingresos_uyu"]) for m in seis_m]
         serie_egr = [round(m["egresos_uyu"]) for m in seis_m]
         E.append(_grafico_barras(labels, [serie_ing, serie_egr], [GREEN, RED]))
-        E.append(Paragraph("<font color='#0f7a53'>Verde: ingresos</font> &nbsp; <font color='#c0392b'>Rojo: egresos (con pedidos)</font>", small))
+        E.append(Paragraph("<font color='#2F6B4F'>Verde: ingresos</font> &nbsp; <font color='#8C3B33'>Rojo: egresos (con pedidos)</font>", small))
         data6 = [["Mes", "Ingresos", "Egresos", "Gastos", "Pedidos", "Neto"]]
         for m in seis_m:
             data6.append([m["label"], _money(m["ingresos_uyu"]), _money(m["egresos_uyu"]),
                           _money(m["egresos_opex_uyu"]), _money(m["pedidos_uyu"]), _money(m["neto_uyu"])])
         t = Table(data6, colWidths=[24*mm, 30*mm, 30*mm, 30*mm, 30*mm, 30*mm])
-        t.setStyle(TableStyle([("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 8), ("BACKGROUND", (0, 0), (-1, 0), BLACK),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("FONT", (0, 1), (-1, -1), "Helvetica", 8),
+        t.setStyle(TableStyle([("FONT", (0, 0), (-1, 0), FONT_B, 8), ("BACKGROUND", (0, 0), (-1, 0), BLACK),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("FONT", (0, 1), (-1, -1), FONT, 8),
             ("ALIGN", (1, 0), (-1, -1), "RIGHT"), ("TOPPADDING", (0, 0), (-1, -1), 4), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#faf9f6")]),
-            ("LINEBELOW", (0, 0), (-1, -1), 0.4, colors.HexColor("#e3e2dc"))]))
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, FILA_ALT]),
+            ("LINEBELOW", (0, 0), (-1, -1), 0.4, LINEA)]))
         E.append(t)
 
     # Arcano vs coleccion personal
@@ -222,8 +243,8 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None,
         E.append(Paragraph("Arcano vs tu coleccion personal (6 meses)", h2))
         labels = [m["label"] for m in arc_per]
         E.append(_grafico_barras(labels, [[round(m["arcano"]) for m in arc_per],
-                                          [round(m["personal"]) for m in arc_per]], [BLACK, colors.HexColor("#3b82f6")]))
-        E.append(Paragraph("<font color='#0a0a0a'>Negro: ventas de Arcano</font> &nbsp; <font color='#3b82f6'>Azul: tu coleccion</font>", small))
+                                          [round(m["personal"]) for m in arc_per]], [BLACK, MARCA.MARRON_MEDIO]))
+        E.append(Paragraph("<font color='#1E1C1C'>Negro: ventas de Arcano</font> &nbsp; <font color='#7A6652'>Marron claro: tu coleccion</font>", small))
 
     # Egresos por categoria
     if conta.get("egresos_por_categoria"):
@@ -234,11 +255,11 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None,
         data.append(["TOTAL", _money(conta["egresos_uyu"])])
         t = Table(data, colWidths=[130*mm, 44*mm])
         n = len(conta["egresos_por_categoria"])
-        t.setStyle(TableStyle([("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 9), ("BACKGROUND", (0, 0), (-1, 0), BLACK),
-            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("FONT", (0, 1), (-1, -1), "Helvetica", 9),
+        t.setStyle(TableStyle([("FONT", (0, 0), (-1, 0), FONT_B, 9), ("BACKGROUND", (0, 0), (-1, 0), BLACK),
+            ("TEXTCOLOR", (0, 0), (-1, 0), colors.white), ("FONT", (0, 1), (-1, -1), FONT, 9),
             ("ALIGN", (1, 0), (1, -1), "RIGHT"), ("TOPPADDING", (0, 0), (-1, -1), 4.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 4.5),
-            ("FONT", (0, n + 1), (-1, n + 1), "Helvetica-Bold", 9), ("LINEABOVE", (0, n + 1), (-1, n + 1), 0.8, BLACK),
-            ("ROWBACKGROUNDS", (0, 1), (-1, n), [colors.white, colors.HexColor("#faf9f6")])]))
+            ("FONT", (0, n + 1), (-1, n + 1), FONT_B, 9), ("LINEABOVE", (0, n + 1), (-1, n + 1), 0.8, BLACK),
+            ("ROWBACKGROUNDS", (0, 1), (-1, n), [colors.white, FILA_ALT])]))
         E.append(t)
 
     # Top sellos y discos
@@ -317,10 +338,10 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None,
             nombre = ("%s - %s" % (d.artista or "", d.titulo or ""))[:46]
             data.append([str(f["dias"]) if f["dias"] is not None else "-", nombre, (d.sello or "-")[:18], _money(f["costo"])])
         t = Table(data, colWidths=[16*mm, 96*mm, 34*mm, 28*mm])
-        ts = [("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 8.5), ("BACKGROUND", (0, 0), (-1, 0), BLACK), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-              ("FONT", (0, 1), (-1, -1), "Helvetica", 8.5), ("ALIGN", (0, 0), (0, -1), "CENTER"), ("ALIGN", (3, 0), (3, -1), "RIGHT"),
+        ts = [("FONT", (0, 0), (-1, 0), FONT_B, 8.5), ("BACKGROUND", (0, 0), (-1, 0), BLACK), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+              ("FONT", (0, 1), (-1, -1), FONT, 8.5), ("ALIGN", (0, 0), (0, -1), "CENTER"), ("ALIGN", (3, 0), (3, -1), "RIGHT"),
               ("TOPPADDING", (0, 0), (-1, -1), 4.5), ("BOTTOMPADDING", (0, 0), (-1, -1), 4.5),
-              ("LINEBELOW", (0, 0), (-1, -1), 0.4, colors.HexColor("#e3e2dc")), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#faf9f6")])]
+              ("LINEBELOW", (0, 0), (-1, -1), 0.4, LINEA), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, FILA_ALT])]
         for i, f in enumerate(filas, start=1):
             if f["dias"] is not None and f["dias"] >= frenado["umbral"]:
                 ts.append(("TEXTCOLOR", (0, i), (0, i), RED))
@@ -332,14 +353,14 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None,
     if hay_problemas:
         E.append(Paragraph("Se encontraron cosas para revisar:", body))
     else:
-        E.append(Paragraph("<font color='#0f7a53'><b>Los datos estan limpios.</b></font> No aparecieron inconsistencias:", body))
+        E.append(Paragraph("<font color='#2F6B4F'><b>Los datos estan limpios.</b></font> No aparecieron inconsistencias:", body))
     data = [["Chequeo", "Resultado"]]
     for nombre, n in chequeos:
         data.append([nombre, ("OK - ninguno" if n == 0 else "%d para revisar" % n)])
     t = Table(data, colWidths=[126*mm, 48*mm])
-    ts = [("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 9), ("BACKGROUND", (0, 0), (-1, 0), BLACK), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-          ("FONT", (0, 1), (-1, -1), "Helvetica", 9), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#faf9f6")]),
-          ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5), ("LINEBELOW", (0, 0), (-1, -1), 0.4, colors.HexColor("#e3e2dc"))]
+    ts = [("FONT", (0, 0), (-1, 0), FONT_B, 9), ("BACKGROUND", (0, 0), (-1, 0), BLACK), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+          ("FONT", (0, 1), (-1, -1), FONT, 9), ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, FILA_ALT]),
+          ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5), ("LINEBELOW", (0, 0), (-1, -1), 0.4, LINEA)]
     for i, (nombre, n) in enumerate(chequeos, start=1):
         ts.append(("TEXTCOLOR", (1, i), (1, i), GREEN if n == 0 else RED))
     t.setStyle(TableStyle(ts))
@@ -349,6 +370,30 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None,
     E.append(HRFlowable(width="100%", thickness=0.5, color=GREY))
     E.append(Paragraph("Arcano Record Store &middot; Montevideo &middot; numeros en pesos uruguayos (UYU).", small))
 
-    doc.build(E)
+    def _pie(canv, docu):
+        canv.saveState()
+        # Encabezado de marca en las paginas interiores (la 1 ya lleva el logo grande)
+        if docu.page > 1:
+            _lg = MARCA.logo_path()
+            if _lg:
+                _w, _h = MARCA.logo_size(19*mm)
+                canv.drawImage(_lg, 18*mm, A4[1] - 11.5*mm, width=_w, height=_h,
+                               mask="auto", preserveAspectRatio=True, anchor="sw")
+            canv.setFont(FONT, 8)
+            canv.setFillColor(GREY)
+            canv.drawString(18*mm + 23*mm, A4[1] - 11*mm, "Informe de contabilidad")
+            canv.setStrokeColor(LINEA)
+            canv.setLineWidth(0.5)
+            canv.line(18*mm, A4[1] - 13*mm, A4[0] - 18*mm, A4[1] - 13*mm)
+        canv.setFont(FONT, 7.5)
+        canv.setFillColor(MARCA.TEXTO_3)
+        canv.drawString(18*mm, 9*mm, "Arcano Record Store  ·  Montevideo  ·  numeros en pesos uruguayos (UYU)")
+        canv.drawRightString(A4[0] - 18*mm, 9*mm, "Pagina %d" % docu.page)
+        canv.setStrokeColor(LINEA)
+        canv.setLineWidth(0.5)
+        canv.line(18*mm, 12*mm, A4[0] - 18*mm, 12*mm)
+        canv.restoreState()
+
+    doc.build(E, onFirstPage=_pie, onLaterPages=_pie)
     out.seek(0)
     return out

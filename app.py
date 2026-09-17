@@ -5638,23 +5638,35 @@ def register_routes(app: Flask) -> None:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import A4, landscape
         from reportlab.lib.units import cm
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
         from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
         import io
+        from xml.sax.saxutils import escape
+        import marca_pdf as MARCA   # paleta, tipografia y logo del manual de marca
+
+        FONT, FONT_M, FONT_B = MARCA.FONT, MARCA.FONT_M, MARCA.FONT_B
 
         pedidos = Pedido.query.order_by(Pedido.fecha.desc()).all()
         output = io.BytesIO()
         doc = SimpleDocTemplate(output, pagesize=landscape(A4),
-                                leftMargin=1*cm, rightMargin=1*cm, topMargin=1.2*cm, bottomMargin=1*cm)
+                                leftMargin=1*cm, rightMargin=1*cm, topMargin=1.2*cm, bottomMargin=1.4*cm)
         styles = getSampleStyleSheet()
-        title_style = ParagraphStyle("titulo", parent=styles["Title"], fontSize=18, textColor=colors.HexColor("#1a1a1a"))
-        sub_style = ParagraphStyle("sub", parent=styles["Normal"], fontSize=9, textColor=colors.grey)
-        h2_style = ParagraphStyle("h2", parent=styles["Heading2"], fontSize=13)
+        title_style = ParagraphStyle("titulo", parent=styles["Title"], fontName=FONT_B, fontSize=18, textColor=MARCA.NEGRO)
+        sub_style = ParagraphStyle("sub", parent=styles["Normal"], fontName=FONT, fontSize=9, textColor=MARCA.TEXTO_2)
+        h2_style = ParagraphStyle("h2", parent=styles["Heading2"], fontName=FONT_M, fontSize=13, textColor=MARCA.NEGRO)
+        celda = ParagraphStyle("celda", parent=styles["Normal"], fontName=FONT, fontSize=7, leading=9, textColor=MARCA.NEGRO)
         elems = []
 
-        elems.append(Paragraph("Arcano Record Store &mdash; Pedidos", title_style))
+        # Cabecera de marca: logo primario negro sobre fondo claro (regla del manual)
+        _logo = MARCA.logo_path()
+        if _logo:
+            _lw, _lh = MARCA.logo_size(4.6*cm)
+            elems.append(Image(_logo, width=_lw, height=_lh, hAlign="LEFT"))
+            elems.append(Spacer(1, 0.15*cm))
+        else:
+            elems.append(Paragraph("ARCANO RECORD STORE", title_style))
         from datetime import datetime as _dt
-        elems.append(Paragraph(f"Generado el {_dt.now().strftime('%d/%m/%Y')}", sub_style))
+        elems.append(Paragraph(f"Informe de pedidos &middot; generado el {_dt.now().strftime('%d/%m/%Y')}", sub_style))
         elems.append(Spacer(1, 0.5*cm))
 
         # --- RESUMEN EJECUTIVO (KPIs globales) ---
@@ -5682,14 +5694,17 @@ def register_routes(app: Flask) -> None:
              "Mejor / Peor pedido",
              (f"{mejor.numero or mejor.id} ({mejor.margen_pct}%) / {peor.numero or peor.id} ({peor.margen_pct}%)" if mejor and peor else "-")],
         ]
-        kpi_table = Table(kpi_data, colWidths=[4.5*cm, 5*cm, 4.5*cm, 6*cm])
+        kpi_table = Table(kpi_data, colWidths=[4.5*cm, 5*cm, 4.5*cm, 6*cm], hAlign="LEFT")
         kpi_table.setStyle(TableStyle([
-            ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
-            ("FONTNAME", (2, 0), (2, -1), "Helvetica-Bold"),
-            ("TEXTCOLOR", (0, 0), (0, -1), colors.HexColor("#666666")),
-            ("TEXTCOLOR", (2, 0), (2, -1), colors.HexColor("#666666")),
+            ("FONTNAME", (0, 0), (-1, -1), FONT),
+            ("FONTNAME", (0, 0), (0, -1), FONT_M),
+            ("FONTNAME", (2, 0), (2, -1), FONT_M),
+            ("TEXTCOLOR", (0, 0), (0, -1), MARCA.TEXTO_2),
+            ("TEXTCOLOR", (2, 0), (2, -1), MARCA.TEXTO_2),
+            ("TEXTCOLOR", (1, 0), (1, -1), MARCA.NEGRO),
+            ("TEXTCOLOR", (3, 0), (3, -1), MARCA.NEGRO),
             ("FONTSIZE", (0, 0), (-1, -1), 9),
-            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#f5f5f5")),
+            ("BACKGROUND", (0, 0), (-1, -1), MARCA.CREMA),
             ("GRID", (0, 0), (-1, -1), 0.5, colors.white),
             ("TOPPADDING", (0, 0), (-1, -1), 6),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
@@ -5717,14 +5732,16 @@ def register_routes(app: Flask) -> None:
                 f"{p.dias_recuperacion}d" if p.dias_recuperacion is not None else "-",
                 "OK" if p.recuperado else "Pdte",
             ])
-        t = Table(data, repeatRows=1)
+        t = Table(data, repeatRows=1, hAlign="LEFT")
         t.setStyle(TableStyle([
-            ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1a1a1a")),
+            ("BACKGROUND", (0, 0), (-1, 0), MARCA.NEGRO),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("FONTNAME", (0, 0), (-1, 0), FONT_M),
+            ("FONTNAME", (0, 1), (-1, -1), FONT),
+            ("TEXTCOLOR", (0, 1), (-1, -1), MARCA.NEGRO),
             ("FONTSIZE", (0, 0), (-1, -1), 7),
-            ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#dddddd")),
-            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f5f5f5")]),
+            ("GRID", (0, 0), (-1, -1), 0.5, MARCA.LINEA),
+            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, MARCA.FILA_ALT]),
             ("ALIGN", (2, 0), (-1, -1), "RIGHT"),
             ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
         ]))
@@ -5746,22 +5763,41 @@ def register_routes(app: Flask) -> None:
             ddata = [["Artista", "Titulo", "Sello", "Precio", "Estado"]]
             for d in p.discos:
                 ddata.append([
-                    d.artista or "", d.titulo or "", d.sello or "",
+                    Paragraph(escape(d.artista or ""), celda),
+                    Paragraph(escape(d.titulo or ""), celda),
+                    Paragraph(escape(d.sello or ""), celda),
                     fmt(d.precio_mostrar or d.precio_uyu or 0),
                     d.estado,
                 ])
-            dt = Table(ddata, repeatRows=1, colWidths=[5*cm, 6*cm, 4*cm, 3*cm, 3*cm])
+            dt = Table(ddata, repeatRows=1, hAlign="LEFT", colWidths=[5*cm, 6*cm, 4*cm, 3*cm, 3*cm])
             dt.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#444444")),
+                ("BACKGROUND", (0, 0), (-1, 0), MARCA.MARRON),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                ("FONTNAME", (0, 0), (-1, 0), FONT_M),
+                ("FONTNAME", (0, 1), (-1, -1), FONT),
+                ("TEXTCOLOR", (0, 1), (-1, -1), MARCA.NEGRO),
                 ("FONTSIZE", (0, 0), (-1, -1), 7),
-                ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#eeeeee")),
+                ("GRID", (0, 0), (-1, -1), 0.5, MARCA.LINEA),
+                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, MARCA.FILA_ALT]),
                 ("ALIGN", (3, 0), (3, -1), "RIGHT"),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
             ]))
             elems.append(dt)
 
-        doc.build(elems)
+        _pw = landscape(A4)[0]
+
+        def _pie(canv, docu):
+            canv.saveState()
+            canv.setFont(FONT, 7.5)
+            canv.setFillColor(MARCA.TEXTO_3)
+            canv.drawString(1*cm, 0.8*cm, "Arcano Record Store  ·  Montevideo  ·  numeros en pesos uruguayos (UYU)")
+            canv.drawRightString(_pw - 1*cm, 0.8*cm, "Pagina %d" % docu.page)
+            canv.setStrokeColor(MARCA.LINEA)
+            canv.setLineWidth(0.5)
+            canv.line(1*cm, 1.1*cm, _pw - 1*cm, 1.1*cm)
+            canv.restoreState()
+
+        doc.build(elems, onFirstPage=_pie, onLaterPages=_pie)
         output.seek(0)
         from flask import send_file
         return send_file(
