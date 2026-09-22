@@ -216,15 +216,30 @@ window.arcanoGA = function (name, params) {
     'use strict';
     var KEY = 'arcano-cart';
 
+    // Un id de carrito valido es el id numerico de un disco. Todo lo demas
+    // ('undefined', null, vacio) se descarta: si entra basura, infla el contador y
+    // rompe el cajon. Paso por un boton mal configurado, asi que se filtra siempre.
+    function idValido(id) {
+        return id != null && /^\d+$/.test(String(id));
+    }
     function getCart() {
-        try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
-        catch (e) { return []; }
+        try {
+            var arr = JSON.parse(localStorage.getItem(KEY) || '[]');
+            if (!Array.isArray(arr)) return [];
+            var limpio = arr.filter(idValido).map(String);
+            // Auto-reparacion: si habia basura guardada, se limpia sola.
+            if (limpio.length !== arr.length) {
+                try { localStorage.setItem(KEY, JSON.stringify(limpio)); } catch (e) {}
+            }
+            return limpio;
+        } catch (e) { return []; }
     }
     function setCart(arr) {
-        try { localStorage.setItem(KEY, JSON.stringify(arr)); } catch (e) {}
+        try { localStorage.setItem(KEY, JSON.stringify((arr || []).filter(idValido).map(String))); } catch (e) {}
     }
     function inCart(id) { return getCart().indexOf(String(id)) !== -1; }
     function toggle(id) {
+        if (!idValido(id)) return false;
         id = String(id);
         var cart = getCart();
         var i = cart.indexOf(id);
@@ -292,6 +307,7 @@ window.arcanoGA = function (name, params) {
         get: getCart,
         has: inCart,
         add: function (id) {
+            if (!idValido(id)) return false;
             id = String(id);
             var cart = getCart();
             if (cart.indexOf(id) === -1) { cart.push(id); setCart(cart); }

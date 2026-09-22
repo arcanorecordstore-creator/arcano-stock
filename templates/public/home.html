@@ -325,7 +325,10 @@
             <div class="public-card-resena">&ldquo;Elegís cuántos y nos contás qué te gusta. La selección la armamos nosotros.&rdquo;</div>
             <div class="public-card-buy">
                 <div class="public-card-price public-card-price-mbox">$ {{ '{:,.0f}'.format(mbox_min).replace(',', '.') }} &ndash; $ {{ '{:,.0f}'.format(mbox_max).replace(',', '.') }}</div>
-                <span class="cart-btn cart-btn-inline cart-btn-mbox">Armá tu box &rarr;</span>
+                {# OJO: NO lleva la clase 'cart-btn'. El JS del carrito engancha todos
+                   los .cart-btn y frenaria el link a la ficha (ademas de meter un id
+                   invalido). Esto es solo un CTA visual: el click lo toma la card. #}
+                <span class="cart-btn-inline cart-btn-mbox">Armá tu box &rarr;</span>
             </div>
         </div>
     </a>
