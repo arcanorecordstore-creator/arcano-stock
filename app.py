@@ -44,6 +44,12 @@ from models import (
 )
 import vision
 import scraper
+
+# ---------------------------------------------------------------------------
+# Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
+# el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
+# ---------------------------------------------------------------------------
+APP_VERSION = "5.37"
 import metrics
 import auth
 import mailer
@@ -581,6 +587,8 @@ self.addEventListener('notificationclick', function(e){
             # TC EUR y USD disponibles en TODAS las paginas (el header del admin los muestra)
             "tc": Setting.get_tc(),
             "tc_usd": Setting.get_tc_usd(),
+            # Version del proyecto, disponible en el admin Y en la tienda publica.
+            "app_version": APP_VERSION,
         }
 
     @app.template_filter("hora_uy")
