@@ -691,16 +691,63 @@ window.arcanoGA = function (name, params) {
 
     function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
 
+    // --- Mystery Box: vive aparte del array de discos (localStorage 'arcano-mbox') ---
+    function getBox() {
+        try { return JSON.parse(localStorage.getItem('arcano-mbox') || 'null'); }
+        catch (e) { return null; }
+    }
+    function boxPrecio(b) {
+        var cfg = window.ARCANO_MBOX || {};
+        return (b && cfg.precios && cfg.precios[b.cantidad]) || 0;
+    }
+    function boxRowHtml(b) {
+        var cfg = window.ARCANO_MBOX || {};
+        var cover = cfg.cover ? '<img src="' + cfg.cover + '" alt="">' : '<div class="cart-drawer-noimg">&#127873;</div>';
+        return '<div class="cart-drawer-row">' +
+            '<div class="cart-drawer-cover">' + cover + '</div>' +
+            '<div class="cart-drawer-rowinfo">' +
+            '<div class="cart-drawer-rowtitle">&#127873; Mystery Box &middot; ' + b.cantidad + ' discos</div>' +
+            '<div class="cart-drawer-rowprice">$ ' + boxPrecio(b).toLocaleString('es-UY') + '</div></div>' +
+            '<button type="button" class="cart-drawer-remove" data-remove-mbox="1" aria-label="Quitar del carrito" title="Quitar">&times;</button>' +
+            '</div>';
+    }
+    function bindRemoves() {
+        listEl.querySelectorAll('.cart-drawer-remove').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                if (btn.dataset.removeMbox) {
+                    try { localStorage.removeItem('arcano-mbox'); } catch (e) {}
+                    if (window.ArcanoCart && window.ArcanoCart.rebind) window.ArcanoCart.rebind();
+                } else if (window.ArcanoCart && window.ArcanoCart.remove) {
+                    window.ArcanoCart.remove(btn.dataset.removeId);
+                }
+                renderList();
+            });
+        });
+    }
+    function vacio() {
+        listEl.innerHTML = '<p class="cart-drawer-empty">Tu carrito está vacío.</p>';
+        totalEl.textContent = '';
+    }
+
     function renderList() {
         var ids = (window.ArcanoCart && window.ArcanoCart.get) ? window.ArcanoCart.get() : [];
-        if (!ids.length) { listEl.innerHTML = '<p class="cart-drawer-empty">Tu carrito está vacío.</p>'; totalEl.textContent = ''; return; }
+        var box = getBox();
+        if (!ids.length && !box) { vacio(); return; }
+        // Solo Mystery Box: no hace falta pedir discos al server.
+        if (!ids.length) {
+            listEl.innerHTML = boxRowHtml(box);
+            totalEl.textContent = 'Total estimado: $ ' + boxPrecio(box).toLocaleString('es-UY');
+            bindRemoves();
+            return;
+        }
         listEl.innerHTML = '<p class="cart-drawer-empty">Cargando...</p>';
         fetch('/api/discos-por-id?ids=' + ids.join(','))
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 var discos = (data && data.discos) || [];
-                if (!discos.length) { listEl.innerHTML = '<p class="cart-drawer-empty">Tu carrito está vacío.</p>'; totalEl.textContent = ''; return; }
+                if (!discos.length && !box) { vacio(); return; }
                 var total = 0, html = '';
+                if (box) { total += boxPrecio(box); html += boxRowHtml(box); }
                 discos.forEach(function (d) {
                     if (d.disponible && d.precio_uyu) total += d.precio_uyu;
                     var cover = d.cover ? '<img src="' + d.cover + '" alt="">' : '<div class="cart-drawer-noimg">&#9834;</div>';
@@ -714,12 +761,7 @@ window.arcanoGA = function (name, params) {
                         '</div>';
                 });
                 listEl.innerHTML = html;
-                listEl.querySelectorAll('.cart-drawer-remove').forEach(function (btn) {
-                    btn.addEventListener('click', function () {
-                        if (window.ArcanoCart && window.ArcanoCart.remove) window.ArcanoCart.remove(btn.dataset.removeId);
-                        renderList();
-                    });
-                });
+                bindRemoves();
                 totalEl.textContent = 'Total estimado: $ ' + total.toLocaleString('es-UY');
             })
             .catch(function () { listEl.innerHTML = '<p class="cart-drawer-empty">No se pudo cargar el carrito.</p>'; });

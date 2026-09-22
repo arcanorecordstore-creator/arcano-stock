@@ -325,6 +325,14 @@
      y el avance con una sola interfaz propia (el reproductor de cada uno va oculto). -->
 <script src="https://w.soundcloud.com/player/api.js"></script>
 <script src="https://www.youtube.com/iframe_api"></script>
+<script>
+// Mystery Box: datos que necesita el JS estatico (precios del server, portada y ficha).
+window.ARCANO_MBOX = {
+    precios: {{ mbox_precios|tojson }},
+    cover: "{{ url_for('static', filename='brand/mystery-box.svg') }}",
+    url: "{{ url_for('public_disc', disc_id=mbox_disc_id) if mbox_disc_id else '' }}"
+};
+</script>
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
 <script src="{{ url_for('static', filename='js/public_anim.js') }}"></script>
 <script src="{{ url_for('static', filename='js/pjax.js') }}"></script>
