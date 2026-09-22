@@ -700,6 +700,11 @@ def query_discs(args):
 
 
 def compute_totals(discs):
+    # La Mystery Box NO es inventario real: no tiene costo ni stock fisico (su
+    # "stock" es solo para que nunca figure agotada en la tienda). Si entra aca,
+    # infla el valor de venta y la ganancia potencial por millones. Se excluye de
+    # TODOS los totales; la fila igual se sigue viendo en la tabla.
+    discs = [d for d in discs if not getattr(d, "es_mystery_box", False)]
     total = len(discs)
     suma_costo_eur = 0.0
     suma_envio_eur = 0.0
@@ -4036,6 +4041,7 @@ def register_routes(app: Flask) -> None:
         disponibles = (
             Disc.query
             .filter(Disc.estado.in_(["Disponible", "Reservado", "Pre-order", "Apartado para mi"]))
+            .filter(Disc.es_mystery_box.isnot(True))   # la box no se vende como disco
             .order_by(Disc.artista.asc(), Disc.titulo.asc()).all()
         )
         return render_template(
@@ -4738,6 +4744,7 @@ def register_routes(app: Flask) -> None:
                 | ((Disc.estado == "Pre-order") & (Disc.pedido_id.isnot(None)))
             )
             .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
+            .filter(Disc.es_mystery_box.isnot(True))   # la box no es mercaderia real
             .all()
         )
         mercaderia_uyu = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in mercaderia_discos)
@@ -6180,7 +6187,8 @@ def register_routes(app: Flask) -> None:
         tc = Setting.get_tc()
         tc_row = Setting.query.filter_by(key="tc_eur_uyu").first()
 
-        discos_disponibles = Disc.query.filter_by(estado="Disponible").count()
+        discos_disponibles = (Disc.query.filter_by(estado="Disponible")
+                              .filter(Disc.es_mystery_box.isnot(True)).count())
         total_discos = Disc.query.count()
         discos_por_estado = (
             db.session.query(Disc.estado, db.func.count(Disc.id))
@@ -9044,6 +9052,7 @@ def register_routes(app: Flask) -> None:
         # disco ya esta Vendido, "lo compro" solo le pone el cliente, no re-vende).
         discs_para_agregar = (Disc.query
                               .filter(Disc.estado.in_(["Disponible", "Pre-order", "Reservado", "Vendido"]))
+                              .filter(Disc.es_mystery_box.isnot(True))   # la box no es un disco
                               .order_by(Disc.artista.asc(), Disc.titulo.asc()).all())
         # Discos reservados a nombre de este cliente (para ver/gestionar la sena)
         reservados_cliente = (Disc.query

@@ -81,7 +81,10 @@ def kpis_principales() -> dict:
     """KPIs principales del negocio."""
 
     # ---- Stock disponible ----
-    disponibles = Disc.query.filter_by(estado="Disponible").all()
+    # La Mystery Box queda AFUERA: no es inventario real (no tiene costo ni stock
+    # fisico), asi que no debe sumar ni al stock ni al valor/ganancia potencial.
+    disponibles = (Disc.query.filter_by(estado="Disponible")
+                   .filter(Disc.es_mystery_box.isnot(True)).all())
     stock_disponible_unidades = sum(d.stock or 0 for d in disponibles)
     # Inversion inmovilizada = plata que ARCANO puso en stock. Los discos de la
     # coleccion personal no le costaron al negocio (aporte), asi que cuentan 0.
@@ -390,6 +393,7 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
             | ((Disc.estado == "Pre-order") & (Disc.pedido_id.isnot(None)))
         )
         .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
+        .filter(Disc.es_mystery_box.isnot(True))   # la box no es stock real
         .all()
     )
     costo_stock_no_vendido_uyu = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in disponibles_arcano)
@@ -605,6 +609,7 @@ def stock_frenado(dias_umbral: int = 45) -> dict:
         Disc.query
         .filter(Disc.estado == "Disponible")
         .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
+        .filter(Disc.es_mystery_box.isnot(True))   # la box no es stock real
         .all()
     )
     filas = []

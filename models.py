@@ -1971,7 +1971,7 @@ def _migrate_schema(app):
                         titulo="Mystery Box",
                         estado="Disponible",
                         origen="arcano",
-                        stock=999,
+                        stock=1,          # no es inventario: nunca se descuenta
                         precio_uyu=float(min(MYSTERY_BOX_PRECIOS.values())),
                         es_mystery_box=True,
                         orden=_max_orden + 1000,   # arranca primera en la grilla
@@ -1984,6 +1984,13 @@ def _migrate_schema(app):
                     db.session.add(box)
                     db.session.commit()
                     print("Seed: Mystery Box creada")
+                elif (existe.stock or 0) > 1:
+                    # La box no es inventario: un stock alto es una bomba para cualquier
+                    # metrica que multiplique por stock (valor de venta, ganancia
+                    # potencial). Con 1 alcanza: nada se lo descuenta nunca.
+                    existe.stock = 1
+                    db.session.commit()
+                    print("Migracion: stock de la Mystery Box normalizado a 1")
             except Exception:
                 db.session.rollback()
 
