@@ -215,6 +215,21 @@ Montevideo, Uruguay</div>
         <div class="detail-card">
             <h2 class="detail-card-title">Discos de la reserva ({{ reserva.cantidad_discos }})</h2>
             {% for item in reserva.items_efectivos %}
+            {% if item.es_mystery_box %}
+            <div class="reserva-item-row reserva-item-mbox">
+                <img src="{{ url_for('static', filename='brand/mystery-box.svg') }}" alt="" class="reserva-item-cover">
+                <div class="reserva-item-body">
+                    <div class="reserva-item-title">&#127873; {{ item.titulo_snap }}</div>
+                    <div class="reserva-item-meta">
+                        {% if item.precio_uyu_snap %}$ {{ '{:,.0f}'.format(item.precio_uyu_snap).replace(',', '.') }}{% endif %}
+                        &middot; caja curada &middot; asign&aacute; los discos abajo &darr;
+                    </div>
+                    {% if item.mbox_texto %}
+                    <div class="mbox-texto-cliente"><span class="mbox-texto-label">Le gusta:</span> &ldquo;{{ item.mbox_texto }}&rdquo;</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% else %}
             <div class="reserva-item-row">
                 {% set d = item.disco %}
                 {% if d and d.cover_local %}
@@ -268,6 +283,7 @@ Montevideo, Uruguay</div>
                     {% endif %}
                 </div>
             </div>
+            {% endif %}
             {% endfor %}
 
             <div class="reserva-item-total">
@@ -275,6 +291,34 @@ Montevideo, Uruguay</div>
                 <strong>$ {{ '{:,.0f}'.format(reserva.total_uyu).replace(',', '.') }} UYU</strong>
             </div>
         </div>
+
+        {% if tiene_mbox %}
+        <div class="detail-card">
+            <h2 class="detail-card-title">&#127873; Asignar discos a la Mystery Box</h2>
+            <p style="color: var(--text-3); font-size: 13px; line-height: 1.6; margin-bottom: 12px;">
+                Eleg&iacute; los discos que le vas a mandar. Al asignarlos quedan <strong>Vendidos</strong>,
+                se descuenta el stock y se atribuyen a este cliente. La plata de la caja se cuenta una sola
+                vez (el precio de la box, repartido entre los discos elegidos).
+            </p>
+            <form method="post" action="{{ url_for('admin_reserva_detail', reserva_id=reserva.id) }}" id="mbox-asignar-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="accion" value="asignar_discos">
+                <input type="text" id="mbox-buscar" placeholder="Buscar disco por artista, t&iacute;tulo o sello..." class="input" style="width:100%; margin-bottom:10px;" autocomplete="off">
+                <div class="mbox-picker">
+                    {% for d in discos_asignables %}
+                    <label class="mbox-pick-row" data-txt="{{ (d.artista ~ ' ' ~ d.titulo ~ ' ' ~ (d.sello or '')) | lower }}">
+                        <input type="checkbox" name="disc_ids" value="{{ d.id }}">
+                        <span class="mbox-pick-info">
+                            <strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}
+                            {% if d.sello %}<span class="mbox-pick-sello">{{ d.sello }}</span>{% endif %}
+                        </span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <button type="submit" class="btn btn-primary" style="margin-top:12px;">Asignar los discos marcados</button>
+            </form>
+        </div>
+        {% endif %}
 
         <div class="detail-card">
             <h2 class="detail-card-title">Flujo</h2>
@@ -298,10 +342,33 @@ Montevideo, Uruguay</div>
 .rev-f > span em{text-transform:none;letter-spacing:0;color:var(--text-3);font-weight:400;font-style:normal;}
 .reserva-edit-form input,.reserva-edit-form select,.reserva-edit-form textarea{width:100%;font-family:inherit;font-size:14px;}
 .reserva-edit-form textarea{resize:vertical;min-height:60px;line-height:1.5;}
+/* Mystery Box en el detalle */
+.reserva-item-mbox{background:var(--surface-2, rgba(0,0,0,.03));border-radius:10px;}
+.mbox-texto-cliente{margin-top:6px;font-size:13px;color:var(--text-2);line-height:1.5;}
+.mbox-texto-label{font-weight:600;color:var(--text-3);text-transform:uppercase;letter-spacing:.04em;font-size:11px;margin-right:4px;}
+.mbox-picker{max-height:340px;overflow-y:auto;border:1px solid var(--border, #ddd);border-radius:10px;}
+.mbox-pick-row{display:flex;align-items:center;gap:10px;padding:8px 12px;cursor:pointer;border-bottom:1px solid var(--border, #eee);font-size:14px;}
+.mbox-pick-row:last-child{border-bottom:none;}
+.mbox-pick-row:hover{background:var(--surface-2, rgba(0,0,0,.03));}
+.mbox-pick-info{flex:1;}
+.mbox-pick-sello{color:var(--text-4);margin-left:6px;font-size:12px;}
 </style>
 
 {% endblock %}
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+<script>
+(function () {
+    var buscar = document.getElementById('mbox-buscar');
+    if (!buscar) return;
+    var rows = document.querySelectorAll('.mbox-picker .mbox-pick-row');
+    buscar.addEventListener('input', function () {
+        var q = buscar.value.trim().toLowerCase();
+        rows.forEach(function (r) {
+            r.style.display = (!q || (r.dataset.txt || '').indexOf(q) !== -1) ? '' : 'none';
+        });
+    });
+})();
+</script>
 {% endblock %}

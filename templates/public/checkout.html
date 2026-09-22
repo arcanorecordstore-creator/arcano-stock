@@ -12,6 +12,10 @@
 
     <form method="post" action="{{ url_for('public_checkout') }}" class="checkout-form-grid" id="checkout-form" enctype="multipart/form-data">
         <input type="hidden" name="ids" id="checkout-ids" value="{{ ids }}">
+        {# Mystery Box: viaja por localStorage; se vuelca a estos hidden. El server la
+           re-manda en 'form' si hubo un error de validacion, para no perderla. #}
+        <input type="hidden" name="box_cantidad" id="box-cantidad" value="{{ form.box_cantidad or '' }}">
+        <input type="hidden" name="box_texto" id="box-texto" value="{{ form.box_texto or '' }}">
 
         <div class="ck-datos">
             {% if cliente_actual %}
@@ -165,6 +169,33 @@
     var recargoPct = {{ (mp_recargo_pct|float) if mp_recargo_pct else 7 }};
     var subtotalActual = 0, nDiscos = 0;
 
+    // Mystery Box: precios del server + estado desde localStorage (o desde los hidden
+    // si el server la re-mando tras un error de validacion).
+    var MBOX_PRECIOS = {{ mbox_precios|tojson }};
+    var boxCantEl = document.getElementById('box-cantidad');
+    var boxTextoEl = document.getElementById('box-texto');
+    var mbox = null;
+    try { mbox = JSON.parse(localStorage.getItem('arcano-mbox') || 'null'); } catch (e) {}
+    if (!mbox && boxCantEl.value) { mbox = { cantidad: parseInt(boxCantEl.value, 10), texto: boxTextoEl.value || '' }; }
+    if (mbox && MBOX_PRECIOS[mbox.cantidad]) {
+        boxCantEl.value = mbox.cantidad;
+        boxTextoEl.value = mbox.texto || '';
+        // Re-guardar en localStorage: si venimos de un error de validacion, el submit
+        // ya la habia borrado; asi la box no se pierde del carrito.
+        try { localStorage.setItem('arcano-mbox', JSON.stringify(mbox)); } catch (e) {}
+    } else { mbox = null; boxCantEl.value = ''; boxTextoEl.value = ''; }
+    var boxPrecio = mbox ? (MBOX_PRECIOS[mbox.cantidad] || 0) : 0;
+
+    function boxLineHtml() {
+        if (!mbox) return '';
+        return '<div class="checkout-item checkout-item-mbox">' +
+            '<div class="checkout-item-cover"><img src="{{ url_for("static", filename="brand/mystery-box.svg") }}" alt=""></div>' +
+            '<div class="checkout-item-info"><strong>&#127873; Mystery Box</strong> &middot; ' + mbox.cantidad + ' discos' +
+            (mbox.texto ? '<div class="cart-item-label">&ldquo;' + esc(mbox.texto) + '&rdquo;</div>' : '') + '</div>' +
+            '<div class="checkout-item-price">$ ' + boxPrecio.toLocaleString('es-UY') + '</div>' +
+            '</div>';
+    }
+
     function metodoSel() {
         var s = document.querySelector('input[name="metodo"]:checked');
         return s ? s.value : '';
@@ -238,8 +269,9 @@
         idsField.value = ids.join(',');
     }
 
-    if (!ids.length) {
-        resumenEl.innerHTML = '<div class="public-empty"><p>No hay discos para reservar.</p><a href="{{ url_for("home") }}" class="btn btn-primary">Ver catalogo</a></div>';
+    // Vacio solo si no hay discos NI Mystery Box.
+    if (!ids.length && !mbox) {
+        resumenEl.innerHTML = '<div class="public-empty"><p>No hay nada para reservar.</p><a href="{{ url_for("home") }}" class="btn btn-primary">Ver catalogo</a></div>';
         document.getElementById('checkout-form').style.display = 'none';
         return;
     }
@@ -249,18 +281,32 @@
         r.addEventListener('change', actualizarEntrega);
     });
 
+    // Solo Mystery Box (sin discos): armar el resumen sin llamar al server.
+    if (!ids.length) {
+        idsField.value = '';
+        resumenEl.innerHTML = '<div class="checkout-list">' + boxLineHtml() + '</div>';
+        subtotalActual = boxPrecio;
+        nDiscos = 0;  // la box no cuenta para el envio gratis (siempre gratis)
+        actualizarEntrega();
+        if (window.arcanoGA) window.arcanoGA('begin_checkout', {
+            currency: 'UYU', value: boxPrecio,
+            items: [{ item_id: 'mystery-box', price: boxPrecio }]
+        });
+        return;
+    }
+
     fetch('{{ url_for("api_discos_por_id") }}?ids=' + ids.join(','))
         .then(function (r) { return r.json(); })
         .then(function (data) {
             var discos = ((data && data.discos) || []).filter(function (d) { return d.disponible; });
-            if (!discos.length) {
+            if (!discos.length && !mbox) {
                 resumenEl.innerHTML = '<div class="public-empty"><p>Los discos del carrito ya no estan disponibles.</p></div>';
                 document.getElementById('checkout-form').style.display = 'none';
                 return;
             }
             idsField.value = discos.map(function (d) { return d.id; }).join(',');
             var total = 0;
-            var html = '<div class="checkout-list">';
+            var html = '<div class="checkout-list">' + boxLineHtml();
             discos.forEach(function (d) {
                 total += d.precio_uyu;
                 var cover = d.cover ? '<img src="' + d.cover + '" alt="">' : '<div class="cart-item-cover-empty">&#9834;</div>';
@@ -273,11 +319,11 @@
             });
             html += '</div>';
             resumenEl.innerHTML = html;
-            subtotalActual = total;
-            nDiscos = discos.length;
+            subtotalActual = total + boxPrecio;  // la box suma al total (y al recargo MP)
+            nDiscos = discos.length;             // pero NO cuenta para el envio gratis
             actualizarEntrega();  // recalcular con el subtotal y la cantidad ya cargados
             if (window.arcanoGA) window.arcanoGA('begin_checkout', {
-                currency: 'UYU', value: total,
+                currency: 'UYU', value: subtotalActual,
                 items: discos.map(function (d) { return { item_id: String(d.id), price: d.precio_uyu }; })
             });
         });
@@ -286,9 +332,10 @@
         return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // Al enviar con exito, vaciar carrito (se hace del lado servidor el resto)
+    // Al enviar con exito, vaciar carrito + Mystery Box (el resto lo hace el server)
     document.getElementById('checkout-form').addEventListener('submit', function () {
         try { localStorage.removeItem('arcano-cart'); } catch (e) {}
+        try { localStorage.removeItem('arcano-mbox'); } catch (e) {}
     });
 })();
 </script>

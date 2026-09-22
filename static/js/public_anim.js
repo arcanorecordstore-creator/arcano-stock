@@ -233,8 +233,12 @@ window.arcanoGA = function (name, params) {
         return i === -1;
     }
 
+    function hasMbox() {
+        try { return !!JSON.parse(localStorage.getItem('arcano-mbox') || 'null'); }
+        catch (e) { return false; }
+    }
     function updateCount() {
-        var n = getCart().length;
+        var n = getCart().length + (hasMbox() ? 1 : 0);
         // Actualiza todos los contadores de carrito (nav, drawer, topbar, bottom-nav)
         document.querySelectorAll('.cart-count').forEach(function (el) {
             if (n > 0) { el.textContent = n; el.hidden = false; }

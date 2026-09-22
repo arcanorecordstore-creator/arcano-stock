@@ -48,6 +48,21 @@ CONDICIONES_DISCO = [
 # Valor inicial del tipo de cambio EUR -> UYU
 TC_DEFAULT = 47.0
 
+# ---------------------------------------------------------------------------
+# Mystery Box: producto especial (caja curada armada a mano). Precio segun la
+# cantidad de discos elegida. Es la UNICA fuente de verdad de estos precios:
+# el servidor los resuelve, el front nunca manda un precio. Solo cantidades 2-5.
+# ---------------------------------------------------------------------------
+MYSTERY_BOX_PRECIOS = {2: 2100, 3: 3000, 4: 3800, 5: 4500}
+
+
+def mystery_box_precio(cantidad):
+    """Precio (UYU) de una Mystery Box de N discos, o None si la cantidad no es valida."""
+    try:
+        return MYSTERY_BOX_PRECIOS.get(int(cantidad))
+    except (TypeError, ValueError):
+        return None
+
 
 # ---------------------------------------------------------------------------
 # Modelo: Disc
@@ -122,6 +137,11 @@ class Disc(db.Model):
     mostrar_agotado = db.Column(db.Boolean, nullable=False, default=False)
     # Badge de recomendacion del curador (etiqueta editable en Ajustes, default "Tip").
     es_tip = db.Column(db.Boolean, nullable=False, default=False)
+    # Mystery Box: producto especial (caja curada). Se muestra en el catalogo como
+    # un disco mas (fijado primero) pero NO se vende como disco: al comprarse crea un
+    # item de reserva SIN disc_id, asi no descuenta stock. Los discos se asignan a mano
+    # despues desde la reserva. Solo existe una fila con este flag.
+    es_mystery_box = db.Column(db.Boolean, nullable=False, default=False)
     # Resena de una linea, visible en la card del catalogo (estilo Hard Wax).
     resena_corta = db.Column(db.String(160), nullable=True)
     # Estado de audio/digitalizacion (columna manual del dashboard): En digital / Grabado / Para grabar / F.
@@ -1116,6 +1136,13 @@ class ReservaItem(db.Model):
     titulo_snap = db.Column(db.String(300), nullable=True)
     precio_uyu_snap = db.Column(db.Float, nullable=True)
 
+    # Mystery Box: si este item es una caja curada, guarda la cantidad de discos
+    # elegida y el texto del cliente (tracks/artistas/sellos que le gustan). El item
+    # va SIN disc_id (los discos se asignan a mano despues), asi el flujo de venta
+    # no le descuenta stock a nada.
+    mbox_cantidad = db.Column(db.Integer, nullable=True)
+    mbox_texto = db.Column(db.Text, nullable=True)
+
     reserva = db.relationship("Reserva", backref=db.backref(
         "items", cascade="all, delete-orphan"))
     disc = db.relationship("Disc", foreign_keys=[disc_id])
@@ -1129,6 +1156,11 @@ class ReservaItem(db.Model):
         if self._disc_ref is not None:
             return self._disc_ref
         return self.disc
+
+    @property
+    def es_mystery_box(self) -> bool:
+        """True si este item es una Mystery Box (caja curada, sin disco asignado)."""
+        return self.mbox_cantidad is not None
 
     def to_dict(self) -> dict:
         return {
@@ -1593,6 +1625,16 @@ def _migrate_schema(app):
                         conn.commit()
                     print(f"Migracion: columna {_col} agregada a reservas")
 
+        # Mystery Box (v5.32): columnas del item de caja curada en reserva_items
+        if inspector.has_table("reserva_items"):
+            _ricols = [c["name"] for c in inspector.get_columns("reserva_items")]
+            for _col, _ddl in {"mbox_cantidad": "INTEGER", "mbox_texto": "TEXT"}.items():
+                if _col not in _ricols:
+                    with db.engine.connect() as conn:
+                        conn.execute(text(f"ALTER TABLE reserva_items ADD COLUMN {_col} {_ddl}"))
+                        conn.commit()
+                    print(f"Migracion: columna {_col} agregada a reserva_items")
+
         # Verificar columna descripcion_publica en discs
         if inspector.has_table("discs"):
             cols = [c["name"] for c in inspector.get_columns("discs")]
@@ -1811,6 +1853,12 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN sena_metodo VARCHAR(20)"))
                     conn.commit()
                 print("Migracion: columna sena_metodo agregada a discs")
+            # Mystery Box (v5.32): flag del producto especial
+            if "es_mystery_box" not in dcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN es_mystery_box BOOLEAN DEFAULT 0"))
+                    conn.commit()
+                print("Migracion: columna es_mystery_box agregada a discs")
 
         # Columna play_count en tracks (contador de escuchas)
         if inspector.has_table("tracks"):
@@ -1909,6 +1957,35 @@ def _migrate_schema(app):
                 _n = (r1.rowcount or 0) + (r2.rowcount or 0)
                 if _n:
                     print(f"Migracion: {_n} reserva(s) migradas a los estados nuevos (Pendiente/Pagada)")
+
+        # Mystery Box (v5.32): crear la fila del producto especial si no existe.
+        # Idempotente: solo puede haber una. Facundo despues le cambia la foto/textos
+        # desde el dashboard como a cualquier disco.
+        if inspector.has_table("discs"):
+            try:
+                existe = Disc.query.filter_by(es_mystery_box=True).first()
+                if existe is None:
+                    _max_orden = db.session.query(db.func.max(Disc.orden)).scalar() or 0
+                    box = Disc(
+                        artista="Arcano",
+                        titulo="Mystery Box",
+                        estado="Disponible",
+                        origen="arcano",
+                        stock=999,
+                        precio_uyu=float(min(MYSTERY_BOX_PRECIOS.values())),
+                        es_mystery_box=True,
+                        orden=_max_orden + 1000,   # arranca primera en la grilla
+                        descripcion_publica=(
+                            "Una box curada a mano. Elegis cuantos discos queres y nos "
+                            "contas que te gusta; la seleccion la armamos nosotros con "
+                            "vinilos de la casa."
+                        ),
+                    )
+                    db.session.add(box)
+                    db.session.commit()
+                    print("Seed: Mystery Box creada")
+            except Exception:
+                db.session.rollback()
 
 
 def _migrate_tracklists_to_tracks(app):

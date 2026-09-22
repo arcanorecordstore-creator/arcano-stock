@@ -61,6 +61,9 @@
         if (hero) hero.hidden = true;
     }
 
+    var MBOX_KEY = 'arcano-mbox';
+    var MBOX_PRECIOS = {{ mbox_precios|tojson }};
+
     function getCart() {
         try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
         catch (e) { return []; }
@@ -68,10 +71,26 @@
     function setCart(arr) {
         try { localStorage.setItem(KEY, JSON.stringify(arr)); } catch (e) {}
     }
+    function getBox() {
+        try { return JSON.parse(localStorage.getItem(MBOX_KEY) || 'null'); }
+        catch (e) { return null; }
+    }
+    function setBox(v) {
+        try { if (v) localStorage.setItem(MBOX_KEY, JSON.stringify(v)); else localStorage.removeItem(MBOX_KEY); } catch (e) {}
+    }
 
     var ids = getCart();
-    if (!ids.length) {
+    var box = getBox();
+    if (!ids.length && !box) {
         mostrarVacio();
+        return;
+    }
+
+    // Si solo hay Mystery Box (sin discos), no hace falta pedir nada al server.
+    if (!ids.length) {
+        loading.hidden = true;
+        layout.hidden = false;
+        render([]);
         return;
     }
 
@@ -87,7 +106,7 @@
                 setCart(validos);
                 if (window.ArcanoCart && window.ArcanoCart.rebind) window.ArcanoCart.rebind();
             }
-            if (!discos.length) {
+            if (!discos.length && !getBox()) {
                 mostrarVacio();
                 return;
             }
@@ -95,13 +114,34 @@
             render(discos);
         })
         .catch(function () {
-            mostrarVacio();
+            if (getBox()) { loading.hidden = true; layout.hidden = false; render([]); }
+            else mostrarVacio();
         });
 
     function render(discos) {
         var total = 0;
         var disponibles = 0;
         itemsEl.innerHTML = '';
+
+        // Linea de la Mystery Box (si esta en el carrito). Va primera.
+        var box = getBox();
+        if (box && MBOX_PRECIOS[box.cantidad]) {
+            var bprecio = MBOX_PRECIOS[box.cantidad];
+            total += bprecio; disponibles++;
+            var brow = document.createElement('div');
+            brow.className = 'cart-item cart-item-mbox';
+            brow.innerHTML =
+                '<div class="cart-item-cover"><img src="{{ url_for("static", filename="brand/mystery-box.svg") }}" alt=""></div>' +
+                '<div class="cart-item-info">' +
+                    '<div class="cart-item-title">&#127873; Mystery Box &middot; ' + box.cantidad + ' discos</div>' +
+                    (box.texto ? '<div class="cart-item-mbox-texto">&ldquo;' + esc(box.texto) + '&rdquo;</div>' : '') +
+                    '<a href="{{ url_for("public_disc", disc_id=mbox_disc_id) if mbox_disc_id else "#" }}" class="cart-item-label cart-item-mbox-edit">Cambiar cantidad o gustos</a>' +
+                '</div>' +
+                '<div class="cart-item-price">$ ' + bprecio.toLocaleString('es-UY') + '</div>' +
+                '<button type="button" class="cart-item-remove" data-mbox="1" title="Quitar">&times;</button>';
+            itemsEl.appendChild(brow);
+        }
+
         discos.forEach(function (d) {
             if (d.disponible) { total += d.precio_uyu; disponibles++; }
             var row = document.createElement('div');
@@ -123,22 +163,28 @@
         countEl.textContent = disponibles;
         totalEl.textContent = '$ ' + total.toLocaleString('es-UY');
 
-        // Checkout link con ids disponibles
+        // Checkout link con ids disponibles. La Mystery Box viaja aparte (localStorage),
+        // asi que el checkout se habilita si hay discos disponibles O una box.
         var availIds = discos.filter(function (d) { return d.disponible; }).map(function (d) { return d.id; });
         checkoutBtn.href = '{{ url_for("public_checkout") }}?ids=' + availIds.join(',');
-        if (!availIds.length) {
+        if (!availIds.length && !getBox()) {
             checkoutBtn.classList.add('disabled');
             checkoutBtn.addEventListener('click', function (e) { e.preventDefault(); });
         }
 
-        // Botones quitar
+        // Botones quitar (discos y la Mystery Box)
         itemsEl.querySelectorAll('.cart-item-remove').forEach(function (btn) {
             btn.addEventListener('click', function () {
-                var id = String(btn.dataset.id);
-                var cart = getCart();
-                var i = cart.indexOf(id);
-                if (i !== -1) cart.splice(i, 1);
-                setCart(cart);
+                if (btn.dataset.mbox) {
+                    setBox(null);
+                } else {
+                    var id = String(btn.dataset.id);
+                    var cart = getCart();
+                    var i = cart.indexOf(id);
+                    if (i !== -1) cart.splice(i, 1);
+                    setCart(cart);
+                }
+                if (window.ArcanoCart && window.ArcanoCart.rebind) window.ArcanoCart.rebind();
                 window.location.reload();
             });
         });
@@ -148,6 +194,7 @@
         clearBtn.addEventListener('click', function () {
             if (!confirm('Vaciar el carrito?')) return;
             setCart([]);
+            setBox(null);
             window.location.reload();
         });
     }

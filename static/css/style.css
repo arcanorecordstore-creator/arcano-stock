@@ -11413,3 +11413,95 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
     body.app .page-actions .btn { white-space: normal; }
     .public-card-cover .card-play-btn { width: 46px; height: 46px; font-size: 19px; }
 }
+
+/* ==========================================================================
+   MYSTERY BOX (v5.32) — producto especial (caja curada)
+   ========================================================================== */
+/* Card en la grilla */
+.public-card-mbox .public-card-cover { background: var(--arcano-crema, #FFF7EC); }
+.public-card-price-mbox { white-space: nowrap; }
+.cart-btn-mbox {
+    display: inline-block;
+    text-align: center;
+    background: var(--arcano-negro, #1E1C1C);
+    color: #fff;
+    border-radius: 999px;
+    padding: 9px 14px;
+    font-weight: 600;
+    font-size: 13px;
+}
+
+/* Ficha: bloque de compra de la box */
+.mbox-buy { display: flex; flex-direction: column; gap: 16px; }
+.mbox-field { display: flex; flex-direction: column; gap: 8px; }
+.mbox-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-2, #3D3033);
+    letter-spacing: 0.01em;
+}
+.mbox-qty { display: flex; gap: 8px; flex-wrap: wrap; }
+.mbox-qty-opt {
+    width: 52px;
+    height: 52px;
+    border-radius: 12px;
+    border: 2px solid var(--border, #E6DCCB);
+    background: var(--surface, #fff);
+    color: var(--text-1, #1E1C1C);
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color .15s, background .15s, color .15s;
+}
+.mbox-qty-opt:hover { border-color: var(--arcano-marron, #3D3033); }
+.mbox-qty-opt.is-active {
+    background: var(--arcano-negro, #1E1C1C);
+    border-color: var(--arcano-negro, #1E1C1C);
+    color: #fff;
+}
+.mbox-price { font-size: 30px; font-weight: 700; }
+.mbox-price span:last-child { font-size: 15px; font-weight: 500; color: var(--text-3, #6B5F60); }
+#mbox-texto {
+    width: 100%;
+    font-family: inherit;
+    font-size: 15px;
+    line-height: 1.5;
+    padding: 11px 13px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border, #E6DCCB);
+    background: var(--surface, #fff);
+    color: var(--text-1, #1E1C1C);
+    resize: vertical;
+    min-height: 76px;
+}
+#mbox-texto:focus { outline: none; border-color: var(--arcano-marron, #3D3033); }
+#mbox-texto.mbox-error { border-color: #8C3B33; background: rgba(140, 59, 51, 0.06); }
+.mbox-hint { font-size: 12.5px; color: var(--text-3, #6B5F60); margin: 0; }
+.mbox-add .mbox-add-in { display: none; }
+.mbox-add.is-in-cart { background: #2F6B4F; border-color: #2F6B4F; color: #fff; }
+.mbox-add.is-in-cart .mbox-add-label { display: none; }
+.mbox-add.is-in-cart .mbox-add-in { display: inline; }
+
+/* Linea de la box en el carrito y el checkout */
+.cart-item-mbox .cart-item-cover, .checkout-item-mbox .checkout-item-cover { background: var(--arcano-crema, #FFF7EC); }
+.cart-item-mbox-texto {
+    font-size: 12.5px;
+    color: var(--text-3, #6B5F60);
+    font-style: italic;
+    margin-top: 3px;
+    line-height: 1.4;
+}
+.cart-item-mbox-edit { display: inline-block; margin-top: 4px; }
+
+/* Badge en la lista de reservas del admin */
+.reserva-card-mbox-badge {
+    display: inline-block;
+    background: var(--arcano-beige, #E9D1AF);
+    color: var(--arcano-negro, #1E1C1C);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 999px;
+    margin-left: 6px;
+    vertical-align: middle;
+}

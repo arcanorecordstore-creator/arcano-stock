@@ -311,6 +311,25 @@
 
 <div class="public-grid public-grid-{{ card_tamano or 'mediano' }}" data-mobile-cols="{{ grid_mobile or '1' }}"{% if grid_columnas and grid_columnas != 'auto' %} style="grid-template-columns: repeat({{ grid_columnas }}, 1fr);"{% endif %}>
     {% for d in discs %}
+    {% if d.es_mystery_box %}
+    {# Card especial de la Mystery Box: rango de precio + CTA a la ficha (donde se
+       elige cantidad y se escriben los gustos). Toda la card linkea a la ficha. #}
+    {% set mbox_cover = url_for('serve_cover', filename=d.cover_local) if d.cover_local else (d.cover_url or url_for('static', filename='brand/mystery-box.svg')) %}
+    <a href="{{ url_for('public_disc', disc_id=d.id) }}" class="public-card public-card-mbox">
+        <div class="public-card-cover">
+            <img src="{{ mbox_cover }}" alt="Mystery Box de Arcano" loading="lazy">
+        </div>
+        <div class="public-card-info">
+            <div class="public-card-artist">{{ d.artista }}</div>
+            <div class="public-card-title">{{ d.titulo }}</div>
+            <div class="public-card-resena">&ldquo;Elegís cuántos y nos contás qué te gusta. La selección la armamos nosotros.&rdquo;</div>
+            <div class="public-card-buy">
+                <div class="public-card-price public-card-price-mbox">$ {{ '{:,.0f}'.format(mbox_min).replace(',', '.') }} &ndash; $ {{ '{:,.0f}'.format(mbox_max).replace(',', '.') }}</div>
+                <span class="cart-btn cart-btn-inline cart-btn-mbox">Armá tu box &rarr;</span>
+            </div>
+        </div>
+    </a>
+    {% else %}
     <a href="{{ url_for('public_disc', disc_id=d.id) }}" class="public-card{% if d.esta_agotado and not d.mostrar_preorder %} public-card-agotado{% endif %}">
         {% if d.es_tip and not d.esta_agotado %}<span class="card-staff-sticker">&#9733; Staff Pick</span>{% endif %}
         <div class="public-card-cover">
@@ -425,6 +444,7 @@
             </div>
         </div>
     </a>
+    {% endif %}
     {% endfor %}
 </div>
 

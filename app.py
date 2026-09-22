@@ -39,6 +39,8 @@ from models import (
     now_uy,
     today_uy,
     fire_sale_config,
+    MYSTERY_BOX_PRECIOS,
+    mystery_box_precio,
 )
 import vision
 import scraper
@@ -6485,6 +6487,13 @@ def register_routes(app: Flask) -> None:
                 return url_for("serve_cover", filename=filename)
         return ""
 
+    def _mystery_box_id():
+        """Id del disco Mystery Box (o None). Barato: solo la columna id."""
+        row = (db.session.query(Disc.id)
+               .filter(Disc.es_mystery_box == True)  # noqa: E712
+               .first())
+        return row[0] if row else None
+
     def _public_context():
         """Contexto comun para todas las paginas publicas."""
         _fs = fire_sale_config()
@@ -6518,6 +6527,11 @@ def register_routes(app: Flask) -> None:
             "mp_recargo_pct": mp.recargo_pct(),
             "transferencia_activa": Setting.get("transferencia_activa", "0") == "1",
             "transferencia_datos": Setting.get("transferencia_datos", ""),
+            # Mystery Box: precios por cantidad (para la card, la ficha y el carrito).
+            "mbox_precios": MYSTERY_BOX_PRECIOS,
+            "mbox_min": min(MYSTERY_BOX_PRECIOS.values()),
+            "mbox_max": max(MYSTERY_BOX_PRECIOS.values()),
+            "mbox_disc_id": _mystery_box_id(),
         }
 
     def _precio_a_cobrar(disc):
@@ -6559,14 +6573,19 @@ def register_routes(app: Flask) -> None:
         except Exception:
             pass
 
-    def _mp_iniciar_pago(reserva, discos):
+    def _mp_iniciar_pago(reserva, discos, extras=None):
         """Crea la preferencia de Mercado Pago para una reserva y devuelve la URL
-        de pago (o None si algo falla; el caller cae al flujo normal de reserva)."""
+        de pago (o None si algo falla; el caller cae al flujo normal de reserva).
+
+        extras: items extra que no son discos (ej: la Mystery Box), como lista de
+        {"title", "unit_price"}. Suman al subtotal y al recargo igual que un disco."""
         # Usar el precio REAL a cobrar (Fire Sale u oferta si aplica) para cobrar lo
         # mismo que ve el cliente en el checkout/mail, y descartar los sin precio
         # (un unit_price 0 rompe la preferencia).
         discos_cobrables = [d for d in discos if (_precio_a_cobrar(d) or 0) > 0]
-        subtotal = sum((_precio_a_cobrar(d) or 0) for d in discos_cobrables)
+        extras = [e for e in (extras or []) if float(e.get("unit_price") or 0) > 0]
+        subtotal = (sum((_precio_a_cobrar(d) or 0) for d in discos_cobrables)
+                    + sum(float(e["unit_price"]) for e in extras))
         if subtotal <= 0:
             return None
         recargo = mp.calcular_recargo(subtotal)
@@ -6575,6 +6594,9 @@ def register_routes(app: Flask) -> None:
              "unit_price": float(_precio_a_cobrar(d) or 0)}
             for d in discos_cobrables
         ]
+        for e in extras:
+            items.append({"title": e["title"], "quantity": 1,
+                          "unit_price": float(e["unit_price"])})
         if recargo > 0:
             items.append({
                 "title": f"Recargo pago online ({mp.recargo_pct():.0f}%)",
@@ -6869,6 +6891,12 @@ def register_routes(app: Flask) -> None:
             )
             .all()
         )
+        # La Mystery Box no es un disco normal: se saca del listado (no entra en
+        # carruseles, facetas ni contadores) y se vuelve a fijar como PRIMERA card
+        # de la grilla en la vista sin filtros (mas abajo).
+        mystery_box = next((d for d in all_disponibles if getattr(d, "es_mystery_box", False)), None)
+        if mystery_box is not None:
+            all_disponibles = [d for d in all_disponibles if not getattr(d, "es_mystery_box", False)]
         discs = list(all_disponibles)
 
         # Filtros
@@ -6945,6 +6973,14 @@ def register_routes(app: Flask) -> None:
             # Por defecto: el orden manual que el admin arma arrastrando en el
             # dashboard (mayor = primero). Los discos nuevos entran arriba.
             discs.sort(key=lambda d: (d.orden if d.orden is not None else 0), reverse=True)
+
+        # Mystery Box fijada primera: solo en la vista de navegacion (sin busqueda ni
+        # filtros). Si hay un filtro/genero activo, la box no aplica y no se muestra.
+        _sin_filtros = (not any([q, sellos_sel, genero_sel, tags_sel, formato_sel,
+                                 pais_sel, decada_sel, anio_sel, con_sample])
+                        and precio_min is None and precio_max is None)
+        if mystery_box is not None and _sin_filtros:
+            discs = [mystery_box] + discs
 
         # Paginacion (sobre la lista ya filtrada y ordenada)
         # Configurable desde Ajustes (public_discos_por_pagina), con tope de 48.
@@ -7182,6 +7218,16 @@ def register_routes(app: Flask) -> None:
         # (excepcion: los pre-orders se ven siempre)
         if disc.estado not in ("Disponible", "Pre-order", "Reservado", "Vendido"):
             return render_template("public/not_found.html", **_public_context()), 404
+
+        # Mystery Box: ficha propia (selector de cantidad + texto), sin "similares".
+        if getattr(disc, "es_mystery_box", False):
+            return render_template(
+                "public/disc.html",
+                disc=disc,
+                disc_generos=[],
+                relacionados=[],
+                **_public_context(),
+            )
 
         # "Similares a este titulo": prioriza mismo genero, completa con mismo
         # sello y luego otros disponibles. Asi siempre hay sugerencias relevantes.
@@ -7686,6 +7732,10 @@ def register_routes(app: Flask) -> None:
                 # No exponer discos privados (coleccion personal / descartados)
                 if d.estado in ("Apartado para mi", "Descartado") and not d.mostrar_agotado:
                     continue
+                # La Mystery Box viaja aparte (localStorage arcano-mbox), no como
+                # un id normal del carrito: si aparece aca, la ignoramos.
+                if getattr(d, "es_mystery_box", False):
+                    continue
                 cover = None
                 if d.cover_local:
                     cover = url_for("serve_cover", filename=d.cover_local)
@@ -7742,9 +7792,23 @@ def register_routes(app: Flask) -> None:
             nota = ((request.form.get("nota") or "").strip()[:1000]) or None
             password_cuenta = request.form.get("password") or ""
 
+            # Mystery Box: cantidad (2-5) + texto obligatorio. El precio lo resuelve
+            # el servidor (nunca se confia en el front). box_intentada = el cliente
+            # mando el campo (aunque venga invalido) -> hay que avisarle del error.
+            box_cant_raw = (request.form.get("box_cantidad") or "").strip()
+            box_texto = (request.form.get("box_texto") or "").strip()[:500]
+            box_intentada = bool(box_cant_raw)
+            box_precio = mystery_box_precio(box_cant_raw) if box_intentada else None
+            box_cantidad = int(box_cant_raw) if (box_precio is not None) else None
+            hay_box = box_precio is not None
+
             errores = []
-            if not ids:
+            if not ids and not hay_box:
                 errores.append("El carrito esta vacio.")
+            if box_intentada and box_precio is None:
+                errores.append("Eleg&iacute; una cantidad v&aacute;lida para la Mystery Box (2 a 5 discos).")
+            if hay_box and not box_texto:
+                errores.append("Escrib&iacute; 2 tracks o artistas que te gusten para armarte la Mystery Box.")
             if len(nombre_pila) < 2:
                 errores.append("Ingresa tu nombre.")
             if len(apellido) < 2:
@@ -7783,7 +7847,7 @@ def register_routes(app: Flask) -> None:
             disponibles = [by_id[i] for i in ids if i in by_id
                            and not by_id[i].esta_agotado]
 
-            if ids and not disponibles:
+            if ids and not disponibles and not hay_box:
                 errores.append("Ninguno de los discos del carrito esta disponible.")
 
             # Fire Sale: los discos con descuento son exclusivos para clientes con
@@ -7823,7 +7887,8 @@ def register_routes(app: Flask) -> None:
                     form={"nombre": nombre_pila, "apellido": apellido, "whatsapp": whatsapp,
                           "email": email, "nota": nota,
                           "entrega": entrega_tipo, "envio_direccion": envio_direccion,
-                          "envio_agencia": envio_agencia},
+                          "envio_agencia": envio_agencia,
+                          "box_cantidad": box_cantidad, "box_texto": box_texto},
                     **_public_context(),
                 )
 
@@ -7859,6 +7924,19 @@ def register_routes(app: Flask) -> None:
                     precio_uyu_snap=_precio_a_cobrar(d),
                 )
                 db.session.add(item)
+
+            # Mystery Box: item SIN disc_id (no descuenta stock; los discos se asignan
+            # a mano despues). Precio resuelto por el servidor, texto del cliente guardado.
+            if hay_box:
+                db.session.add(ReservaItem(
+                    reserva_id=reserva.id,
+                    disc_id=None,
+                    artista_snap="Mystery Box",
+                    titulo_snap=f"Mystery Box · {box_cantidad} discos",
+                    precio_uyu_snap=box_precio,
+                    mbox_cantidad=box_cantidad,
+                    mbox_texto=box_texto,
+                ))
 
             db.session.commit()
             _reserva_registrar(ip_reserva)
@@ -7922,7 +8000,9 @@ def register_routes(app: Flask) -> None:
             elif metodo == "mercadopago" and mp.activo():
                 reserva.metodo_pago = "mercadopago"
                 db.session.commit()
-                url_pago = _mp_iniciar_pago(reserva, disponibles)
+                _extras = ([{"title": f"Mystery Box · {box_cantidad} discos",
+                             "unit_price": float(box_precio)}] if hay_box else None)
+                url_pago = _mp_iniciar_pago(reserva, disponibles, extras=_extras)
                 if url_pago:
                     return redirect(url_pago)
                 flash("No pudimos iniciar el pago online. Te dejamos la reserva para coordinar por mensaje.", "error")
@@ -7930,8 +8010,10 @@ def register_routes(app: Flask) -> None:
                 reserva.metodo_pago = "coordinar"
                 db.session.commit()
 
-            # Email al admin (best-effort, no rompe si falla) — con el comprobante adjunto si lo hay
-            if mailer.is_configured():
+            # Email al admin (best-effort, no rompe si falla) — con el comprobante adjunto si lo hay.
+            # (Los mails se arman a partir de un disco; una orden de SOLO Mystery Box no
+            # tiene disco, asi que ahi el aviso viaja por push y por la pantalla de gracias.)
+            if mailer.is_configured() and disponibles:
                 comp_path = None
                 if reserva.comprobante_file:
                     comp_path = os.path.join(app.config["COMPROBANTES_DIR"], reserva.comprobante_file)
@@ -7942,7 +8024,7 @@ def register_routes(app: Flask) -> None:
 
             # Confirmacion al cliente (si dejo email). Transferencia = ya pago ->
             # "gracias por tu compra". Coordinar = reserva a coordinar el pago.
-            if reserva.email and mailer.can_send():
+            if reserva.email and mailer.can_send() and disponibles:
                 try:
                     if reserva.metodo_pago == "transferencia":
                         mailer.send_compra_confirmacion_cliente(reserva, disponibles, metodo="transferencia")
@@ -7955,11 +8037,12 @@ def register_routes(app: Flask) -> None:
             try:
                 _met = {"transferencia": "transferencia", "mercadopago": "Mercado Pago"}.get(
                     reserva.metodo_pago or "", "a coordinar")
+                _box_txt = (" · 🎁 Mystery Box (%s discos)" % box_cantidad) if hay_box else ""
                 _enviar_push(
                     "Nueva reserva #%s" % reserva.id,
-                    "%s reservó %s disco(s) · $%s · %s" % (
+                    "%s reservó %s ítem(s) · $%s · %s%s" % (
                         reserva.nombre, reserva.cantidad_discos,
-                        "{:,.0f}".format(reserva.total_uyu or 0).replace(",", "."), _met),
+                        "{:,.0f}".format(reserva.total_uyu or 0).replace(",", "."), _met, _box_txt),
                     "/admin/reservas/%s" % reserva.id,
                 )
             except Exception:
@@ -8413,6 +8496,61 @@ def register_routes(app: Flask) -> None:
                 db.session.commit()
                 flash("Datos de la reserva actualizados.", "success")
 
+            elif accion == "asignar_discos":
+                # Mystery Box: asignar los discos reales que le vas a mandar al cliente.
+                # Se agregan como items, se marcan Vendido y se descuenta el stock
+                # (reusa el mismo camino de "marcar como vendido"). El ingreso del pedido
+                # es el precio de la box (ya cobrado): se reparte entre los discos
+                # asignados para que la contabilidad lo cuente UNA sola vez, con el costo
+                # real de cada disco. Los items de la caja llevan precio 0 (el precio ya
+                # lo muestra el item de la Mystery Box) para no duplicar el total.
+                from models import Cliente
+                ids_asig = [int(x) for x in request.form.getlist("disc_ids") if str(x).isdigit()]
+                nuevos = Disc.query.filter(Disc.id.in_(ids_asig)).all() if ids_asig else []
+                ya = {it.disc_id for it in reserva.items_efectivos if it.disc_id}
+                nuevos = [d for d in nuevos
+                          if d.id not in ya and not getattr(d, "es_mystery_box", False)]
+                if not nuevos:
+                    flash("Eleg&iacute; al menos un disco (nuevo) para asignar.", "warning")
+                else:
+                    box_total = sum((it.precio_uyu_snap or 0)
+                                    for it in reserva.items_efectivos if it.es_mystery_box)
+                    cli = Cliente.query.get(reserva.cliente_id) if reserva.cliente_id else None
+                    n = len(nuevos)
+                    if box_total > 0:
+                        base = round(box_total / n)
+                        shares = [base] * n
+                        shares[0] += round(box_total - base * n)   # el remanente al primero
+                    else:
+                        shares = [(d.precio_mostrar or d.precio_uyu or 0) for d in nuevos]
+                    grupo = f"r{reserva.id}"
+                    for d, share in zip(nuevos, shares):
+                        db.session.add(ReservaItem(
+                            reserva_id=reserva.id, disc_id=d.id,
+                            artista_snap=d.artista, titulo_snap=d.titulo,
+                            # Con box, el precio ya lo lleva el item de la caja -> 0 aca.
+                            precio_uyu_snap=(0 if box_total > 0 else share),
+                        ))
+                        if d.estado != "Vendido":
+                            register_status_change(
+                                d, "Vendido", nota=f"Mystery Box reserva #{reserva.id}")
+                        d.precio_venta_uyu = share
+                        d.stock = max(0, (d.stock or 1) - 1)
+                        if not d.canal_venta:
+                            d.canal_venta = reserva.canal or "web"
+                        if not d.metodo_pago_venta:
+                            _rm = (reserva.metodo_pago or "").lower()
+                            if _rm == "mercadopago" or reserva.mp_status == "approved":
+                                d.metodo_pago_venta = "mercadopago"
+                            elif _rm in ("transferencia", "efectivo", "otro"):
+                                d.metodo_pago_venta = _rm
+                        if not d.venta_grupo:
+                            d.venta_grupo = grupo
+                        if cli and not d.cliente_id:
+                            d.cliente_id = cli.id
+                    db.session.commit()
+                    flash(f"Asignaste {n} disco(s) a la reserva: quedaron Vendidos y se descont&oacute; el stock.", "success")
+
             elif accion == "delete":
                 # Revertir los discos de la reserva: los Reservados Y los Vendidos vuelven
                 # a Disponible y se les limpian los datos de venta. Sin esto, borrar una
@@ -8445,6 +8583,18 @@ def register_routes(app: Flask) -> None:
         from models import Cliente
         clientes = Cliente.query.order_by(Cliente.nombre.asc()).all()
         cliente_actual_reserva = Cliente.query.get(reserva.cliente_id) if reserva.cliente_id else None
+        # Mystery Box: si la reserva tiene una caja, pasar el catalogo asignable para
+        # el picker de "asignar discos" (disponibles, sin la propia box).
+        tiene_mbox = any(it.es_mystery_box for it in reserva.items_efectivos)
+        discos_asignables = []
+        if tiene_mbox:
+            discos_asignables = (
+                Disc.query
+                .filter(Disc.estado == "Disponible", Disc.stock > 0)
+                .filter((Disc.es_mystery_box.is_(None)) | (Disc.es_mystery_box == False))  # noqa: E712
+                .order_by(Disc.artista.asc(), Disc.titulo.asc())
+                .all()
+            )
         return render_template(
             "admin_reserva_detail.html",
             reserva=reserva,
@@ -8457,6 +8607,8 @@ def register_routes(app: Flask) -> None:
             cliente_actual_reserva=cliente_actual_reserva,
             canales=_CANALES_RESERVA,
             metodos=_METODOS_RESERVA,
+            tiene_mbox=tiene_mbox,
+            discos_asignables=discos_asignables,
         )
 
     # ----------------------------------------------------------------------

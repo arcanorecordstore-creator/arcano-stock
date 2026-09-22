@@ -50,6 +50,7 @@
     <div class="reserva-card-body">
         <div class="reserva-card-disc">
             {% set items = r.items_efectivos %}
+            {% set _box = (items|selectattr('es_mystery_box')|list|first) %}
             {% if items|length == 1 %}
                 <strong>{{ items[0].artista_snap or '(disco)' }}</strong> &mdash; {{ items[0].titulo_snap or '' }}
             {% elif items|length > 1 %}
@@ -58,6 +59,7 @@
             {% else %}
                 <strong>(sin discos)</strong>
             {% endif %}
+            {% if _box %}<span class="reserva-card-mbox-badge">&#127873; Mystery Box &middot; {{ _box.mbox_cantidad }} discos</span>{% endif %}
             {% if r.total_uyu > 0 %}<span class="reserva-card-total">$ {{ '{:,.0f}'.format(r.total_uyu).replace(',', '.') }}</span>{% endif %}
         </div>
         {% if r.sena_cobrada_total > 0 %}

@@ -56,6 +56,8 @@
 <a href="{{ url_for('home') }}" class="public-back">&larr; Volver al catalogo</a>
 
 {% set cover_bg = url_for('serve_cover', filename=disc.cover_local) if disc.cover_local else (disc.cover_url if disc.cover_url else '') %}
+{# La Mystery Box no lleva backdrop cinematografico (su portada es un placeholder). #}
+{% if disc.es_mystery_box %}{% set cover_bg = '' %}{% endif %}
 
 {% if cover_bg %}
 <div class="public-disc-backdrop">
@@ -67,6 +69,7 @@
 <article class="public-disc {% if cover_bg %}public-disc-cinematic{% endif %}">
     <div class="public-disc-left">
         {% set cover_main = url_for('serve_cover', filename=disc.cover_local) if disc.cover_local else (disc.cover_url if disc.cover_url else '') %}
+        {% if disc.es_mystery_box and not cover_main %}{% set cover_main = url_for('static', filename='brand/mystery-box.svg') %}{% endif %}
         {% set ps_cover = disc.primer_track_sample %}
         {% set puede_sonar = ps_cover and not (disc.esta_agotado and not disc.mostrar_preorder) %}
         <div class="public-disc-coverwrap{% if puede_sonar %} has-sample{% endif %}">
@@ -186,7 +189,32 @@
         {% endif %}
 
         <div class="public-disc-price-box">
-            {% if disc.mostrar_preorder %}
+            {% if disc.es_mystery_box %}
+            {# --- Mystery Box: selector de cantidad + precio dinamico + texto obligatorio --- #}
+            <div class="mbox-buy" id="mbox-buy"
+                 data-precios='{{ mbox_precios|tojson }}'
+                 data-disc-id="{{ disc.id }}">
+                <div class="mbox-field">
+                    <div class="mbox-label">&iquest;Cu&aacute;ntos discos quer&eacute;s en tu box?</div>
+                    <div class="mbox-qty" role="radiogroup" aria-label="Cantidad de discos">
+                        {% for n in [2, 3, 4, 5] %}
+                        <button type="button" class="mbox-qty-opt{% if n == 3 %} is-active{% endif %}" data-qty="{{ n }}" aria-pressed="{{ 'true' if n == 3 else 'false' }}">{{ n }}</button>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="public-disc-price mbox-price"><span id="mbox-price">$ {{ '{:,.0f}'.format(mbox_precios[3]).replace(',', '.') }}</span> <span>UYU</span></div>
+                <div class="mbox-field">
+                    <label class="mbox-label" for="mbox-texto">Escrib&iacute; 2 tracks o artistas que te gusten para armarte la selecci&oacute;n</label>
+                    <textarea id="mbox-texto" rows="3" maxlength="500" placeholder="Ej: Losoul, Rhythm &amp; Sound, algo de dub techno lento..."></textarea>
+                    <p class="mbox-hint">Puede ser un track, un artista o un sello. Con eso curamos tu box a mano.</p>
+                </div>
+                <button type="button" class="btn btn-primary cart-btn-full mbox-add" id="mbox-add">
+                    <span class="mbox-add-label">&#43; Agregar al carrito</span>
+                    <span class="mbox-add-in">&#10003; En el carrito</span>
+                </button>
+                <button type="button" class="btn btn-ghost public-share-btn" data-share-url="{{ url_for('public_disc', disc_id=disc.id, _external=True) }}" data-share-title="Mystery Box de Arcano">Compartir</button>
+            </div>
+            {% elif disc.mostrar_preorder %}
                 <div class="public-disc-preorder-notice">&#128337; Pre-order &middot; reservalo ahora y te lo aseguramos cuando llegue</div>
                 {% if disc.precio_uyu > 0 %}
                 {% if disc.en_fire_sale_activo %}
@@ -511,8 +539,9 @@
 })();
 </script>
 
-{# A5 - Barra de compra fija (solo mobile): precio + agregar siempre a mano. #}
-{% if disc.estado == 'Disponible' and disc.precio_uyu and not disc.esta_agotado %}
+{# A5 - Barra de compra fija (solo mobile): precio + agregar siempre a mano.
+   La Mystery Box no la usa (necesita elegir cantidad + escribir gustos en la ficha). #}
+{% if disc.estado == 'Disponible' and disc.precio_uyu and not disc.esta_agotado and not disc.es_mystery_box %}
 <div class="disc-buybar">
     <div class="disc-buybar-info">
         <span class="disc-buybar-name">{{ disc.artista }}</span>
@@ -531,6 +560,76 @@
     </button>
     {% endif %}
 </div>
+{% endif %}
+
+{% if disc.es_mystery_box %}
+<script>
+(function () {
+    var box = document.getElementById('mbox-buy');
+    if (!box) return;
+    var precios = {};
+    try { precios = JSON.parse(box.dataset.precios || '{}'); } catch (e) {}
+    var opts = box.querySelectorAll('.mbox-qty-opt');
+    var priceEl = document.getElementById('mbox-price');
+    var textoEl = document.getElementById('mbox-texto');
+    var addBtn = document.getElementById('mbox-add');
+    var KEY = 'arcano-mbox';
+    var qty = 3;
+
+    function fmt(n) { return '$ ' + Number(n || 0).toLocaleString('es-UY'); }
+    function getBox() { try { return JSON.parse(localStorage.getItem(KEY) || 'null'); } catch (e) { return null; } }
+    function saved() { return !!getBox(); }
+    function setActive(q) {
+        qty = q;
+        opts.forEach(function (o) {
+            var on = String(o.dataset.qty) === String(q);
+            o.classList.toggle('is-active', on);
+            o.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        if (priceEl) priceEl.textContent = fmt(precios[q]);
+    }
+    function paintAdded() { addBtn.classList.toggle('is-in-cart', saved()); }
+    function refreshCount() { if (window.ArcanoCart && window.ArcanoCart.rebind) window.ArcanoCart.rebind(); }
+
+    var cur = getBox();
+    if (cur && precios[cur.cantidad]) { setActive(cur.cantidad); if (textoEl) textoEl.value = cur.texto || ''; }
+    else { setActive(3); }
+    paintAdded();
+
+    opts.forEach(function (o) {
+        o.addEventListener('click', function () {
+            setActive(parseInt(o.dataset.qty, 10));
+            if (saved()) { var b = getBox(); b.cantidad = qty; try { localStorage.setItem(KEY, JSON.stringify(b)); } catch (e) {} }
+        });
+    });
+
+    addBtn.addEventListener('click', function () {
+        if (saved()) {
+            try { localStorage.removeItem(KEY); } catch (e) {}
+            paintAdded(); refreshCount();
+            if (window.arcanoToast) window.arcanoToast('Quitada del carrito');
+            return;
+        }
+        var texto = (textoEl.value || '').trim();
+        if (!texto) {
+            if (window.arcanoToast) window.arcanoToast('Escribí 2 tracks o artistas para armar tu box');
+            textoEl.focus();
+            textoEl.classList.add('mbox-error');
+            setTimeout(function () { textoEl.classList.remove('mbox-error'); }, 1500);
+            return;
+        }
+        try { localStorage.setItem(KEY, JSON.stringify({ cantidad: qty, texto: texto.slice(0, 500) })); } catch (e) {}
+        paintAdded(); refreshCount();
+        if (window.arcanoGA) window.arcanoGA('add_to_cart', { currency: 'UYU', value: precios[qty], items: [{ item_id: 'mystery-box', item_name: 'Mystery Box ' + qty + ' discos', price: precios[qty], quantity: 1 }] });
+        if (window.ArcanoCartDrawer) window.ArcanoCartDrawer.open('Mystery Box · ' + qty + ' discos');
+        else if (window.arcanoToast) window.arcanoToast('✓ Agregada al carrito');
+    });
+
+    if (textoEl) textoEl.addEventListener('input', function () {
+        if (saved()) { var b = getBox(); b.texto = (textoEl.value || '').trim().slice(0, 500); try { localStorage.setItem(KEY, JSON.stringify(b)); } catch (e) {} }
+    });
+})();
+</script>
 {% endif %}
 
 {% endblock %}
