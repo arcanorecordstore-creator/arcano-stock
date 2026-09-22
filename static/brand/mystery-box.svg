@@ -1,21 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 600" role="img" aria-label="Mystery Box de Arcano">
   <rect width="600" height="600" fill="#FFF7EC"/>
-  <!-- paneles de atras (la tapa) en beige: izquierdo y derecho -->
-  <path d="M150 275 L300 200 L300 350 Z" fill="#E9D1AF"/>
-  <path d="M300 200 L450 275 L300 350 Z" fill="#E9D1AF"/>
-  <!-- wireframe de la caja, paleta de marca (marron sobre crema) -->
-  <g fill="none" stroke="#3D3033" stroke-width="12" stroke-linejoin="round" stroke-linecap="round">
-    <!-- cuerpo -->
-    <path d="M150 275 L300 350 L450 275 L450 445 L300 520 L150 445 Z"/>
-    <!-- tapa -->
-    <path d="M150 275 L300 200 L450 275 L300 350 Z"/>
-    <!-- aristas internas: vertical completa (divide los dos paneles) -->
-    <path d="M300 200 L300 520"/>
-  </g>
-  <!-- signo de pregunta, centrado en la cara frontal derecha -->
-  <text x="375" y="398" text-anchor="middle" dominant-baseline="central"
-        font-family="'Space Grotesk', Arial, sans-serif" font-size="92" font-weight="700" fill="#3D3033">?</text>
   <!-- etiqueta -->
-  <text x="300" y="90" text-anchor="middle" font-family="'Space Grotesk', Arial, sans-serif"
+  <text x="300" y="92" text-anchor="middle" font-family="'Space Grotesk', Arial, sans-serif"
         font-size="34" font-weight="500" letter-spacing="8" fill="#3D3033">MYSTERY BOX</text>
+  <!-- tapas abiertas (beige), a los lados -->
+  <path d="M175 300 L115 248 L245 248 L300 300 Z" fill="#E9D1AF" stroke="#3D3033" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M425 300 L485 248 L355 248 L300 300 Z" fill="#E9D1AF" stroke="#3D3033" stroke-width="12" stroke-linejoin="round"/>
+  <!-- cuerpo de la caja (plano, de frente) -->
+  <rect x="175" y="300" width="250" height="192" rx="16" fill="none" stroke="#3D3033" stroke-width="12" stroke-linejoin="round"/>
+  <!-- signo de pregunta, centrado en la caja -->
+  <text x="300" y="416" text-anchor="middle" dominant-baseline="central"
+        font-family="'Space Grotesk', Arial, sans-serif" font-size="118" font-weight="700" fill="#3D3033">?</text>
 </svg>
