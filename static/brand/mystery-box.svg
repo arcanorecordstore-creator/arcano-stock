@@ -12,9 +12,9 @@
     <!-- aristas internas: vertical completa (divide los dos paneles) -->
     <path d="M300 200 L300 520"/>
   </g>
-  <!-- signo de pregunta, centrado en el panel derecho -->
-  <text x="352" y="282" text-anchor="middle" dominant-baseline="central"
-        font-family="'Space Grotesk', Arial, sans-serif" font-size="86" font-weight="700" fill="#3D3033">?</text>
+  <!-- signo de pregunta, centrado en la cara frontal derecha -->
+  <text x="375" y="398" text-anchor="middle" dominant-baseline="central"
+        font-family="'Space Grotesk', Arial, sans-serif" font-size="92" font-weight="700" fill="#3D3033">?</text>
   <!-- etiqueta -->
   <text x="300" y="90" text-anchor="middle" font-family="'Space Grotesk', Arial, sans-serif"
         font-size="34" font-weight="500" letter-spacing="8" fill="#3D3033">MYSTERY BOX</text>
