@@ -212,6 +212,10 @@
                     <span class="mbox-add-label">&#43; Agregar al carrito</span>
                     <span class="mbox-add-in">&#10003; En el carrito</span>
                 </button>
+                {% if whatsapp %}
+                <a href="https://wa.me/{{ whatsapp }}?text={{ ('Hola! Quería consultar sobre la Mystery Box de Arcano.')|urlencode }}"
+                   target="_blank" rel="noopener" class="btn btn-ghost public-wsp-btn">Consult&aacute; por WhatsApp</a>
+                {% endif %}
                 <button type="button" class="btn btn-ghost public-share-btn" data-share-url="{{ url_for('public_disc', disc_id=disc.id, _external=True) }}" data-share-title="Mystery Box de Arcano">Compartir</button>
             </div>
             {% elif disc.mostrar_preorder %}

@@ -27,7 +27,7 @@
     <aside class="cart-summary">
         <h2 class="cart-summary-title">Resumen</h2>
         <div class="cart-summary-row">
-            <span>Discos</span>
+            <span id="cart-summary-label">Discos</span>
             <span id="cart-summary-count">0</span>
         </div>
         <div class="cart-summary-row cart-summary-total">
@@ -161,6 +161,9 @@
         });
 
         countEl.textContent = disponibles;
+        // Si hay Mystery Box, el conteo no son todos "discos" -> rotular "Ítems".
+        var lblEl = document.getElementById('cart-summary-label');
+        if (lblEl) lblEl.textContent = getBox() ? 'Ítems' : 'Discos';
         totalEl.textContent = '$ ' + total.toLocaleString('es-UY');
 
         // Checkout link con ids disponibles. La Mystery Box viaja aparte (localStorage),

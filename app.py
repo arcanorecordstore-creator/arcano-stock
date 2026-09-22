@@ -7876,7 +7876,13 @@ def register_routes(app: Flask) -> None:
                 entrega_tipo = None
                 envio_direccion = None
                 envio_agencia = None
-            envio_costo = _calcular_envio_uyu(entrega_tipo, len(disponibles)) if es_compra else 0
+            # Envio: si hay una Mystery Box en el pedido, es GRATIS (la box siempre
+            # viaja gratis y "arrastra" al resto). Solo se cobra cuando el pedido es
+            # 1 o 2 discos sueltos (sin box) a Montevideo.
+            if not es_compra or hay_box:
+                envio_costo = 0
+            else:
+                envio_costo = _calcular_envio_uyu(entrega_tipo, len(disponibles))
 
             if errores:
                 for e in errores:

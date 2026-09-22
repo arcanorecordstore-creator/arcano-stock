@@ -209,8 +209,9 @@
         return s ? s.value : 'retiro';
     }
     function envioActual() {
-        // El envio SOLO se cobra en compra. Montevideo: $50 con 1-2 discos, gratis desde 3.
-        if (!esCompra() || entregaSel() !== 'montevideo') return 0;
+        // El envio SOLO se cobra en compra. Con una Mystery Box en el pedido es GRATIS.
+        // Si no, Montevideo: $50 con 1-2 discos, gratis desde 3.
+        if (!esCompra() || mbox || entregaSel() !== 'montevideo') return 0;
         return nDiscos >= 3 ? 0 : 50;
     }
     function renderDesglose() {
@@ -220,7 +221,10 @@
         var comision = esMp ? Math.round(subtotalActual * recargoPct / 100) : 0;
         var envio = envioActual();
         var total = subtotalActual + comision + envio;
-        var h = '<div class="checkout-desglose-row"><span>Subtotal (' + nDiscos + ' disco' + (nDiscos !== 1 ? 's' : '') + ')</span><span>$ ' + subtotalActual.toLocaleString('es-UY') + '</span></div>';
+        // Conteo de items: cuenta la Mystery Box ademas de los discos.
+        var nItems = nDiscos + (mbox ? 1 : 0);
+        var itemW = mbox ? 'ítem' : 'disco';
+        var h = '<div class="checkout-desglose-row"><span>Subtotal (' + nItems + ' ' + itemW + (nItems !== 1 ? 's' : '') + ')</span><span>$ ' + subtotalActual.toLocaleString('es-UY') + '</span></div>';
         if (esMp) {
             h += '<div class="checkout-desglose-row"><span>Comisión de plataforma (' + recargoPct + '%)</span><span>$ ' + comision.toLocaleString('es-UY') + '</span></div>';
         }
@@ -253,7 +257,7 @@
         if (dirLabel) dirLabel.textContent = esInterior ? 'Localidad y dirección' : 'Dirección de entrega';
         var nudge = document.getElementById('entrega-nudge');
         if (nudge) {
-            if (esCompra() && e === 'montevideo' && nDiscos === 2) {
+            if (esCompra() && !mbox && e === 'montevideo' && nDiscos === 2) {
                 nudge.textContent = '¡Sumá 1 disco más y el envío en Montevideo te sale gratis!';
                 nudge.hidden = false;
             } else { nudge.hidden = true; }
