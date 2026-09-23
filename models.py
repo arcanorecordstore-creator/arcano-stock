@@ -1976,19 +1976,22 @@ def _migrate_schema(app):
                         es_mystery_box=True,
                         orden=_max_orden + 1000,   # arranca primera en la grilla
                         descripcion_publica=(
-                            "Una box curada para vos. Elegis cuantos discos queres y nos "
-                            "contas que te gusta; la seleccion la armamos nosotros con "
-                            "vinilos de la casa."
+                            "Una selección sorpresa que armamos nosotros. Elegís cuántos "
+                            "discos querés y nos contás qué te gusta; nosotros elegimos los "
+                            "vinilos y los descubrís al abrir la caja."
                         ),
                     )
                     db.session.add(box)
                     db.session.commit()
                     print("Seed: Mystery Box creada")
-                elif existe.descripcion_publica and "curada a mano" in existe.descripcion_publica:
-                    # Se saco el enfasis en "a mano" de toda la web. Solo se reescribe
-                    # si sigue siendo el texto sembrado (no pisa una edicion manual).
-                    existe.descripcion_publica = existe.descripcion_publica.replace(
-                        "curada a mano", "curada para vos")
+                elif (existe.descripcion_publica or "").startswith("Una box curada"):
+                    # La descripcion ahora se muestra arriba del todo en la ficha, asi que
+                    # se reescribe mejor. Solo si sigue siendo la sembrada (cualquiera de
+                    # las variantes viejas): NO pisa un texto editado desde el admin.
+                    existe.descripcion_publica = (
+                        "Una selección sorpresa que armamos nosotros. Elegís cuántos "
+                        "discos querés y nos contás qué te gusta; nosotros elegimos los "
+                        "vinilos y los descubrís al abrir la caja.")
                     if (existe.stock or 0) > 1:
                         existe.stock = 1
                     db.session.commit()

@@ -3580,6 +3580,14 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 .public-disc-coverwrap.has-sample:hover .public-disc-vinyl {
     transform: translateX(30%) rotate(10deg);
 }
+/* Mystery Box: bajada que explica el producto, justo debajo del titulo. */
+.public-disc-lead {
+    margin: 10px 0 2px;
+    font-size: 15px;
+    line-height: 1.6;
+    color: var(--text-2);
+    max-width: 52ch;
+}
 /* Mystery Box: el vinilo asoma hacia ARRIBA (no al costado) al pasar el mouse. */
 .public-disc-coverwrap.is-mbox .public-disc-vinyl { transform: translateY(0) rotate(0deg); }
 .public-disc-coverwrap.is-mbox:hover .public-disc-vinyl { transform: translateY(-26%) rotate(8deg); }

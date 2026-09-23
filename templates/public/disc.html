@@ -154,6 +154,12 @@
         <h1 class="public-disc-artist">{{ disc.artista }}</h1>
         <h2 class="public-disc-title">{{ disc.titulo }}</h2>
 
+        {# Mystery Box: la descripcion va ARRIBA (explica que es el producto antes de
+           que elija cantidad). Por eso no se repite abajo en "Sobre este disco". #}
+        {% if disc.es_mystery_box and disc.descripcion_publica %}
+        <p class="public-disc-lead">{{ disc.descripcion_publica }}</p>
+        {% endif %}
+
         <div class="public-disc-meta">
             {% if disc.sello %}<span>{{ disc.sello }}</span>{% endif %}
             {% if disc.anio %}<span>{{ disc.anio }}</span>{% endif %}
@@ -206,7 +212,7 @@
                 <div class="mbox-field">
                     <label class="mbox-label" for="mbox-texto">Dejanos 2 referencias para armarte la selecci&oacute;n</label>
                     <textarea id="mbox-texto" rows="3" maxlength="500" placeholder="Ej: un link de YouTube o SoundCloud &#10;Losoul - Open Door &#10;dub techno lento, sello Perlon..."></textarea>
-                    <p class="mbox-hint">Peg&aacute; el link de un track (YouTube, SoundCloud, Bandcamp) o escrib&iacute; nombre y artista. Tambi&eacute;n vale un g&eacute;nero o un sello.</p>
+                    <p class="mbox-hint">Peg&aacute; el link de un track (YouTube, SoundCloud, Bandcamp), o escrib&iacute; nombre y artista, un g&eacute;nero o un sello.</p>
                 </div>
                 <button type="button" class="btn btn-primary cart-btn-full mbox-add" id="mbox-add">
                     <span class="mbox-add-label">&#43; Agregar al carrito</span>
@@ -348,7 +354,7 @@
         <p class="public-disc-trust">&#128666; Env&iacute;o a todo Uruguay o retiro en Pocitos &middot; eleg&iacute;s c&oacute;mo pagar al finalizar la compra</p>
         {% endif %}
 
-        {% if disc.descripcion_publica %}
+        {% if disc.descripcion_publica and not disc.es_mystery_box %}
         <section class="public-disc-section">
             <h3 class="public-disc-section-title">Sobre este disco</h3>
             <p class="public-disc-description">{{ disc.descripcion_publica }}</p>
