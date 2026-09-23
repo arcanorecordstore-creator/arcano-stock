@@ -346,8 +346,12 @@ def _rango_periodo(periodo: str, desde: str = None, hasta: str = None):
         inicio = date(hoy.year, 1, 1)
         fin = date(hoy.year + 1, 1, 1)
     else:  # todo
+        # "Todo" tiene que ser TODO: sin tope superior real. Antes cortaba a fin del
+        # anio corriente, asi que una venta con fecha futura (tipico error de tipeo:
+        # 2027 en vez de 2026) desaparecia de Contabilidad pero SI sumaba en los KPIs
+        # historicos, y las dos pantallas se contradecian.
         inicio = date(2000, 1, 1)
-        fin = date(hoy.year + 1, 1, 1)
+        fin = date(2100, 1, 1)
     return inicio, fin
 
 
@@ -465,7 +469,9 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
     return {
         "periodo": periodo,
         "inicio": inicio.strftime("%d/%m/%Y"),
-        "fin": (fin).strftime("%d/%m/%Y"),
+        # "Todo" usa un tope tecnico lejano (ano 2100) para no perder ventas con fecha
+        # futura; para MOSTRAR el rango se usa hoy, que es lo que el usuario espera leer.
+        "fin": (today_uy() if fin.year >= 2100 else fin).strftime("%d/%m/%Y"),
         "ingresos_uyu": round(ingresos_uyu, 2),
         "costo_discos_uyu": round(costo_discos_uyu, 2),
         "unidades_vendidas": unidades_vendidas,

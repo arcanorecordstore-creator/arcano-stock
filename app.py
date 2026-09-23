@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.39"
+APP_VERSION = "5.40"
 import metrics
 import auth
 import mailer
@@ -764,6 +764,27 @@ def compute_totals(discs):
 # Interior: $0 en la web (lo cobra la agencia). Retiro: $0.
 ENVIO_MVD_COSTO = 50
 ENVIO_MVD_GRATIS_DESDE = 3
+
+
+# Candados por cliente para el checkout: evitan que dos envios simultaneos del
+# mismo pedido (doble click) creen dos reservas. Se guarda uno por email.
+import threading as _threading
+_checkout_locks = {}
+_checkout_locks_guard = _threading.Lock()
+
+
+def _lock_checkout(clave):
+    with _checkout_locks_guard:
+        lk = _checkout_locks.get(clave)
+        if lk is None:
+            lk = _threading.Lock()
+            # Higiene: si se acumulan muchos (muchos mails distintos), se limpian los
+            # que no estan en uso. Nunca crece sin control.
+            if len(_checkout_locks) > 500:
+                for k in [k for k, v in list(_checkout_locks.items()) if not v.locked()]:
+                    _checkout_locks.pop(k, None)
+            _checkout_locks[clave] = lk
+        return lk
 
 
 def _calcular_envio_uyu(entrega_tipo, n_discos):
@@ -7874,6 +7895,7 @@ def register_routes(app: Flask) -> None:
             # --- Entrega / envio: SOLO aplica en COMPRA (transferencia o Mercado Pago).
             # Si el cliente "reserva y coordina", el envio no se toca (se arregla por WhatsApp).
             _metodo_form = request.form.get("metodo", "coordinar")
+            metodo_form_actual = _metodo_form
             es_compra = (
                 (_metodo_form == "transferencia" and Setting.get("transferencia_activa", "0") == "1")
                 or (_metodo_form == "mercadopago" and mp.activo())
@@ -7919,49 +7941,79 @@ def register_routes(app: Flask) -> None:
             if n_descartados:
                 flash(f"{n_descartados} disco(s) del carrito ya no estaban disponibles y se quitaron del pedido.", "info")
 
-            # Crear la reserva (los discos NO cambian de estado hasta confirmar)
-            reserva = Reserva(
-                nombre=nombre,
-                whatsapp=whatsapp,
-                email=email,
-                nota=nota,
-                estado="Pendiente",
-                cliente_id=auth.cliente_actual_id(),
-            )
-            db.session.add(reserva)
-            db.session.flush()
+            # Un doble click puede mandar DOS pedidos a la vez: si los dos miran la
+            # base antes de que el primero se guarde, los dos pasan. Este candado por
+            # cliente los pone en fila, asi el segundo ya ve al primero y lo descarta.
+            _lock_pedido = _lock_checkout((email or '').strip().lower())
+            _lock_pedido.acquire()
+            try:
+                # --- Anti doble click (red del servidor) ---
+                # Si el MISMO cliente mando un pedido IDENTICO hace segundos, es un doble
+                # click o un reintento: no creamos otro pedido, lo mandamos al comprobante
+                # del primero. (El boton ya se bloquea en el navegador; esto es el respaldo.)
+                # No aplica a Mercado Pago: ahi cada intento necesita su propia preferencia
+                # de pago, y un pedido sin pagar no hace dano.
+                if metodo_form_actual != "mercadopago":
+                    _ids_nuevos = sorted(d.id for d in disponibles)
+                    _desde = datetime.utcnow() - timedelta(seconds=90)
+                    _previas = (Reserva.query
+                                .filter(Reserva.fecha >= _desde)
+                                .filter(db.func.lower(Reserva.email) == (email or "").lower())
+                                .order_by(Reserva.id.desc())
+                                .limit(5).all())
+                    for _p in _previas:
+                        _ids_p = sorted(i.disc_id for i in _p.items_efectivos if i.disc_id)
+                        _box_p = next((i.mbox_cantidad for i in _p.items_efectivos if i.es_mystery_box), None)
+                        if _ids_p == _ids_nuevos and _box_p == box_cantidad:
+                            session["ultima_reserva_ok"] = _p.id
+                            session["ultima_reserva_multi"] = True
+                            return redirect(url_for("reserva_confirmada"))
 
-            # Entrega / envio (solo compras; en "coordinar" queda todo en null / 0)
-            reserva.entrega_tipo = entrega_tipo
-            reserva.envio_costo_uyu = envio_costo
-            reserva.envio_direccion = envio_direccion
-            reserva.envio_agencia = envio_agencia
-
-            for d in disponibles:
-                item = ReservaItem(
-                    reserva_id=reserva.id,
-                    disc_id=d.id,
-                    artista_snap=d.artista,
-                    titulo_snap=d.titulo,
-                    precio_uyu_snap=_precio_a_cobrar(d),
+                # Crear la reserva (los discos NO cambian de estado hasta confirmar)
+                reserva = Reserva(
+                    nombre=nombre,
+                    whatsapp=whatsapp,
+                    email=email,
+                    nota=nota,
+                    estado="Pendiente",
+                    cliente_id=auth.cliente_actual_id(),
                 )
-                db.session.add(item)
+                db.session.add(reserva)
+                db.session.flush()
 
-            # Mystery Box: item SIN disc_id (no descuenta stock; los discos se asignan
-            # a mano despues). Precio resuelto por el servidor, texto del cliente guardado.
-            if hay_box:
-                db.session.add(ReservaItem(
-                    reserva_id=reserva.id,
-                    disc_id=None,
-                    artista_snap="Mystery Box",
-                    titulo_snap=f"Mystery Box · {box_cantidad} discos",
-                    precio_uyu_snap=box_precio,
-                    mbox_cantidad=box_cantidad,
-                    mbox_texto=box_texto,
-                ))
+                # Entrega / envio (solo compras; en "coordinar" queda todo en null / 0)
+                reserva.entrega_tipo = entrega_tipo
+                reserva.envio_costo_uyu = envio_costo
+                reserva.envio_direccion = envio_direccion
+                reserva.envio_agencia = envio_agencia
 
-            db.session.commit()
-            _reserva_registrar(ip_reserva)
+                for d in disponibles:
+                    item = ReservaItem(
+                        reserva_id=reserva.id,
+                        disc_id=d.id,
+                        artista_snap=d.artista,
+                        titulo_snap=d.titulo,
+                        precio_uyu_snap=_precio_a_cobrar(d),
+                    )
+                    db.session.add(item)
+
+                # Mystery Box: item SIN disc_id (no descuenta stock; los discos se asignan
+                # a mano despues). Precio resuelto por el servidor, texto del cliente guardado.
+                if hay_box:
+                    db.session.add(ReservaItem(
+                        reserva_id=reserva.id,
+                        disc_id=None,
+                        artista_snap="Mystery Box",
+                        titulo_snap=f"Mystery Box · {box_cantidad} discos",
+                        precio_uyu_snap=box_precio,
+                        mbox_cantidad=box_cantidad,
+                        mbox_texto=box_texto,
+                    ))
+
+                db.session.commit()
+                _reserva_registrar(ip_reserva)
+            finally:
+                _lock_pedido.release()
 
             # Auto-cuenta: si dejo una contrasena y el email esta libre, le creamos la cuenta
             # (asi puede seguir sus pedidos sin registrarse aparte). Best-effort: nunca rompe la reserva.

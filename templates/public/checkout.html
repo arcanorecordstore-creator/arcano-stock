@@ -337,7 +337,29 @@
     }
 
     // Al enviar con exito, vaciar carrito + Mystery Box (el resto lo hace el server)
-    document.getElementById('checkout-form').addEventListener('submit', function () {
+    var _enviando = false;
+    document.getElementById('checkout-form').addEventListener('submit', function (e) {
+        // Anti doble click: si ya se esta enviando, frenar el segundo envio en seco.
+        // Sin esto, un doble click (o una conexion lenta) crea pedidos duplicados.
+        if (_enviando) { e.preventDefault(); return false; }
+        _enviando = true;
+        var btn = document.getElementById('checkout-submit');
+        if (btn) {
+            btn.dataset.txt = btn.textContent;
+            btn.textContent = 'Procesando...';
+            btn.classList.add('is-enviando');
+            // No se usa btn.disabled: un submit deshabilitado no viaja en el form.
+            btn.setAttribute('aria-busy', 'true');
+        }
+        // Red de seguridad: si el server tarda o falla, se rehabilita.
+        setTimeout(function () {
+            _enviando = false;
+            if (btn) {
+                btn.textContent = btn.dataset.txt || 'Confirmar pedido';
+                btn.classList.remove('is-enviando');
+                btn.removeAttribute('aria-busy');
+            }
+        }, 20000);
         try { localStorage.removeItem('arcano-cart'); } catch (e) {}
         try { localStorage.removeItem('arcano-mbox'); } catch (e) {}
     });
