@@ -1976,7 +1976,7 @@ def _migrate_schema(app):
                         es_mystery_box=True,
                         orden=_max_orden + 1000,   # arranca primera en la grilla
                         descripcion_publica=(
-                            "Una box curada a mano. Elegis cuantos discos queres y nos "
+                            "Una box curada para vos. Elegis cuantos discos queres y nos "
                             "contas que te gusta; la seleccion la armamos nosotros con "
                             "vinilos de la casa."
                         ),
@@ -1984,6 +1984,15 @@ def _migrate_schema(app):
                     db.session.add(box)
                     db.session.commit()
                     print("Seed: Mystery Box creada")
+                elif existe.descripcion_publica and "curada a mano" in existe.descripcion_publica:
+                    # Se saco el enfasis en "a mano" de toda la web. Solo se reescribe
+                    # si sigue siendo el texto sembrado (no pisa una edicion manual).
+                    existe.descripcion_publica = existe.descripcion_publica.replace(
+                        "curada a mano", "curada para vos")
+                    if (existe.stock or 0) > 1:
+                        existe.stock = 1
+                    db.session.commit()
+                    print("Migracion: descripcion de la Mystery Box actualizada")
                 elif (existe.stock or 0) > 1:
                     # La box no es inventario: un stock alto es una bomba para cualquier
                     # metrica que multiplique por stock (valor de venta, ganancia
@@ -2072,7 +2081,7 @@ def init_db(app) -> None:
 
         # Settings publicos (textos editables que se muestran en la tienda)
         defaults_publicos = {
-            "public_tagline": "Vinilos de electronica seleccionados a mano. Montevideo.",
+            "public_tagline": "Vinilos de electronica con curaduria propia. Montevideo.",
             "public_about": (
                 "Arcano es una tienda de discos especializada en musica electronica: "
                 "house, techno, minimal y progressive. Cada disco que llega a Arcano "

@@ -3580,6 +3580,9 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 .public-disc-coverwrap.has-sample:hover .public-disc-vinyl {
     transform: translateX(30%) rotate(10deg);
 }
+/* Mystery Box: el vinilo asoma hacia ARRIBA (no al costado) al pasar el mouse. */
+.public-disc-coverwrap.is-mbox .public-disc-vinyl { transform: translateY(0) rotate(0deg); }
+.public-disc-coverwrap.is-mbox:hover .public-disc-vinyl { transform: translateY(-26%) rotate(8deg); }
 .public-disc-cover-play {
     position: absolute;
     inset: 0;

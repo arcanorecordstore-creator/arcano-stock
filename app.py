@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.37"
+APP_VERSION = "5.38"
 import metrics
 import auth
 import mailer
@@ -7824,7 +7824,7 @@ def register_routes(app: Flask) -> None:
             if box_intentada and box_precio is None:
                 errores.append("Eleg&iacute; una cantidad v&aacute;lida para la Mystery Box (2 a 5 discos).")
             if hay_box and not box_texto:
-                errores.append("Escrib&iacute; 2 tracks o artistas que te gusten para armarte la Mystery Box.")
+                errores.append("Dejanos 2 referencias para armarte la Mystery Box: un link, un track, un artista, un g&eacute;nero o un sello.")
             if len(nombre_pila) < 2:
                 errores.append("Ingresa tu nombre.")
             if len(apellido) < 2:

@@ -72,8 +72,8 @@
         {% if disc.es_mystery_box and not cover_main %}{% set cover_main = url_for('static', filename='brand/mystery-box.svg') %}{% endif %}
         {% set ps_cover = disc.primer_track_sample %}
         {% set puede_sonar = ps_cover and not (disc.esta_agotado and not disc.mostrar_preorder) %}
-        <div class="public-disc-coverwrap{% if puede_sonar %} has-sample{% endif %}">
-            {% if puede_sonar %}
+        <div class="public-disc-coverwrap{% if puede_sonar %} has-sample{% endif %}{% if disc.es_mystery_box %} is-mbox{% endif %}">
+            {% if puede_sonar or disc.es_mystery_box %}
             <div class="public-disc-vinyl" aria-hidden="true"><span class="public-disc-vinyl-label"></span></div>
             {% endif %}
             <div class="public-disc-cover" id="disc-cover-main">
@@ -204,9 +204,9 @@
                 </div>
                 <div class="public-disc-price mbox-price"><span id="mbox-price">$ {{ '{:,.0f}'.format(mbox_precios[3]).replace(',', '.') }}</span> <span>UYU</span></div>
                 <div class="mbox-field">
-                    <label class="mbox-label" for="mbox-texto">Escrib&iacute; 2 tracks o artistas que te gusten para armarte la selecci&oacute;n</label>
-                    <textarea id="mbox-texto" rows="3" maxlength="500" placeholder="Ej: Losoul, Rhythm &amp; Sound, algo de dub techno lento..."></textarea>
-                    <p class="mbox-hint">Puede ser un track, un artista o un sello. Con eso curamos tu box a mano.</p>
+                    <label class="mbox-label" for="mbox-texto">Dejanos 2 referencias para armarte la selecci&oacute;n</label>
+                    <textarea id="mbox-texto" rows="3" maxlength="500" placeholder="Ej: un link de YouTube o SoundCloud &#10;Losoul - Open Door &#10;dub techno lento, sello Perlon..."></textarea>
+                    <p class="mbox-hint">Peg&aacute; el link de un track (YouTube, SoundCloud, Bandcamp) o escrib&iacute; nombre y artista. Tambi&eacute;n vale un g&eacute;nero o un sello.</p>
                 </div>
                 <button type="button" class="btn btn-primary cart-btn-full mbox-add" id="mbox-add">
                     <span class="mbox-add-label">&#43; Agregar al carrito</span>
