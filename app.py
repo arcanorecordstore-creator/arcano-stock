@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.41"
+APP_VERSION = "5.42"
 import metrics
 import auth
 import mailer
@@ -6140,8 +6140,14 @@ def register_routes(app: Flask) -> None:
             formato=((data.get("formato") or data.get("format") or "").strip() or "Vinyl"),
             pais=((data.get("pais") or "").strip() or None),
             tags=((data.get("catalogo") or data.get("catalog") or data.get("tags") or "").strip() or None),
-            costo_eur=_f("costo_eur") or 0.0, envio_eur=0.0,
+            # Costo y envio (la parte de ESTE disco), en euros. Con el TC arman el
+            # costo final en pesos, que es lo que usa Contabilidad para la ganancia.
+            costo_eur=max(0.0, _f("costo_eur") or 0.0),
+            envio_eur=max(0.0, _f("envio_eur") or 0.0),
             precio_uyu=float(_i("precio_uyu") or _i("precio") or _i("precio_venta") or 0),
+            # Condicion: solo se acepta una de la lista de la web; si no, queda vacia.
+            condicion=((data.get("condicion") or "").strip()
+                       if (data.get("condicion") or "").strip() in CONDICIONES_DISCO else None),
             source_url=source_url, fecha_ingreso=now_uy(),
         )
         try:
