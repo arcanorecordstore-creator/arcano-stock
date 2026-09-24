@@ -11533,3 +11533,6 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
     margin-left: 6px;
     vertical-align: middle;
 }
+
+/* Pedidos: campo para escribir el proveedor cuando se elige "Otro" */
+.prov-otro { margin-top: 6px; width: 100%; }

@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.42"
+APP_VERSION = "5.43"
 import metrics
 import auth
 import mailer
@@ -5357,6 +5357,27 @@ def register_routes(app: Flask) -> None:
         return redirect(url_for("caja"))
 
     # ---- PEDIDOS (compras de stock) ----
+    def _opciones_proveedor():
+        """Lista del desplegable de proveedor: los fijos + los que Facundo ya escribio
+        a mano en pedidos anteriores (ej. 'Discogs', asi no lo tipea de nuevo) + 'Otro'
+        al final, que abre el campo para escribir uno nuevo."""
+        from models import Pedido, PROVEEDORES_PEDIDO
+        base = [p for p in PROVEEDORES_PEDIDO if p != "Otro"]
+        propios = sorted({(x[0] or "").strip() for x in db.session.query(Pedido.proveedor).distinct()
+                          if (x[0] or "").strip() and (x[0] or "").strip() not in PROVEEDORES_PEDIDO},
+                         key=str.lower)
+        return base + propios + ["Otro"]
+
+    def _proveedor_del_form(actual=None):
+        """Proveedor elegido en el form. Si eligio 'Otro', se guarda el NOMBRE que
+        escribio (ej. 'Discogs'); si no escribio nada, queda 'Otro'."""
+        prov = (request.form.get("proveedor") or "").strip()
+        if prov == "Otro":
+            return ((request.form.get("proveedor_otro") or "").strip()[:40]) or "Otro"
+        if prov in _opciones_proveedor():
+            return prov
+        return actual or "Deejay.de"
+
     @app.route("/admin/pedidos")
     @auth.admin_required
     def pedidos():
@@ -5378,7 +5399,7 @@ def register_routes(app: Flask) -> None:
         return render_template(
             "pedidos.html",
             pedidos=visible_records(lista, 'pedidos'),
-            proveedores=PROVEEDORES_PEDIDO,
+            proveedores=_opciones_proveedor(),
             tc=Setting.get_tc(),
             tc_usd=Setting.get_tc_usd(),
             mejor_pedido=mejor_pedido,
@@ -5393,7 +5414,7 @@ def register_routes(app: Flask) -> None:
         from models import Pedido
         from datetime import datetime as _dt
         numero = (request.form.get("numero") or "").strip()
-        proveedor = (request.form.get("proveedor") or "Deejay.de").strip()
+        proveedor = _proveedor_del_form()
         try:
             cant = int(request.form.get("cant_discos") or 0)
         except ValueError:
@@ -5482,9 +5503,7 @@ def register_routes(app: Flask) -> None:
 
         ped.numero = (request.form.get("numero") or "").strip() or None
 
-        prov = (request.form.get("proveedor") or "").strip()
-        if prov in PROVEEDORES_PEDIDO:
-            ped.proveedor = prov
+        ped.proveedor = _proveedor_del_form(actual=ped.proveedor)
 
         try:
             ped.cant_discos = max(0, int(request.form.get("cant_discos") or 0))

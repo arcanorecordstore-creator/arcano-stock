@@ -185,6 +185,7 @@
                                 <select name="proveedor">
                                     {% for prov in proveedores %}<option value="{{ prov }}" {% if p.proveedor == prov %}selected{% endif %}>{{ prov }}</option>{% endfor %}
                                 </select>
+                                <input type="text" name="proveedor_otro" class="prov-otro" maxlength="40" placeholder="&iquest;Cu&aacute;l? ej: Discogs" hidden>
                             </div>
                             <div class="form-field">
                                 <label>Fecha</label>
@@ -352,6 +353,7 @@
                 <select id="ped-proveedor" name="proveedor">
                     {% for prov in proveedores %}<option value="{{ prov }}">{{ prov }}</option>{% endfor %}
                 </select>
+                    <input type="text" name="proveedor_otro" class="prov-otro" maxlength="40" placeholder="&iquest;Cu&aacute;l? ej: Discogs" hidden>
             </div>
             <div class="form-field form-field-sm">
                 <label for="ped-cant">Cantidad de discos</label>
@@ -393,6 +395,24 @@
 {% endblock %}
 
 {% block scripts %}
+<script>
+// Proveedor "Otro": muestra el campo para escribir cual fue (ej. Discogs). Sirve
+// para el alta y para cada pedido editable de la lista.
+(function () {
+    document.querySelectorAll('select[name="proveedor"]').forEach(function (sel) {
+        var otro = sel.parentElement.querySelector('.prov-otro');
+        if (!otro) return;
+        function sync(enfocar) {
+            var on = sel.value === 'Otro';
+            otro.hidden = !on;
+            otro.required = on;
+            if (on && enfocar) otro.focus();
+        }
+        sel.addEventListener('change', function () { sync(true); });
+        sync(false);
+    });
+})();
+</script>
 <script>
 (function () {
     // Tipo de cambio EUR->USD en vivo dentro de cada editor de pedido (USD / EUR).
