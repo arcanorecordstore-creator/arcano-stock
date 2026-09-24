@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.40"
+APP_VERSION = "5.41"
 import metrics
 import auth
 import mailer
@@ -961,7 +961,8 @@ def populate_disc_from_form(disc: Disc, form) -> list[str]:
         disc.origen = origen
     disc.notas = _str_or_none(form.get("notas"))
     disc.descripcion_publica = _str_or_none(form.get("descripcion_publica"))
-    disc.tags = _str_or_none(form.get("tags"))
+    if "tags" in form:   # el campo se saco del form: no pisar lo guardado
+        disc.tags = _str_or_none(form.get("tags"))
     disc.destacado = form.get("destacado") == "1"
     disc.en_nuevos = form.get("en_nuevos") == "1"
     disc.es_tip = form.get("es_tip") == "1"

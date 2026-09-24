@@ -168,15 +168,9 @@
             {% if disc.condicion %}<span>{{ disc.condicion }}</span>{% endif %}
         </div>
 
-        {% if disc.tags_list or disc.es_tip %}
+        {% if disc.es_tip %}
         <div class="public-disc-badges">
-            {% if disc.es_tip %}
             <span class="public-badge public-badge-tip-ficha">&#9733; {{ tip_label or 'Tip' }}</span>
-            {% endif %}
-            {% for tag in disc.tags_list %}
-            {% set tag_slug = tag.lower().replace(' ', '-').replace('/', '-') %}
-            <span class="public-badge public-badge-{{ tag_slug }}">{{ tag }}</span>
-            {% endfor %}
         </div>
         {% endif %}
 

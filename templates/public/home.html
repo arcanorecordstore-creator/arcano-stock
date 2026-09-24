@@ -261,20 +261,7 @@
             {% endif %}
 
 
-            {% if tags_disponibles %}
-            <div class="filter-block">
-                <div class="filter-block-title">Tags</div>
-                <div class="filter-checks">
-                    {% for t, cnt in tags_disponibles %}
-                    <label class="filter-check">
-                        <input type="checkbox" name="tag" value="{{ t }}" {% if t in filtro_tags %}checked{% endif %}>
-                        <span>{{ t }}</span><span class="filter-count">{{ cnt }}</span>
-                    </label>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
+            {# Los tags se sacaron de la tienda: ya no hay filtro de tags. #}
             {% if sellos %}
             <div class="filter-block">
                 <div class="filter-block-title">Sellos</div>
@@ -400,14 +387,6 @@
             <div class="public-card-title">{{ d.titulo }}</div>
             {% if d.sello %}<div class="public-card-label">{{ d.sello }}{% if d.anio %} &middot; {{ d.anio }}{% endif %}</div>{% endif %}
             {% if d.resena_corta %}<div class="public-card-resena">&ldquo;{{ d.resena_corta }}&rdquo;</div>{% endif %}
-            {% if d.tags_list %}
-            <div class="public-card-tags">
-                {% for tag in d.tags_list[:2] %}
-                {% set tag_slug = tag.lower().replace(' ', '-').replace('/', '-') %}
-                <span class="public-badge public-badge-sm public-badge-{{ tag_slug }}">{{ tag }}</span>
-                {% endfor %}
-            </div>
-            {% endif %}
             <div class="public-card-buy">
                 {% if d.precio_uyu > 0 %}
                 {% if d.en_fire_sale_activo %}

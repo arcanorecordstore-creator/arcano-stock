@@ -280,7 +280,8 @@ def _parse_deejay(soup: BeautifulSoup, page_url: str) -> dict:
                 genres.append(txt)
         if genres:
             # Tomamos los ultimos 5 (los del header se filtran arriba; los del producto quedan al final)
-            out["genero"] = ", ".join(genres[:6])
+            # Separados por " - " (no coma): el separador de generos que usa Arcano.
+            out["genero"] = " - ".join(genres[:6])
 
     # ---- Tracklist fallback desde lista HTML ----
     if not out.get("tracklist"):

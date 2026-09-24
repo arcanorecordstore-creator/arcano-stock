@@ -395,30 +395,6 @@
 
             <div class="form-row">
                 <div class="form-field form-field-full">
-                    <label for="tags">Tags <span class="form-field-hint">(separados por coma, se muestran como badges en la ficha publica)</span></label>
-                    <input type="text" id="tags" name="tags" list="tags-suggested" value="{{ field_value('tags', disc.tags) }}" placeholder="Vinyl Only, Repress, White Label...">
-                    <datalist id="tags-suggested">
-                        <option value="Vinyl Only">
-                        <option value="White Label">
-                        <option value="Repress">
-                        <option value="Pre-order">
-                        <option value="Limited">
-                        <option value="Test Press">
-                        <option value="Coloured Vinyl">
-                        <option value="Import">
-                        <option value="Signed">
-                        <option value="Second Hand">
-                    </datalist>
-                    <div class="tag-chips-quick">
-                        {% for suggested in ['Vinyl Only', 'Repress', 'Limited', 'White Label', 'Pre-order', 'Coloured Vinyl'] %}
-                        <button type="button" class="tag-chip-quick" data-tag="{{ suggested }}">+ {{ suggested }}</button>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-
-            <div class="form-row">
-                <div class="form-field form-field-full">
                     <label class="checkbox-field">
                         <input type="checkbox" name="destacado" value="1" {% if disc.destacado %}checked{% endif %}>
                         <span>Destacar en la home <span class="form-field-hint">(aparece en la seccion Destacados arriba del catalogo)</span></span>
@@ -500,22 +476,6 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script>
-// Tag chips: agregar tags rapidos al input tags
-(function () {
-    var tagsInput = document.getElementById('tags');
-    if (!tagsInput) return;
-    document.querySelectorAll('.tag-chip-quick').forEach(function (chip) {
-        chip.addEventListener('click', function () {
-            var tag = chip.dataset.tag;
-            var current = tagsInput.value.split(',').map(function (t) { return t.trim(); }).filter(Boolean);
-            if (current.indexOf(tag) === -1) {
-                current.push(tag);
-                tagsInput.value = current.join(', ');
-                tagsInput.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-        });
-    });
-})();
 </script>
 {% if mode == 'edit' %}
 <script>

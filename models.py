@@ -2006,6 +2006,35 @@ def _migrate_schema(app):
             except Exception:
                 db.session.rollback()
 
+        # Condicion "Nuevo / Sellado" para TODO el catalogo (pedido de Facundo, 24/9/2026).
+        # Excepciones: el disco 170 (Jamie McHugh - Dropout, usado de Discogs, queda como
+        # lo cargo: "Usado - Mint") y la Mystery Box (no es un disco).
+        # Corre UNA sola vez (flag en settings) y antes guarda la condicion anterior de
+        # cada disco que cambia (agrupada por condicion) para poder volver atras.
+        if inspector.has_table("discs") and inspector.has_table("settings"):
+            try:
+                _FLAG = "migra_condicion_nuevo_20260924"
+                if (Setting.query.filter_by(key=_FLAG).first() is None):
+                    import json as _json
+                    _NUEVO = "Nuevo / Sellado"
+                    _EXCLUIR = {170}
+                    antes = {}
+                    cambiados = 0
+                    for d in Disc.query.order_by(Disc.id).all():
+                        if d.id in _EXCLUIR or getattr(d, "es_mystery_box", False):
+                            continue
+                        if d.condicion != _NUEVO:
+                            antes.setdefault(d.condicion or "", []).append(d.id)
+                            d.condicion = _NUEVO
+                            cambiados += 1
+                    db.session.add(Setting(key="backup_condiciones_20260924",
+                                           value=_json.dumps(antes, ensure_ascii=False)))
+                    db.session.add(Setting(key=_FLAG, value="1"))
+                    db.session.commit()
+                    print(f"Migracion: {cambiados} discos pasados a condicion '{_NUEVO}'")
+            except Exception:
+                db.session.rollback()
+
 
 def _migrate_tracklists_to_tracks(app):
     """Migra tracklists en texto plano a la tabla Track para discos que no tengan tracks aún.
