@@ -847,7 +847,7 @@ def _radar_data():
             dias = 1
         filas.append({"disc": d, "plays": plays, "dias": dias, "interes": round(plays / dias, 2)})
     con = [f for f in filas if f["plays"] > 0]
-    disp = sorted([f for f in con if f["disc"].estado in ("Disponible", "Pre-order", "Reservado", "Apartado para mi")],
+    disp = sorted([f for f in con if f["disc"].estado in ("Disponible", "Pre-order", "Encargo", "Reservado", "Apartado para mi")],
                   key=lambda f: f["interes"], reverse=True)
     vend = sorted([f for f in con if f["disc"].estado == "Vendido"], key=lambda f: f["interes"], reverse=True)
     return {"disponibles": disp, "vendidos": vend, "con_escuchas": len(con),

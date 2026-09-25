@@ -388,13 +388,14 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
     # (Disponible + Reservado + Apartado para mi), MAS los Pre-order con pedido asignado
     # (ya se encargaron/pagaron a Deejay). Un Reservado SIGUE siendo stock sin vender: la
     # plata sigue metida ahi hasta que la venta se concreta (por eso reservar no debe subir
-    # la ganancia). Quedan afuera: los Pre-order SIN pedido (todavia no hay plata puesta) y
+    # la ganancia). Los Encargo (disco que un cliente pidio) siguen la misma regla que el
+    # Pre-order. Quedan afuera: los Pre-order/Encargo SIN pedido (todavia no hay plata puesta) y
     # los Descartados (perdida, se cuenta aparte).
     disponibles_arcano = (
         Disc.query
         .filter(
             Disc.estado.in_(["Disponible", "Reservado", "Apartado para mi"])
-            | ((Disc.estado == "Pre-order") & (Disc.pedido_id.isnot(None)))
+            | ((Disc.estado.in_(["Pre-order", "Encargo"])) & (Disc.pedido_id.isnot(None)))
         )
         .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
         .filter(Disc.es_mystery_box.isnot(True))   # la box no es stock real

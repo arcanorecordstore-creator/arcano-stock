@@ -28,11 +28,18 @@ def today_uy():
 ESTADOS_DISCO = [
     "Disponible",
     "Pre-order",
+    # Encargo: disco que un cliente pidio y Facundo le va a traer (acuerdo de palabra,
+    # todavia nadie pago nada). En la tienda se ve y se reserva como un Pre-order;
+    # en los numeros no cuenta hasta que se asigna a un pedido (igual que Pre-order).
+    "Encargo",
     "Reservado",
     "Vendido",
     "Apartado para mi",
     "Descartado",
 ]
+
+# Estados "por llegar": se ven en la tienda y se reservan sin stock fisico.
+ESTADOS_PREVENTA = ("Pre-order", "Encargo")
 
 # Estado del audio/digitalizacion de cada disco (columna manual del dashboard).
 AUDIO_ESTADOS = ["En digital", "Grabado", "Para grabar", "F"]
@@ -239,14 +246,14 @@ class Disc(db.Model):
 
     @property
     def mostrar_preorder(self) -> bool:
-        """True si el disco esta en estado Pre-order (muestra cartel y se reserva)."""
-        return self.estado == "Pre-order"
+        """True si el disco esta en Pre-order o Encargo (muestra cartel y se reserva)."""
+        return self.estado in ESTADOS_PREVENTA
 
     @property
     def en_carrusel_preorder(self) -> bool:
         """True si debe salir en el carrusel Pre-order del inicio:
         tiene que estar en estado Pre-order Y con el toggle prendido."""
-        return self.estado == "Pre-order" and bool(getattr(self, "es_preorder", False))
+        return self.estado in ESTADOS_PREVENTA and bool(getattr(self, "es_preorder", False))
 
     @property
     def en_oferta(self) -> bool:
@@ -319,8 +326,8 @@ class Disc(db.Model):
     @property
     def esta_agotado(self) -> bool:
         """True si el disco no esta disponible para comprar.
-        Los pre-orders NO se consideran agotados (se pueden reservar)."""
-        if self.estado == "Pre-order":
+        Los pre-orders y encargos NO se consideran agotados (se pueden reservar)."""
+        if self.estado in ESTADOS_PREVENTA:
             return False
         return self.estado != "Disponible" or (self.stock or 0) <= 0
 

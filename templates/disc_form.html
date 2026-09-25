@@ -338,6 +338,18 @@
                         {% endfor %}
                     </select>
                 </div>
+                {% set _est_actual = form_data.get('estado') if form_data else disc.estado %}
+                <div class="form-field" id="encargo-cliente-field"{% if _est_actual != 'Encargo' %} hidden{% endif %}>
+                    <label for="encargo_cliente_id">Encargo de</label>
+                    {% set _cid_actual = (form_data.get('encargo_cliente_id') if form_data else disc.cliente_id)|string %}
+                    <select id="encargo_cliente_id" name="encargo_cliente_id">
+                        <option value="">&mdash; Elegí el cliente &mdash;</option>
+                        {% for c in clientes_para_encargo() %}
+                        <option value="{{ c.id }}" {% if _cid_actual == c.id|string %}selected{% endif %}>{{ c.nombre }}{% if c.instagram %} (@{{ c.instagram|replace('@','') }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="calc-hint">Si no está en la lista, crealo en Gestión &rarr; Clientes.</small>
+                </div>
                 <div class="form-field form-field-sm">
                     <label for="copias_vendidas">Copias vendidas</label>
                     <input type="number" id="copias_vendidas" name="copias_vendidas" min="0" step="1"
@@ -476,6 +488,13 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script>
+// "Encargo de": el selector de cliente solo aparece con estado Encargo.
+(function () {
+    var est = document.getElementById('estado');
+    var campo = document.getElementById('encargo-cliente-field');
+    if (!est || !campo) return;
+    est.addEventListener('change', function () { campo.hidden = est.value !== 'Encargo'; });
+})();
 </script>
 {% if mode == 'edit' %}
 <script>

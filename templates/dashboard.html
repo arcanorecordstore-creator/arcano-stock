@@ -260,13 +260,15 @@
                     {% set estado_class = {
                         'Disponible': 'badge-disponible',
                         'Pre-order': 'badge-preorder',
+                        'Encargo': 'badge-encargo',
                         'Reservado': 'badge-reservado',
                         'Vendido': 'badge-vendido',
                         'Apartado para mi': 'badge-apartado',
                         'Descartado': 'badge-descartado',
                     } %}
                     <span class="badge {{ estado_class.get(d.estado, 'badge-default') }}">{{ d.estado }}</span>
-                    {% if d.estado == 'Reservado' or d.sena_cobrada %}
+                    {% if d.estado == 'Encargo' %}<div class="encargo-de">{% if d.comprador %}para {{ d.comprador.nombre }}{% else %}sin cliente{% endif %}</div>{% endif %}
+                    {% if d.estado in ('Reservado', 'Encargo') or d.sena_cobrada %}
                     <div class="sena-cell" data-disc-id="{{ d.id }}">
                         {% if d.sena_cobrada %}
                         <button type="button" class="sena-chip" title="Se&ntilde;a cobrada. Click para devolver o quedartela.">se&ntilde;a $ {{ (d.sena_efectiva)|round|int }}</button>

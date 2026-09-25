@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.43"
+APP_VERSION = "5.44"
 import metrics
 import auth
 import mailer
@@ -567,6 +567,14 @@ self.addEventListener('notificationclick', function(e){
             except Exception:
                 return []
 
+        def _clientes_para_encargo():
+            """Clientes para el selector 'Encargo de' del form del disco. Se pasa
+            como funcion (no como lista) para que la consulta corra SOLO en el form."""
+            try:
+                return Cliente.query.order_by(Cliente.nombre.asc()).all()
+            except Exception:
+                return []
+
         # Cliente logueado (para el nav de la tienda)
         cliente_actual = None
         try:
@@ -584,6 +592,7 @@ self.addEventListener('notificationclick', function(e){
             "sort_url": sort_url,
             "cliente_actual": cliente_actual,
             "todos_los_pedidos": _todos_los_pedidos(),
+            "clientes_para_encargo": _clientes_para_encargo,
             # TC EUR y USD disponibles en TODAS las paginas (el header del admin los muestra)
             "tc": Setting.get_tc(),
             "tc_usd": Setting.get_tc_usd(),
@@ -947,6 +956,11 @@ def populate_disc_from_form(disc: Disc, form) -> list[str]:
     disc.stock = stock
     disc.estado = estado
     disc.condicion = condicion
+    # Encargo: el disco se trae para un cliente puntual. Solo se toca el cliente
+    # cuando el estado es Encargo (en otros estados el cliente lo maneja la venta/reserva).
+    if estado == "Encargo" and "encargo_cliente_id" in form:
+        _cid = (form.get("encargo_cliente_id") or "").strip()
+        disc.cliente_id = int(_cid) if _cid.isdigit() else None
     # Copias vendidas (para facturacion)
     try:
         cv = int(form.get("copias_vendidas") or 0)
@@ -1089,10 +1103,11 @@ def register_status_change(disc: Disc, nuevo_estado: str, nota: str | None = Non
         if getattr(disc, "precio_venta_uyu", None) is not None:
             disc.precio_venta_uyu = None
 
-    # Sena de reserva: solo aplica mientras el disco esta Reservado (apartado) o Vendido
+    # Sena de reserva: solo aplica mientras el disco esta Reservado (apartado), Encargo
+    # (el cliente adelanto plata por un disco que le voy a traer) o Vendido
     # (donde la sena fue el adelanto). Si va a cualquier otro estado (Disponible/Descartado/
     # etc.) la reserva se cayo -> limpiar la sena para que no quede plata huerfana en la caja.
-    if nuevo_estado not in ("Reservado", "Vendido") and getattr(disc, "sena_cobrada", False):
+    if nuevo_estado not in ("Reservado", "Encargo", "Vendido") and getattr(disc, "sena_cobrada", False):
         disc.sena_cobrada = False
         disc.sena_monto_uyu = None
         disc.sena_fecha = None
@@ -3624,7 +3639,7 @@ def register_routes(app: Flask) -> None:
         con_escuchas = [f for f in filas if f["plays"] > 0]
         disponibles = sorted(
             [f for f in con_escuchas if f["disc"].estado in
-             ("Disponible", "Pre-order", "Reservado", "Apartado para mi")],
+             ("Disponible", "Pre-order", "Encargo", "Reservado", "Apartado para mi")],
             key=lambda f: f["interes"], reverse=True,
         )
         vendidos = sorted(
@@ -4070,7 +4085,7 @@ def register_routes(app: Flask) -> None:
         # GET: discos que todavia se pueden vender
         disponibles = (
             Disc.query
-            .filter(Disc.estado.in_(["Disponible", "Reservado", "Pre-order", "Apartado para mi"]))
+            .filter(Disc.estado.in_(["Disponible", "Reservado", "Pre-order", "Encargo", "Apartado para mi"]))
             .filter(Disc.es_mystery_box.isnot(True))   # la box no se vende como disco
             .order_by(Disc.artista.asc(), Disc.titulo.asc()).all()
         )
@@ -4771,7 +4786,7 @@ def register_routes(app: Flask) -> None:
             Disc.query
             .filter(
                 Disc.estado.in_(["Disponible", "Reservado", "Apartado para mi"])
-                | ((Disc.estado == "Pre-order") & (Disc.pedido_id.isnot(None)))
+                | ((Disc.estado.in_(["Pre-order", "Encargo"])) & (Disc.pedido_id.isnot(None)))
             )
             .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
             .filter(Disc.es_mystery_box.isnot(True))   # la box no es mercaderia real
@@ -6948,8 +6963,8 @@ def register_routes(app: Flask) -> None:
                     (Disc.estado == "Disponible") & (Disc.stock > 0) & (Disc.precio_uyu > 0),
                     # O agotados que el admin eligio mostrar igual
                     Disc.mostrar_agotado == True,  # noqa: E712
-                    # O en estado Pre-order (se reservan por adelantado)
-                    Disc.estado == "Pre-order",
+                    # O en estado Pre-order / Encargo (se reservan por adelantado)
+                    Disc.estado.in_(["Pre-order", "Encargo"]),
                 )
             )
             .all()
@@ -7279,7 +7294,7 @@ def register_routes(app: Flask) -> None:
         disc = Disc.query.get_or_404(disc_id)
         # No mostrar discos que no esten disponibles publicamente
         # (excepcion: los pre-orders se ven siempre)
-        if disc.estado not in ("Disponible", "Pre-order", "Reservado", "Vendido"):
+        if disc.estado not in ("Disponible", "Pre-order", "Encargo", "Reservado", "Vendido"):
             return render_template("public/not_found.html", **_public_context()), 404
 
         # Mystery Box: ficha propia (selector de cantidad + texto), sin "similares".
@@ -7346,9 +7361,8 @@ def register_routes(app: Flask) -> None:
     def public_reservar(disc_id: int):
         """Form de reserva."""
         disc = Disc.query.get_or_404(disc_id)
-        # Los pre-orders se pueden reservar aunque no tengan stock todavia.
-        # Los pre-orders se pueden reservar aunque no tengan stock todavia.
-        if disc.estado == "Pre-order":
+        # Los pre-orders y encargos se pueden reservar aunque no tengan stock todavia.
+        if disc.estado in ("Pre-order", "Encargo"):
             pass  # permitido
         elif disc.estado != "Disponible" or (disc.stock or 0) <= 0:
             return render_template(
@@ -9137,13 +9151,13 @@ def register_routes(app: Flask) -> None:
         # los Vendidos: sirve para ATRIBUIR una venta ya hecha a este cliente (si el
         # disco ya esta Vendido, "lo compro" solo le pone el cliente, no re-vende).
         discs_para_agregar = (Disc.query
-                              .filter(Disc.estado.in_(["Disponible", "Pre-order", "Reservado", "Vendido"]))
+                              .filter(Disc.estado.in_(["Disponible", "Pre-order", "Encargo", "Reservado", "Vendido"]))
                               .filter(Disc.es_mystery_box.isnot(True))   # la box no es un disco
                               .order_by(Disc.artista.asc(), Disc.titulo.asc()).all())
-        # Discos reservados a nombre de este cliente (para ver/gestionar la sena)
+        # Discos reservados o encargados a nombre de este cliente (para ver/gestionar la sena)
         reservados_cliente = (Disc.query
-                              .filter(Disc.estado == "Reservado", Disc.cliente_id == cli.id)
-                              .order_by(Disc.fecha_reserva.desc()).all())
+                              .filter(Disc.estado.in_(["Reservado", "Encargo"]), Disc.cliente_id == cli.id)
+                              .order_by(Disc.estado.desc(), Disc.fecha_reserva.desc(), Disc.id.desc()).all())
         return render_template(
             "admin_cliente_detail.html", cli=cli, compras=compras,
             reservas_activas=reservas_activas, total=total, otros=otros,
@@ -9220,7 +9234,8 @@ def register_routes(app: Flask) -> None:
     def admin_cliente_agregar_disco(cliente_id):
         """Desde la ficha del cliente: registrar que este cliente COMPRO o RESERVO un
         disco. Compro -> lo marca Vendido a su nombre (entra a ventas/caja/contab).
-        Reservo -> lo marca Reservado a su nombre, con sena opcional."""
+        Reservo -> lo marca Reservado a su nombre, con sena opcional.
+        Encargo -> lo marca Encargo a su nombre (se lo voy a traer), con sena opcional."""
         from models import Cliente
         cli = Cliente.query.get_or_404(cliente_id)
         try:
@@ -9249,9 +9264,15 @@ def register_routes(app: Flask) -> None:
                 # canal/metodo/fecha de la venta ya cargada (eso se edita en el panel de Ventas).
                 db.session.commit()
                 flash(f"Listo: le atribui la compra de {disc.artista} - {disc.titulo} a {cli.nombre}.", "success")
-        elif tipo == "reservo":
-            if disc.estado != "Reservado":
-                register_status_change(disc, "Reservado", nota=f"Reserva cargada desde ficha de {cli.nombre}")
+        elif tipo in ("reservo", "encargo"):
+            nuevo = "Encargo" if tipo == "encargo" else "Reservado"
+            if disc.estado == "Vendido":
+                db.session.rollback()
+                flash("Ese disco ya está vendido: no se puede reservar ni encargar.", "error")
+                return redirect(url_for("admin_cliente_detail", cliente_id=cli.id))
+            if disc.estado != nuevo:
+                _que = "Encargo" if tipo == "encargo" else "Reserva"
+                register_status_change(disc, nuevo, nota=f"{_que} cargado desde ficha de {cli.nombre}")
             sena = _parse_monto_caja(request.form.get("sena_monto"))
             if sena and sena > 0:
                 disc.sena_cobrada = True
@@ -9262,11 +9283,12 @@ def register_routes(app: Flask) -> None:
                 if met:
                     disc.sena_metodo = met
             db.session.commit()
-            _msg = f"Listo: {disc.artista} - {disc.titulo} quedó reservado para {cli.nombre}"
+            _msg = (f"Listo: {disc.artista} - {disc.titulo} quedó "
+                    f"{'encargado por' if tipo == 'encargo' else 'reservado para'} {cli.nombre}")
             _msg += (f" con sena de $ {sena:,.0f}.".replace(",", ".") if (sena and sena > 0) else " (sin sena).")
             flash(_msg, "success")
         else:
-            flash("Elegí si lo compró o lo reservó.", "error")
+            flash("Elegí si lo compró, lo reservó o te lo encargó.", "error")
         return redirect(url_for("admin_cliente_detail", cliente_id=cli.id))
 
     @app.route("/admin/clientes/<int:cliente_id>/premio/<int:hito>", methods=["POST"])

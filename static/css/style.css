@@ -636,6 +636,7 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
 
 .badge-disponible { background-color: #10b981; color: #fff; border-color: #10b981; }
 .badge-preorder   { background-color: #3b82f6; color: #fff; border-color: #3b82f6; }
+.badge-encargo    { background-color: #7c3aed; color: #fff; border-color: #7c3aed; }
 .badge-reservado  { background-color: #eab308; color: #1a1a1a; border-color: #eab308; }
 .badge-vendido    { background-color: #1a1a1a; color: #fff; border-color: #333; }
 .badge-apartado   { background-color: var(--status-apartado-bg);   color: var(--status-apartado-fg);   border-color: var(--status-apartado-border); }
@@ -11398,6 +11399,7 @@ body.app .flash.flash-fade { opacity: 0; transform: translateY(-8px); }
 
 /* ===== Chip de sena en la celda de estado del dashboard v4.65 ===== */
 .sena-cell { margin-top: 5px; }
+.encargo-de { margin-top: 4px; font-size: 11px; color: var(--text-3, #888); white-space: nowrap; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
 .sena-add, .sena-chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; cursor: pointer; border: 1px solid var(--border-1, #2a2a2a); background: var(--bg-2, #1e1e1e); color: var(--text-2, #bbb); line-height: 1.4; }
 .sena-add:hover { border-color: #d6a945; color: #d6a945; }
 .sena-chip { background: rgba(214,169,69,.14); border-color: rgba(214,169,69,.5); color: #d6a945; font-weight: 700; }

@@ -132,7 +132,7 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None,
     else:
         stock = (
             Disc.query
-            .filter((Disc.estado == "Disponible") | ((Disc.estado == "Pre-order") & (Disc.pedido_id.isnot(None))))
+            .filter((Disc.estado == "Disponible") | ((Disc.estado.in_(["Pre-order", "Encargo"])) & (Disc.pedido_id.isnot(None))))
             .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
             .all()
         )
