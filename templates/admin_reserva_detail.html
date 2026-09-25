@@ -241,6 +241,9 @@ Montevideo, Uruguay</div>
                 {% endif %}
                 <div class="reserva-item-body">
                     <div class="reserva-item-title">{{ item.artista_snap }} &mdash; {{ item.titulo_snap }}</div>
+                    {% if d and d.estado == 'Encargo' %}
+                    <div class="reserva-item-encargo"><span class="badge badge-encargo">Encargo</span> Todav&iacute;a no lo compraste y el cliente no lo pag&oacute;. No cuenta en la contabilidad hasta que lo asignes a un pedido o marques la reserva Pagada.</div>
+                    {% endif %}
                     <div class="reserva-item-meta">
                         {% if item.precio_uyu_snap %}$ {{ '{:,.0f}'.format(item.precio_uyu_snap).replace(',', '.') }}{% endif %}
                         {% if d %}
@@ -265,7 +268,7 @@ Montevideo, Uruguay</div>
                                 <button type="submit" class="btn btn-ghost btn-xs">Me la qued&eacute;</button>
                             </form>
                         </div>
-                        {% elif d.estado == 'Reservado' %}
+                        {% elif d.estado in ('Reservado', 'Encargo') %}
                         <form method="post" action="{{ url_for('admin_disc_sena', disc_id=d.id) }}" class="disc-sena">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="accion" value="cobrar"><input type="hidden" name="next" value="{{ request.path }}">

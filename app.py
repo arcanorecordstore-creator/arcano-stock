@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.44"
+APP_VERSION = "5.45"
 import metrics
 import auth
 import mailer
@@ -8400,9 +8400,20 @@ def register_routes(app: Flask) -> None:
                 for d in discs:
                     # Ojo: NO bajar de Vendido un disco que ya vendiste a mano (no lo
                     # "des-vendemos" ni le pisamos la fecha_venta original).
+                    # Pre-order / Encargo: el disco todavia no llego. Mientras no se pague,
+                    # sigue en su estado (reservarlo lo meteria en la contabilidad como stock
+                    # y "por cobrar"); se le anota el cliente para saber de quien es.
+                    if d.estado in ("Pre-order", "Encargo") and estado != "Pagada":
+                        if d.estado == "Encargo" and cli and not d.cliente_id:
+                            d.cliente_id = cli.id
+                        continue
                     if d.estado != estado_disco and d.estado != "Vendido":
                         register_status_change(d, estado_disco,
                                                nota=f"Reserva manual #{reserva.id} -> {estado}")
+                    # Disco que ya habia vendido (ej: una compra vieja que se carga como
+                    # registro): se le atribuye a este cliente si no tenia comprador.
+                    if d.estado == "Vendido" and cli and not d.cliente_id:
+                        d.cliente_id = cli.id
                     # Si la reserva es una venta (Pagada), registrar canal/metodo/grupo
                     # aunque el disco ya estuviera Vendido (lo marcaste antes de la reserva).
                     if estado == "Pagada":
@@ -8497,6 +8508,13 @@ def register_routes(app: Flask) -> None:
                             # bajarlo de Vendido borraria esa venta (fecha/precio) en silencio.
                             if (disco.estado == "Vendido" and estado_disco != "Vendido"
                                     and (disco.venta_grupo or "") != f"r{reserva.id}"):
+                                continue
+                            # Pre-order / Encargo: sigue en su estado hasta que se pague
+                            # (no entra a la contabilidad como stock ni como por cobrar).
+                            if disco.estado in ("Pre-order", "Encargo") and estado_disco != "Vendido":
+                                if (disco.estado == "Encargo" and reserva.cliente_id
+                                        and not disco.cliente_id):
+                                    disco.cliente_id = reserva.cliente_id
                                 continue
                             if disco.estado != estado_disco:
                                 register_status_change(
@@ -8690,6 +8708,10 @@ def register_routes(app: Flask) -> None:
             for item in reserva.items_efectivos:
                 disco = item.disco
                 if disco and disco.estado == "Vendido" and (disco.venta_grupo or "") != _grp:
+                    # Si ya lo compro ESTE mismo cliente (una compra vieja cargada como
+                    # registro), no es una doble venta.
+                    if reserva.cliente_id and disco.cliente_id == reserva.cliente_id:
+                        continue
                     conflictos.append(item)
 
         _par = mailer.RESERVA_ESTADO_MENSAJES.get(reserva.estado)

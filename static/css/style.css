@@ -11536,5 +11536,21 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
     vertical-align: middle;
 }
 
+/* Reserva con discos en Encargo (sin comprar ni pagar todavia) */
+.reserva-card-encargo {
+    display: inline-block;
+    background: #7c3aed;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 9px;
+    border-radius: 999px;
+    margin-left: 6px;
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.reserva-item-encargo { font-size: 12px; color: var(--text-3, #888); margin: 3px 0 2px; }
+.reserva-item-encargo .badge { margin-right: 4px; }
+
 /* Pedidos: campo para escribir el proveedor cuando se elige "Otro" */
 .prov-otro { margin-top: 6px; width: 100%; }

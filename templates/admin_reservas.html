@@ -59,6 +59,8 @@
             {% else %}
                 <strong>(sin discos)</strong>
             {% endif %}
+            {% set _enc = items|selectattr('disco')|selectattr('disco.estado', 'equalto', 'Encargo')|list %}
+            {% if _enc %}<span class="reserva-card-encargo" title="Encargo: el disco todav&iacute;a no lo compraste y el cliente no lo pag&oacute;. No cuenta en la contabilidad.">Encargo{% if items|length > 1 %} &middot; {{ _enc|length }} de {{ items|length }}{% endif %} &middot; sin comprar ni pagar</span>{% endif %}
             {% if _box %}<span class="reserva-card-mbox-badge">&#127873; Mystery Box &middot; {{ _box.mbox_cantidad }} discos</span>{% endif %}
             {% if r.total_uyu > 0 %}<span class="reserva-card-total">$ {{ '{:,.0f}'.format(r.total_uyu).replace(',', '.') }}</span>{% endif %}
         </div>

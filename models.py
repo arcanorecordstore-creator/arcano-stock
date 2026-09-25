@@ -2042,6 +2042,56 @@ def _migrate_schema(app):
             except Exception:
                 db.session.rollback()
 
+        # Reparacion (v5.45): hasta v5.44, crear/poner Pendiente una reserva pasaba sus
+        # discos en ENCARGO a "Reservado", y eso los metia en la contabilidad (stock sin
+        # vender + por cobrar). Se devuelven a Encargo SOLO los discos que siguen Reservado
+        # y cuyo ultimo cambio fue esa reserva viniendo de Encargo. De paso, a los discos
+        # YA vendidos de esas reservas sin comprador se les pone el cliente de la reserva
+        # (compra vieja cargada como registro). Corre una sola vez (flag en settings).
+        if inspector.has_table("discs") and inspector.has_table("status_history"):
+            try:
+                _FLAG = "repara_encargo_reservado_v545"
+                if Setting.query.filter_by(key=_FLAG).first() is None:
+                    import re as _re
+                    revertidos = []
+                    reservas_tocadas = set()
+                    for d in Disc.query.filter(Disc.estado == "Reservado").all():
+                        hist = (StatusHistory.query.filter_by(disc_id=d.id)
+                                # por id (orden real de carga): las fechas mezclan hora UY y UTC
+                                .order_by(StatusHistory.id.desc())
+                                .limit(2).all())
+                        if len(hist) < 2:
+                            continue
+                        ult, prev = hist[0], hist[1]
+                        nota = ult.nota or ""
+                        if not (ult.estado == "Reservado" and prev.estado == "Encargo"
+                                and nota.startswith("Reserva")):
+                            continue
+                        m = _re.search(r"#(\d+)", nota)
+                        res = Reserva.query.get(int(m.group(1))) if m else None
+                        d.estado = "Encargo"
+                        if res and res.cliente_id and not d.cliente_id:
+                            d.cliente_id = res.cliente_id
+                        db.session.add(StatusHistory(
+                            disc_id=d.id, estado="Encargo",
+                            nota="Vuelve a Encargo (la reserva no lo cambia hasta que se pague)"))
+                        revertidos.append(d.id)
+                        if res:
+                            reservas_tocadas.add(res)
+                    for res in reservas_tocadas:
+                        if not res.cliente_id:
+                            continue
+                        for it in res.items_efectivos:
+                            dd = getattr(it, "disco", None)
+                            if dd and dd.estado == "Vendido" and not dd.cliente_id:
+                                dd.cliente_id = res.cliente_id
+                    db.session.add(Setting(key=_FLAG, value=",".join(map(str, revertidos)) or "-"))
+                    db.session.commit()
+                    if revertidos:
+                        print(f"Reparacion: {len(revertidos)} discos vuelven a Encargo: {revertidos}")
+            except Exception:
+                db.session.rollback()
+
 
 def _migrate_tracklists_to_tracks(app):
     """Migra tracklists en texto plano a la tabla Track para discos que no tengan tracks aún.
