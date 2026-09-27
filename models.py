@@ -1513,6 +1513,56 @@ class Pedido(db.Model):
         return "rojo"
 
     @property
+    def discos_para_recuperar(self) -> dict:
+        """Cuantos discos del pedido hay que vender para recuperar lo que costo.
+
+        - total: cuantos hacen falta en total (los ya vendidos + los que faltan).
+        - faltan: cuantos quedan por vender, calculado con el precio PROMEDIO de los
+          que todavia no se vendieron (es una estimacion: depende de cuales salgan).
+        - rango: (minimo, maximo) si vendes primero los mas caros / los mas baratos.
+        - alcanza: False si ni vendiendo todo lo que queda se cubre el costo.
+        Cuenta solo lo que esta a la venta (no Vendido, no Descartado, no
+        'Apartado para mi') y con precio puesto; una unidad por copia en stock."""
+        import math
+        costo = self.costo_total_uyu or 0
+        vendidos = self.discos_vendidos
+        falta = self.falta_recuperar_uyu
+        precios = []
+        for d in self.discos:
+            if d.estado in ("Vendido", "Descartado", "Apartado para mi"):
+                continue
+            precio = d.precio_mostrar or d.precio_uyu or 0
+            if precio > 0:
+                precios += [precio] * max(1, d.stock or 0)
+        res = {"faltan": 0, "total": vendidos, "rango": None, "alcanza": True,
+               "a_la_venta": len(precios), "promedio": 0, "sin_datos": costo <= 0}
+        if costo <= 0 or falta <= 0:
+            return res
+        if not precios:
+            res.update(alcanza=False, faltan=None, total=None)
+            return res
+        prom = sum(precios) / len(precios)
+        res["promedio"] = round(prom)
+        if sum(precios) < falta:
+            res.update(alcanza=False, faltan=None, total=None,
+                       quedaria=round(falta - sum(precios)))
+            return res
+
+        def _cuantos(lista):
+            acum = 0.0
+            for i, p in enumerate(lista, 1):
+                acum += p
+                if acum >= falta:
+                    return i
+            return len(lista)
+        faltan = min(len(precios), math.ceil(falta / prom))
+        minimo = _cuantos(sorted(precios, reverse=True))
+        maximo = _cuantos(sorted(precios))
+        res.update(faltan=faltan, total=vendidos + faltan,
+                   rango=(minimo, maximo) if minimo != maximo else None)
+        return res
+
+    @property
     def costo_por_disco_uyu(self) -> float:
         """Costo promedio por disco del pedido."""
         n = self.cant_discos or self.discos_asignados

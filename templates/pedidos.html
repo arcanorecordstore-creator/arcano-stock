@@ -107,6 +107,26 @@
                 <span class="ped-stat-value">{{ fmt_uyu(p.costo_por_disco_uyu) }}</span>
                 <span class="ped-stat-detail">promedio del pedido</span>
             </div>
+            {% set rec = p.discos_para_recuperar %}
+            <div class="ped-stat">
+                <span class="ped-stat-label">Para recuperar</span>
+                {% if rec.sin_datos %}
+                <span class="ped-stat-value">&mdash;</span>
+                <span class="ped-stat-detail">falta cargar el costo</span>
+                {% elif p.recuperado %}
+                <span class="ped-stat-value ped-verde">&#10003; Ninguno</span>
+                <span class="ped-stat-detail">ya lo recuperaste</span>
+                {% elif not rec.alcanza %}
+                <span class="ped-stat-value ped-rojo">No alcanza</span>
+                <span class="ped-stat-detail">{% if rec.a_la_venta %}aunque vendas los {{ rec.a_la_venta }} que quedan, faltan {{ fmt_uyu(rec.quedaria) }}{% else %}no quedan discos con precio a la venta{% endif %}</span>
+                {% else %}
+                <span class="ped-stat-value">Faltan {{ rec.faltan }} disco{{ '' if rec.faltan == 1 else 's' }}</span>
+                <span class="ped-stat-detail" title="Calculado con el precio promedio de los que te quedan ({{ fmt_uyu(rec.promedio) }}).{% if rec.rango %} Si vend&eacute;s primero los m&aacute;s caros te alcanzan {{ rec.rango[0] }}; si salen primero los m&aacute;s baratos, {{ rec.rango[1] }}.{% endif %}">
+                    de {{ rec.a_la_venta }} a la venta{% if rec.rango %} &middot; entre {{ rec.rango[0] }} y {{ rec.rango[1] }}{% endif %}
+                    &middot; {{ rec.total }} en total
+                </span>
+                {% endif %}
+            </div>
             <div class="ped-stat">
                 <span class="ped-stat-label">Recuperacion</span>
                 {% if p.dias_recuperacion is not none %}
