@@ -28,24 +28,6 @@
     --card-shadow: none;
     --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 
-    --status-disponible-bg: var(--ok-soft);
-    --status-disponible-fg: var(--ok);
-    --status-disponible-border: rgba(156, 195, 160, 0.35);
-    --status-reservado-bg: var(--ink-soft);
-    --status-reservado-fg: var(--ink);
-    --status-reservado-border: var(--ink-line);
-    --status-vendido-bg: rgba(168, 159, 146, 0.12);
-    --status-vendido-fg: #a89f92;
-    --status-vendido-border: rgba(168, 159, 146, 0.3);
-    --status-apartado-bg: rgba(168, 159, 146, 0.1);
-    --status-apartado-fg: #cfc7ba;
-    --status-apartado-border: rgba(207, 199, 186, 0.28);
-    --status-encamino-bg: var(--ink-soft);
-    --status-encamino-fg: var(--ink);
-    --status-encamino-border: var(--ink-line);
-    --status-descartado-bg: var(--bad-soft);
-    --status-descartado-fg: var(--bad);
-    --status-descartado-border: rgba(226, 145, 127, 0.35);
 }
 
 /* Tema claro del admin: crema + blanco + marron (antes era gris neutro) */
@@ -76,14 +58,6 @@
     --warn-soft: rgba(138, 100, 36, 0.09);
     --bad: #ad4632;
     --bad-soft: rgba(173, 70, 50, 0.08);
-    --status-disponible-border: rgba(63, 110, 75, 0.3);
-    --status-vendido-bg: rgba(95, 82, 77, 0.08);
-    --status-vendido-fg: #5f524d;
-    --status-vendido-border: rgba(95, 82, 77, 0.25);
-    --status-apartado-bg: rgba(95, 82, 77, 0.06);
-    --status-apartado-fg: #3D3033;
-    --status-apartado-border: rgba(61, 48, 51, 0.22);
-    --status-descartado-border: rgba(173, 70, 50, 0.3);
 }
 
 /* ---------- 2. Base y tipografia ---------- */
@@ -173,16 +147,9 @@ body.app { background-color: var(--bg-0); font-weight: 400; }
 .app-main :is([class*="card"], [class*="panel"], .quick-action) { box-shadow: none; }
 .flash { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
 
-/* ---------- 6. Etiquetas de estado de discos ---------- */
-.badge { font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; font-size: 10px; padding: 3px 8px; }
-.badge-disponible { background: var(--ok-soft); color: var(--ok); border-color: var(--status-disponible-border); }
-.badge-preorder   { background: transparent; color: var(--ink); border: 1px dashed var(--ink-line); }
-.badge-encargo    { background: var(--ink-soft); color: var(--ink); border-color: var(--ink); }
-.badge-reservado  { background: var(--ink); color: var(--ink-contrast); border-color: var(--ink); }
-.badge-vendido    { background: var(--status-vendido-bg); color: var(--status-vendido-fg); border-color: var(--status-vendido-border); }
-.badge-pagada     { background: var(--ok-soft) !important; color: var(--ok) !important; border-color: var(--status-disponible-border) !important; }
-.badge-personal   { background: transparent !important; color: var(--ink) !important; border: 1px solid var(--ink-line) !important; }
-.badge-arcano     { background: transparent !important; color: var(--text-3) !important; border: 1px solid var(--border-3) !important; }
+/* ---------- 6. Etiquetas de estado y origen ----------
+   Quedan con sus colores ORIGINALES, rellenas (pedido de Facundo: no siguen la
+   paleta del manual). Los --status-* tampoco se tocan. */
 
 /* Audio (semaforo del dashboard): mismos significados, tonos apagados */
 .audio-ind.audio-full { background: var(--ok) !important; }
