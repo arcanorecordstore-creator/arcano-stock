@@ -7,6 +7,18 @@
             <button type="button" class="tkd-x" data-tkd-close aria-label="Cerrar (Esc)" title="Cerrar (Esc)">&times;</button>
         </header>
         <textarea id="tkd-titulo" class="tkd-titulo" rows="1" maxlength="200" aria-label="Título"></textarea>
+        <section class="tkd-subs" hidden>
+            <div class="tkd-bar">
+                <span class="tkd-label">Subtareas</span>
+                <span class="tkd-subs-prog"></span>
+            </div>
+            <div class="tkd-subs-track" aria-hidden="true"><span></span></div>
+            <ul class="tkd-subs-list"></ul>
+            <label class="tkd-subs-new">
+                <span aria-hidden="true">+</span>
+                <input type="text" maxlength="300" placeholder="Agregar subtarea · Enter" aria-label="Nueva subtarea">
+            </label>
+        </section>
         <div class="tkd-bar">
             <span class="tkd-label">Nota</span>
             <button type="button" class="tkd-edit">Editar</button>

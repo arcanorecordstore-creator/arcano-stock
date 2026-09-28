@@ -1600,9 +1600,20 @@ class Tarea(db.Model):
     creada = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     hecha_en = db.Column(db.DateTime, nullable=True)
 
+    subtareas = db.relationship("Subtarea", backref="tarea", cascade="all, delete-orphan",
+                                order_by="Subtarea.orden, Subtarea.id", lazy="select")
+
     @property
     def hecha(self) -> bool:
         return self.estado == "Hecha"
+
+    @property
+    def subtareas_resumen(self):
+        """(hechas, total) de las subtareas, o None si no tiene."""
+        subs = self.subtareas
+        if not subs:
+            return None
+        return (sum(1 for x in subs if x.hecha), len(subs))
 
     def dias_restantes(self, hoy):
         """Dias hasta la fecha limite (negativo = vencida). None si no tiene fecha."""
@@ -1619,6 +1630,21 @@ class Tarea(db.Model):
 
     def __repr__(self):
         return f"<Tarea {self.id} {self.titulo!r} {self.estado}>"
+
+
+class Subtarea(db.Model):
+    """Paso de una tarea (checklist dentro del panel de la tarea). Tabla nueva."""
+    __tablename__ = "subtareas"
+
+    id = db.Column(db.Integer, primary_key=True)
+    tarea_id = db.Column(db.Integer, db.ForeignKey("tareas.id", ondelete="CASCADE"), nullable=False, index=True)
+    texto = db.Column(db.String(300), nullable=False)
+    hecha = db.Column(db.Boolean, nullable=False, default=False)
+    orden = db.Column(db.Integer, nullable=False, default=0)
+    creada = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {"id": self.id, "texto": self.texto, "hecha": bool(self.hecha)}
 
 
 FORMATOS_IDEA = ["Reel", "Historia", "Posteo", "Carrusel", "Unboxing", "Otro"]

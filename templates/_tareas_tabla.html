@@ -41,7 +41,7 @@
         <tr class="tk-row{% if t.hecha %} is-hecha{% endif %}{% if dtono and not t.hecha %} row-{{ dtono }}{% endif %}" id="t{{ t.id }}" data-id="{{ t.id }}">
             <td class="tk-c-nombre">
                 <div class="tk-nombre">
-                    <button type="button" class="tk-open" title="Abrir para ver y editar todo"><span class="tk-open-t">{{ t.titulo }}</span><span class="tk-open-nota{% if not t.detalle %} is-empty{% endif %}" title="Tiene nota" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 1.5h5.5L13 5v9.5H4z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 8h5M6 10.5h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span></button>
+                    <button type="button" class="tk-open" title="Abrir para ver y editar todo"><span class="tk-open-t">{{ t.titulo }}</span>{% set sr = t.subtareas_resumen %}<span class="tk-sub-badge{% if sr and sr[0] == sr[1] %} is-done{% endif %}"{% if not sr %} hidden{% endif %} title="Subtareas hechas">{% if sr %}{{ sr[0] }}/{{ sr[1] }}{% endif %}</span><span class="tk-open-nota{% if not t.detalle %} is-empty{% endif %}" title="Tiene nota" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 1.5h5.5L13 5v9.5H4z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 8h5M6 10.5h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span></button>
                     <textarea class="tk-titulo-src" data-campo="titulo" hidden aria-label="Nombre de la tarea">{{ t.titulo }}</textarea>
                 </div>
             </td>

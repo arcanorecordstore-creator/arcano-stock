@@ -27,11 +27,13 @@
     {% with filas=tareas_dash.filas, hoy=tareas_dash.hoy, dias_txt=tareas_dash.dias_txt, dias_partes=tareas_dash.dias_partes,
             tag_rgb=tareas_dash.tag_rgb, prioridades=tareas_dash.prioridades, estados_tarea=tareas_dash.estados_tarea,
             compacto=True, cat='', ver='abiertas', orden='dias' %}{% include "_tareas_tabla.html" %}{% endwith %}
-    {% include "_tk_drawer.html" %}
     {% else %}
     <p class="dash-vacio">No ten&eacute;s tareas con fecha l&iacute;mite pendientes.</p>
     {% endif %}
 </section>
+{# El panel va FUERA de la <section>: la animacion de entrada de las secciones deja un
+   transform que haria que el panel (position: fixed) quede encerrado en ella. #}
+{% if tareas_dash.filas %}<div class="tk-scope tk-drawer-host">{% include "_tk_drawer.html" %}</div>{% endif %}
 {% endif %}
 
 {% if constancia %}

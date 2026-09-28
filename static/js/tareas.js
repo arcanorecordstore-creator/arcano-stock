@@ -313,10 +313,13 @@
         status.textContent = '';
         ultimoFoco = document.activeElement;
         drawer.hidden = false;
+        drawer.dispatchEvent(new CustomEvent('tkd:abrir', { detail: { fila: fila, tabla: tabla } }));
         requestAnimationFrame(function () { drawer.classList.add('is-open'); autoAlto(tit); });
         var vacia = !text.value.trim();
-        modoEditar(vacia);
-        if (!vacia) view.focus();
+        var esTarea = tabla.dataset.base === '/admin/tareas/';
+        modoEditar(vacia && !esTarea);
+        if (esTarea) { var inp = drawer.querySelector('.tkd-subs-new input'); if (inp) setTimeout(function () { inp.focus(); }, 60); }
+        else if (!vacia) view.focus();
     }
 
     function guardarPendiente() {
@@ -367,5 +370,115 @@
         if (drawer.hidden) return;
         if (e.key === 'Escape') { e.preventDefault(); cerrar(); }
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !text.hidden) { btnEdit.click(); }
+    });
+})();
+
+/* Subtareas: checklist dentro del panel lateral (solo tareas, no ideas). */
+(function () {
+    'use strict';
+    var drawer = document.getElementById('tk-drawer');
+    if (!drawer) return;
+    var sec = drawer.querySelector('.tkd-subs');
+    if (!sec) return;
+    var lista = sec.querySelector('.tkd-subs-list');
+    var prog = sec.querySelector('.tkd-subs-prog');
+    var fill = sec.querySelector('.tkd-subs-track span');
+    var nueva = sec.querySelector('.tkd-subs-new input');
+    var tareaId = null;
+    var fila = null;
+
+    function api(url, body) {
+        return fetch(url, {
+            method: body ? 'POST' : 'GET',
+            headers: body ? { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } : { 'X-Requested-With': 'XMLHttpRequest' },
+            body: body ? JSON.stringify(body) : undefined
+        }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok && d.ok, data: d }; }); });
+    }
+
+    function badge(d) {
+        if (!fila) return;
+        var b = fila.querySelector('.tk-sub-badge');
+        if (!b) return;
+        b.hidden = !d.total;
+        b.textContent = d.total ? (d.hechas + '/' + d.total) : '';
+        b.classList.toggle('is-done', d.total > 0 && d.hechas === d.total);
+    }
+
+    function pintar(d) {
+        lista.innerHTML = '';
+        d.subtareas.forEach(function (s) {
+            var li = document.createElement('li');
+            li.className = 'tkd-sub' + (s.hecha ? ' is-hecha' : '');
+            li.dataset.id = s.id;
+            var cb = document.createElement('input');
+            cb.type = 'checkbox'; cb.className = 'tkd-sub-cb'; cb.checked = s.hecha;
+            cb.setAttribute('aria-label', 'Hecha');
+            var tx = document.createElement('input');
+            tx.type = 'text'; tx.className = 'tkd-sub-txt'; tx.value = s.texto; tx.maxLength = 300;
+            tx.dataset.ultimo = s.texto;
+            tx.setAttribute('aria-label', 'Subtarea');
+            var del = document.createElement('button');
+            del.type = 'button'; del.className = 'tkd-sub-del'; del.innerHTML = '&times;';
+            del.title = 'Borrar subtarea'; del.setAttribute('aria-label', 'Borrar subtarea');
+            li.appendChild(cb); li.appendChild(tx); li.appendChild(del);
+            lista.appendChild(li);
+        });
+        prog.textContent = d.total ? (d.hechas + ' de ' + d.total) : '';
+        fill.style.width = d.total ? Math.round(d.hechas / d.total * 100) + '%' : '0';
+        sec.classList.toggle('is-vacia', !d.total);
+        badge(d);
+    }
+
+    function aplicar(res) {
+        if (res.ok) pintar(res.data);
+        else alert((res.data && res.data.error) || 'No se pudo guardar.');
+    }
+
+    // El panel avisa cuando se abre (evento propio) con la fila y la tabla.
+    drawer.addEventListener('tkd:abrir', function (e) {
+        var esTarea = e.detail.tabla && e.detail.tabla.dataset.base === '/admin/tareas/';
+        sec.hidden = !esTarea;
+        tareaId = esTarea ? e.detail.fila.dataset.id : null;
+        fila = esTarea ? e.detail.fila : null;
+        lista.innerHTML = ''; prog.textContent = ''; fill.style.width = '0'; nueva.value = '';
+        if (esTarea) api('/admin/tareas/' + tareaId + '/subtareas').then(aplicar);
+    });
+
+    nueva.addEventListener('keydown', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        var v = nueva.value.trim();
+        if (!v || !tareaId) return;
+        nueva.value = '';
+        api('/admin/tareas/' + tareaId + '/subtareas', { texto: v }).then(aplicar);
+    });
+
+    lista.addEventListener('change', function (e) {
+        if (!e.target.classList.contains('tkd-sub-cb')) return;
+        var li = e.target.closest('li');
+        li.classList.toggle('is-hecha', e.target.checked);
+        api('/admin/subtareas/' + li.dataset.id, { hecha: e.target.checked }).then(aplicar);
+    });
+    lista.addEventListener('click', function (e) {
+        var del = e.target.closest('.tkd-sub-del');
+        if (!del) return;
+        api('/admin/subtareas/' + del.closest('li').dataset.id, { borrar: true }).then(aplicar);
+    });
+    function guardarTexto(tx) {
+        var v = tx.value.trim();
+        if (!v) { tx.value = tx.dataset.ultimo; return; }
+        if (v === tx.dataset.ultimo) return;
+        tx.dataset.ultimo = v;
+        api('/admin/subtareas/' + tx.closest('li').dataset.id, { texto: v }).then(function (res) {
+            if (!res.ok) aplicar(res); else badge(res.data);
+        });
+    }
+    lista.addEventListener('focusout', function (e) {
+        if (e.target.classList.contains('tkd-sub-txt')) guardarTexto(e.target);
+    });
+    lista.addEventListener('keydown', function (e) {
+        if (!e.target.classList.contains('tkd-sub-txt')) return;
+        if (e.key === 'Enter') { e.preventDefault(); e.target.blur(); nueva.focus(); }
+        if (e.key === 'Escape') { e.stopPropagation(); e.target.value = e.target.dataset.ultimo; e.target.blur(); }
     });
 })();

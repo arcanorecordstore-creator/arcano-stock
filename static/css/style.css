@@ -11983,3 +11983,42 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 .dash-tareas .tk-table { min-width: 1060px; }
 .dash-tareas .tk-table tbody td { padding-top: 8px; padding-bottom: 8px; }
 .dash-vacio { font-size: 13px; color: var(--text-4); margin: 0 2px; }
+
+/* =====================================================================
+   TAREAS · subtareas (checklist en el panel) (v5.58)
+   ===================================================================== */
+.tk-sub-badge { flex: 0 0 auto; align-self: center; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-3); background: var(--bg-3); border-radius: 999px; padding: 1px 7px; }
+.tk-sub-badge.is-done { color: var(--gain); background: rgba(16, 185, 129, .13); }
+.tk-sub-badge[hidden] { display: none; }
+
+.tkd-subs { display: flex; flex-direction: column; gap: 10px; }
+.tkd-subs[hidden] { display: none; }
+.tkd-subs-prog { font-size: 12px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.tkd-subs-track { height: 3px; border-radius: 2px; background: var(--border-2); overflow: hidden; }
+.tkd-subs-track span { display: block; height: 100%; width: 0; background: var(--gain); transition: width .3s ease; }
+.tkd-subs.is-vacia .tkd-subs-track { display: none; }
+.tkd-subs-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.tkd-sub { display: flex; align-items: center; gap: 10px; padding: 4px 6px; border-radius: 8px; transition: background-color .15s ease; }
+.tkd-sub:hover { background: var(--bg-2); }
+.tkd-sub-cb { appearance: none; -webkit-appearance: none; flex: 0 0 18px; width: 18px; height: 18px; margin: 0; border: 1.5px solid var(--border-3); border-radius: 5px; background: transparent; cursor: pointer; display: inline-grid; place-content: center; transition: background-color .15s ease, border-color .15s ease; }
+.tkd-sub-cb::after { content: ""; width: 8px; height: 4px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) translate(1px, -1px); opacity: 0; }
+.tkd-sub-cb:checked { background: var(--gain); border-color: var(--gain); }
+.tkd-sub-cb:checked::after { opacity: 1; }
+.tkd-sub-cb:focus-visible { outline: 2px solid var(--tk-ink); outline-offset: 2px; }
+.tkd-sub-txt { flex: 1 1 auto; min-width: 0; font: inherit; font-size: 14.5px; color: var(--text-1); background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 5px 7px; }
+.tkd-sub-txt:hover { border-color: var(--border-2); }
+.tkd-sub-txt:focus { outline: none; border-color: var(--border-3); background: var(--bg-1); }
+.tkd-sub.is-hecha .tkd-sub-txt { color: var(--text-4); text-decoration: line-through; text-decoration-color: var(--text-5); }
+.tkd-sub-del { flex: 0 0 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--text-5); font-size: 17px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .15s ease; }
+.tkd-sub:hover .tkd-sub-del, .tkd-sub-del:focus-visible { opacity: 1; }
+.tkd-sub-del:hover { color: var(--loss); }
+@media (hover: none) { .tkd-sub-del { opacity: .7; } }
+.tkd-subs-new { display: flex; align-items: center; gap: 10px; padding: 4px 6px; cursor: text; }
+.tkd-subs-new span { flex: 0 0 18px; text-align: center; color: var(--text-4); font-size: 16px; }
+.tkd-subs-new input { flex: 1 1 auto; min-width: 0; font: inherit; font-size: 14.5px; color: var(--text-1); background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 5px 7px; }
+.tkd-subs-new input::placeholder { color: var(--text-4); }
+.tkd-subs-new input:focus { outline: none; border-color: var(--border-3); background: var(--bg-1); }
+.tkd-subs + .tkd-bar { margin-top: 8px; }
+
+/* El contenedor del panel lateral no se anima (un transform en curso encerraria al panel fijo) */
+.app-main > .tk-drawer-host { animation: none !important; transform: none !important; }

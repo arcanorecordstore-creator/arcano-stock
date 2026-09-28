@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.57"
+APP_VERSION = "5.58"
 import metrics
 import auth
 import mailer
@@ -9867,6 +9867,56 @@ def register_routes(app: Flask) -> None:
         db.session.commit()
         flash("Meta borrada.", "success")
         return redirect(url_for("tareas_page", vista="constancia"))
+
+    # ------------------------------------------------------------------
+    # SUBTAREAS (checklist dentro del panel de una tarea)
+    # ------------------------------------------------------------------
+    def _subtareas_json(t):
+        subs = [x.to_dict() for x in t.subtareas]
+        return {"ok": True, "tarea_id": t.id, "subtareas": subs,
+                "hechas": sum(1 for x in subs if x["hecha"]), "total": len(subs)}
+
+    @app.route("/admin/tareas/<int:tarea_id>/subtareas", methods=["GET"])
+    @auth.admin_required
+    def subtareas_listar(tarea_id):
+        from models import Tarea
+        return jsonify(_subtareas_json(Tarea.query.get_or_404(tarea_id)))
+
+    @app.route("/admin/tareas/<int:tarea_id>/subtareas", methods=["POST"])
+    @auth.admin_required
+    def subtarea_crear(tarea_id):
+        from models import Tarea, Subtarea
+        t = Tarea.query.get_or_404(tarea_id)
+        data = request.get_json(silent=True) or {}
+        texto = (data.get("texto") or "").strip()[:300]
+        if not texto:
+            return jsonify({"ok": False, "error": "Escribí la subtarea."}), 400
+        orden = (db.session.query(db.func.max(Subtarea.orden)).filter(Subtarea.tarea_id == t.id).scalar() or 0) + 1
+        db.session.add(Subtarea(tarea_id=t.id, texto=texto, orden=orden))
+        db.session.commit()
+        db.session.refresh(t)
+        return jsonify(_subtareas_json(t))
+
+    @app.route("/admin/subtareas/<int:sub_id>", methods=["POST"])
+    @auth.admin_required
+    def subtarea_editar(sub_id):
+        """JSON: {hecha: bool} para tildar, {texto} para renombrar, {borrar: true} para borrar."""
+        from models import Subtarea, Tarea
+        sub = Subtarea.query.get_or_404(sub_id)
+        tarea_id = sub.tarea_id
+        data = request.get_json(silent=True) or {}
+        if data.get("borrar"):
+            db.session.delete(sub)
+        else:
+            if "hecha" in data:
+                sub.hecha = bool(data.get("hecha"))
+            if "texto" in data:
+                texto = (data.get("texto") or "").strip()[:300]
+                if not texto:
+                    return jsonify({"ok": False, "error": "La subtarea no puede quedar vacía."}), 400
+                sub.texto = texto
+        db.session.commit()
+        return jsonify(_subtareas_json(Tarea.query.get(tarea_id)))
 
     @app.route("/admin/tareas/nueva", methods=["POST"])
     @auth.admin_required
