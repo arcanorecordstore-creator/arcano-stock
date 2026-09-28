@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.53"
+APP_VERSION = "5.54"
 import metrics
 import auth
 import mailer
@@ -9381,11 +9381,16 @@ def register_routes(app: Flask) -> None:
     def tareas_page():
         from models import Tarea, CATEGORIAS_TAREA, PRIORIDADES_TAREA, ESTADOS_TAREA
         hoy = today_uy()
-        vista = "ideas" if request.args.get("vista") == "ideas" else "tareas"
+        vista = request.args.get("vista") if request.args.get("vista") in ("ideas", "constancia") else "tareas"
         if vista == "ideas":
             n_abiertas = Tarea.query.filter(Tarea.estado != "Hecha").count()
             return render_template("tareas.html", vista=vista, n_abiertas=n_abiertas,
-                                   hoy=hoy, **_ideas_ctx())
+                                   n_constancia=_n_constancia(), **_ideas_ctx())
+        if vista == "constancia":
+            n_abiertas = Tarea.query.filter(Tarea.estado != "Hecha").count()
+            return render_template("tareas.html", vista=vista, n_abiertas=n_abiertas,
+                                   n_ideas_pend=_n_ideas_pend(), n_constancia=_n_constancia(),
+                                   **_constancia_ctx())
         cat = (request.args.get("cat") or "").strip()
         ver = (request.args.get("ver") or "abiertas").strip()      # abiertas | todas | hechas
         orden = (request.args.get("orden") or "dias").strip()      # dias | prioridad | nombre | creada
@@ -9417,7 +9422,7 @@ def register_routes(app: Flask) -> None:
         cats = CATEGORIAS_TAREA + [c for c in cats_usadas if c not in CATEGORIAS_TAREA]
         return render_template(
             "tareas.html", vista=vista, filas=filas, n_abiertas=n_abiertas, n_hechas=len(todas_db) - n_abiertas,
-            n_ideas_pend=_n_ideas_pend(),
+            n_ideas_pend=_n_ideas_pend(), n_constancia=_n_constancia(),
             sugeridas=_tareas_sugeridas(), hoy=hoy, cat=cat, ver=ver, orden=orden, cats=cats,
             cats_usadas=cats_usadas, prioridades=PRIORIDADES_TAREA, estados_tarea=ESTADOS_TAREA,
             dias_txt=_tk_dias_txt, dias_partes=_tk_dias_partes, resumen=resumen,
@@ -9512,6 +9517,15 @@ def register_routes(app: Flask) -> None:
                 "n_ideas_pub": len(todas) - n_pend,
                 "formatos_idea": FORMATOS_IDEA, "estados_idea": ESTADOS_IDEA}
 
+    def _n_constancia():
+        """Metas de constancia que todavia no estan cumplidas hoy (para la pestaña)."""
+        try:
+            ctx = _constancia_ctx()
+            return ctx["resumen_c"]["atrasadas"] + (ctx["resumen_c"]["hoy_total"] - ctx["resumen_c"]["hoy_ok"])
+        except Exception:
+            db.session.rollback()
+            return 0
+
     def _n_ideas_pend():
         from models import IdeaContenido
         try:
@@ -9598,6 +9612,219 @@ def register_routes(app: Flask) -> None:
         db.session.commit()
         flash("Idea borrada.", "success")
         return _volver_ideas()
+
+    # ------------------------------------------------------------------
+    # CONSTANCIA (tercera pestaña de Tareas): metas de frecuencia de contenido
+    # ------------------------------------------------------------------
+    _DIAS_CORTOS = ["L", "M", "M", "J", "V", "S", "D"]
+
+    def _habito_estado(h, hoy, regs):
+        """Estado de una meta. regs = {fecha: cantidad} de ese habito (ultimas semanas).
+        Semanas de lunes a domingo."""
+        from datetime import timedelta as _td
+        cant = max(1, h.cantidad or 1)
+        lunes = hoy - _td(days=hoy.weekday())
+        semana = [lunes + _td(days=i) for i in range(7)]
+        hoy_n = regs.get(hoy, 0)
+
+        def estado_dia(d):
+            n = regs.get(d, 0)
+            if d > hoy:
+                return "futuro"
+            if h.frecuencia == "dia":
+                return "ok" if n >= cant else ("parcial" if n > 0 else "no")
+            return "ok" if n > 0 else "no"
+
+        grid = [{"fecha": d.isoformat(), "dia": _DIAS_CORTOS[i], "n": regs.get(d, 0),
+                 "estado": estado_dia(d), "hoy": d == hoy} for i, d in enumerate(semana)]
+
+        if h.frecuencia == "dia":
+            meta_dias = max(1, min(7, h.dias_semana or 7))
+            cumplidos = sum(1 for d in semana if d <= hoy and regs.get(d, 0) >= cant)
+            restantes = sum(1 for d in semana if d >= hoy)   # hoy incluido
+            hoy_ok = hoy_n >= cant
+            if cumplidos >= meta_dias:
+                est, txt = "ok", "Semana cumplida"
+            elif cumplidos + restantes - (1 if hoy_ok else 0) >= meta_dias:
+                faltan = meta_dias - cumplidos
+                est, txt = "camino", f"Faltan {faltan} día{'s' if faltan != 1 else ''} esta semana"
+            else:
+                est, txt = "atrasado", "No llegás a la meta de la semana"
+            periodo = f"{cumplidos}/{meta_dias} días"
+            meta_txt = f"{cant} al día · {meta_dias} día{'s' if meta_dias != 1 else ''} por semana"
+            hoy_meta = cant
+        elif h.frecuencia == "semana":
+            hechos = sum(regs.get(d, 0) for d in semana if d <= hoy)
+            if hechos >= cant:
+                est, txt = "ok", "Semana cumplida"
+            else:
+                dias_q = 6 - hoy.weekday()
+                est = "atrasado" if dias_q == 0 else "camino"
+                txt = "Te queda hoy" if dias_q == 0 else f"Te quedan {dias_q} día{'s' if dias_q != 1 else ''}"
+            periodo = f"{hechos}/{cant} esta semana"
+            meta_txt = f"{cant} por semana"
+            hoy_meta = None
+        else:  # cada N dias (ventana movil)
+            n_dias = max(1, h.cada_dias or 15)
+            desde = hoy - _td(days=n_dias - 1)
+            hechos = sum(c for d, c in regs.items() if desde <= d <= hoy)
+            ultimas = sorted([d for d, c in regs.items() if c > 0 and d <= hoy], reverse=True)
+            ult = ultimas[0] if ultimas else None
+            if hechos >= cant and ult:
+                quedan = n_dias - (hoy - ult).days
+                est, txt = "ok", f"Al día · el próximo en {quedan} día{'s' if quedan != 1 else ''}"
+            elif ult:
+                hace = (hoy - ult).days
+                est, txt = "atrasado", f"Toca: el último fue hace {hace} días"
+            else:
+                est, txt = "atrasado", "Toca: todavía no lo registraste"
+            periodo = f"{hechos}/{cant} en {n_dias} días"
+            meta_txt = f"{cant} cada {n_dias} días"
+            hoy_meta = None
+        return {"id": h.id, "hoy_n": hoy_n, "hoy_meta": hoy_meta, "grid": grid, "estado": est,
+                "estado_txt": txt, "periodo": periodo, "meta_txt": meta_txt}
+
+    def _habitos_registros(ids, hoy):
+        """{habito_id: {fecha: cantidad}} de las ultimas 5 semanas, en una sola consulta."""
+        from models import HabitoRegistro
+        from datetime import timedelta as _td
+        out = {i: {} for i in ids}
+        if not ids:
+            return out
+        for r in (HabitoRegistro.query
+                  .filter(HabitoRegistro.habito_id.in_(ids), HabitoRegistro.fecha >= hoy - _td(days=35))
+                  .all()):
+            out.setdefault(r.habito_id, {})[r.fecha] = r.cantidad or 0
+        return out
+
+    def _constancia_ctx():
+        from models import HabitoContenido, FRECUENCIAS_HABITO
+        hoy = today_uy()
+        habitos = HabitoContenido.query.order_by(HabitoContenido.orden.asc(), HabitoContenido.id.asc()).all()
+        regs = _habitos_registros([h.id for h in habitos], hoy)
+        filas = [(h, _habito_estado(h, hoy, regs.get(h.id, {}))) for h in habitos]
+        diarios = [e for h, e in filas if h.frecuencia == "dia"]
+        resumen_c = {
+            "metas": len(filas),
+            "hoy_ok": sum(1 for e in diarios if e["hoy_n"] >= (e["hoy_meta"] or 1)),
+            "hoy_total": len(diarios),
+            "al_dia": sum(1 for _, e in filas if e["estado"] in ("ok", "camino")),
+            "atrasadas": sum(1 for _, e in filas if e["estado"] == "atrasado"),
+        }
+        return {"habitos": filas, "resumen_c": resumen_c, "frecuencias": FRECUENCIAS_HABITO,
+                "hoy": hoy}
+
+    def _habito_json(h):
+        hoy = today_uy()
+        regs = _habitos_registros([h.id], hoy).get(h.id, {})
+        d = _habito_estado(h, hoy, regs)
+        d["ok"] = True
+        return d
+
+    @app.route("/admin/constancia/nuevo", methods=["POST"])
+    @auth.admin_required
+    def habito_nuevo():
+        from models import HabitoContenido, FRECUENCIAS_HABITO
+        nombre = (request.form.get("nombre") or "").strip()[:120]
+        if not nombre:
+            flash("Poné qué vas a publicar (ej: Stories de discos).", "error")
+            return redirect(url_for("tareas_page", vista="constancia"))
+
+        def _n(k, dflt, lo, hi):
+            try:
+                return max(lo, min(hi, int(request.form.get(k) or dflt)))
+            except (TypeError, ValueError):
+                return dflt
+        frec = request.form.get("frecuencia") or "dia"
+        if frec not in FRECUENCIAS_HABITO:
+            frec = "dia"
+        orden = (db.session.query(db.func.max(HabitoContenido.orden)).scalar() or 0) + 1
+        db.session.add(HabitoContenido(nombre=nombre, cantidad=_n("cantidad", 1, 1, 50), frecuencia=frec,
+                                       dias_semana=_n("dias_semana", 7, 1, 7),
+                                       cada_dias=_n("cada_dias", 15, 1, 90), orden=orden))
+        db.session.commit()
+        flash("Meta agregada.", "success")
+        return redirect(url_for("tareas_page", vista="constancia"))
+
+    @app.route("/admin/constancia/<int:habito_id>/marcar", methods=["POST"])
+    @auth.admin_required
+    def habito_marcar(habito_id):
+        """Suma/resta publicaciones de un dia (hoy por defecto) o marca/desmarca un dia
+        entero desde la grilla de la semana. JSON: {delta: 1|-1} o {fecha, toggle: true}."""
+        from models import HabitoContenido, HabitoRegistro
+        h = HabitoContenido.query.get_or_404(habito_id)
+        data = request.get_json(silent=True) or {}
+        hoy = today_uy()
+        try:
+            fecha = datetime.strptime(data.get("fecha") or "", "%Y-%m-%d").date() if data.get("fecha") else hoy
+        except ValueError:
+            return jsonify({"ok": False, "error": "Fecha inválida."}), 400
+        if fecha > hoy:
+            return jsonify({"ok": False, "error": "No se puede marcar un día que todavía no llegó."}), 400
+        reg = HabitoRegistro.query.filter_by(habito_id=h.id, fecha=fecha).first()
+        actual = reg.cantidad if reg else 0
+        meta_dia = max(1, h.cantidad or 1) if h.frecuencia == "dia" else 1
+        if data.get("toggle"):
+            nuevo = 0 if actual >= meta_dia else meta_dia
+        else:
+            try:
+                delta = int(data.get("delta") or 0)
+            except (TypeError, ValueError):
+                delta = 0
+            nuevo = max(0, min(99, actual + delta))
+        if nuevo == 0:
+            if reg:
+                db.session.delete(reg)
+        elif reg:
+            reg.cantidad = nuevo
+        else:
+            db.session.add(HabitoRegistro(habito_id=h.id, fecha=fecha, cantidad=nuevo))
+        db.session.commit()
+        return jsonify(_habito_json(h))
+
+    @app.route("/admin/constancia/<int:habito_id>/campo", methods=["POST"])
+    @auth.admin_required
+    def habito_campo(habito_id):
+        from models import HabitoContenido, FRECUENCIAS_HABITO
+        h = HabitoContenido.query.get_or_404(habito_id)
+        data = request.get_json(silent=True) or {}
+        campo = (data.get("campo") or "").strip()
+        txt = ("" if data.get("valor") is None else str(data.get("valor"))).strip()
+
+        def _n(lo, hi):
+            try:
+                return max(lo, min(hi, int(float(txt))))
+            except (TypeError, ValueError):
+                return None
+        if campo == "titulo":
+            if not txt:
+                return jsonify({"ok": False, "error": "La meta necesita un nombre."}), 400
+            h.nombre = txt[:120]
+        elif campo == "frecuencia":
+            if txt not in FRECUENCIAS_HABITO:
+                return jsonify({"ok": False, "error": "Frecuencia inválida."}), 400
+            h.frecuencia = txt
+        elif campo in ("cantidad", "dias_semana", "cada_dias"):
+            n = _n(1, {"cantidad": 50, "dias_semana": 7, "cada_dias": 90}[campo])
+            if n is None:
+                return jsonify({"ok": False, "error": "Poné un número."}), 400
+            setattr(h, campo, n)
+        else:
+            return jsonify({"ok": False, "error": "Campo no editable."}), 400
+        db.session.commit()
+        d = _habito_json(h)
+        d["recargar"] = campo == "frecuencia"   # cambia la forma de la fila
+        return jsonify(d)
+
+    @app.route("/admin/constancia/<int:habito_id>/borrar", methods=["POST"])
+    @auth.admin_required
+    def habito_borrar(habito_id):
+        from models import HabitoContenido
+        h = HabitoContenido.query.get_or_404(habito_id)
+        db.session.delete(h)
+        db.session.commit()
+        flash("Meta borrada.", "success")
+        return redirect(url_for("tareas_page", vista="constancia"))
 
     @app.route("/admin/tareas/nueva", methods=["POST"])
     @auth.admin_required

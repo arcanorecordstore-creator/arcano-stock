@@ -75,6 +75,8 @@
             el.dataset.ultimo = String(valor);
             guardar(base, id, campo, valor).then(function (res) {
                 if (res.ok) {
+                    if (res.data.recargar) { window.location.reload(); return; }
+                    if (res.data.grid && window.__ctRender) window.__ctRender(filaDe(id), res.data);
                     refrescarFila(filaDe(id), res.data);
                     if (campo === 'detalle') {
                         var fila = filaDe(id);
@@ -124,3 +126,83 @@
         });
     });
 })();
+
+/* Constancia: contador de hoy (- / +) y casilleros de la semana. */
+(function () {
+    'use strict';
+    var tabla = document.getElementById('tk-constancia');
+
+    function render(fila, d) {
+        if (!fila || !d) return;
+        var n = fila.querySelector('.ct-hoy-n');
+        if (n) {
+            n.innerHTML = '<b>' + d.hoy_n + '</b>' + (d.hoy_meta ? '<small>/' + d.hoy_meta + '</small>' : '');
+            n.classList.toggle('is-ok', !!(d.hoy_meta && d.hoy_n >= d.hoy_meta));
+        }
+        var menos = fila.querySelector('.ct-step[data-delta="-1"]');
+        if (menos) menos.disabled = !d.hoy_n;
+        (d.grid || []).forEach(function (g) {
+            var b = fila.querySelector('.ct-dia[data-fecha="' + g.fecha + '"]');
+            if (!b) return;
+            b.className = 'ct-dia is-' + g.estado + (g.hoy ? ' is-hoy' : '');
+        });
+        var per = fila.querySelector('.ct-periodo');
+        if (per) per.textContent = d.periodo;
+        var est = fila.querySelector('.ct-estado');
+        if (est) { est.textContent = d.estado_txt; est.className = 'ct-estado ct-estado-' + d.estado; }
+        fila.className = fila.className.replace(/ct-(ok|camino|atrasado)/, 'ct-' + d.estado);
+        resumen();
+    }
+
+    // Franja de arriba: se recalcula con lo que muestran las filas.
+    function resumen() {
+        var filas = document.querySelectorAll('tr.ct-row');
+        var diarias = 0, hoyOk = 0, alDia = 0, atr = 0;
+        Array.prototype.forEach.call(filas, function (f) {
+            var n = f.querySelector('.ct-hoy-n');
+            if (n && n.querySelector('small')) { diarias++; if (n.classList.contains('is-ok')) hoyOk++; }
+            if (f.classList.contains('ct-atrasado')) atr++; else alDia++;
+        });
+        var set = function (k, v) { var el = document.querySelector('[data-ct="' + k + '"]'); if (el) el.textContent = v; };
+        set('hoy', hoyOk + '/' + diarias); set('aldia', alDia); set('atr', atr);
+        var box = document.querySelector('[data-ct-box="atr"]');
+        if (box) box.classList.toggle('is-late', atr > 0);
+    }
+    window.__ctRender = render;
+    if (!tabla) return;
+
+    function marcar(fila, body, btn) {
+        if (btn) btn.disabled = true;
+        fetch('/admin/constancia/' + fila.dataset.id + '/marcar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+            body: JSON.stringify(body)
+        }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok && d.ok, data: d }; }); })
+          .then(function (res) {
+              if (btn) btn.disabled = false;
+              if (res.ok) render(fila, res.data);
+              else alert((res.data && res.data.error) || 'No se pudo guardar.');
+          })
+          .catch(function () { if (btn) btn.disabled = false; });
+    }
+
+    tabla.addEventListener('click', function (e) {
+        var step = e.target.closest('.ct-step');
+        var dia = e.target.closest('.ct-dia');
+        var fila = e.target.closest('tr.ct-row');
+        if (!fila) return;
+        if (step) marcar(fila, { delta: parseInt(step.dataset.delta, 10) }, step);
+        else if (dia && !dia.disabled) marcar(fila, { fecha: dia.dataset.fecha, toggle: true }, null);
+    });
+
+    // Alta: mostrar el campo extra segun la frecuencia elegida
+    var frec = document.querySelector('.ct-new-frec');
+    if (frec) {
+        var sync = function () {
+            document.querySelectorAll('.ct-new-extra').forEach(function (x) { x.hidden = x.dataset.para !== frec.value; });
+        };
+        frec.addEventListener('change', sync);
+        sync();
+    }
+})();
+

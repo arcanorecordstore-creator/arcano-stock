@@ -1646,6 +1646,39 @@ class IdeaContenido(db.Model):
         return f"<IdeaContenido {self.id} {self.titulo!r} {self.estado}>"
 
 
+FRECUENCIAS_HABITO = {"dia": "Por día", "semana": "Por semana", "dias": "Cada N días"}
+
+
+class HabitoContenido(db.Model):
+    """Meta de constancia de contenido (ej: '2 videos de discos al dia x 4 dias').
+    frecuencia: 'dia' (cantidad por dia, dias_semana dias por semana), 'semana'
+    (cantidad por semana) o 'dias' (cantidad cada `cada_dias` dias)."""
+    __tablename__ = "habitos_contenido"
+
+    id = db.Column(db.Integer, primary_key=True)
+    nombre = db.Column(db.String(120), nullable=False)
+    cantidad = db.Column(db.Integer, nullable=False, default=1)
+    frecuencia = db.Column(db.String(10), nullable=False, default="dia")
+    dias_semana = db.Column(db.Integer, nullable=False, default=7)
+    cada_dias = db.Column(db.Integer, nullable=False, default=15)
+    orden = db.Column(db.Integer, nullable=False, default=0)
+    creado = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    registros = db.relationship("HabitoRegistro", backref="habito", cascade="all, delete-orphan",
+                                lazy="select")
+
+
+class HabitoRegistro(db.Model):
+    """Cuantas publicaciones de un habito se hicieron un dia dado."""
+    __tablename__ = "habitos_registro"
+    __table_args__ = (db.UniqueConstraint("habito_id", "fecha", name="uq_habito_fecha"),)
+
+    id = db.Column(db.Integer, primary_key=True)
+    habito_id = db.Column(db.Integer, db.ForeignKey("habitos_contenido.id", ondelete="CASCADE"), nullable=False, index=True)
+    fecha = db.Column(db.Date, nullable=False)
+    cantidad = db.Column(db.Integer, nullable=False, default=0)
+
+
 # ---------------------------------------------------------------------------
 # Inicializacion
 # ---------------------------------------------------------------------------
@@ -2161,6 +2194,29 @@ def _migrate_schema(app):
                     db.session.add(Setting(key=_FLAG, value="1"))
                     db.session.commit()
                     print(f"Migracion: {cambiados} discos pasados a condicion '{_NUEVO}'")
+            except Exception:
+                db.session.rollback()
+
+        # Constancia (v5.54): carga UNA vez las metas que Facundo tenia anotadas.
+        # Se pueden editar o borrar desde Tareas > Constancia; no se vuelven a crear.
+        if inspector.has_table("settings"):
+            try:
+                _FLAG = "seed_constancia_v554"
+                if Setting.query.filter_by(key=_FLAG).first() is None:
+                    # Las tablas nuevas se crean despues (create_all en init_db): crearlas ya.
+                    HabitoContenido.__table__.create(db.engine, checkfirst=True)
+                    HabitoRegistro.__table__.create(db.engine, checkfirst=True)
+                    if HabitoContenido.query.count() == 0:
+                        for i, (nom, cant, frec, dsem, cada) in enumerate([
+                            ("Videos de discos", 2, "dia", 4, 15),
+                            ("Stories de discos", 3, "dia", 7, 15),
+                            ("Reel tocando", 1, "semana", 7, 15),
+                            ("Contenido diferente", 1, "dias", 7, 15),
+                        ]):
+                            db.session.add(HabitoContenido(nombre=nom, cantidad=cant, frecuencia=frec,
+                                                           dias_semana=dsem, cada_dias=cada, orden=i))
+                    db.session.add(Setting(key=_FLAG, value="1"))
+                    db.session.commit()
             except Exception:
                 db.session.rollback()
 

@@ -11848,3 +11848,49 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 .tk-table-wrap { position: relative; }
 /* Contabilidad: el grafico de 6 meses se desliza dentro de su recuadro en el celular */
 @media (max-width: 600px) { .chart6 { max-width: 100%; overflow-x: auto; } }
+
+/* =====================================================================
+   TAREAS · Constancia (v5.54): metas de frecuencia de publicaciones
+   ===================================================================== */
+.tk-table-constancia { min-width: 980px; }
+.tk-c-meta { width: 290px; }
+.tk-c-hoy { width: 130px; }
+.tk-c-semana { width: 330px; }
+.tk-c-estado-c { width: 210px; }
+.tk-th-note { text-transform: none; letter-spacing: 0; font-weight: 400; opacity: .7; }
+.ct-meta { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+.ct-num { width: 52px !important; text-align: center !important; }
+.ct-x, .ct-u { font-size: 12px; color: var(--text-4); }
+.ct-hoy { display: inline-flex; align-items: center; gap: 8px; }
+.ct-step { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--border-2); background: var(--bg-1); color: var(--text-2); font: inherit; font-size: 16px; line-height: 1; cursor: pointer; transition: border-color .15s ease, background-color .15s ease, opacity .12s ease; }
+.ct-step:hover:not(:disabled) { border-color: var(--tk-ink); color: var(--text-1); }
+.ct-step:active:not(:disabled) { opacity: .6; }
+.ct-step:disabled { opacity: .35; cursor: default; }
+.ct-step-mas { background: var(--tk-ink-soft); }
+.ct-hoy-n { min-width: 38px; text-align: center; font-variant-numeric: tabular-nums; }
+.ct-hoy-n b { font-size: 20px; font-weight: 500; color: var(--text-1); }
+.ct-hoy-n small { font-size: 12px; color: var(--text-4); margin-left: 1px; }
+.ct-hoy-n.is-ok b { color: var(--gain); }
+.ct-semana { display: flex; align-items: flex-end; gap: 5px; }
+.ct-dia { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; padding: 0; border: 0; background: transparent; cursor: pointer; font: inherit; }
+.ct-dia:disabled { cursor: default; }
+.ct-dia-l { font-size: 10px; letter-spacing: .08em; color: var(--text-4); }
+.ct-dia.is-hoy .ct-dia-l { color: var(--text-1); font-weight: 700; }
+.ct-dia-box { width: 26px; height: 26px; border-radius: 7px; border: 1.5px solid var(--border-3); background: transparent; transition: background-color .2s ease, border-color .2s ease; }
+.ct-dia:hover:not(:disabled) .ct-dia-box { border-color: var(--tk-ink); }
+.ct-dia.is-ok .ct-dia-box { background: var(--gain); border-color: var(--gain); }
+.ct-dia.is-parcial .ct-dia-box { background: color-mix(in srgb, var(--gain) 30%, transparent); border-color: var(--gain); }
+.ct-dia.is-futuro .ct-dia-box { opacity: .35; border-style: dashed; }
+.ct-dia.is-hoy .ct-dia-box { box-shadow: 0 0 0 2px var(--bg-1), 0 0 0 3.5px var(--tk-ink); }
+.ct-periodo { margin-left: 8px; font-size: 12px; color: var(--text-3); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ct-estado { font-size: 12.5px; font-weight: 500; color: var(--text-2); }
+.ct-estado-ok { color: var(--gain); }
+.ct-estado-camino { color: var(--text-1); }
+.ct-estado-atrasado { color: var(--loss); }
+.ct-row.ct-atrasado > td:first-child { box-shadow: inset 2px 0 0 var(--loss); }
+.ct-row.ct-ok > td:first-child { box-shadow: inset 2px 0 0 var(--gain); }
+.ct-new { flex-wrap: wrap; gap: 8px; }
+.ct-new .tk-new-input { min-width: 220px; }
+.ct-new-extra { display: inline-flex; align-items: center; gap: 4px; }
+.ct-new-extra[hidden] { display: none; }
+.ct-ayuda { margin-top: 10px; font-size: 12px; color: var(--text-4); font-weight: 300; }

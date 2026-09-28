@@ -23,7 +23,9 @@
 <section class="page-head">
     <div>
         <h1 class="page-title">Tareas</h1>
-        {% if vista == 'ideas' %}
+        {% if vista == 'constancia' %}
+        <p class="page-sub">Tu constancia de publicaciones: marcá lo que vas subiendo cada día.</p>
+        {% elif vista == 'ideas' %}
         <p class="page-sub">{{ n_ideas_pend }} idea{{ 's' if n_ideas_pend != 1 else '' }} por hacer &middot; {{ n_ideas_pub }} publicada{{ 's' if n_ideas_pub != 1 else '' }}</p>
         {% else %}
         <p class="page-sub">{{ n_abiertas }} pendiente{{ 's' if n_abiertas != 1 else '' }} &middot; {{ n_hechas }} hecha{{ 's' if n_hechas != 1 else '' }}</p>
@@ -34,10 +36,13 @@
 <nav class="tk-vistas" aria-label="Secciones">
     <a href="{{ url_for('tareas_page') }}" class="{% if vista != 'ideas' %}is-on{% endif %}">Tareas <span>{{ n_abiertas }}</span></a>
     <a href="{{ url_for('tareas_page', vista='ideas') }}" class="{% if vista == 'ideas' %}is-on{% endif %}">Ideas de contenido <span>{{ n_ideas_pend }}</span></a>
+    <a href="{{ url_for('tareas_page', vista='constancia') }}" class="{% if vista == 'constancia' %}is-on{% endif %}">Constancia{% if n_constancia %} <span>{{ n_constancia }}</span>{% endif %}</a>
 </nav>
 
 {% if vista == 'ideas' %}
 {% include "_ideas_contenido.html" %}
+{% elif vista == 'constancia' %}
+{% include "_constancia.html" %}
 {% else %}
 
 <datalist id="tk-cats">{% for c in cats %}<option value="{{ c }}">{% endfor %}</datalist>
