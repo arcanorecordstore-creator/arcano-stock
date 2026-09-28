@@ -74,6 +74,7 @@
                     </div>
                 </div>
 
+                <a href="{{ url_for('tareas_page') }}" class="nav-link {% if ep.startswith('tarea') %}active{% endif %}">Tareas</a>
                 <a href="{{ url_for('settings_page') }}" class="nav-link {% if ep.startswith('settings') %}active{% endif %}">Ajustes</a>
                 <a href="{{ url_for('admin_historial') }}" class="nav-link {% if ep.startswith('admin_historial') %}active{% endif %}">Historial</a>
                 <a href="{{ url_for('home') }}" target="_blank" class="nav-link nav-link-external" title="Ver tienda publica">Tienda &nearr;</a>

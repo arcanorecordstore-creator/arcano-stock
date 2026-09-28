@@ -14,6 +14,33 @@
     </div>
 </section>
 
+{% if tareas_res and (tareas_res.abiertas or tareas_res.sugeridas) %}
+<a href="{{ url_for('tareas_page') }}" class="tareas-strip{% if tareas_res.vencidas %} has-vencidas{% endif %}">
+    <span class="tareas-strip-head">
+        <span class="tareas-strip-title">Tareas</span>
+        <span class="tareas-strip-counts">
+            {% if tareas_res.vencidas %}<span class="ts-vencidas">{{ tareas_res.vencidas }} vencida{{ 's' if tareas_res.vencidas != 1 else '' }}</span>{% endif %}
+            {% if tareas_res.hoy %}<span class="ts-hoy">{{ tareas_res.hoy }} para hoy</span>{% endif %}
+            <span>{{ tareas_res.abiertas }} pendiente{{ 's' if tareas_res.abiertas != 1 else '' }}</span>
+            {% if tareas_res.sugeridas %}<span>&middot; {{ tareas_res.sugeridas }} sugerida{{ 's' if tareas_res.sugeridas != 1 else '' }}</span>{% endif %}
+        </span>
+        <span class="tareas-strip-go">Ver &rarr;</span>
+    </span>
+    {% if tareas_res.top %}
+    <span class="tareas-strip-list">
+        {% for t in tareas_res.top %}
+        {% set dr = t.dias_restantes(tareas_res.hoy_fecha) %}
+        <span class="tareas-strip-item">
+            <span class="ts-dot ts-p{{ t.prioridad or 0 }}"></span>
+            <span class="ts-name">{{ t.titulo }}</span>
+            {% if dr is not none %}<span class="ts-when{% if dr < 0 %} is-late{% elif dr == 0 %} is-today{% endif %}">{% if dr < 0 %}venció hace {{ -dr }} d{% elif dr == 0 %}hoy{% elif dr == 1 %}mañana{% else %}en {{ dr }} d{% endif %}</span>{% endif %}
+        </span>
+        {% endfor %}
+    </span>
+    {% endif %}
+</a>
+{% endif %}
+
 <div class="quick-actions">
     <a href="{{ url_for('disc_new') }}" class="quick-action">
         <span class="quick-action-icon">&#43;</span>

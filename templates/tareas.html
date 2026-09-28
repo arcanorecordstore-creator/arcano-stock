@@ -1,0 +1,224 @@
+{% extends "base.html" %}
+
+{% block title %}Tareas &middot; Arcano{% endblock %}
+
+{% macro cuando(t) -%}
+{% set dr = t.dias_restantes(hoy) %}
+{% if dr is not none %}
+<span class="tk-when{% if dr < 0 %} is-late{% elif dr == 0 %} is-today{% elif dr <= 2 %} is-soon{% endif %}" title="{{ t.fecha_limite.strftime('%d/%m/%Y') }}">
+    {%- if dr < 0 %}venció hace {{ -dr }} día{{ 's' if -dr != 1 else '' }}
+    {%- elif dr == 0 %}hoy
+    {%- elif dr == 1 %}mañana
+    {%- else %}en {{ dr }} días{% endif -%}
+    <small>{{ t.fecha_limite.strftime('%d/%m') }}</small>
+</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro prio(n) -%}
+{% if n %}
+<span class="tk-prio tk-prio-{{ n }}" title="Prioridad: {{ prioridades[n] }}" aria-label="Prioridad {{ prioridades[n] }}">
+    {% for i in range(1, 5) %}<i class="{% if i <= n %}on{% endif %}"></i>{% endfor %}
+</span>
+{% endif %}
+{%- endmacro %}
+
+{% macro campos(t, sufijo) %}
+{# Campos compartidos por "nueva" y "editar". t puede ser None. #}
+<div class="tk-grid">
+    <div class="form-field">
+        <label for="cat-{{ sufijo }}">Categor&iacute;a</label>
+        <input type="text" id="cat-{{ sufijo }}" name="categoria" list="tk-cats" maxlength="60"
+               value="{{ t.categoria if t and t.categoria else '' }}" placeholder="Ej: Compras">
+    </div>
+    <div class="form-field">
+        <label for="fl-{{ sufijo }}">Fecha l&iacute;mite</label>
+        <input type="date" id="fl-{{ sufijo }}" name="fecha_limite"
+               value="{{ t.fecha_limite.strftime('%Y-%m-%d') if t and t.fecha_limite else '' }}">
+    </div>
+    <div class="form-field tk-prio-field">
+        <span class="tk-label">Prioridad</span>
+        <div class="tk-seg" role="radiogroup" aria-label="Prioridad">
+            {% for n, nombre in prioridades.items() %}
+            <label class="tk-seg-opt tk-seg-{{ n }}">
+                <input type="radio" name="prioridad" value="{{ n }}" {% if (t.prioridad if t else 0) == n %}checked{% endif %}>
+                <span>{{ nombre if n else '—' }}</span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+    {% if t %}
+    <div class="form-field">
+        <label for="est-{{ sufijo }}">Estado</label>
+        <select id="est-{{ sufijo }}" name="estado">
+            {% for e in estados_tarea %}<option value="{{ e }}" {% if t.estado == e %}selected{% endif %}>{{ e }}</option>{% endfor %}
+        </select>
+    </div>
+    {% endif %}
+    <div class="form-field tk-meta-field">
+        <span class="tk-label">Avance (opcional)</span>
+        <div class="tk-meta-inputs">
+            {% if t %}<input type="number" name="progreso" min="0" step="1" value="{{ t.progreso if t.progreso is not none else '' }}" placeholder="Hecho" aria-label="Progreso">
+            <span>de</span>{% endif %}
+            <input type="number" name="meta" min="0" step="1" value="{{ t.meta if t and t.meta else '' }}" placeholder="Meta (ej: 5)" aria-label="Meta">
+        </div>
+    </div>
+    <label class="tk-check">
+        <input type="checkbox" name="agendada" value="1" {% if t and t.agendada %}checked{% endif %}>
+        <span>Agendada</span>
+    </label>
+    <div class="form-field tk-full">
+        <label for="det-{{ sufijo }}">Nota</label>
+        <textarea id="det-{{ sufijo }}" name="detalle" rows="2" placeholder="Links, pasos, a quién escribirle…">{{ t.detalle if t and t.detalle else '' }}</textarea>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro fila(t) %}
+<article class="tk-row tk-{{ 'hecha' if t.hecha else ('curso' if t.estado == 'En curso' else 'nueva') }}" id="t{{ t.id }}">
+    <form method="post" action="{{ url_for('tarea_rapido', tarea_id=t.id) }}" class="tk-done-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="volver_cat" value="{{ cat }}">
+        <input type="hidden" name="accion" value="{{ 'Sin empezar' if t.hecha else 'Hecha' }}">
+        <button type="submit" class="tk-done" title="{{ 'Reabrir' if t.hecha else 'Marcar como hecha' }}" aria-label="{{ 'Reabrir' if t.hecha else 'Marcar como hecha' }}">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+    </form>
+
+    <div class="tk-main">
+        <div class="tk-title">{{ t.titulo }}</div>
+        <div class="tk-sub">
+            {% if not t.hecha %}
+            <form method="post" action="{{ url_for('tarea_rapido', tarea_id=t.id) }}" class="tk-inline">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="volver_cat" value="{{ cat }}">
+                <input type="hidden" name="accion" value="{{ 'Sin empezar' if t.estado == 'En curso' else 'En curso' }}">
+                <button type="submit" class="tk-estado tk-estado-{{ 'curso' if t.estado == 'En curso' else 'nueva' }}" title="Tocá para pasar a {{ 'Sin empezar' if t.estado == 'En curso' else 'En curso' }}">{{ t.estado }}</button>
+            </form>
+            {% else %}
+            <span class="tk-estado tk-estado-hecha">Hecha{% if t.hecha_en %} &middot; {{ t.hecha_en.strftime('%d/%m') }}{% endif %}</span>
+            {% endif %}
+            {% if t.categoria %}<span class="tk-cat">{{ t.categoria }}</span>{% endif %}
+            {% if t.agendada %}<span class="tk-agendada" title="Agendada">&#9716; Agendada</span>{% endif %}
+            {% if not t.hecha %}{{ cuando(t) }}{% endif %}
+        </div>
+        {% if t.detalle %}<p class="tk-detalle">{{ t.detalle }}</p>{% endif %}
+    </div>
+
+    <div class="tk-side">
+        {{ prio(t.prioridad) }}
+        {% if t.meta %}
+        <div class="tk-avance" title="{{ t.progreso or 0 }} de {{ t.meta }}">
+            <form method="post" action="{{ url_for('tarea_rapido', tarea_id=t.id) }}" class="tk-inline">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="volver_cat" value="{{ cat }}">
+                <button type="submit" name="accion" value="menos" class="tk-step" aria-label="Restar uno" {% if not t.progreso %}disabled{% endif %}>&minus;</button>
+                <span class="tk-bar"><span style="width: {{ t.avance_pct }}%;"></span></span>
+                <span class="tk-num">{{ t.progreso or 0 }}/{{ t.meta }}</span>
+                <button type="submit" name="accion" value="mas" class="tk-step" aria-label="Sumar uno" {% if (t.progreso or 0) >= t.meta %}disabled{% endif %}>+</button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+
+    <details class="tk-edit">
+        <summary title="Editar">Editar</summary>
+        <form method="post" action="{{ url_for('tarea_editar', tarea_id=t.id) }}" class="tk-edit-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="volver_cat" value="{{ cat }}">
+            <div class="form-field">
+                <label for="tit-{{ t.id }}">Tarea</label>
+                <input type="text" id="tit-{{ t.id }}" name="titulo" value="{{ t.titulo }}" maxlength="200" required>
+            </div>
+            {{ campos(t, t.id) }}
+            <div class="tk-edit-actions">
+                <button type="submit" class="btn btn-primary btn-sm">Guardar</button>
+            </div>
+        </form>
+        <form method="post" action="{{ url_for('tarea_borrar', tarea_id=t.id) }}" class="tk-borrar" onsubmit="return confirm('¿Borrar esta tarea?');">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="volver_cat" value="{{ cat }}">
+            <button type="submit" class="btn btn-ghost btn-sm">Borrar tarea</button>
+        </form>
+    </details>
+</article>
+{% endmacro %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Tareas</h1>
+        <p class="page-sub">{{ n_abiertas }} pendiente{{ 's' if n_abiertas != 1 else '' }}{% if cat %} en {{ cat }}{% endif %}{% if sugeridas %} &middot; {{ sugeridas|length }} sugerida{{ 's' if sugeridas|length != 1 else '' }} por la web{% endif %}</p>
+    </div>
+</section>
+
+<datalist id="tk-cats">{% for c in cats %}<option value="{{ c }}">{% endfor %}</datalist>
+
+<form method="post" action="{{ url_for('tarea_nueva') }}" class="tk-new">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="volver_cat" value="{{ cat }}">
+    <div class="tk-new-row">
+        <input type="text" name="titulo" maxlength="200" required placeholder="Nueva tarea… (ej: Grabar reel de la Mystery Box)" aria-label="Nueva tarea" class="tk-new-input">
+        <button type="submit" class="btn btn-primary">Agregar</button>
+    </div>
+    <details class="tk-new-more">
+        <summary>Fecha, prioridad, categor&iacute;a y m&aacute;s</summary>
+        {{ campos(None, 'new') }}
+    </details>
+</form>
+
+{% if cats_usadas %}
+<nav class="tk-filtros" aria-label="Filtrar por categoría">
+    <a href="{{ url_for('tareas_page') }}" class="tk-chip {% if not cat %}is-on{% endif %}">Todas</a>
+    {% for c in cats_usadas %}
+    <a href="{{ url_for('tareas_page', cat=c) }}" class="tk-chip {% if cat == c %}is-on{% endif %}">{{ c }}</a>
+    {% endfor %}
+</nav>
+{% endif %}
+
+{% if sugeridas %}
+<section class="tk-sug">
+    <h2 class="tk-h">Sugeridas por la web <span class="tk-h-note">se van solas cuando lo resolv&eacute;s</span></h2>
+    <ul class="tk-sug-list">
+        {% for s in sugeridas %}
+        <li>
+            <a href="{{ s.url }}" class="tk-sug-item{% if s.urgente %} is-urgente{% endif %}">
+                <span class="tk-sug-dot" aria-hidden="true"></span>
+                <span class="tk-sug-txt">
+                    <strong>{{ s.titulo }}</strong>
+                    <small>{{ s.detalle }}</small>
+                </span>
+                <span class="tk-cat">{{ s.categoria }}</span>
+                <span class="tk-sug-go" aria-hidden="true">&rarr;</span>
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+{% set hay_abiertas = n_abiertas > 0 %}
+{% for key, titulo, lista in grupos %}
+{% if lista %}
+<section class="tk-group tk-group-{{ key }}">
+    <h2 class="tk-h">{{ titulo }} <span class="tk-h-count">{{ lista|length }}</span></h2>
+    <div class="tk-list">
+        {% for t in lista %}{{ fila(t) }}{% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endfor %}
+
+{% if not hay_abiertas %}
+<p class="tk-empty">{% if cat %}No ten&eacute;s tareas pendientes en {{ cat }}.{% else %}No ten&eacute;s tareas pendientes. Agreg&aacute; la primera arriba.{% endif %}</p>
+{% endif %}
+
+{% if hechas %}
+<details class="tk-group tk-hechas">
+    <summary class="tk-h">Hechas <span class="tk-h-count">{{ hechas|length }}</span></summary>
+    <div class="tk-list">
+        {% for t in hechas[:50] %}{{ fila(t) }}{% endfor %}
+    </div>
+</details>
+{% endif %}
+{% endblock %}

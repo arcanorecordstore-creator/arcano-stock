@@ -1575,6 +1575,53 @@ class Pedido(db.Model):
 
 
 # ---------------------------------------------------------------------------
+# Tareas de Facundo para Arcano (to-do del admin)
+# ---------------------------------------------------------------------------
+
+ESTADOS_TAREA = ["Sin empezar", "En curso", "Hecha"]
+PRIORIDADES_TAREA = {0: "Sin prioridad", 1: "Baja", 2: "Media", 3: "Alta", 4: "Urgente"}
+CATEGORIAS_TAREA = ["Compras", "Contenido", "Instagram", "Web", "Envíos", "Clientes", "Admin"]
+
+
+class Tarea(db.Model):
+    """Una tarea pendiente para Arcano. Tabla nueva (create_all), no toca nada mas."""
+    __tablename__ = "tareas"
+
+    id = db.Column(db.Integer, primary_key=True)
+    titulo = db.Column(db.String(200), nullable=False)
+    detalle = db.Column(db.Text, nullable=True)
+    categoria = db.Column(db.String(60), nullable=True)
+    estado = db.Column(db.String(20), nullable=False, default="Sin empezar")
+    agendada = db.Column(db.Boolean, nullable=False, default=False)
+    prioridad = db.Column(db.Integer, nullable=False, default=0)   # 0-4
+    fecha_limite = db.Column(db.Date, nullable=True)
+    progreso = db.Column(db.Integer, nullable=True)   # ej: 3 (de meta)
+    meta = db.Column(db.Integer, nullable=True)       # ej: 5
+    creada = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    hecha_en = db.Column(db.DateTime, nullable=True)
+
+    @property
+    def hecha(self) -> bool:
+        return self.estado == "Hecha"
+
+    def dias_restantes(self, hoy):
+        """Dias hasta la fecha limite (negativo = vencida). None si no tiene fecha."""
+        if not self.fecha_limite:
+            return None
+        return (self.fecha_limite - hoy).days
+
+    @property
+    def avance_pct(self):
+        """% de avance si tiene meta (progreso / meta), si no None."""
+        if not self.meta or self.meta <= 0:
+            return None
+        return max(0, min(100, round((self.progreso or 0) / self.meta * 100)))
+
+    def __repr__(self):
+        return f"<Tarea {self.id} {self.titulo!r} {self.estado}>"
+
+
+# ---------------------------------------------------------------------------
 # Inicializacion
 # ---------------------------------------------------------------------------
 

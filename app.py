@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.46"
+APP_VERSION = "5.47"
 import metrics
 import auth
 import mailer
@@ -1499,6 +1499,7 @@ def register_routes(app: Flask) -> None:
 
         return render_template(
             "dashboard.html",
+            tareas_res=_tareas_resumen(),
             discs=discs,
             totals=totals,
             sellos=sellos,
@@ -9154,6 +9155,285 @@ def register_routes(app: Flask) -> None:
         d.canal_venta = canal or None
         db.session.commit()
         return jsonify({"ok": True, "canal": d.canal_venta or ""})
+
+    # ------------------------------------------------------------------
+    # TAREAS: to-do de Facundo para Arcano + sugerencias automaticas
+    # ------------------------------------------------------------------
+    def _tareas_sugeridas():
+        """Cosas que la web detecta sola y conviene resolver. No se guardan: se
+        recalculan en cada visita y desaparecen cuando el problema se resuelve.
+        Cada una: {titulo, detalle, url, categoria, urgente}."""
+        from models import Cliente, EgresoRecurrente, Egreso
+        from datetime import date as _date
+        sug = []
+        hoy = today_uy()
+
+        def _add(titulo, detalle, url, categoria, urgente=False):
+            sug.append({"titulo": titulo, "detalle": detalle, "url": url,
+                        "categoria": categoria, "urgente": urgente})
+
+        # 1) Reservas pagadas que todavia no entregaste
+        try:
+            pagadas = (Reserva.query.filter(Reserva.estado == "Pagada",
+                                            Reserva.entregado.is_(False))
+                       .order_by(Reserva.id.asc()).all())
+            for r in pagadas[:5]:
+                _add(f"Entregar la reserva #{r.id}", f"{r.nombre or 'Cliente'} · ya está pagada",
+                     url_for("admin_reserva_detail", reserva_id=r.id), "Envíos", True)
+            if len(pagadas) > 5:
+                _add(f"Entregar {len(pagadas) - 5} reservas pagadas más", "Ya están pagadas",
+                     url_for("admin_reservas"), "Envíos", True)
+        except Exception:
+            db.session.rollback()
+        # 2) Reservas pendientes de pago (las mas viejas primero)
+        try:
+            pend = (Reserva.query.filter(Reserva.estado == "Pendiente")
+                    .order_by(Reserva.id.asc()).all())
+            for r in pend[:5]:
+                try:
+                    dias = (hoy - r.fecha.date()).days if r.fecha else None
+                except Exception:
+                    dias = None
+                det = r.nombre or "Cliente"
+                if dias is not None and dias >= 1:
+                    det += f" · hace {dias} día{'s' if dias != 1 else ''}"
+                _add(f"Confirmar el pago de la reserva #{r.id}", det,
+                     url_for("admin_reserva_detail", reserva_id=r.id), "Clientes",
+                     bool(dias and dias >= 7))
+            if len(pend) > 5:
+                _add(f"{len(pend) - 5} reservas pendientes más", "Esperando pago",
+                     url_for("admin_reservas"), "Clientes")
+        except Exception:
+            db.session.rollback()
+        # 3) Encargos que todavia no compraste (sin pedido asignado)
+        try:
+            encargos = visible_records(
+                Disc.query.filter(Disc.estado == "Encargo", Disc.pedido_id.is_(None)).all(), "discs")
+            for d in encargos[:6]:
+                para = f" · para {d.comprador.nombre}" if d.comprador else ""
+                _add(f"Comprar el encargo: {d.artista} – {d.titulo}", f"Todavía sin pedido{para}",
+                     url_for("disc_edit", disc_id=d.id), "Compras")
+        except Exception:
+            db.session.rollback()
+        # 4) Discos a la venta sin precio (no se ven en la tienda)
+        try:
+            sin_precio = visible_records(
+                Disc.query.filter(Disc.estado == "Disponible", Disc.stock > 0,
+                                  (Disc.precio_uyu.is_(None)) | (Disc.precio_uyu <= 0),
+                                  Disc.es_mystery_box.isnot(True)).all(), "discs")
+            if sin_precio:
+                n = len(sin_precio)
+                _add(f"Ponerle precio a {n} disco{'s' if n != 1 else ''}",
+                     "Sin precio no aparecen en la tienda",
+                     url_for("disc_edit", disc_id=sin_precio[0].id) if n == 1 else url_for("dashboard"),
+                     "Web", True)
+        except Exception:
+            db.session.rollback()
+        # 5) Discos a la venta sin portada
+        try:
+            sin_cover = visible_records(
+                Disc.query.filter(Disc.estado.in_(["Disponible", "Pre-order", "Encargo"]),
+                                  (Disc.cover_local.is_(None)) | (Disc.cover_local == ""),
+                                  (Disc.cover_url.is_(None)) | (Disc.cover_url == ""),
+                                  Disc.es_mystery_box.isnot(True)).all(), "discs")
+            if sin_cover:
+                n = len(sin_cover)
+                _add(f"Subir la portada de {n} disco{'s' if n != 1 else ''}",
+                     "Se ven sin foto en la tienda",
+                     url_for("disc_edit", disc_id=sin_cover[0].id) if n == 1 else url_for("dashboard"),
+                     "Web")
+        except Exception:
+            db.session.rollback()
+        # 6) Premios de lealtad para entregar
+        try:
+            if _lealtad_config()["activa"]:
+                for c in Cliente.query.all():
+                    total = sum(e["precio"] for e in _compras_de_cliente(c))
+                    if _lealtad_estado(c, total)["tiene_premio"]:
+                        _add(f"Entregar el premio de lealtad a {c.nombre}", "Llegó a la meta de compras",
+                             url_for("admin_cliente_detail", cliente_id=c.id), "Clientes")
+        except Exception:
+            db.session.rollback()
+        # 7) Gastos fijos del mes sin generar
+        try:
+            inicio = _date(hoy.year, hoy.month, 1)
+            faltan = 0
+            for r in EgresoRecurrente.query.filter_by(activo=True).all():
+                ya = (Egreso.query.filter(Egreso.fecha >= inicio, Egreso.categoria == r.categoria,
+                                          Egreso.descripcion == r.descripcion,
+                                          Egreso.monto == r.monto).first())
+                if not ya:
+                    faltan += 1
+            if faltan:
+                _add("Generar los gastos fijos del mes",
+                     f"{faltan} gasto{'s' if faltan != 1 else ''} mensual{'es' if faltan != 1 else ''} sin cargar",
+                     url_for("contabilidad"), "Admin")
+        except Exception:
+            db.session.rollback()
+        return sug
+
+    from datetime import date as _dt_date
+    _date_max = _dt_date(9999, 12, 31)
+
+    def _tareas_resumen():
+        """Para el cuadrito del dashboard: conteos + las 3 mas importantes."""
+        from models import Tarea
+        hoy = today_uy()
+        try:
+            abiertas = Tarea.query.filter(Tarea.estado != "Hecha").all()
+        except Exception:
+            db.session.rollback()
+            abiertas = []
+        vencidas = [t for t in abiertas if t.fecha_limite and t.fecha_limite < hoy]
+        para_hoy = [t for t in abiertas if t.fecha_limite and t.fecha_limite == hoy]
+        top = sorted(abiertas, key=lambda t: (
+            0 if (t.fecha_limite and t.fecha_limite <= hoy) else 1,
+            -(t.prioridad or 0),
+            t.fecha_limite or _date_max, t.id))[:3]
+        try:
+            n_sug = len(_tareas_sugeridas())
+        except Exception:
+            n_sug = 0
+        return {"abiertas": len(abiertas), "vencidas": len(vencidas), "hoy": len(para_hoy),
+                "top": top, "sugeridas": n_sug, "hoy_fecha": hoy}
+
+    def _tarea_set_estado(t, est):
+        if est == "Hecha" and t.estado != "Hecha":
+            t.hecha_en = datetime.utcnow()
+        elif est != "Hecha":
+            t.hecha_en = None
+        t.estado = est
+
+    def _tarea_desde_form(t, form):
+        """Carga los campos de la tarea desde el form. Devuelve un error o None."""
+        from models import ESTADOS_TAREA
+        titulo = (form.get("titulo") or "").strip()[:200]
+        if not titulo:
+            return "La tarea necesita un nombre."
+        t.titulo = titulo
+        t.detalle = (form.get("detalle") or "").strip() or None
+        t.categoria = (form.get("categoria") or "").strip()[:60] or None
+        est = (form.get("estado") or "").strip()
+        if est in ESTADOS_TAREA:
+            _tarea_set_estado(t, est)
+        t.agendada = bool(form.get("agendada"))
+        try:
+            t.prioridad = max(0, min(4, int(form.get("prioridad") or 0)))
+        except (TypeError, ValueError):
+            t.prioridad = 0
+        fl = (form.get("fecha_limite") or "").strip()
+        try:
+            t.fecha_limite = datetime.strptime(fl, "%Y-%m-%d").date() if fl else None
+        except ValueError:
+            return "La fecha límite no es válida."
+
+        def _int(v):
+            v = (v or "").strip()
+            try:
+                return max(0, int(float(v))) if v else None
+            except ValueError:
+                return None
+        t.meta = _int(form.get("meta")) or None
+        t.progreso = min(_int(form.get("progreso")) or 0, t.meta) if t.meta else None
+        return None
+
+    def _volver_tareas(t=None):
+        cat = request.form.get("volver_cat") or None
+        return redirect(url_for("tareas_page", cat=cat) + (f"#t{t.id}" if t else ""))
+
+    @app.route("/admin/tareas")
+    @auth.admin_required
+    def tareas_page():
+        from models import Tarea, CATEGORIAS_TAREA, PRIORIDADES_TAREA, ESTADOS_TAREA
+        hoy = today_uy()
+        cat = (request.args.get("cat") or "").strip()
+        todas_db = Tarea.query.all()
+        todas = [t for t in todas_db if not cat or t.categoria == cat]
+        abiertas = [t for t in todas if t.estado != "Hecha"]
+        hechas = sorted([t for t in todas if t.estado == "Hecha"],
+                        key=lambda t: t.hecha_en or t.creada, reverse=True)
+
+        def _orden(t):
+            return (-(t.prioridad or 0), t.fecha_limite or _date_max, t.id)
+        grupos = [
+            ("vencidas", "Vencidas",
+             sorted([t for t in abiertas if t.fecha_limite and t.fecha_limite < hoy], key=_orden)),
+            ("semana", "Próximos 7 días",
+             sorted([t for t in abiertas if t.fecha_limite and 0 <= (t.fecha_limite - hoy).days <= 7], key=_orden)),
+            ("adelante", "Más adelante",
+             sorted([t for t in abiertas if t.fecha_limite and (t.fecha_limite - hoy).days > 7], key=_orden)),
+            ("sinfecha", "Sin fecha",
+             sorted([t for t in abiertas if not t.fecha_limite], key=_orden)),
+        ]
+        cats_usadas = sorted({t.categoria for t in todas_db if t.categoria}, key=str.lower)
+        cats = CATEGORIAS_TAREA + [c for c in cats_usadas if c not in CATEGORIAS_TAREA]
+        return render_template(
+            "tareas.html", grupos=grupos, hechas=hechas, n_abiertas=len(abiertas),
+            sugeridas=_tareas_sugeridas(), hoy=hoy, cat=cat, cats=cats,
+            cats_usadas=cats_usadas, prioridades=PRIORIDADES_TAREA, estados_tarea=ESTADOS_TAREA,
+        )
+
+    @app.route("/admin/tareas/nueva", methods=["POST"])
+    @auth.admin_required
+    def tarea_nueva():
+        from models import Tarea
+        t = Tarea(estado="Sin empezar")
+        err = _tarea_desde_form(t, request.form)
+        if err:
+            flash(err, "error")
+            return _volver_tareas()
+        db.session.add(t)
+        db.session.commit()
+        flash(f"Tarea agregada: {t.titulo}", "success")
+        return _volver_tareas(t)
+
+    @app.route("/admin/tareas/<int:tarea_id>/editar", methods=["POST"])
+    @auth.admin_required
+    def tarea_editar(tarea_id):
+        from models import Tarea
+        t = Tarea.query.get_or_404(tarea_id)
+        err = _tarea_desde_form(t, request.form)
+        if err:
+            db.session.rollback()
+            flash(err, "error")
+        else:
+            db.session.commit()
+            flash("Tarea actualizada.", "success")
+        return _volver_tareas(t)
+
+    @app.route("/admin/tareas/<int:tarea_id>/rapido", methods=["POST"])
+    @auth.admin_required
+    def tarea_rapido(tarea_id):
+        """Acciones de un toque: cambiar estado, sumar/restar progreso."""
+        from models import Tarea, ESTADOS_TAREA
+        t = Tarea.query.get_or_404(tarea_id)
+        accion = (request.form.get("accion") or "").strip()
+        if accion in ESTADOS_TAREA:
+            _tarea_set_estado(t, accion)
+        elif accion in ("mas", "menos") and t.meta:
+            t.progreso = max(0, min(t.meta, (t.progreso or 0) + (1 if accion == "mas" else -1)))
+            if t.progreso >= t.meta:
+                _tarea_set_estado(t, "Hecha")
+            elif t.estado == "Hecha":
+                _tarea_set_estado(t, "En curso")
+            elif t.progreso > 0 and t.estado == "Sin empezar":
+                _tarea_set_estado(t, "En curso")
+        db.session.commit()
+        destino = request.form.get("next") or ""
+        if destino.startswith("/admin"):
+            return redirect(destino)
+        return _volver_tareas(t)
+
+    @app.route("/admin/tareas/<int:tarea_id>/borrar", methods=["POST"])
+    @auth.admin_required
+    def tarea_borrar(tarea_id):
+        from models import Tarea
+        t = Tarea.query.get_or_404(tarea_id)
+        titulo = t.titulo
+        db.session.delete(t)
+        db.session.commit()
+        flash(f"Tarea borrada: {titulo}", "success")
+        return _volver_tareas()
 
     @app.route("/admin/clientes/<int:cliente_id>")
     @auth.admin_required
