@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.60"
+APP_VERSION = "5.61"
 import metrics
 import auth
 import mailer
@@ -9536,7 +9536,7 @@ def register_routes(app: Flask) -> None:
         return jsonify(_tk_json(t))
 
     # ------------------------------------------------------------------
-    # IDEAS DE CONTENIDO (segunda pestaña de Tareas)
+    # IDEAS (segunda pestaña de Tareas): de contenido, de la web, del negocio...
     # ------------------------------------------------------------------
     def _ideas_ctx():
         """Datos de la pestaña 'Ideas de contenido' para el template de tareas."""
@@ -9636,7 +9636,10 @@ def register_routes(app: Flask) -> None:
             flash("Esa idea ya tiene su tarea creada.", "info")
             return _volver_ideas()
         nombre = (f"{i.formato}: " if i.formato else "") + i.titulo
-        t = Tarea(titulo=nombre[:200], categoria="Contenido", estado="Sin empezar", detalle=i.detalle)
+        # Si la idea tiene formato (Reel, Historia...) es de contenido; si no, es una
+        # idea general y la tarea queda sin categoria para que la elijas.
+        t = Tarea(titulo=nombre[:200], categoria="Contenido" if i.formato else None,
+                  estado="Sin empezar", detalle=i.detalle)
         db.session.add(t)
         db.session.flush()
         i.tarea_id = t.id

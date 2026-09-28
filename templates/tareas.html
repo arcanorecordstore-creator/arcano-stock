@@ -19,7 +19,7 @@
 
 <nav class="tk-vistas" aria-label="Secciones">
     <a href="{{ url_for('tareas_page') }}" class="{% if vista != 'ideas' %}is-on{% endif %}">Tareas <span>{{ n_abiertas }}</span></a>
-    <a href="{{ url_for('tareas_page', vista='ideas') }}" class="{% if vista == 'ideas' %}is-on{% endif %}">Ideas de contenido <span>{{ n_ideas_pend }}</span></a>
+    <a href="{{ url_for('tareas_page', vista='ideas') }}" class="{% if vista == 'ideas' %}is-on{% endif %}">Ideas <span>{{ n_ideas_pend }}</span></a>
     <a href="{{ url_for('tareas_page', vista='constancia') }}" class="{% if vista == 'constancia' %}is-on{% endif %}">Constancia{% if n_constancia %} <span>{{ n_constancia }}</span>{% endif %}</a>
 </nav>
 

@@ -1,4 +1,4 @@
-{#- Pestaña "Ideas de contenido" de /admin/tareas (se incluye desde tareas.html) -#}
+{#- Pestaña "Ideas" (de contenido, de la web, del negocio…) de /admin/tareas (se incluye desde tareas.html) -#}
 <div class="tk-resumen">
     <div class="tk-res"><span class="tk-res-n">{{ resumen_i.ideas }}</span><span class="tk-res-l">Ideas</span></div>
     <div class="tk-res"><span class="tk-res-n">{{ resumen_i.produccion }}</span><span class="tk-res-l">En producción</span></div>
@@ -55,7 +55,7 @@
                 <form method="post" action="{{ url_for('idea_a_tarea', idea_id=i.id) }}">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="volver_ver" value="{{ ver_i }}">
-                    <button type="submit" class="tk-btn-tarea" title="Crear una tarea (categoría Contenido) con esta idea">&rarr; Tarea</button>
+                    <button type="submit" class="tk-btn-tarea" title="Crear una tarea con esta idea">&rarr; Tarea</button>
                 </form>
                 {% endif %}
             </td>
@@ -69,7 +69,7 @@
         </tr>
         <tr class="tk-nota-row" data-for="{{ i.id }}" hidden>
             <td colspan="6">
-                <textarea class="tk-nota" data-campo="detalle" data-id="{{ i.id }}" rows="3" placeholder="Cómo lo imaginás: disco, plano, texto, audio…">{{ i.detalle or '' }}</textarea>
+                <textarea class="tk-nota" data-campo="detalle" data-id="{{ i.id }}" rows="3" placeholder="Desarrollá la idea: cómo la imaginás, pasos, links…">{{ i.detalle or '' }}</textarea>
             </td>
         </tr>
         {% endfor %}
