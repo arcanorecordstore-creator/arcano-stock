@@ -1,0 +1,114 @@
+{#- Tabla de Tareas (reutilizable). compacto=True en el dashboard: sin orden,
+    sin borrar y sin fila para agregar. -#}
+{% macro volver() %}
+<input type="hidden" name="volver_cat" value="{{ cat }}">
+<input type="hidden" name="volver_ver" value="{{ ver }}">
+<input type="hidden" name="volver_orden" value="{{ orden }}">
+{% endmacro %}
+
+{% macro th_orden(clave, texto, cls='') %}
+{% if compacto %}<th class="{{ cls }}">{{ texto }}</th>{% else %}
+<th class="{{ cls }}">
+    <a href="{{ url_for('tareas_page', cat=cat or None, ver=ver, orden=clave) }}" class="tk-th-link{% if orden == clave %} is-on{% endif %}">{{ texto }}{% if orden == clave %}<span class="tk-th-arrow" aria-hidden="true">&darr;</span>{% endif %}</a>
+</th>{% endif %}
+{% endmacro %}
+
+{% macro estado_key(t) -%}
+{{ 'curso' if t.estado == 'En curso' else ('hecha' if t.hecha else 'nueva') }}
+{%- endmacro %}
+
+<div class="tk-table-wrap">
+<table class="tk-table{% if compacto %} tk-table-compacta{% endif %}" id="tk-table" data-base="/admin/tareas/">
+    <thead>
+        <tr>
+            {{ th_orden('nombre', 'Tarea', 'tk-c-nombre') }}
+            <th class="tk-c-cat">Categor&iacute;a</th>
+            <th class="tk-c-estado">Estado</th>
+            <th class="tk-c-ag">Agendada</th>
+            {{ th_orden('prioridad', 'Prioridad', 'tk-c-prio') }}
+            {{ th_orden('dias', 'Días restantes', 'tk-c-dias') }}
+            <th class="tk-c-fecha">Deadline</th>
+            <th class="tk-c-num">Progreso</th>
+            <th class="tk-c-num">Meta</th>
+            <th class="tk-c-avance">Avance</th>
+            {% if not compacto %}<th class="tk-c-acc"><span class="sr-only">Acciones</span></th>{% endif %}
+        </tr>
+    </thead>
+    <tbody>
+        {% for t in filas %}
+        {% set dtxt, dtono = dias_txt(t, hoy) %}
+        {% set dn, du = dias_partes(t, hoy) %}
+        <tr class="tk-row{% if t.hecha %} is-hecha{% endif %}{% if dtono and not t.hecha %} row-{{ dtono }}{% endif %}" id="t{{ t.id }}" data-id="{{ t.id }}">
+            <td class="tk-c-nombre">
+                <div class="tk-nombre">
+                    <button type="button" class="tk-open" title="Abrir para ver y editar todo"><span class="tk-open-t">{{ t.titulo }}</span><span class="tk-open-nota{% if not t.detalle %} is-empty{% endif %}" title="Tiene nota" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 1.5h5.5L13 5v9.5H4z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 8h5M6 10.5h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span></button>
+                    <textarea class="tk-titulo-src" data-campo="titulo" hidden aria-label="Nombre de la tarea">{{ t.titulo }}</textarea>
+                </div>
+            </td>
+            <td class="tk-c-cat">
+                <input type="text" class="tk-in tk-in-cat" data-campo="categoria" list="tk-cats" maxlength="60"
+                       value="{{ t.categoria or '' }}" placeholder="&mdash;" aria-label="Categoría"{% if t.categoria %} style="--tag-rgb: {{ tag_rgb(t.categoria) }};"{% endif %}>
+            </td>
+            <td class="tk-c-estado">
+                <span class="tk-estado" data-estado="{{ estado_key(t) }}">
+                    <select class="tk-sel" data-campo="estado" aria-label="Estado">
+                        {% for e in estados_tarea %}<option value="{{ e }}" {% if t.estado == e %}selected{% endif %}>{{ e }}</option>{% endfor %}
+                    </select>
+                </span>
+            </td>
+            <td class="tk-c-ag">
+                <input type="checkbox" class="tk-check" data-campo="agendada" {% if t.agendada %}checked{% endif %} aria-label="Agendada">
+            </td>
+            <td class="tk-c-prio">
+                <span class="tk-prio" data-prio="{{ t.prioridad or 0 }}">
+                    <span class="tk-prio-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                    <select class="tk-sel" data-campo="prioridad" aria-label="Prioridad">
+                        {% for n, nombre in prioridades.items() %}
+                        <option value="{{ n }}" {% if (t.prioridad or 0) == n %}selected{% endif %}>{{ nombre if n else '—' }}</option>
+                        {% endfor %}
+                    </select>
+                </span>
+            </td>
+            <td class="tk-c-dias"><span class="tk-dias{% if dtono %} is-{{ dtono }}{% endif %}"><span class="tk-dias-n">{{ dn }}</span><span class="tk-dias-u">{{ du }}</span></span></td>
+            <td class="tk-c-fecha">
+                <input type="date" class="tk-in tk-in-fecha{% if not t.fecha_limite %} is-empty{% endif %}" data-campo="fecha_limite"
+                       value="{{ t.fecha_limite.strftime('%Y-%m-%d') if t.fecha_limite else '' }}" aria-label="Deadline">
+            </td>
+            <td class="tk-c-num"><input type="number" class="tk-in tk-in-num" data-campo="progreso" min="0" step="1" value="{{ t.progreso if t.progreso is not none else '' }}" placeholder="&mdash;" aria-label="Progreso"></td>
+            <td class="tk-c-num"><input type="number" class="tk-in tk-in-num" data-campo="meta" min="0" step="1" value="{{ t.meta or '' }}" placeholder="&mdash;" aria-label="Meta"></td>
+            <td class="tk-c-avance">
+                <span class="tk-av{% if not t.meta %} is-off{% endif %}" title="{% if t.meta %}{{ t.progreso or 0 }} de {{ t.meta }}{% else %}Poné una meta para ver el avance{% endif %}">
+                    <span class="tk-av-track"><span class="tk-av-fill" style="width: {{ t.avance_pct or 0 }}%;"></span></span>
+                    <span class="tk-av-pct">{% if t.meta %}{{ t.avance_pct }}%{% else %}&mdash;{% endif %}</span>
+                </span>
+            </td>
+            {% if not compacto %}<td class="tk-c-acc">
+                <form method="post" action="{{ url_for('tarea_borrar', tarea_id=t.id) }}" onsubmit="return confirm('¿Borrar esta tarea?');">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    {{ volver() }}
+                    <button type="submit" class="tk-del" title="Borrar tarea" aria-label="Borrar tarea">&times;</button>
+                </form>
+            </td>{% endif %}
+        </tr>
+        <tr class="tk-nota-row" data-for="{{ t.id }}" hidden>
+            <td colspan="11">
+                <textarea class="tk-nota" data-campo="detalle" data-id="{{ t.id }}" rows="3" placeholder="Nota: links, pasos, a quién escribirle…">{{ t.detalle or '' }}</textarea>
+            </td>
+        </tr>
+        {% endfor %}
+        {% if not compacto %}
+        <tr class="tk-new-row">
+            <td colspan="11">
+                <form method="post" action="{{ url_for('tarea_nueva') }}" class="tk-new">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    {{ volver() }}
+                    {% if cat %}<input type="hidden" name="categoria" value="{{ cat }}">{% endif %}
+                    <span class="tk-new-plus" aria-hidden="true">+</span>
+                    <input type="text" name="titulo" maxlength="200" required placeholder="Nueva tarea · Enter para agregar" aria-label="Nueva tarea" class="tk-new-input">
+                </form>
+            </td>
+        </tr>
+        {% endif %}
+    </tbody>
+</table>
+</div>

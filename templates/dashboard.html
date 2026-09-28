@@ -15,31 +15,34 @@
     </div>
 </section>
 
-{% if tareas_res and (tareas_res.abiertas or tareas_res.sugeridas) %}
-<a href="{{ url_for('tareas_page') }}" class="tareas-strip{% if tareas_res.vencidas %} has-vencidas{% endif %}">
-    <span class="tareas-strip-head">
-        <span class="tareas-strip-title">Tareas</span>
-        <span class="tareas-strip-counts">
-            {% if tareas_res.vencidas %}<span class="ts-vencidas">{{ tareas_res.vencidas }} vencida{{ 's' if tareas_res.vencidas != 1 else '' }}</span>{% endif %}
-            {% if tareas_res.hoy %}<span class="ts-hoy">{{ tareas_res.hoy }} para hoy</span>{% endif %}
-            <span>{{ tareas_res.abiertas }} pendiente{{ 's' if tareas_res.abiertas != 1 else '' }}</span>
-            {% if tareas_res.sugeridas %}<span>&middot; {{ tareas_res.sugeridas }} sugerida{{ 's' if tareas_res.sugeridas != 1 else '' }}</span>{% endif %}
-        </span>
-        <span class="tareas-strip-go">Ver &rarr;</span>
-    </span>
-    {% if tareas_res.top %}
-    <span class="tareas-strip-list">
-        {% for t in tareas_res.top %}
-        {% set dr = t.dias_restantes(tareas_res.hoy_fecha) %}
-        <span class="tareas-strip-item">
-            <span class="ts-dot ts-p{{ t.prioridad or 0 }}"></span>
-            <span class="ts-name">{{ t.titulo }}</span>
-            {% if dr is not none %}<span class="ts-when{% if dr < 0 %} is-late{% elif dr == 0 %} is-today{% endif %}">{% if dr < 0 %}venció hace {{ -dr }} d{% elif dr == 0 %}hoy{% elif dr == 1 %}mañana{% else %}en {{ dr }} d{% endif %}</span>{% endif %}
-        </span>
-        {% endfor %}
-    </span>
+{% if tareas_dash %}
+<section class="tk-scope dash-tareas">
+    <div class="dash-ct-head">
+        <span class="dash-ct-title">Tareas con deadline</span>
+        <span class="dash-ct-sub">{{ tareas_dash.filas|length }} pendiente{{ 's' if tareas_dash.filas|length != 1 else '' }}{% if tareas_dash.vencidas %} &middot; <b>{{ tareas_dash.vencidas }} vencida{{ 's' if tareas_dash.vencidas != 1 else '' }}</b>{% endif %}{% if tareas_dash.sin_fecha %} &middot; {{ tareas_dash.sin_fecha }} sin fecha{% endif %}{% if tareas_dash.sugeridas %} &middot; {{ tareas_dash.sugeridas }} sugerida{{ 's' if tareas_dash.sugeridas != 1 else '' }}{% endif %}</span>
+        <a href="{{ url_for('tareas_page') }}" class="dash-ct-link">Ver todas &rarr;</a>
+    </div>
+    {% if tareas_dash.filas %}
+    <datalist id="tk-cats">{% for c in tareas_dash.cats %}<option value="{{ c }}">{% endfor %}</datalist>
+    {% with filas=tareas_dash.filas, hoy=tareas_dash.hoy, dias_txt=tareas_dash.dias_txt, dias_partes=tareas_dash.dias_partes,
+            tag_rgb=tareas_dash.tag_rgb, prioridades=tareas_dash.prioridades, estados_tarea=tareas_dash.estados_tarea,
+            compacto=True, cat='', ver='abiertas', orden='dias' %}{% include "_tareas_tabla.html" %}{% endwith %}
+    {% include "_tk_drawer.html" %}
+    {% else %}
+    <p class="dash-vacio">No ten&eacute;s tareas con fecha l&iacute;mite pendientes.</p>
     {% endif %}
-</a>
+</section>
+{% endif %}
+
+{% if constancia %}
+<section class="tk-scope dash-constancia">
+    <div class="dash-ct-head">
+        <span class="dash-ct-title">Constancia</span>
+        <span class="dash-ct-sub">{{ constancia.resumen_c.hoy_ok }}/{{ constancia.resumen_c.hoy_total }} metas diarias hechas hoy{% if constancia.resumen_c.atrasadas %} &middot; <b>{{ constancia.resumen_c.atrasadas }} atrasada{{ 's' if constancia.resumen_c.atrasadas != 1 else '' }}</b>{% endif %}</span>
+        <a href="{{ url_for('tareas_page', vista='constancia') }}" class="dash-ct-link">Editar metas &rarr;</a>
+    </div>
+    {% with habitos=constancia.habitos, compacto=True %}{% include "_constancia_tabla.html" %}{% endwith %}
+</section>
 {% endif %}
 
 <div class="quick-actions">
@@ -524,6 +527,7 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_quick_edit.js') }}"></script>
+<script src="{{ url_for('static', filename='js/tareas.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="{{ url_for('static', filename='js/dashboard_reorder.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_resize.js') }}"></script>

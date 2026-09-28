@@ -11964,3 +11964,22 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 .tkd-foot { margin-top: auto; min-height: 18px; font-size: 12px; color: var(--text-4); }
 @media (max-width: 640px) { .tkd-panel { padding: 18px 18px 14px; } .tkd-titulo { font-size: 20px; } }
 @media (prefers-reduced-motion: reduce) { .tkd-bg, .tkd-panel { transition: none; } }
+
+/* Dashboard: tabla de Constancia debajo del cuadro de Tareas (v5.57) */
+.dash-constancia { margin-bottom: 16px; }
+.dash-ct-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 2px 8px; }
+.dash-ct-title { font-weight: 700; font-size: 14px; color: var(--text-1); }
+.dash-ct-sub { font-size: 13px; color: var(--text-3); }
+.dash-ct-sub b { color: var(--loss); font-weight: 600; }
+.dash-ct-link { margin-left: auto; font-size: 13px; color: var(--text-3); text-decoration: none; }
+.dash-ct-link:hover { color: var(--text-1); }
+.dash-constancia .tk-table-constancia { min-width: 900px; }
+.dash-constancia .tk-table tbody td { padding-top: 8px; padding-bottom: 8px; }
+.ct-nombre-ro { font-size: 14.5px; font-weight: 500; color: var(--text-1); padding: 0 7px; }
+.ct-meta-ro { font-size: 13px; color: var(--text-3); }
+
+/* Dashboard: tabla de Tareas con deadline (v5.57) */
+.dash-tareas { margin-bottom: 18px; }
+.dash-tareas .tk-table { min-width: 1060px; }
+.dash-tareas .tk-table tbody td { padding-top: 8px; padding-bottom: 8px; }
+.dash-vacio { font-size: 13px; color: var(--text-4); margin: 0 2px; }

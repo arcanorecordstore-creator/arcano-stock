@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.56"
+APP_VERSION = "5.57"
 import metrics
 import auth
 import mailer
@@ -1499,7 +1499,8 @@ def register_routes(app: Flask) -> None:
 
         return render_template(
             "dashboard.html",
-            tareas_res=_tareas_resumen(),
+            constancia=_constancia_dash(),
+            tareas_dash=_tareas_dash(),
             discs=discs,
             totals=totals,
             sellos=sellos,
@@ -9723,6 +9724,37 @@ def register_routes(app: Flask) -> None:
         }
         return {"habitos": filas, "resumen_c": resumen_c, "frecuencias": FRECUENCIAS_HABITO,
                 "hoy": hoy}
+
+    def _tareas_dash():
+        """Tareas abiertas CON deadline para la tabla del dashboard (mas proximas primero)."""
+        from models import Tarea, CATEGORIAS_TAREA, PRIORIDADES_TAREA, ESTADOS_TAREA
+        try:
+            hoy = today_uy()
+            todas = Tarea.query.all()
+            filas = sorted([t for t in todas if not t.hecha and t.fecha_limite],
+                           key=lambda t: (t.fecha_limite, -(t.prioridad or 0), t.id))
+            cats_usadas = sorted({t.categoria for t in todas if t.categoria}, key=str.lower)
+            return {
+                "filas": filas, "hoy": hoy,
+                "sin_fecha": sum(1 for t in todas if not t.hecha and not t.fecha_limite),
+                "vencidas": sum(1 for t in filas if t.fecha_limite < hoy),
+                "sugeridas": len(_tareas_sugeridas()),
+                "cats": CATEGORIAS_TAREA + [c for c in cats_usadas if c not in CATEGORIAS_TAREA],
+                "prioridades": PRIORIDADES_TAREA, "estados_tarea": ESTADOS_TAREA,
+                "dias_txt": _tk_dias_txt, "dias_partes": _tk_dias_partes, "tag_rgb": _tk_tag_rgb,
+            }
+        except Exception:
+            db.session.rollback()
+            return None
+
+    def _constancia_dash():
+        """Tabla de Constancia para el dashboard (None si falla o no hay metas)."""
+        try:
+            ctx = _constancia_ctx()
+            return ctx if ctx["habitos"] else None
+        except Exception:
+            db.session.rollback()
+            return None
 
     def _habito_json(h):
         hoy = today_uy()
