@@ -11894,3 +11894,18 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 .ct-new-extra { display: inline-flex; align-items: center; gap: 4px; }
 .ct-new-extra[hidden] { display: none; }
 .ct-ayuda { margin-top: 10px; font-size: 12px; color: var(--text-4); font-weight: 300; }
+
+/* Tareas (v5.55): etiquetas con RELLENO de color (como Estado/Origen del dashboard).
+   Pedido de Facundo: estas no siguen la paleta del manual. */
+.tk-in-cat:not(:placeholder-shown):not(:focus) {
+    background: rgba(var(--tag-rgb, 120, 113, 108), .15);
+    color: rgb(var(--tag-rgb, 120, 113, 108));
+    border-color: rgba(var(--tag-rgb, 120, 113, 108), .35);
+    font-weight: 600;
+}
+.tk-estado { --st-rgb: 107, 114, 128; background: rgba(var(--st-rgb), .13) !important; border-color: rgba(var(--st-rgb), .35) !important; }
+.tk-estado[data-estado="curso"] { --st-rgb: 59, 130, 246; }
+.tk-estado[data-estado="hecha"] { --st-rgb: 16, 185, 129; }
+.tk-estado .tk-sel { color: rgb(var(--st-rgb)) !important; font-weight: 600; }
+.tk-estado::before { background: rgb(var(--st-rgb)) !important; border-color: rgb(var(--st-rgb)) !important; }
+.tk-estado[data-estado="nueva"]::before { background: transparent !important; }

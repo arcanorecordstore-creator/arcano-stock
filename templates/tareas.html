@@ -105,7 +105,7 @@
             </td>
             <td class="tk-c-cat">
                 <input type="text" class="tk-in tk-in-cat" data-campo="categoria" list="tk-cats" maxlength="60"
-                       value="{{ t.categoria or '' }}" placeholder="&mdash;" aria-label="Categoría">
+                       value="{{ t.categoria or '' }}" placeholder="&mdash;" aria-label="Categoría"{% if t.categoria %} style="--tag-rgb: {{ tag_rgb(t.categoria) }};"{% endif %}>
             </td>
             <td class="tk-c-estado">
                 <span class="tk-estado" data-estado="{{ estado_key(t) }}">

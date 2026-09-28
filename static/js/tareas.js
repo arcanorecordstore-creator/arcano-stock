@@ -36,6 +36,11 @@
             est.value = d.estado;
             if (d.estado_key) est.closest('.tk-estado').dataset.estado = d.estado_key;
         }
+        var cat = fila.querySelector('[data-campo="categoria"]');
+        if (cat && d.cat_rgb !== undefined) {
+            if (d.cat_rgb) cat.style.setProperty('--tag-rgb', d.cat_rgb);
+            else cat.style.removeProperty('--tag-rgb');
+        }
         var prio = fila.querySelector('[data-campo="prioridad"]');
         if (prio) prio.closest('.tk-prio').dataset.prio = prio.value || '0';
         var prog = fila.querySelector('[data-campo="progreso"]');

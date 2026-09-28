@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.54"
+APP_VERSION = "5.55"
 import metrics
 import auth
 import mailer
@@ -9342,6 +9342,16 @@ def register_routes(app: Flask) -> None:
         args = {k: v for k, v in args.items() if v}
         return redirect(url_for("tareas_page", **args) + (f"#t{t.id}" if t else ""))
 
+    # Colores de las etiquetas de categoria (relleno tintado, como las del dashboard).
+    # Cada categoria mantiene siempre el mismo color.
+    _TK_TAGS = ["59, 130, 246", "168, 85, 247", "16, 185, 129", "217, 119, 6",
+                "236, 72, 153", "20, 184, 166", "99, 102, 241", "234, 88, 12"]
+
+    def _tk_tag_rgb(nombre):
+        if not nombre:
+            return ""
+        return _TK_TAGS[sum(ord(ch) for ch in nombre.strip().lower()) % len(_TK_TAGS)]
+
     def _tk_dias_txt(t, hoy):
         """Texto de 'Dias restantes' + tono (late/today/soon/'')."""
         dr = t.dias_restantes(hoy)
@@ -9374,7 +9384,7 @@ def register_routes(app: Flask) -> None:
                 "estado_key": "curso" if t.estado == "En curso" else ("hecha" if t.hecha else "nueva"),
                 "dias_n": n, "dias_u": u,
                 "avance": t.avance_pct, "progreso": t.progreso, "meta": t.meta,
-                "hecha": t.hecha}
+                "hecha": t.hecha, "cat_rgb": _tk_tag_rgb(t.categoria)}
 
     @app.route("/admin/tareas")
     @auth.admin_required
@@ -9425,7 +9435,7 @@ def register_routes(app: Flask) -> None:
             n_ideas_pend=_n_ideas_pend(), n_constancia=_n_constancia(),
             sugeridas=_tareas_sugeridas(), hoy=hoy, cat=cat, ver=ver, orden=orden, cats=cats,
             cats_usadas=cats_usadas, prioridades=PRIORIDADES_TAREA, estados_tarea=ESTADOS_TAREA,
-            dias_txt=_tk_dias_txt, dias_partes=_tk_dias_partes, resumen=resumen,
+            dias_txt=_tk_dias_txt, dias_partes=_tk_dias_partes, resumen=resumen, tag_rgb=_tk_tag_rgb,
         )
 
     @app.route("/admin/tareas/<int:tarea_id>/campo", methods=["POST"])
