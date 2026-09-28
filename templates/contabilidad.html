@@ -742,22 +742,15 @@
     content: ""; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
     width: 5px; height: 1.05em; border-radius: 3px; background: #6366f1;
 }
-/* Gastos por categoria: borde y monto de color, rotando por tarjeta */
+/* Gastos por categoria: neutro, con la estetica de marca (el color no significaba
+   nada; pedido de Facundo v5.53). */
 .conta-cat-item {
-    border-left: 4px solid #6366f1;
-    background: color-mix(in srgb, #6366f1 8%, var(--bg-1, #fff));
-    transition: transform .1s;
+    border: 1px solid var(--border-2);
+    background: var(--bg-1);
+    transition: background-color .15s ease, border-color .15s ease;
 }
-.conta-cat-item:hover { transform: translateX(3px); }
-.conta-cat-monto { color: #6366f1; font-weight: 700; }
-.conta-cat-item:nth-child(5n+2) { border-left-color: #14b8a6; background: color-mix(in srgb, #14b8a6 8%, var(--bg-1,#fff)); }
-.conta-cat-item:nth-child(5n+2) .conta-cat-monto { color: #14b8a6; }
-.conta-cat-item:nth-child(5n+3) { border-left-color: #eab308; background: color-mix(in srgb, #eab308 9%, var(--bg-1,#fff)); }
-.conta-cat-item:nth-child(5n+3) .conta-cat-monto { color: #ca8a04; }
-.conta-cat-item:nth-child(5n+4) { border-left-color: #ec4899; background: color-mix(in srgb, #ec4899 8%, var(--bg-1,#fff)); }
-.conta-cat-item:nth-child(5n+4) .conta-cat-monto { color: #ec4899; }
-.conta-cat-item:nth-child(5n+5) { border-left-color: #a78bfa; background: color-mix(in srgb, #a78bfa 9%, var(--bg-1,#fff)); }
-.conta-cat-item:nth-child(5n+5) .conta-cat-monto { color: #8b5cf6; }
+.conta-cat-item:hover { background: var(--bg-hover); border-color: var(--border-3); }
+.conta-cat-monto { color: var(--text-1); font-weight: 500; font-variant-numeric: tabular-nums; }
 /* KPIs: una cinta de color arriba para que la grilla no sea toda blanca */
 .kpi-card { border-top: 3px solid #6366f1; }
 .kpi-card:nth-child(4n+2) { border-top-color: #14b8a6; }
@@ -769,7 +762,7 @@
 /* M3 - Indice para saltar a cada bloque (la pagina es larga). */
 .conta-index { position: sticky; top: 0; z-index: 20; display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 0; margin: 0 0 8px; background: var(--bg-0); }
 .conta-index a { font-size: 13px; padding: 6px 13px; border-radius: 999px; background: var(--bg-2); border: 1px solid var(--border-1); color: var(--text-2); text-decoration: none; white-space: nowrap; transition: border-color .1s, color .1s; }
-.conta-index a:hover { border-color: #6366f1; color: var(--text-1); }
+.conta-index a:hover { border-color: var(--ink, #E9D1AF); color: var(--text-1); }
 #c-ganancia, #c-gastos, #c-recuperacion, #c-pedidos, #c-panorama { scroll-margin-top: 62px; }
 @media (max-width: 600px) { .conta-index { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; } }
 </style>
