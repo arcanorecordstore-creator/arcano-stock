@@ -11665,7 +11665,11 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 .tk-prio[data-prio="3"] i:nth-child(-n+3),
 .tk-prio[data-prio="4"] i { background: var(--tk-ink); }
 .tk-prio[data-prio="0"] .tk-sel { color: var(--text-5); }
-.tk-prio[data-prio="3"] .tk-sel { color: var(--text-1); font-weight: 500; }
+/* Alta = naranja, Baja = amarillo (pedido de Facundo, v5.62) */
+.tk-prio[data-prio="3"] i:nth-child(-n+3) { background: #ea580c; }
+.tk-prio[data-prio="3"] .tk-sel { color: #ea580c; font-weight: 600; }
+.tk-prio[data-prio="1"] i:nth-child(-n+1) { background: #eab308; }
+.tk-prio[data-prio="1"] .tk-sel { color: #ca8a04; font-weight: 600; }
 .tk-prio[data-prio="4"] i { background: var(--loss); }
 .tk-prio[data-prio="4"] .tk-sel { color: var(--loss); font-weight: 600; }
 
