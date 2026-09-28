@@ -10,11 +10,16 @@
 
 {% macro th_orden(clave, texto, cls='') %}
 <th class="{{ cls }}">
-    <a href="{{ url_for('tareas_page', cat=cat or None, ver=ver, orden=clave) }}" class="tk-th-link{% if orden == clave %} is-on{% endif %}">{{ texto }}{% if orden == clave %} <span aria-hidden="true">&uarr;</span>{% endif %}</a>
+    <a href="{{ url_for('tareas_page', cat=cat or None, ver=ver, orden=clave) }}" class="tk-th-link{% if orden == clave %} is-on{% endif %}">{{ texto }}{% if orden == clave %}<span class="tk-th-arrow" aria-hidden="true">&darr;</span>{% endif %}</a>
 </th>
 {% endmacro %}
 
+{% macro estado_key(t) -%}
+{{ 'curso' if t.estado == 'En curso' else ('hecha' if t.hecha else 'nueva') }}
+{%- endmacro %}
+
 {% block content %}
+<div class="tk-scope">
 <section class="page-head">
     <div>
         <h1 class="page-title">Tareas</h1>
@@ -25,11 +30,11 @@
 <datalist id="tk-cats">{% for c in cats %}<option value="{{ c }}">{% endfor %}</datalist>
 
 <div class="tk-toolbar">
-    <div class="tk-seg" role="tablist" aria-label="Qué tareas ver">
-        <a href="{{ url_for('tareas_page', cat=cat or None, ver='abiertas', orden=orden) }}" class="{% if ver == 'abiertas' %}is-on{% endif %}">Sin empezar + En curso</a>
+    <nav class="tk-tabs" aria-label="Qué tareas ver">
+        <a href="{{ url_for('tareas_page', cat=cat or None, ver='abiertas', orden=orden) }}" class="{% if ver == 'abiertas' %}is-on{% endif %}">Pendientes</a>
         <a href="{{ url_for('tareas_page', cat=cat or None, ver='hechas', orden=orden) }}" class="{% if ver == 'hechas' %}is-on{% endif %}">Hechas</a>
         <a href="{{ url_for('tareas_page', cat=cat or None, ver='todas', orden=orden) }}" class="{% if ver == 'todas' %}is-on{% endif %}">Todas</a>
-    </div>
+    </nav>
     {% if cats_usadas %}
     <form method="get" action="{{ url_for('tareas_page') }}" class="tk-catfilter">
         <input type="hidden" name="ver" value="{{ ver }}">
@@ -47,7 +52,7 @@
 <table class="tk-table" id="tk-table">
     <thead>
         <tr>
-            {{ th_orden('nombre', 'Nombre', 'tk-c-nombre') }}
+            {{ th_orden('nombre', 'Tarea', 'tk-c-nombre') }}
             <th class="tk-c-cat">Categor&iacute;a</th>
             <th class="tk-c-estado">Estado</th>
             <th class="tk-c-ag">Agendada</th>
@@ -67,42 +72,46 @@
             <td class="tk-c-nombre">
                 <div class="tk-nombre">
                     <button type="button" class="tk-nota-btn{% if t.detalle %} has-nota{% endif %}" title="{{ 'Ver nota' if t.detalle else 'Agregar nota' }}" aria-label="Nota" aria-expanded="false">
-                        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.5h5.5L13 5v9.5H4z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M9.5 1.5V5H13" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>{% if t.detalle %}<path d="M6 8h5M6 10.5h5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>{% endif %}</svg>
+                        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2.5L8 6l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
                     <input type="text" class="tk-in tk-in-nombre" data-campo="titulo" value="{{ t.titulo }}" maxlength="200" aria-label="Nombre de la tarea">
                 </div>
             </td>
             <td class="tk-c-cat">
-                <input type="text" class="tk-in tk-pill tk-pill-cat{% if not t.categoria %} is-empty{% endif %}" data-campo="categoria" list="tk-cats" maxlength="60"
-                       value="{{ t.categoria or '' }}" placeholder="—" aria-label="Categoría"
-                       style="--pill: {{ color_cat(t.categoria) or 'transparent' }};">
+                <input type="text" class="tk-in tk-in-cat" data-campo="categoria" list="tk-cats" maxlength="60"
+                       value="{{ t.categoria or '' }}" placeholder="&mdash;" aria-label="Categoría">
             </td>
             <td class="tk-c-estado">
-                <select class="tk-pill tk-pill-estado tk-est-{{ 'curso' if t.estado == 'En curso' else ('hecha' if t.hecha else 'nueva') }}" data-campo="estado" aria-label="Estado">
-                    {% for e in estados_tarea %}<option value="{{ e }}" {% if t.estado == e %}selected{% endif %}>{{ e }}</option>{% endfor %}
-                </select>
+                <span class="tk-estado" data-estado="{{ estado_key(t) }}">
+                    <select class="tk-sel" data-campo="estado" aria-label="Estado">
+                        {% for e in estados_tarea %}<option value="{{ e }}" {% if t.estado == e %}selected{% endif %}>{{ e }}</option>{% endfor %}
+                    </select>
+                </span>
             </td>
             <td class="tk-c-ag">
                 <input type="checkbox" class="tk-check" data-campo="agendada" {% if t.agendada %}checked{% endif %} aria-label="Agendada">
             </td>
             <td class="tk-c-prio">
-                <select class="tk-pill tk-pill-prio tk-prio-{{ t.prioridad or 0 }}" data-campo="prioridad" aria-label="Prioridad">
-                    {% for n, nombre in prioridades.items() %}
-                    <option value="{{ n }}" {% if (t.prioridad or 0) == n %}selected{% endif %}>{% if n %}{{ '🔥' * n }}{% else %}—{% endif %}</option>
-                    {% endfor %}
-                </select>
+                <span class="tk-prio" data-prio="{{ t.prioridad or 0 }}">
+                    <span class="tk-prio-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+                    <select class="tk-sel" data-campo="prioridad" aria-label="Prioridad">
+                        {% for n, nombre in prioridades.items() %}
+                        <option value="{{ n }}" {% if (t.prioridad or 0) == n %}selected{% endif %}>{{ nombre if n else '—' }}</option>
+                        {% endfor %}
+                    </select>
+                </span>
             </td>
-            <td class="tk-c-dias"><span class="tk-dias{% if dtono %} is-{{ dtono }}{% endif %}">{{ dtxt }}</span></td>
+            <td class="tk-c-dias"><span class="tk-dias{% if dtono %} is-{{ dtono }}{% endif %}">{{ dtxt or '—' }}</span></td>
             <td class="tk-c-fecha">
                 <input type="date" class="tk-in tk-in-fecha{% if not t.fecha_limite %} is-empty{% endif %}" data-campo="fecha_limite"
                        value="{{ t.fecha_limite.strftime('%Y-%m-%d') if t.fecha_limite else '' }}" aria-label="Deadline">
             </td>
-            <td class="tk-c-num"><input type="number" class="tk-in tk-in-num" data-campo="progreso" min="0" step="1" value="{{ t.progreso if t.progreso is not none else '' }}" aria-label="Progreso"></td>
-            <td class="tk-c-num"><input type="number" class="tk-in tk-in-num" data-campo="meta" min="0" step="1" value="{{ t.meta or '' }}" aria-label="Meta"></td>
+            <td class="tk-c-num"><input type="number" class="tk-in tk-in-num" data-campo="progreso" min="0" step="1" value="{{ t.progreso if t.progreso is not none else '' }}" placeholder="&mdash;" aria-label="Progreso"></td>
+            <td class="tk-c-num"><input type="number" class="tk-in tk-in-num" data-campo="meta" min="0" step="1" value="{{ t.meta or '' }}" placeholder="&mdash;" aria-label="Meta"></td>
             <td class="tk-c-avance">
-                {% set llenos = ((t.avance_pct or 0) / 10)|round(0, 'floor')|int %}
-                <span class="tk-avance{% if not t.meta %} is-off{% endif %}" title="{% if t.meta %}{{ t.progreso or 0 }} de {{ t.meta }} ({{ t.avance_pct }}%){% else %}Poné una meta para ver el avance{% endif %}">
-                    {% for i in range(10) %}<i class="{% if i < llenos %}on{% endif %}"></i>{% endfor %}
+                <span class="tk-av{% if not t.meta %} is-off{% endif %}" title="{% if t.meta %}{{ t.progreso or 0 }} de {{ t.meta }}{% else %}Poné una meta para ver el avance{% endif %}">
+                    <span class="tk-av-track"><span class="tk-av-fill" style="width: {{ t.avance_pct or 0 }}%;"></span></span>
+                    <span class="tk-av-pct">{% if t.meta %}{{ t.avance_pct }}%{% else %}&mdash;{% endif %}</span>
                 </span>
             </td>
             <td class="tk-c-acc">
@@ -126,7 +135,7 @@
                     {{ volver() }}
                     {% if cat %}<input type="hidden" name="categoria" value="{{ cat }}">{% endif %}
                     <span class="tk-new-plus" aria-hidden="true">+</span>
-                    <input type="text" name="titulo" maxlength="200" required placeholder="Nueva tarea (Enter para agregar)" aria-label="Nueva tarea" class="tk-new-input">
+                    <input type="text" name="titulo" maxlength="200" required placeholder="Nueva tarea · Enter para agregar" aria-label="Nueva tarea" class="tk-new-input">
                 </form>
             </td>
         </tr>
@@ -154,6 +163,7 @@
     </ul>
 </section>
 {% endif %}
+</div>
 {% endblock %}
 
 {% block scripts %}

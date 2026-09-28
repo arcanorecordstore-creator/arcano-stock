@@ -28,31 +28,26 @@
         if (!fila) return;
         var dias = fila.querySelector('.tk-dias');
         if (dias) {
-            dias.textContent = d.dias_txt || '';
+            dias.textContent = d.dias_txt || '—';
             dias.className = 'tk-dias' + (d.dias_tono ? ' is-' + d.dias_tono : '');
         }
         var est = fila.querySelector('[data-campo="estado"]');
         if (est) {
             est.value = d.estado;
-            est.className = est.className.replace(/tk-est-\w+/, 'tk-est-' + claseEstado(d.estado));
+            est.closest('.tk-estado').dataset.estado = claseEstado(d.estado);
         }
         var prio = fila.querySelector('[data-campo="prioridad"]');
-        if (prio) prio.className = prio.className.replace(/tk-prio-\d/, 'tk-prio-' + (prio.value || 0));
+        if (prio) prio.closest('.tk-prio').dataset.prio = prio.value || '0';
         var prog = fila.querySelector('[data-campo="progreso"]');
         if (prog && document.activeElement !== prog) prog.value = (d.progreso === null || d.progreso === undefined) ? '' : d.progreso;
-        var cat = fila.querySelector('[data-campo="categoria"]');
-        if (cat) {
-            cat.style.setProperty('--pill', d.cat_color || 'transparent');
-            cat.classList.toggle('is-empty', !cat.value);
-        }
         var fecha = fila.querySelector('[data-campo="fecha_limite"]');
         if (fecha) fecha.classList.toggle('is-empty', !fecha.value);
-        var av = fila.querySelector('.tk-avance');
+        var av = fila.querySelector('.tk-av');
         if (av) {
-            var llenos = d.avance ? Math.floor(d.avance / 10) : 0;
             av.classList.toggle('is-off', !d.meta);
-            av.title = d.meta ? ((d.progreso || 0) + ' de ' + d.meta + ' (' + d.avance + '%)') : 'Poné una meta para ver el avance';
-            Array.prototype.forEach.call(av.children, function (sq, i) { sq.classList.toggle('on', i < llenos); });
+            av.title = d.meta ? ((d.progreso || 0) + ' de ' + d.meta) : 'Poné una meta para ver el avance';
+            av.querySelector('.tk-av-fill').style.width = (d.avance || 0) + '%';
+            av.querySelector('.tk-av-pct').textContent = d.meta ? (d.avance + '%') : '—';
         }
         fila.classList.toggle('is-hecha', !!d.hecha);
     }

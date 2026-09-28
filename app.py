@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.48"
+APP_VERSION = "5.49"
 import metrics
 import auth
 import mailer
@@ -9342,16 +9342,6 @@ def register_routes(app: Flask) -> None:
         args = {k: v for k, v in args.items() if v}
         return redirect(url_for("tareas_page", **args) + (f"#t{t.id}" if t else ""))
 
-    # Colores de las etiquetas de categoria (tonos apagados, texto blanco legible
-    # en modo claro y oscuro). Cada categoria mantiene siempre el mismo color.
-    _TK_COLORES = ["#7a4a5e", "#4f5f86", "#8a6a2e", "#3f6f5a", "#7b4d33",
-                   "#5d4f86", "#2f6b78", "#86504f"]
-
-    def _tk_color_cat(nombre):
-        if not nombre:
-            return ""
-        return _TK_COLORES[sum(ord(ch) for ch in nombre.lower()) % len(_TK_COLORES)]
-
     def _tk_dias_txt(t, hoy):
         """Texto de 'Dias restantes' + tono (late/today/soon/'')."""
         dr = t.dias_restantes(hoy)
@@ -9370,7 +9360,7 @@ def register_routes(app: Flask) -> None:
         txt, tono = _tk_dias_txt(t, hoy)
         return {"ok": True, "id": t.id, "estado": t.estado, "dias_txt": txt, "dias_tono": tono,
                 "avance": t.avance_pct, "progreso": t.progreso, "meta": t.meta,
-                "cat_color": _tk_color_cat(t.categoria), "hecha": t.hecha}
+                "hecha": t.hecha}
 
     @app.route("/admin/tareas")
     @auth.admin_required
@@ -9403,7 +9393,7 @@ def register_routes(app: Flask) -> None:
             "tareas.html", filas=filas, n_abiertas=n_abiertas, n_hechas=len(todas_db) - n_abiertas,
             sugeridas=_tareas_sugeridas(), hoy=hoy, cat=cat, ver=ver, orden=orden, cats=cats,
             cats_usadas=cats_usadas, prioridades=PRIORIDADES_TAREA, estados_tarea=ESTADOS_TAREA,
-            color_cat=_tk_color_cat, dias_txt=_tk_dias_txt,
+            dias_txt=_tk_dias_txt,
         )
 
     @app.route("/admin/tareas/<int:tarea_id>/campo", methods=["POST"])
