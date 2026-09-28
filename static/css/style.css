@@ -11718,7 +11718,7 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 .tk-c-atarea { width: 110px; text-align: right; }
 .tk-fecha-txt { color: var(--text-4); font-variant-numeric: tabular-nums; font-size: 12.5px; }
 .tk-sel-formato { color: var(--text-2); }
-.tk-btn-tarea, .tk-link-tarea { font: inherit; font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); background: transparent; border: 1px solid var(--border-2); border-radius: 3px; padding: 4px 9px; cursor: pointer; text-decoration: none; white-space: nowrap; transition: color .15s ease, border-color .15s ease; }
+.tk-btn-tarea, .tk-link-tarea { font: inherit; font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); background: transparent; border: 1px solid var(--border-2); border-radius: 6px; padding: 4px 9px; cursor: pointer; text-decoration: none; white-space: nowrap; transition: color .15s ease, border-color .15s ease; }
 .tk-btn-tarea:hover { color: var(--text-1); border-color: var(--tk-ink); }
 .tk-link-tarea { border-color: transparent; color: var(--text-4); }
 .tk-link-tarea:hover { color: var(--text-1); }
@@ -11768,7 +11768,7 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
    ===================================================================== */
 .tk-resumen { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 0 22px; }
 .tk-resumen:has(> :nth-child(3):last-child) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.tk-res { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px 14px; background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 4px; }
+.tk-res { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px 14px; background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 12px; }
 .tk-res:first-child { background: var(--arcano-marron, #3D3033); border-color: var(--arcano-marron, #3D3033); }
 .tk-res:first-child .tk-res-n { color: var(--arcano-crema, #FFF7EC); }
 .tk-res:first-child .tk-res-l { color: rgba(233, 209, 175, .85); }
@@ -11778,7 +11778,7 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 @media (max-width: 700px) { .tk-resumen, .tk-resumen:has(> :nth-child(3):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tk-res-n { font-size: 24px; } }
 
 /* Contenedor y encabezado marron (como los paneles del manual) */
-.tk-table-wrap { border-radius: 4px; border-color: var(--border-2); }
+.tk-table-wrap { border-radius: 12px; border-color: var(--border-2); }
 .tk-table thead th {
     background: var(--arcano-marron, #3D3033);
     color: rgba(255, 247, 236, .62);
@@ -11797,10 +11797,10 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 
 /* Categoria como etiqueta fina (solo si tiene texto) */
 .tk-in-cat { field-sizing: content; min-width: 40px; max-width: 100%; width: auto; }
-.tk-in-cat:not(:placeholder-shown):not(:focus) { border-color: var(--border-3); border-radius: 3px; padding: 3px 8px; }
+.tk-in-cat:not(:placeholder-shown):not(:focus) { border-color: var(--border-3); border-radius: 999px; padding: 3px 10px; }
 
 /* Estado como etiqueta con puntito */
-.tk-estado { border: 1px solid var(--border-2); border-radius: 3px; padding: 0 2px 0 9px; background: var(--bg-1); transition: border-color .2s ease, background-color .2s ease; }
+.tk-estado { border: 1px solid var(--border-2); border-radius: 999px; padding: 0 4px 0 10px; background: var(--bg-1); transition: border-color .2s ease, background-color .2s ease; }
 .tk-estado .tk-sel { border-color: transparent !important; padding: 3px 6px 3px 4px; }
 .tk-estado[data-estado="curso"] { border-color: var(--tk-ink); background: var(--tk-ink-soft); }
 .tk-estado[data-estado="hecha"] { border-color: var(--border-1); background: transparent; }

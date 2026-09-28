@@ -25,8 +25,6 @@
     --bad-soft: rgba(226, 145, 127, 0.12);
     /* --gain / --loss / --danger NO se tocan: los montos siguen verde (ganancia) y
        rojo (perdida) como siempre (pedido explicito de Facundo). */
-    --radius: 4px;
-    --radius-sm: 3px;
     --card-shadow: none;
     --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
 
@@ -144,12 +142,10 @@ body.app { background-color: var(--bg-0); font-weight: 400; }
     background-color: transparent;
     color: var(--text-1);
     box-shadow: inset 0 -1px 0 var(--ink);
-    border-radius: 0;
 }
 .nav-link:hover { background-color: transparent; color: var(--text-1); }
 .nav-badge { background: var(--ink) !important; color: var(--ink-contrast) !important; }
 .nav-group-menu {
-    border-radius: var(--radius);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
     animation: ab-drop .16s var(--ease);
 }
@@ -158,7 +154,6 @@ body.app { background-color: var(--bg-0); font-weight: 400; }
 
 /* ---------- 4. Botones ---------- */
 .btn {
-    border-radius: var(--radius);
     font-weight: 500;
     letter-spacing: 0.04em;
     transition: background-color .18s var(--ease), border-color .18s var(--ease), color .18s var(--ease), opacity .12s ease;
@@ -173,15 +168,10 @@ body.app { background-color: var(--bg-0); font-weight: 400; }
     outline-offset: 2px;
 }
 
-/* ---------- 5. Formas: esquinas casi rectas, sin sombras ---------- */
-.app-main :is([class*="card"], [class*="panel"], [class*="-box"], [class*="wrap"], [class*="stat"],
-              .filters, .quick-action, .flash, details, table, textarea, select,
-              input:not([type="checkbox"]):not([type="radio"]):not([type="range"])):not([class*="dot"]):not([class*="semaforo"]):not([class*="avatar"]):not([class*="switch"]):not([class*="knob"]) {
-    border-radius: var(--radius);
-}
-.app-main :is(.badge, [class*="chip"], [class*="-tag"], [class*="badge"], [class*="pill"]) { border-radius: var(--radius-sm); }
+/* ---------- 5. Formas: se mantienen las esquinas redondeadas originales (pedido de
+   Facundo); solo se sacan las sombras pesadas de las tarjetas. ---------- */
 .app-main :is([class*="card"], [class*="panel"], .quick-action) { box-shadow: none; }
-.flash { border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+.flash { box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
 
 /* ---------- 6. Etiquetas de estado de discos ---------- */
 .badge { font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; font-size: 10px; padding: 3px 8px; }
@@ -212,7 +202,17 @@ body.app { background-color: var(--bg-0); font-weight: 400; }
 .summary-card.highlight, .kpi-card.kpi-highlight { background: var(--ink-soft) !important; border-color: var(--ink-line) !important; }
 .sena-chip { background: var(--ink-soft) !important; color: var(--ink) !important; border-color: var(--ink-line) !important; }
 .sena-add:hover { border-color: var(--ink) !important; color: var(--ink) !important; }
-.stock-table thead th { background-color: var(--bg-1); }
+/* Encabezado de la tabla de Stock en marron de marca, igual que Tareas */
+.stock-table thead th {
+    background-color: var(--arcano-marron, #3D3033);
+    color: rgba(255, 247, 236, .62);
+    border-bottom-color: var(--arcano-marron, #3D3033);
+    color-scheme: dark;
+}
+.stock-table thead .th-sort-link:hover,
+.stock-table thead .th-sorted .th-sort-link { color: var(--arcano-crema, #FFF7EC); }
+.stock-table thead .th-sortable:hover { background-color: #4a3b3e; }
+.stock-table thead .col-resizer:hover::after { background: rgba(233, 209, 175, .5); }
 
 /* ---------- 8. Reservas ---------- */
 .reserva-card.reserva-pending { border-left-color: var(--ink) !important; }
@@ -276,7 +276,6 @@ body.app { background-color: var(--bg-0); font-weight: 400; }
 .flash-fade { opacity: 0; transform: translateY(-6px); transition: opacity .3s var(--ease), transform .3s var(--ease); }
 
 /* ---------- 14. Tareas: el dashboard usa el mismo tono ---------- */
-.tareas-strip { border-radius: var(--radius); }
 .tareas-strip.has-vencidas { border-left: 1px solid var(--border-2); box-shadow: inset 2px 0 0 var(--bad); }
 
 /* ---------- 15. Movimiento ---------- */
@@ -329,7 +328,7 @@ details[open] > *:not(summary) { animation: ab-fade .22s var(--ease); }
 /* ---------- 17. Violeta residual -> marca ---------- */
 :root { --accent-2: var(--ink); }
 .c-arc, .avp-arc, .avp-dot-arc { background: var(--ink) !important; }
-.dash-kpi-top { border-top-color: var(--ink) !important; border-top-width: 1px !important; border-radius: var(--radius) !important; }
+.dash-kpi-top { border-top-color: var(--ink) !important; border-top-width: 1px !important; }
 body.app .btn-primary, body.app .btn-primary:hover { box-shadow: none; }
 body.app .btn:focus-visible, body.app .action-btn:focus-visible, body.app .nav-link:focus-visible,
 body.app input:focus-visible, body.app select:focus-visible, body.app textarea:focus-visible {
