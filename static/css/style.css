@@ -11578,121 +11578,119 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 .ts-when.is-late { color: var(--loss); }
 .ts-when.is-today { color: #b8862b; }
 
-/* Alta rapida */
-.tk-new { background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 12px; padding: 12px; margin-bottom: 14px; }
-.tk-new-row { display: flex; gap: 8px; }
-.tk-new-input { flex: 1 1 auto; min-width: 0; font-size: 15px; padding: 10px 12px; font-family: inherit; background: var(--bg-2); color: var(--text-1); border: 1px solid var(--border-2); border-radius: 8px; }
-.tk-new-input:focus { outline: none; border-color: var(--border-3); background: var(--bg-3); }
+/* Tabla de tareas (formato tipo Notion, v5.48) */
+.tk-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.tk-seg { display: inline-flex; border: 1px solid var(--border-2); border-radius: 8px; overflow: hidden; }
+.tk-seg a { padding: 6px 12px; font-size: 12px; color: var(--text-3); text-decoration: none; border-right: 1px solid var(--border-2); white-space: nowrap; }
+.tk-seg a:last-child { border-right: 0; }
+.tk-seg a:hover { color: var(--text-1); }
+.tk-seg a.is-on { background: var(--bg-3); color: var(--text-1); font-weight: 700; }
+.tk-catfilter { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-3); }
+.tk-catfilter select { font: inherit; font-size: 12px; padding: 5px 8px; color: var(--text-1); background: var(--bg-2); border: 1px solid var(--border-2); border-radius: 6px; }
+
+.tk-table-wrap { overflow-x: auto; border: 1px solid var(--border-2); border-radius: 10px; background: var(--bg-1); }
+.tk-table { width: 100%; min-width: 1060px; border-collapse: collapse; font-size: 13px; }
+.tk-table th { text-align: left; font-weight: 500; font-size: 12px; color: var(--text-3); padding: 9px 10px; border-bottom: 1px solid var(--border-2); white-space: nowrap; background: var(--bg-1); }
+.tk-table td { padding: 5px 10px; border-bottom: 1px solid var(--border-1); vertical-align: middle; height: 38px; transition: background-color .5s ease; }
+.tk-table th + th, .tk-table td + td { border-left: 1px solid var(--border-1); }
+.tk-row:hover td { background: var(--bg-2); }
+.tk-th-link { color: inherit; text-decoration: none; }
+.tk-th-link:hover, .tk-th-link.is-on { color: var(--text-1); }
+.tk-c-nombre { min-width: 230px; }
+.tk-c-cat { width: 130px; }
+.tk-c-estado { width: 120px; }
+.tk-c-ag { width: 80px; text-align: center; }
+.tk-table th.tk-c-ag { text-align: center; }
+.tk-c-prio { width: 110px; }
+.tk-c-dias { width: 110px; white-space: nowrap; }
+.tk-c-fecha { width: 140px; }
+.tk-c-num { width: 72px; }
+.tk-c-avance { width: 150px; }
+.tk-c-acc { width: 34px; padding: 0 4px !important; text-align: center; }
+
+/* Celdas editables: sin borde hasta que las tocas */
+.tk-in { width: 100%; min-width: 0; font: inherit; color: var(--text-1); background: transparent; border: 1px solid transparent; border-radius: 5px; padding: 4px 6px; }
+.tk-in:hover { border-color: var(--border-2); }
+.tk-in:focus { outline: none; border-color: var(--border-3); background: var(--bg-2); }
+.tk-in-nombre { font-weight: 600; }
+.tk-in-num { text-align: right; font-variant-numeric: tabular-nums; }
+.tk-table-wrap, .tk-catfilter { color-scheme: dark; }
+[data-theme="light"] .tk-table-wrap, [data-theme="light"] .tk-catfilter { color-scheme: light; }
+.tk-in-fecha.is-empty:not(:focus) { color: var(--text-5); }
+.tk-nombre { display: flex; align-items: center; gap: 4px; }
+.tk-nota-btn { flex: 0 0 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--text-5); cursor: pointer; border-radius: 5px; padding: 0; }
+.tk-nota-btn svg { width: 15px; height: 15px; }
+.tk-nota-btn:hover, .tk-nota-btn[aria-expanded="true"] { color: var(--text-1); background: var(--bg-3); }
+.tk-nota-btn.has-nota { color: var(--text-2); }
+.tk-nota-row td { background: var(--bg-2); height: auto; padding: 8px 12px 10px 44px; }
+.tk-nota { width: 100%; font: inherit; font-size: 13px; color: var(--text-1); background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 6px; padding: 8px 10px; resize: vertical; }
+
+/* Etiquetas (pills) */
+.tk-pill { font: inherit; font-size: 12px; font-weight: 600; border: 0; border-radius: 4px; padding: 3px 8px; cursor: pointer; color: #fff; appearance: none; -webkit-appearance: none; max-width: 100%; }
+.tk-pill:focus-visible { outline: 2px solid var(--text-2); outline-offset: 1px; }
+.tk-pill option { color: var(--text-1); background: var(--bg-1); font-weight: 500; }
+.tk-pill-cat { background: var(--pill, transparent); width: auto; field-sizing: content; min-width: 60px; }
+.tk-pill-cat.is-empty { color: var(--text-5); font-weight: 500; }
+.tk-pill-cat.is-empty:focus { color: var(--text-1); background: var(--bg-2); }
+.tk-est-nueva { background: #8a4a42; }
+.tk-est-curso { background: #3e6592; }
+.tk-est-hecha { background: #3d7a55; }
+.tk-pill-prio { background: transparent; color: var(--text-5); letter-spacing: -1px; }
+.tk-prio-1 { background: rgba(138, 129, 117, .28); color: #fff; }
+.tk-prio-2 { background: #7a5a2c; }
+.tk-prio-3 { background: #8a5a2e; }
+.tk-prio-4 { background: #6b4a86; }
+.tk-check { width: 16px; height: 16px; cursor: pointer; accent-color: #3e6592; }
+
+/* Calculadas */
+.tk-dias { color: var(--text-2); }
+.tk-dias.is-soon { color: var(--text-1); font-weight: 600; }
+.tk-dias.is-today { color: #c8913a; font-weight: 700; }
+.tk-dias.is-late { color: var(--loss); font-weight: 700; }
+.tk-avance { display: inline-flex; gap: 3px; }
+.tk-avance i { width: 10px; height: 10px; border-radius: 2px; background: var(--bg-3); border: 1px solid var(--border-3); }
+.tk-avance i.on { background: #4f9a63; border-color: #4f9a63; }
+.tk-avance.is-off i { opacity: .45; }
+
+.tk-row.is-hecha .tk-in-nombre { color: var(--text-4); text-decoration: line-through; font-weight: 500; }
+
+.tk-del { width: 24px; height: 24px; border: 0; border-radius: 5px; background: transparent; color: var(--text-5); font-size: 17px; line-height: 1; cursor: pointer; opacity: 0; }
+.tk-row:hover .tk-del, .tk-del:focus-visible { opacity: 1; }
+.tk-del:hover { color: var(--loss); background: var(--bg-3); }
+@media (hover: none) { .tk-del { opacity: .7; } }
+
+/* Fila para agregar (como "+ Nueva pagina") */
+.tk-new-row td { border-bottom: 0; height: 40px; }
+.tk-new { display: flex; align-items: center; gap: 8px; margin: 0; }
+.tk-new-plus { color: var(--text-4); font-size: 16px; width: 24px; text-align: center; }
+.tk-new-input { flex: 1 1 auto; min-width: 0; font: inherit; font-size: 13px; color: var(--text-1); background: transparent; border: 0; padding: 4px 0; }
 .tk-new-input::placeholder { color: var(--text-4); }
-.tk-new-more { margin-top: 8px; }
-.tk-new-more > summary, .tk-edit > summary { cursor: pointer; font-size: 12px; color: var(--text-3); list-style: none; user-select: none; }
-.tk-new-more > summary::-webkit-details-marker, .tk-edit > summary::-webkit-details-marker { display: none; }
-.tk-new-more > summary::before { content: "+ "; }
-.tk-new-more > summary:hover, .tk-edit > summary:hover { color: var(--text-1); }
+.tk-new-input:focus { outline: none; }
 
-.tk-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px 14px; margin-top: 10px; align-items: end; }
-.tk-grid .tk-full, .tk-grid .tk-prio-field { grid-column: 1 / -1; }
-.tk-label { display: block; font-size: 12px; color: var(--text-3); margin-bottom: 5px; }
-.tk-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--border-2); border-radius: 8px; overflow: hidden; }
-.tk-seg-opt { position: relative; cursor: pointer; }
-.tk-seg-opt input { position: absolute; opacity: 0; pointer-events: none; }
-.tk-seg-opt span { display: block; padding: 6px 11px; font-size: 12px; color: var(--text-3); border-right: 1px solid var(--border-2); }
-.tk-seg-opt:last-child span { border-right: 0; }
-.tk-seg-opt input:checked + span { background: var(--bg-3); color: var(--text-1); font-weight: 700; }
-.tk-seg-opt input:focus-visible + span { outline: 2px solid var(--text-3); outline-offset: -2px; }
-.tk-seg-3 input:checked + span { color: #b8862b; }
-.tk-seg-4 input:checked + span { color: var(--loss); }
-.tk-meta-inputs { display: flex; align-items: center; gap: 6px; }
-.tk-meta-inputs input { width: 100%; min-width: 0; }
-.tk-meta-inputs span { color: var(--text-4); font-size: 12px; }
-.tk-check { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--text-2); cursor: pointer; padding-bottom: 8px; }
-
-/* Filtros */
-.tk-filtros { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
-.tk-chip { font-size: 12px; padding: 4px 11px; border-radius: 999px; border: 1px solid var(--border-2); color: var(--text-3); text-decoration: none; }
-.tk-chip:hover { color: var(--text-1); border-color: var(--border-3); }
-.tk-chip.is-on { background: var(--bg-3); color: var(--text-1); border-color: var(--border-3); font-weight: 700; }
-
-/* Encabezados de grupo */
-.tk-group, .tk-sug { margin-bottom: 18px; }
-.tk-h { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3); margin: 0 0 8px; font-weight: 700; display: flex; align-items: baseline; gap: 8px; }
-.tk-h-count { font-size: 11px; color: var(--text-4); font-weight: 500; letter-spacing: 0; }
-.tk-h-note { font-size: 11px; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--text-4); }
-.tk-group-vencidas > .tk-h { color: var(--loss); }
-.tk-hechas > summary { cursor: pointer; list-style: none; }
-.tk-hechas > summary::-webkit-details-marker { display: none; }
-.tk-hechas > summary::after { content: "\25BE"; font-size: 11px; }
-.tk-empty { color: var(--text-3); font-size: 14px; padding: 18px 4px; }
+/* Feedback de guardado */
+.tk-table td.tk-saved { background: rgba(79, 154, 99, .16); }
+.tk-table td.tk-error { background: rgba(239, 68, 68, .18); }
+.tk-empty { color: var(--text-3); font-size: 14px; padding: 14px 4px; }
 
 /* Sugeridas */
-.tk-sug-list { list-style: none; margin: 0; padding: 0; border: 1px dashed var(--border-3); border-radius: 12px; overflow: hidden; }
+.tk-sug { margin-top: 22px; }
+.tk-h { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--text-3); margin: 0 0 8px; font-weight: 700; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.tk-h-note { font-size: 11px; text-transform: none; letter-spacing: 0; font-weight: 400; color: var(--text-4); }
+.tk-sug-list { list-style: none; margin: 0; padding: 0; border: 1px dashed var(--border-3); border-radius: 10px; overflow: hidden; }
 .tk-sug-list li + li { border-top: 1px solid var(--border-1); }
-.tk-sug-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; text-decoration: none; color: var(--text-1); }
+.tk-sug-item { display: flex; align-items: center; gap: 10px; padding: 9px 14px; text-decoration: none; color: var(--text-1); }
 .tk-sug-item:hover { background: var(--bg-2); }
 .tk-sug-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-3); flex: 0 0 7px; }
 .tk-sug-item.is-urgente .tk-sug-dot { background: var(--loss); }
 .tk-sug-txt { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
-.tk-sug-txt strong { font-size: 14px; font-weight: 600; }
+.tk-sug-txt strong { font-size: 13px; font-weight: 600; }
 .tk-sug-txt small { font-size: 12px; color: var(--text-3); }
+.tk-sug-cat { font-size: 11px; color: var(--text-3); background: var(--bg-3); padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
 .tk-sug-go { color: var(--text-4); }
 
-/* Filas */
-.tk-list { background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 12px; overflow: hidden; }
-.tk-row { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 12px; align-items: start; padding: 12px 14px; }
-.tk-row + .tk-row { border-top: 1px solid var(--border-1); }
-.tk-row:target { background: var(--bg-2); }
-.tk-done-form { margin: 0; padding-top: 1px; }
-.tk-done { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid var(--border-3); background: transparent; color: transparent; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
-.tk-done svg { width: 13px; height: 13px; }
-.tk-done:hover { border-color: var(--gain); color: var(--gain); }
-.tk-hecha .tk-done { background: var(--gain); border-color: var(--gain); color: #fff; }
-.tk-main { min-width: 0; }
-.tk-title { font-size: 15px; font-weight: 600; color: var(--text-1); overflow-wrap: anywhere; }
-.tk-hecha .tk-title { color: var(--text-4); text-decoration: line-through; font-weight: 500; }
-.tk-sub { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; margin-top: 5px; }
-.tk-inline { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
-.tk-estado { font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border-2); background: transparent; color: var(--text-3); cursor: pointer; line-height: 1.5; font-family: inherit; }
-.tk-estado:hover { border-color: var(--border-3); color: var(--text-1); }
-.tk-estado-curso { color: var(--text-1); border-color: var(--border-3); background: var(--bg-3); }
-.tk-estado-curso::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #d6a945; margin-right: 5px; vertical-align: 1px; }
-.tk-estado-hecha { color: var(--gain); border-color: transparent; cursor: default; }
-.tk-cat { font-size: 11px; color: var(--text-3); background: var(--bg-3); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
-.tk-agendada { font-size: 11px; color: var(--text-3); white-space: nowrap; }
-.tk-when { font-size: 12px; color: var(--text-3); white-space: nowrap; }
-.tk-when small { color: var(--text-5); margin-left: 4px; font-size: 11px; }
-.tk-when.is-soon { color: var(--text-1); }
-.tk-when.is-today { color: #b8862b; font-weight: 700; }
-.tk-when.is-late { color: var(--loss); font-weight: 700; }
-.tk-detalle { margin: 6px 0 0; font-size: 13px; color: var(--text-3); white-space: pre-line; overflow-wrap: anywhere; }
-.tk-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
-.tk-prio { display: inline-flex; align-items: flex-end; gap: 2px; height: 14px; padding-top: 3px; }
-.tk-prio i { display: block; width: 4px; border-radius: 1px; background: var(--border-2); }
-.tk-prio i:nth-child(1) { height: 5px; }
-.tk-prio i:nth-child(2) { height: 8px; }
-.tk-prio i:nth-child(3) { height: 11px; }
-.tk-prio i:nth-child(4) { height: 14px; }
-.tk-prio-1 i.on { background: var(--text-5); }
-.tk-prio-2 i.on { background: var(--text-3); }
-.tk-prio-3 i.on { background: #d6a945; }
-.tk-prio-4 i.on { background: var(--loss); }
-.tk-avance .tk-inline { gap: 5px; }
-.tk-bar { display: inline-block; width: 70px; height: 6px; border-radius: 3px; background: var(--bg-3); overflow: hidden; }
-.tk-bar span { display: block; height: 100%; background: var(--gain); border-radius: 3px; }
-.tk-num { font-size: 12px; color: var(--text-2); font-variant-numeric: tabular-nums; min-width: 30px; text-align: center; }
-.tk-step { width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--border-2); background: transparent; color: var(--text-2); cursor: pointer; padding: 0; font-size: 14px; line-height: 1; font-family: inherit; }
-.tk-step:hover:not(:disabled) { border-color: var(--border-3); color: var(--text-1); }
-.tk-step:disabled { opacity: .35; cursor: default; }
-.tk-edit { grid-column: 2 / -1; }
-.tk-edit[open] { padding-top: 6px; }
-.tk-edit-form { margin-top: 8px; }
-.tk-edit-actions { display: flex; gap: 8px; margin-top: 10px; }
-.tk-borrar { margin-top: 8px; }
-
 @media (max-width: 640px) {
-    .tk-row { grid-template-columns: auto 1fr; }
-    .tk-side { grid-column: 2; flex-direction: row; align-items: center; justify-content: flex-start; flex-wrap: wrap; }
-    .tk-edit { grid-column: 1 / -1; }
     .tareas-strip-go { margin-left: 0; }
+    .tk-sug-cat { display: none; }
 }
 
 /* Barra superior en pantallas medianas (769-1150px): con el link Tareas no entraba.

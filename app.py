@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.47"
+APP_VERSION = "5.48"
 import metrics
 import auth
 import mailer
@@ -9338,8 +9338,39 @@ def register_routes(app: Flask) -> None:
         return None
 
     def _volver_tareas(t=None):
-        cat = request.form.get("volver_cat") or None
-        return redirect(url_for("tareas_page", cat=cat) + (f"#t{t.id}" if t else ""))
+        args = {k: request.form.get("volver_" + k) for k in ("cat", "ver", "orden")}
+        args = {k: v for k, v in args.items() if v}
+        return redirect(url_for("tareas_page", **args) + (f"#t{t.id}" if t else ""))
+
+    # Colores de las etiquetas de categoria (tonos apagados, texto blanco legible
+    # en modo claro y oscuro). Cada categoria mantiene siempre el mismo color.
+    _TK_COLORES = ["#7a4a5e", "#4f5f86", "#8a6a2e", "#3f6f5a", "#7b4d33",
+                   "#5d4f86", "#2f6b78", "#86504f"]
+
+    def _tk_color_cat(nombre):
+        if not nombre:
+            return ""
+        return _TK_COLORES[sum(ord(ch) for ch in nombre.lower()) % len(_TK_COLORES)]
+
+    def _tk_dias_txt(t, hoy):
+        """Texto de 'Dias restantes' + tono (late/today/soon/'')."""
+        dr = t.dias_restantes(hoy)
+        if dr is None:
+            return "", ""
+        if dr < 0:
+            return (f"hace {-dr} día{'s' if -dr != 1 else ''}", "late")
+        if dr == 0:
+            return ("Hoy", "today")
+        if dr == 1:
+            return ("Mañana", "soon")
+        return (f"{dr} días", "soon" if dr <= 3 else "")
+
+    def _tk_json(t):
+        hoy = today_uy()
+        txt, tono = _tk_dias_txt(t, hoy)
+        return {"ok": True, "id": t.id, "estado": t.estado, "dias_txt": txt, "dias_tono": tono,
+                "avance": t.avance_pct, "progreso": t.progreso, "meta": t.meta,
+                "cat_color": _tk_color_cat(t.categoria), "hecha": t.hecha}
 
     @app.route("/admin/tareas")
     @auth.admin_required
@@ -9347,31 +9378,97 @@ def register_routes(app: Flask) -> None:
         from models import Tarea, CATEGORIAS_TAREA, PRIORIDADES_TAREA, ESTADOS_TAREA
         hoy = today_uy()
         cat = (request.args.get("cat") or "").strip()
+        ver = (request.args.get("ver") or "abiertas").strip()      # abiertas | todas | hechas
+        orden = (request.args.get("orden") or "dias").strip()      # dias | prioridad | nombre | creada
         todas_db = Tarea.query.all()
-        todas = [t for t in todas_db if not cat or t.categoria == cat]
-        abiertas = [t for t in todas if t.estado != "Hecha"]
-        hechas = sorted([t for t in todas if t.estado == "Hecha"],
-                        key=lambda t: t.hecha_en or t.creada, reverse=True)
-
-        def _orden(t):
-            return (-(t.prioridad or 0), t.fecha_limite or _date_max, t.id)
-        grupos = [
-            ("vencidas", "Vencidas",
-             sorted([t for t in abiertas if t.fecha_limite and t.fecha_limite < hoy], key=_orden)),
-            ("semana", "Próximos 7 días",
-             sorted([t for t in abiertas if t.fecha_limite and 0 <= (t.fecha_limite - hoy).days <= 7], key=_orden)),
-            ("adelante", "Más adelante",
-             sorted([t for t in abiertas if t.fecha_limite and (t.fecha_limite - hoy).days > 7], key=_orden)),
-            ("sinfecha", "Sin fecha",
-             sorted([t for t in abiertas if not t.fecha_limite], key=_orden)),
-        ]
+        filas = [t for t in todas_db if not cat or t.categoria == cat]
+        if ver == "hechas":
+            filas = [t for t in filas if t.hecha]
+        elif ver != "todas":
+            ver = "abiertas"
+            filas = [t for t in filas if not t.hecha]
+        if orden == "prioridad":
+            filas.sort(key=lambda t: (-(t.prioridad or 0), t.fecha_limite or _date_max, t.id))
+        elif orden == "nombre":
+            filas.sort(key=lambda t: (t.titulo or "").lower())
+        elif orden == "creada":
+            filas.sort(key=lambda t: t.id, reverse=True)
+        else:
+            orden = "dias"
+            filas.sort(key=lambda t: (t.fecha_limite or _date_max, -(t.prioridad or 0), t.id))
+        n_abiertas = sum(1 for t in todas_db if not t.hecha)
         cats_usadas = sorted({t.categoria for t in todas_db if t.categoria}, key=str.lower)
         cats = CATEGORIAS_TAREA + [c for c in cats_usadas if c not in CATEGORIAS_TAREA]
         return render_template(
-            "tareas.html", grupos=grupos, hechas=hechas, n_abiertas=len(abiertas),
-            sugeridas=_tareas_sugeridas(), hoy=hoy, cat=cat, cats=cats,
+            "tareas.html", filas=filas, n_abiertas=n_abiertas, n_hechas=len(todas_db) - n_abiertas,
+            sugeridas=_tareas_sugeridas(), hoy=hoy, cat=cat, ver=ver, orden=orden, cats=cats,
             cats_usadas=cats_usadas, prioridades=PRIORIDADES_TAREA, estados_tarea=ESTADOS_TAREA,
+            color_cat=_tk_color_cat, dias_txt=_tk_dias_txt,
         )
+
+    @app.route("/admin/tareas/<int:tarea_id>/campo", methods=["POST"])
+    @auth.admin_required
+    def tarea_campo(tarea_id):
+        """Edicion en la celda de la tabla (AJAX): guarda UN campo y devuelve lo recalculado."""
+        from models import Tarea, ESTADOS_TAREA
+        t = Tarea.query.get_or_404(tarea_id)
+        data = request.get_json(silent=True) or {}
+        campo = (data.get("campo") or "").strip()
+        valor = data.get("valor")
+        txt = ("" if valor is None else str(valor)).strip()
+
+        def _entero(v):
+            try:
+                return max(0, int(float(v))) if v not in (None, "") else None
+            except (TypeError, ValueError):
+                return None
+
+        if campo == "titulo":
+            if not txt:
+                return jsonify({"ok": False, "error": "La tarea necesita un nombre."}), 400
+            t.titulo = txt[:200]
+        elif campo == "detalle":
+            t.detalle = txt or None
+        elif campo == "categoria":
+            t.categoria = txt[:60] or None
+        elif campo == "estado":
+            if txt not in ESTADOS_TAREA:
+                return jsonify({"ok": False, "error": "Estado inválido."}), 400
+            _tarea_set_estado(t, txt)
+        elif campo == "agendada":
+            t.agendada = bool(valor) and txt not in ("0", "false", "False")
+        elif campo == "prioridad":
+            p = _entero(txt)
+            t.prioridad = min(4, p or 0)
+        elif campo == "fecha_limite":
+            try:
+                t.fecha_limite = datetime.strptime(txt, "%Y-%m-%d").date() if txt else None
+            except ValueError:
+                return jsonify({"ok": False, "error": "Fecha inválida."}), 400
+        elif campo in ("progreso", "meta"):
+            n = _entero(txt)
+            if campo == "meta":
+                t.meta = n or None
+                if t.meta is None:
+                    t.progreso = None
+                elif t.progreso is not None:
+                    t.progreso = min(t.progreso, t.meta)
+            else:
+                t.progreso = n
+                if t.meta and n is not None:
+                    t.progreso = min(n, t.meta)
+            # Llegar a la meta la marca Hecha; bajar de la meta la reabre.
+            if t.meta and t.progreso is not None:
+                if t.progreso >= t.meta and not t.hecha:
+                    _tarea_set_estado(t, "Hecha")
+                elif t.progreso < t.meta and t.hecha:
+                    _tarea_set_estado(t, "En curso")
+                elif 0 < t.progreso < t.meta and t.estado == "Sin empezar":
+                    _tarea_set_estado(t, "En curso")
+        else:
+            return jsonify({"ok": False, "error": "Campo no editable."}), 400
+        db.session.commit()
+        return jsonify(_tk_json(t))
 
     @app.route("/admin/tareas/nueva", methods=["POST"])
     @auth.admin_required
