@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Home &middot; Arcano{% endblock %}
+
+{% macro money(n) -%}$ {{ '{:,.0f}'.format(n or 0).replace(',', '.') }}{%- endmacro %}
+
+{% macro signo(n) -%}{% if (n or 0) < 0 %}&minus;{% endif %}$ {{ '{:,.0f}'.format((n or 0)|abs).replace(',', '.') }}{%- endmacro %}
+
+{% block content %}
+{% set _dias = ['lunes','martes','miércoles','jueves','viernes','sábado','domingo'] %}
+{% set _meses = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','setiembre','octubre','noviembre','diciembre'] %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Home</h1>
+        <p class="page-sub">{{ _dias[hoy.weekday()]|capitalize }} {{ hoy.day }} de {{ _meses[hoy.month - 1] }}</p>
+    </div>
+    <div class="page-actions">
+        <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Ir al stock</a>
+        <a href="{{ url_for('disc_new') }}" class="btn btn-primary">+ Agregar disco</a>
+    </div>
+</section>
+
+{# ---------- KPIs principales ---------- #}
+<section class="home-block">
+    <div class="dash-ct-head">
+        <span class="dash-ct-title">Este mes</span>
+        {% if kpis.mes %}<span class="dash-ct-sub">desde el {{ kpis.mes.mes_inicio }}</span>{% endif %}
+        <a href="{{ url_for('contabilidad') }}" class="dash-ct-link">Contabilidad &rarr;</a>
+    </div>
+    <div class="home-kpis">
+        {% if kpis.mes %}
+        <a href="{{ url_for('ventas_panel') }}" class="home-kpi">
+            <span class="home-kpi-l">Ventas</span>
+            <span class="home-kpi-n">{{ kpis.mes.ventas_count }}</span>
+            <span class="home-kpi-s">{{ kpis.mes.unidades }} disco{{ 's' if kpis.mes.unidades != 1 else '' }}</span>
+        </a>
+        <a href="{{ url_for('ventas_panel') }}" class="home-kpi">
+            <span class="home-kpi-l">Facturado</span>
+            <span class="home-kpi-n">{{ money(kpis.mes.facturado_uyu) }}</span>
+            <span class="home-kpi-s">en ventas del mes</span>
+        </a>
+        <a href="{{ url_for('ventas_panel') }}" class="home-kpi">
+            <span class="home-kpi-l">Ganancia de ventas</span>
+            <span class="home-kpi-n {% if kpis.mes.ganancia_uyu >= 0 %}gain{% else %}loss{% endif %}">{{ signo(kpis.mes.ganancia_uyu) }}</span>
+            <span class="home-kpi-s">precio &minus; costo de lo vendido</span>
+        </a>
+        {% endif %}
+        {% if kpis.conta %}
+        <a href="{{ url_for('contabilidad') }}" class="home-kpi">
+            <span class="home-kpi-l">Ganancia real</span>
+            <span class="home-kpi-n {% if kpis.conta.ganancia_real_uyu >= 0 %}gain{% else %}loss{% endif %}">{{ signo(kpis.conta.ganancia_real_uyu) }}</span>
+            <span class="home-kpi-s">igual que en Contabilidad (gastos {{ money(kpis.conta.egresos_uyu) }})</span>
+        </a>
+        {% endif %}
+        {% if kpis.cobrar %}
+        <a href="{{ url_for('admin_reservas') }}" class="home-kpi">
+            <span class="home-kpi-l">Por cobrar</span>
+            <span class="home-kpi-n">{{ money(kpis.cobrar.total_uyu) }}</span>
+            <span class="home-kpi-s">{{ kpis.cobrar.titulos }} disco{{ 's' if kpis.cobrar.titulos != 1 else '' }} reservado{{ 's' if kpis.cobrar.titulos != 1 else '' }}</span>
+        </a>
+        {% endif %}
+        {% if kpis.stock %}
+        <a href="{{ url_for('dashboard') }}" class="home-kpi">
+            <span class="home-kpi-l">Stock disponible</span>
+            <span class="home-kpi-n">{{ kpis.stock.stock_disponible_titulos }}</span>
+            <span class="home-kpi-s">valen {{ money(kpis.stock.valor_venta_uyu) }} a precio de venta</span>
+        </a>
+        {% endif %}
+    </div>
+</section>
+
+{# ---------- Estado de la caja ---------- #}
+{% if caja %}
+<section class="home-block">
+    <div class="dash-ct-head">
+        <span class="dash-ct-title">Caja</span>
+        <span class="dash-ct-sub">foto a hoy</span>
+        <a href="{{ url_for('caja') }}" class="dash-ct-link">Ver caja &rarr;</a>
+    </div>
+    <div class="home-kpis home-caja">
+        <a href="{{ url_for('caja') }}" class="home-kpi home-kpi-main">
+            <span class="home-kpi-l">Plata en caja</span>
+            <span class="home-kpi-n {% if caja.saldo_actual < 0 %}loss{% endif %}">{{ signo(caja.saldo_actual) }}</span>
+            <span class="home-kpi-s">lo que tenés en el banco</span>
+        </a>
+        <a href="{{ url_for('caja') }}" class="home-kpi">
+            <span class="home-kpi-l">En Mercado Pago</span>
+            <span class="home-kpi-n">{{ money(caja.mp_pendiente) }}</span>
+            <span class="home-kpi-s">cobrado, todavía sin liberar</span>
+        </a>
+        <a href="{{ url_for('caja') }}" class="home-kpi">
+            <span class="home-kpi-l">Mercadería</span>
+            <span class="home-kpi-n">{{ money(caja.mercaderia_uyu) }}</span>
+            <span class="home-kpi-s">{{ caja.mercaderia_count }} disco{{ 's' if caja.mercaderia_count != 1 else '' }} sin vender (a costo)</span>
+        </a>
+        <a href="{{ url_for('caja') }}" class="home-kpi">
+            <span class="home-kpi-l">Capital que pusiste</span>
+            <span class="home-kpi-n">{{ money(caja.capital_permanente) }}</span>
+            <span class="home-kpi-s">aportes de tu bolsillo</span>
+        </a>
+    </div>
+</section>
+{% endif %}
+
+{% if tareas_dash %}
+<section class="tk-scope dash-tareas">
+    <div class="dash-ct-head">
+        <span class="dash-ct-title">Tareas con deadline</span>
+        <span class="dash-ct-sub">{{ tareas_dash.filas|length }} pendiente{{ 's' if tareas_dash.filas|length != 1 else '' }}{% if tareas_dash.vencidas %} &middot; <b>{{ tareas_dash.vencidas }} vencida{{ 's' if tareas_dash.vencidas != 1 else '' }}</b>{% endif %}{% if tareas_dash.sin_fecha %} &middot; {{ tareas_dash.sin_fecha }} sin fecha{% endif %}{% if tareas_dash.sugeridas %} &middot; {{ tareas_dash.sugeridas }} sugerida{{ 's' if tareas_dash.sugeridas != 1 else '' }}{% endif %}</span>
+        <a href="{{ url_for('tareas_page') }}" class="dash-ct-link">Ver todas &rarr;</a>
+    </div>
+    {% if tareas_dash.filas %}
+    <datalist id="tk-cats">{% for c in tareas_dash.cats %}<option value="{{ c }}">{% endfor %}</datalist>
+    {% with filas=tareas_dash.filas, hoy=tareas_dash.hoy, dias_txt=tareas_dash.dias_txt, dias_partes=tareas_dash.dias_partes,
+            tag_rgb=tareas_dash.tag_rgb, prioridades=tareas_dash.prioridades, estados_tarea=tareas_dash.estados_tarea,
+            compacto=True, cat='', ver='abiertas', orden='dias' %}{% include "_tareas_tabla.html" %}{% endwith %}
+    {% else %}
+    <p class="dash-vacio">No ten&eacute;s tareas con fecha l&iacute;mite pendientes.</p>
+    {% endif %}
+</section>
+{# El panel va FUERA de la <section>: la animacion de entrada de las secciones deja un
+   transform que haria que el panel (position: fixed) quede encerrado en ella. #}
+{% if tareas_dash.filas %}<div class="tk-scope tk-drawer-host">{% include "_tk_drawer.html" %}</div>{% endif %}
+{% endif %}
+
+{% if constancia %}
+<section class="tk-scope dash-constancia">
+    <div class="dash-ct-head">
+        <span class="dash-ct-title">Constancia</span>
+        <span class="dash-ct-sub">{{ constancia.resumen_c.hoy_ok }}/{{ constancia.resumen_c.hoy_total }} metas diarias hechas hoy{% if constancia.resumen_c.atrasadas %} &middot; <b>{{ constancia.resumen_c.atrasadas }} atrasada{{ 's' if constancia.resumen_c.atrasadas != 1 else '' }}</b>{% endif %}</span>
+        <a href="{{ url_for('tareas_page', vista='constancia') }}" class="dash-ct-link">Editar metas &rarr;</a>
+    </div>
+    {% with habitos=constancia.habitos, compacto=True %}{% include "_constancia_tabla.html" %}{% endwith %}
+</section>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/tareas.js') }}"></script>
+{% endblock %}

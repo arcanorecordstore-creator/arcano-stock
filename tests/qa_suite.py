@@ -217,7 +217,7 @@ def test_admin_auth(c):
     cat("Seguridad de acceso (admin cerrado sin login)")
     # Cliente NUEVO sin login
     anon = app.test_client()
-    for url in ["/admin/", "/admin/contabilidad", "/admin/caja", "/admin/pedidos",
+    for url in ["/admin/", "/admin/stock", "/admin/tareas", "/admin/contabilidad", "/admin/caja", "/admin/pedidos",
                 "/admin/ventas", "/admin/reservas", "/admin/settings",
                 "/admin/backup/db", "/admin/export/csv"]:
         r = anon.get(url)
@@ -230,7 +230,8 @@ def test_admin_paginas(c):
     cat("Admin: paginas principales cargan")
     login(c)
     for url, nombre in [
-        ("/admin/", "Dashboard"), ("/admin/contabilidad", "Contabilidad"),
+        ("/admin/", "Home"), ("/admin/stock", "Stock"), ("/admin/tareas", "Tareas"),
+        ("/admin/tareas?vista=constancia", "Constancia"), ("/admin/contabilidad", "Contabilidad"),
         ("/admin/caja", "Caja"), ("/admin/pedidos", "Pedidos"),
         ("/admin/ventas", "Ventas"), ("/admin/reservas", "Reservas"),
         ("/admin/radar", "Radar"),

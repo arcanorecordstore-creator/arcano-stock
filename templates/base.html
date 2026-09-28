@@ -44,7 +44,8 @@
             <button type="button" class="nav-toggle" id="nav-toggle" aria-label="Abrir menú" aria-expanded="false" aria-controls="topbar-nav">&#9776;</button>
             <nav class="topbar-nav" id="topbar-nav">
                 {% set ep = request.endpoint or '' %}
-                <a href="{{ url_for('dashboard') }}" class="nav-link {% if ep == 'dashboard' %}active{% endif %}">Dashboard</a>
+                <a href="{{ url_for('home_admin') }}" class="nav-link {% if ep == 'home_admin' %}active{% endif %}">Home</a>
+                <a href="{{ url_for('dashboard') }}" class="nav-link {% if ep == 'dashboard' %}active{% endif %}">Stock</a>
                 <a href="{{ url_for('admin_reservas') }}" class="nav-link {% if ep.startswith('admin_reserva') %}active{% endif %}">
                     Reservas
                     {% if reservas_sin_ver_count > 0 %}

@@ -12022,3 +12022,96 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 
 /* El contenedor del panel lateral no se anima (un transform en curso encerraria al panel fijo) */
 .app-main > .tk-drawer-host { animation: none !important; transform: none !important; }
+
+/* =====================================================================
+   TAREAS / IDEAS / CONSTANCIA en el celular (v5.59): cada fila pasa a
+   ser una tarjeta; nada de deslizar la tabla de costado.
+   ===================================================================== */
+@media (max-width: 700px) {
+    .tk-table-wrap { overflow: visible; border: 0; border-radius: 0; background: transparent; }
+    .tk-table, .tk-table tbody, .tk-table tr, .tk-table td { display: block; width: auto; min-width: 0 !important; }
+    .tk-table thead { display: none; }
+    .tk-table tbody td { height: auto; padding: 0; border: 0; }
+    .tk-row > td:first-child { box-shadow: none !important; }
+
+    /* Tarjeta */
+    .tk-table tr.tk-row {
+        display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+        padding: 12px 14px; margin-bottom: 10px;
+        background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 14px;
+    }
+    .tk-table tr.tk-row:hover { background: var(--bg-1); }
+    .tk-row.row-late { border-left: 3px solid var(--loss); }
+    .tk-row.row-today { border-left: 3px solid var(--tk-ink); }
+    .tk-table .tk-c-nombre { flex: 1 1 100%; }
+    .tk-open { padding: 2px 0; font-size: 15px; width: 100%; }
+    .tk-open:hover { background: transparent; border-color: transparent; }
+
+    /* Tareas: lo que se muestra en la tarjeta */
+    .tk-table .tk-c-ag, .tk-table .tk-c-num, .tk-table .tk-c-acc { display: none; }
+    .tk-table .tk-c-avance { flex: 1 1 100%; }
+    .tk-table .tk-c-avance:has(.tk-av.is-off) { display: none; }
+    .tk-av.is-off { opacity: 1; }
+    .tk-table .tk-c-dias { margin-left: auto; }
+    .tk-dias-n { font-size: 17px; }
+    .tk-table .tk-c-fecha { flex: 0 0 auto; }
+    .tk-in-fecha { width: auto; font-size: 12.5px; padding: 3px 4px; }
+    .tk-in-fecha.is-empty:not(:focus) { display: none; }
+    .tk-in-cat { font-size: 10px !important; }
+    .tk-estado .tk-sel { font-size: 12px; }
+
+    /* Fila para agregar */
+    .tk-table tr.tk-new-row { margin-top: 2px; background: transparent; border: 1px dashed var(--border-3); border-radius: 14px; padding: 6px 10px; }
+
+    /* Ideas */
+    .tk-table-ideas .tk-c-creada { order: 5; margin-left: auto; }
+    .tk-table-ideas .tk-c-atarea { order: 6; }
+
+    /* Constancia */
+    .tk-table-constancia .tk-c-meta { flex: 1 1 100%; margin-top: -4px; }
+    .ct-meta-ro { font-size: 12.5px; }
+    .tk-table-constancia .tk-c-hoy { flex: 0 0 auto; }
+    .tk-table-constancia .tk-c-estado-c { flex: 1 1 0; text-align: right; }
+    .ct-estado { font-size: 12px; }
+    .tk-table-constancia .tk-c-semana { flex: 1 1 100%; }
+    .ct-semana { gap: 4px; flex-wrap: wrap; }
+    .ct-dia-box { width: 30px; height: 30px; }
+    .ct-periodo { flex: 1 1 100%; margin: 4px 0 0; }
+    .ct-row.ct-atrasado { border-left: 3px solid var(--loss); }
+    .ct-row.ct-ok { border-left: 3px solid var(--gain); }
+    .ct-new { gap: 6px; }
+    .ct-new .tk-new-input { min-width: 0; flex: 1 1 100%; }
+
+    /* Sin el aire de las celdas de escritorio (el dashboard les suma 8px) */
+    .tk-table tbody tr > td, .dash-tareas .tk-table tbody td, .dash-constancia .tk-table tbody td { padding: 0 !important; height: auto !important; }
+    .tk-in-fecha { max-width: 132px; }
+    .tk-table tr.tk-row { gap: 10px 8px; }
+
+    /* Encabezados de las secciones en el dashboard */
+    .dash-ct-head { gap: 4px 10px; }
+    .dash-ct-link { margin-left: 0; }
+}
+
+/* =====================================================================
+   HOME del admin (v5.60): KPIs del mes, caja, tareas y constancia
+   ===================================================================== */
+.home-block { margin-bottom: 22px; }
+.home-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+.home-kpi { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px 14px; background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 12px; text-decoration: none; color: var(--text-1); transition: border-color .18s ease, background-color .18s ease; }
+.home-kpi:hover { border-color: var(--border-3); background: var(--bg-2); }
+.home-kpi-l { font-size: 10px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; color: var(--text-4); }
+.home-kpi-n { font-size: 26px; font-weight: 500; line-height: 1.05; font-variant-numeric: tabular-nums; color: var(--text-1); }
+.home-kpi-n.gain { color: var(--gain); }
+.home-kpi-n.loss { color: var(--loss); }
+.home-kpi-s { font-size: 12px; color: var(--text-4); font-weight: 300; }
+.home-kpi-main { background: var(--arcano-marron, #3D3033); border-color: var(--arcano-marron, #3D3033); }
+.home-kpi-main:hover { background: #46383b; border-color: #46383b; }
+.home-kpi-main .home-kpi-l, .home-kpi-main .home-kpi-s { color: rgba(233, 209, 175, .85); }
+.home-kpi-main .home-kpi-n { color: var(--arcano-crema, #FFF7EC); }
+.home-kpi-main .home-kpi-n.loss { color: #ff8a80; }
+@media (max-width: 700px) {
+    .home-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+    .home-kpi { padding: 13px 14px 12px; }
+    .home-kpi-n { font-size: 21px; }
+    .home-caja .home-kpi-main { grid-column: 1 / -1; }
+}

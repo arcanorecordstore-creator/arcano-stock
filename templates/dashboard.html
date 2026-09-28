@@ -15,38 +15,6 @@
     </div>
 </section>
 
-{% if tareas_dash %}
-<section class="tk-scope dash-tareas">
-    <div class="dash-ct-head">
-        <span class="dash-ct-title">Tareas con deadline</span>
-        <span class="dash-ct-sub">{{ tareas_dash.filas|length }} pendiente{{ 's' if tareas_dash.filas|length != 1 else '' }}{% if tareas_dash.vencidas %} &middot; <b>{{ tareas_dash.vencidas }} vencida{{ 's' if tareas_dash.vencidas != 1 else '' }}</b>{% endif %}{% if tareas_dash.sin_fecha %} &middot; {{ tareas_dash.sin_fecha }} sin fecha{% endif %}{% if tareas_dash.sugeridas %} &middot; {{ tareas_dash.sugeridas }} sugerida{{ 's' if tareas_dash.sugeridas != 1 else '' }}{% endif %}</span>
-        <a href="{{ url_for('tareas_page') }}" class="dash-ct-link">Ver todas &rarr;</a>
-    </div>
-    {% if tareas_dash.filas %}
-    <datalist id="tk-cats">{% for c in tareas_dash.cats %}<option value="{{ c }}">{% endfor %}</datalist>
-    {% with filas=tareas_dash.filas, hoy=tareas_dash.hoy, dias_txt=tareas_dash.dias_txt, dias_partes=tareas_dash.dias_partes,
-            tag_rgb=tareas_dash.tag_rgb, prioridades=tareas_dash.prioridades, estados_tarea=tareas_dash.estados_tarea,
-            compacto=True, cat='', ver='abiertas', orden='dias' %}{% include "_tareas_tabla.html" %}{% endwith %}
-    {% else %}
-    <p class="dash-vacio">No ten&eacute;s tareas con fecha l&iacute;mite pendientes.</p>
-    {% endif %}
-</section>
-{# El panel va FUERA de la <section>: la animacion de entrada de las secciones deja un
-   transform que haria que el panel (position: fixed) quede encerrado en ella. #}
-{% if tareas_dash.filas %}<div class="tk-scope tk-drawer-host">{% include "_tk_drawer.html" %}</div>{% endif %}
-{% endif %}
-
-{% if constancia %}
-<section class="tk-scope dash-constancia">
-    <div class="dash-ct-head">
-        <span class="dash-ct-title">Constancia</span>
-        <span class="dash-ct-sub">{{ constancia.resumen_c.hoy_ok }}/{{ constancia.resumen_c.hoy_total }} metas diarias hechas hoy{% if constancia.resumen_c.atrasadas %} &middot; <b>{{ constancia.resumen_c.atrasadas }} atrasada{{ 's' if constancia.resumen_c.atrasadas != 1 else '' }}</b>{% endif %}</span>
-        <a href="{{ url_for('tareas_page', vista='constancia') }}" class="dash-ct-link">Editar metas &rarr;</a>
-    </div>
-    {% with habitos=constancia.habitos, compacto=True %}{% include "_constancia_tabla.html" %}{% endwith %}
-</section>
-{% endif %}
-
 <div class="quick-actions">
     <a href="{{ url_for('disc_new') }}" class="quick-action">
         <span class="quick-action-icon">{{ icon('plus', 20) }}</span>
@@ -529,7 +497,6 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/app.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_quick_edit.js') }}"></script>
-<script src="{{ url_for('static', filename='js/tareas.js') }}"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <script src="{{ url_for('static', filename='js/dashboard_reorder.js') }}"></script>
 <script src="{{ url_for('static', filename='js/dashboard_resize.js') }}"></script>

@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.58"
+APP_VERSION = "5.60"
 import metrics
 import auth
 import mailer
@@ -1448,6 +1448,40 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/admin/")
     @auth.admin_required
+    def home_admin():
+        """Home del admin (v5.60): donde abre la web. Tareas con deadline, Constancia,
+        KPIs principales y estado de la caja."""
+        import metrics as _m
+        kpis = {}
+        try:
+            kpis["mes"] = _m.kpis_mes_actual()
+        except Exception:
+            db.session.rollback(); kpis["mes"] = None
+        try:
+            kpis["conta"] = _m.contabilidad("mes_actual")
+        except Exception:
+            db.session.rollback(); kpis["conta"] = None
+        try:
+            kpis["stock"] = _m.kpis_principales()
+        except Exception:
+            db.session.rollback(); kpis["stock"] = None
+        try:
+            kpis["cobrar"] = _m.dinero_por_cobrar()
+        except Exception:
+            db.session.rollback(); kpis["cobrar"] = None
+        try:
+            _sincronizar_caja()   # igual que la pagina de Caja: trae lo nuevo (silencioso)
+            caja_res = _resumen_caja()
+        except Exception:
+            db.session.rollback(); caja_res = None
+        return render_template(
+            "home_admin.html", kpis=kpis, caja=caja_res,
+            tareas_dash=_tareas_dash(), constancia=_constancia_dash(),
+            hoy=today_uy(),
+        )
+
+    @app.route("/admin/stock")
+    @auth.admin_required
     def dashboard():
         _res = query_discs(request.args)
         discs = _res if isinstance(_res, list) else _res.all()
@@ -1499,8 +1533,6 @@ def register_routes(app: Flask) -> None:
 
         return render_template(
             "dashboard.html",
-            constancia=_constancia_dash(),
-            tareas_dash=_tareas_dash(),
             discs=discs,
             totals=totals,
             sellos=sellos,
@@ -10327,10 +10359,10 @@ def register_routes(app: Flask) -> None:
                 "ADMIN_USER y ADMIN_PASS, despues reiniciar el servidor.",
                 "info",
             )
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("home_admin"))
 
         if auth.is_logged_in():
-            return redirect(url_for("dashboard"))
+            return redirect(url_for("home_admin"))
 
         if request.method == "POST":
             # --- Rate limiting: frena fuerza bruta por IP ---
@@ -10351,7 +10383,7 @@ def register_routes(app: Flask) -> None:
                 next_url = request.args.get("next") or request.form.get("next")
                 if next_url and next_url.startswith("/admin"):
                     return redirect(next_url)
-                return redirect(url_for("dashboard"))
+                return redirect(url_for("home_admin"))
             else:
                 # Registrar intento fallido; tras 5, bloquear 60s (y creciendo)
                 info["count"] += 1
