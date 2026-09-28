@@ -75,32 +75,41 @@
             var id = el.dataset.id || (tr && tr.dataset.id);
             var campo = el.dataset.campo;
             var valor = valorDe(el);
-            if (el.dataset.ultimo === String(valor)) return;   // no cambio nada
+            if (el.dataset.ultimo === String(valor)) return Promise.resolve(true);   // no cambio nada
             var anterior = el.dataset.ultimo;
             el.dataset.ultimo = String(valor);
-            guardar(base, id, campo, valor).then(function (res) {
+            return guardar(base, id, campo, valor).then(function (res) {
                 if (res.ok) {
                     if (res.data.recargar) { window.location.reload(); return; }
                     if (res.data.grid && window.__ctRender) window.__ctRender(filaDe(id), res.data);
                     refrescarFila(filaDe(id), res.data);
                     if (campo === 'detalle') {
                         var fila = filaDe(id);
-                        var btn = fila && fila.querySelector('.tk-nota-btn');
-                        if (btn) btn.classList.toggle('has-nota', !!String(valor).trim());
+                        var ic = fila && fila.querySelector('.tk-open-nota');
+                        if (ic) ic.classList.toggle('is-empty', !String(valor).trim());
+                    }
+                    if (campo === 'titulo') {
+                        var ft = filaDe(id);
+                        var tt = ft && ft.querySelector('.tk-open-t');
+                        if (tt) tt.textContent = valor;
                     }
                     marcar(el, true);
+                    return true;
                 } else {
                     alert((res.data && res.data.error) || 'No se pudo guardar.');
                     if (el.type === 'checkbox') el.checked = anterior === '1';
                     else if (anterior !== undefined) el.value = anterior;
                     el.dataset.ultimo = anterior;
                     marcar(el, false);
+                    return false;
                 }
             }).catch(function () {
                 el.dataset.ultimo = anterior;
                 marcar(el, false);
+                return false;
             });
         }
+        tabla.__enviar = enviar;
 
         Array.prototype.forEach.call(tabla.querySelectorAll('[data-campo]'), function (el) {
             el.dataset.ultimo = String(valorDe(el));
@@ -211,3 +220,152 @@
     }
 })();
 
+/* Panel lateral: abre una tarea/idea para leer y editar todo el texto comodo. */
+(function () {
+    'use strict';
+    var drawer = document.getElementById('tk-drawer');
+    if (!drawer) return;
+    var tit = drawer.querySelector('.tkd-titulo');
+    var view = drawer.querySelector('.tkd-view');
+    var text = drawer.querySelector('.tkd-text');
+    var btnEdit = drawer.querySelector('.tkd-edit');
+    var meta = drawer.querySelector('.tkd-meta');
+    var status = drawer.querySelector('.tkd-status');
+    var actual = null;   // {fila, tabla, srcTitulo, srcNota}
+    var ultimoFoco = null;
+
+    function esc(t) {
+        return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function inline(t) {
+        t = esc(t);
+        t = t.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+        t = t.replace(/(^|[^*])\*(?!\s)([^*]+?)\*(?!\*)/g, '$1<em>$2</em>');
+        t = t.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+        return t;
+    }
+    // Markdown liviano: titulos (#), listas (- * •), listas numeradas, parrafos.
+    function render(md) {
+        var lines = (md || '').replace(/\r/g, '').split('\n');
+        var html = [], lista = null, parr = [];
+        function cerrarParr() { if (parr.length) { html.push('<p>' + parr.join('<br>') + '</p>'); parr = []; } }
+        function cerrarLista() { if (lista) { html.push('</' + lista + '>'); lista = null; } }
+        lines.forEach(function (ln) {
+            var m;
+            if (!ln.trim()) { cerrarParr(); cerrarLista(); return; }
+            if ((m = ln.match(/^\s*(#{1,3})\s+(.*)$/))) {
+                cerrarParr(); cerrarLista();
+                var h = m[1].length + 2;
+                html.push('<h' + h + '>' + inline(m[2]) + '</h' + h + '>');
+                return;
+            }
+            if ((m = ln.match(/^\s*[-*•]\s+(.*)$/))) {
+                cerrarParr();
+                if (lista !== 'ul') { cerrarLista(); html.push('<ul>'); lista = 'ul'; }
+                html.push('<li>' + inline(m[1]) + '</li>');
+                return;
+            }
+            cerrarLista();
+            parr.push(inline(ln));
+        });
+        cerrarParr(); cerrarLista();
+        return html.join('');
+    }
+
+    function autoAlto(el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }
+
+    function pintarVista() {
+        view.innerHTML = render(text.value) || '<p class="tkd-vacio">Sin nota todavía. Tocá “Editar” para escribir.</p>';
+    }
+
+    function modoEditar(on) {
+        text.hidden = !on;
+        view.hidden = on;
+        btnEdit.textContent = on ? 'Listo' : 'Editar';
+        if (on) { autoAlto(text); text.focus(); } else { pintarVista(); }
+    }
+
+    function guardarCampo(src, valor) {
+        if (!src || !actual) return Promise.resolve(true);
+        src.value = valor;
+        status.textContent = 'Guardando…';
+        return actual.tabla.__enviar(src).then(function (ok) {
+            status.textContent = ok ? 'Guardado' : 'No se pudo guardar';
+            setTimeout(function () { if (status.textContent === 'Guardado') status.textContent = ''; }, 1400);
+            return ok;
+        });
+    }
+
+    function abrir(fila) {
+        var tabla = fila.closest('.tk-table');
+        var nota = tabla.querySelector('.tk-nota-row[data-for="' + fila.dataset.id + '"] .tk-nota');
+        actual = { fila: fila, tabla: tabla, srcTitulo: fila.querySelector('.tk-titulo-src'), srcNota: nota };
+        tit.value = actual.srcTitulo ? actual.srcTitulo.value : '';
+        text.value = nota ? nota.value : '';
+        var partes = [];
+        var cat = fila.querySelector('[data-campo="categoria"]');
+        if (cat && cat.value) partes.push(cat.value);
+        var fmt = fila.querySelector('[data-campo="formato"]');
+        if (fmt && fmt.value) partes.push(fmt.value);
+        var est = fila.querySelector('[data-campo="estado"]');
+        if (est) partes.push(est.value);
+        meta.textContent = partes.join(' · ');
+        status.textContent = '';
+        ultimoFoco = document.activeElement;
+        drawer.hidden = false;
+        requestAnimationFrame(function () { drawer.classList.add('is-open'); autoAlto(tit); });
+        var vacia = !text.value.trim();
+        modoEditar(vacia);
+        if (!vacia) view.focus();
+    }
+
+    function guardarPendiente() {
+        if (!actual) return;
+        if (actual.srcTitulo) {
+            var v = tit.value.trim();
+            if (v && v !== actual.srcTitulo.value) guardarCampo(actual.srcTitulo, v);
+        }
+        if (actual.srcNota && text.value !== actual.srcNota.value) guardarCampo(actual.srcNota, text.value);
+    }
+
+    function cerrar() {
+        if (!actual) return;
+        guardarPendiente();
+        drawer.classList.remove('is-open');
+        setTimeout(function () { drawer.hidden = true; }, 220);
+        actual = null;
+        if (ultimoFoco && ultimoFoco.focus) ultimoFoco.focus();
+    }
+
+    document.addEventListener('click', function (e) {
+        var b = e.target.closest('.tk-open');
+        if (b) { e.preventDefault(); abrir(b.closest('tr.tk-row')); return; }
+        if (e.target.closest('[data-tkd-close]')) cerrar();
+    });
+    btnEdit.addEventListener('click', function () {
+        if (!text.hidden) {
+            if (actual && actual.srcNota && text.value !== actual.srcNota.value) guardarCampo(actual.srcNota, text.value);
+            modoEditar(false);
+        } else {
+            modoEditar(true);
+        }
+    });
+    view.addEventListener('dblclick', function () { modoEditar(true); });
+    text.addEventListener('input', function () { autoAlto(text); });
+    text.addEventListener('blur', function () {
+        if (actual && actual.srcNota && text.value !== actual.srcNota.value) guardarCampo(actual.srcNota, text.value);
+    });
+    tit.addEventListener('input', function () { autoAlto(tit); });
+    tit.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); tit.blur(); } });
+    tit.addEventListener('blur', function () {
+        if (!actual || !actual.srcTitulo) return;
+        var v = tit.value.trim();
+        if (!v) { tit.value = actual.srcTitulo.value; return; }
+        if (v !== actual.srcTitulo.value) guardarCampo(actual.srcTitulo, v);
+    });
+    document.addEventListener('keydown', function (e) {
+        if (drawer.hidden) return;
+        if (e.key === 'Escape') { e.preventDefault(); cerrar(); }
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && !text.hidden) { btnEdit.click(); }
+    });
+})();

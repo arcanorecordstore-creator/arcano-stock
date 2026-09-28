@@ -97,10 +97,8 @@
         <tr class="tk-row{% if t.hecha %} is-hecha{% endif %}{% if dtono and not t.hecha %} row-{{ dtono }}{% endif %}" id="t{{ t.id }}" data-id="{{ t.id }}">
             <td class="tk-c-nombre">
                 <div class="tk-nombre">
-                    <button type="button" class="tk-nota-btn{% if t.detalle %} has-nota{% endif %}" title="{{ 'Ver nota' if t.detalle else 'Agregar nota' }}" aria-label="Nota" aria-expanded="false">
-                        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2.5L8 6l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                    </button>
-                    <textarea class="tk-in tk-in-nombre" data-campo="titulo" rows="1" maxlength="200" aria-label="Nombre de la tarea">{{ t.titulo }}</textarea>
+                    <button type="button" class="tk-open" title="Abrir para ver y editar todo"><span class="tk-open-t">{{ t.titulo }}</span><span class="tk-open-nota{% if not t.detalle %} is-empty{% endif %}" title="Tiene nota" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 1.5h5.5L13 5v9.5H4z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 8h5M6 10.5h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span></button>
+                    <textarea class="tk-titulo-src" data-campo="titulo" hidden aria-label="Nombre de la tarea">{{ t.titulo }}</textarea>
                 </div>
             </td>
             <td class="tk-c-cat">
@@ -190,6 +188,25 @@
 </section>
 {% endif %}
 {% endif %}{# /vista tareas #}
+
+{# Panel lateral para ver y editar una tarea/idea completa (titulo + nota) #}
+<div class="tkd" id="tk-drawer" hidden>
+    <div class="tkd-bg" data-tkd-close></div>
+    <aside class="tkd-panel" role="dialog" aria-modal="true" aria-labelledby="tkd-titulo">
+        <header class="tkd-head">
+            <div class="tkd-meta"></div>
+            <button type="button" class="tkd-x" data-tkd-close aria-label="Cerrar (Esc)" title="Cerrar (Esc)">&times;</button>
+        </header>
+        <textarea id="tkd-titulo" class="tkd-titulo" rows="1" maxlength="200" aria-label="Título"></textarea>
+        <div class="tkd-bar">
+            <span class="tkd-label">Nota</span>
+            <button type="button" class="tkd-edit">Editar</button>
+        </div>
+        <div class="tkd-view" tabindex="0"></div>
+        <textarea class="tkd-text" hidden placeholder="Escribí lo que quieras: pasos, planos, links, textos… (**negrita**, listas con -)"></textarea>
+        <footer class="tkd-foot"><span class="tkd-status" aria-live="polite"></span></footer>
+    </aside>
+</div>
 </div>
 {% endblock %}
 
