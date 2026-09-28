@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}Clientes &middot; Arcano admin{% endblock %}
 
@@ -18,7 +19,7 @@
 
 {% if lealtad_activa and premios %}
 <div class="cli-premios-alerta">
-    <span class="cli-premios-tit">&#127873; {{ premios|length }} cliente(s) con premio para entregar:</span>
+    <span class="cli-premios-tit">{{ icon('gift', 14) }} {{ premios|length }} cliente(s) con premio para entregar:</span>
     <span class="cli-premios-chips">
         {% for c in clientes %}{% if premios.get(c.id) %}<a href="{{ url_for('admin_cliente_detail', cliente_id=c.id) }}" class="cli-premio-chip">{{ c.nombre }}{% if premios[c.id].premio1_disponible and premios[c.id].premio2_disponible %} (2){% endif %}</a>{% endif %}{% endfor %}
     </span>
@@ -44,7 +45,7 @@
 
 <!-- Aviso por WhatsApp (semi-automatico, sin riesgo de ban) -->
 <details class="cli-wa-panel">
-    <summary class="btn btn-primary" style="display:inline-block;">&#128241; Avisar por WhatsApp</summary>
+    <summary class="btn btn-primary" style="display:inline-block;">{{ icon('phone', 14) }} Avisar por WhatsApp</summary>
     <div class="cli-wa-box">
         <p class="cli-wa-hint">Escrib&iacute; el mensaje una vez y toc&aacute; el bot&oacute;n verde de <strong>WhatsApp</strong> en cada cliente: se abre WhatsApp con el mensaje ya cargado y vos apret&aacute;s enviar. As&iacute; no hay riesgo de que te bloqueen el n&uacute;mero.</p>
         <div class="cli-wa-plantillas">
@@ -91,7 +92,7 @@
             </td>
             <td class="cli-contacto" data-label="Contacto">
                 {% if c.instagram %}<span>&#9673; @{{ c.instagram }}</span>{% endif %}
-                {% if c.whatsapp %}<span>&#128241; {{ c.whatsapp }}</span>{% endif %}
+                {% if c.whatsapp %}<span>{{ icon('phone', 12) }} {{ c.whatsapp }}</span>{% endif %}
                 {% if c.email %}<span class="cli-email">&#9993; {{ c.email }}</span>{% endif %}
             </td>
             <td data-label="Cuenta">
@@ -107,7 +108,7 @@
                     <span>Avisos</span>
                 </label>
                 {% if c.whatsapp %}
-                <button type="button" class="cli-wa-send" data-wa="{{ c.whatsapp }}" data-avisos="{{ '1' if c.acepta_avisos else '0' }}" title="Abrir WhatsApp con el mensaje">&#128241;</button>
+                <button type="button" class="cli-wa-send" data-wa="{{ c.whatsapp }}" data-avisos="{{ '1' if c.acepta_avisos else '0' }}" title="Abrir WhatsApp con el mensaje">{{ icon('phone', 15) }}</button>
                 {% endif %}
             </td>
         </tr>
@@ -118,7 +119,7 @@
 </form>
 {% else %}
 <div class="empty-state">
-    <div class="empty-icon">&#128100;</div>
+    <div class="empty-icon">{{ icon('user', 34) }}</div>
     <h2>{% if q %}Sin resultados{% else %}Todav&iacute;a no hay clientes{% endif %}</h2>
     <p>{% if q %}Prob&aacute; con otro t&eacute;rmino.{% else %}Se van cargando solos con las ventas web, o agreg&aacute; uno a mano.{% endif %}</p>
 </div>

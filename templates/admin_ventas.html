@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}Ventas &middot; Arcano admin{% endblock %}
 
@@ -61,7 +62,7 @@
     <form method="post" action="{{ url_for('ventas_eliminar') }}" class="venta-elim-form" onsubmit="return confirm('¿Anular esta venta? El disco vuelve a Disponible y se borra de ventas, contabilidad, caja y lealtad. Si vino de un pedido web, también se borra el pedido. Podés recuperar la operación desde Historial.');">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="ids" value="{{ d.id }}">
-        <button type="submit" class="venta-eliminar" title="Anular esta venta" aria-label="Anular esta venta">&#128465;</button>
+        <button type="submit" class="venta-eliminar" title="Anular esta venta" aria-label="Anular esta venta">{{ icon('trash', 15) }}</button>
     </form>
     {% endif %}
 </div>
@@ -180,7 +181,7 @@
         {% if t.multi %}
         <div class="venta-trans">
             <div class="venta-trans-head">
-                <span class="venta-trans-label">&#128230; Una venta &middot; {{ t.discos|length }} discos{% if t.cliente %} &middot; {{ t.cliente.nombre }}{% if t.cliente.reserva_id %} &middot; <a href="{{ url_for('admin_reserva_detail', reserva_id=t.cliente.reserva_id) }}">reserva #{{ t.cliente.reserva_id }}</a>{% endif %}{% endif %} &middot; $ {{ fmt(t.subtotal) }} &middot; <span class="venta-gan">+$ {{ fmt(t.ganancia) }}</span>{% if t.multidia %} <span class="venta-multidia">entregada en varios d&iacute;as</span>{% endif %}</span>
+                <span class="venta-trans-label">{{ icon('box', 12) }} Una venta &middot; {{ t.discos|length }} discos{% if t.cliente %} &middot; {{ t.cliente.nombre }}{% if t.cliente.reserva_id %} &middot; <a href="{{ url_for('admin_reserva_detail', reserva_id=t.cliente.reserva_id) }}">reserva #{{ t.cliente.reserva_id }}</a>{% endif %}{% endif %} &middot; $ {{ fmt(t.subtotal) }} &middot; <span class="venta-gan">+$ {{ fmt(t.ganancia) }}</span>{% if t.multidia %} <span class="venta-multidia">entregada en varios d&iacute;as</span>{% endif %}</span>
                 <div class="venta-trans-acciones">
                     <form method="post" action="{{ url_for('ventas_desagrupar') }}" onsubmit="return confirm('¿Desagrupar esta venta? Cada disco vuelve a contar por separado.');">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -190,7 +191,7 @@
                     <form method="post" action="{{ url_for('ventas_eliminar') }}" onsubmit="return confirm('¿Anular esta venta completa ({{ t.discos|length }} discos)? Los discos vuelven a Disponible y se borra de ventas, contabilidad, caja y lealtad. Si vino de un pedido web, también se borra el pedido. Podés recuperar la operación desde Historial.');">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="ids" value="{{ t.discos|map(attribute='id')|join(',') }}">
-                        <button type="submit" class="venta-eliminar venta-eliminar-txt" title="Anular esta venta">&#128465; Anular venta</button>
+                        <button type="submit" class="venta-eliminar venta-eliminar-txt" title="Anular esta venta">{{ icon('trash', 13) }} Anular venta</button>
                     </form>
                 </div>
             </div>
@@ -213,7 +214,7 @@
 </form>
 {% else %}
 <div class="empty-state">
-    <div class="empty-icon">&#128176;</div>
+    <div class="empty-icon">{{ icon('coins', 34) }}</div>
     <h2>Sin ventas {{ 'con esos filtros' if (filtros.q or filtros.canal or filtros.metodo) else 'en este per&iacute;odo' }}</h2>
     <p>Prob&aacute; otro per&iacute;odo, limpi&aacute; los filtros, o toc&aacute; &laquo;Cargar venta&raquo; para registrar una.</p>
 </div>

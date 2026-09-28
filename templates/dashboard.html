@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}Stock &middot; Arcano{% endblock %}
 
@@ -43,27 +44,27 @@
 
 <div class="quick-actions">
     <a href="{{ url_for('disc_new') }}" class="quick-action">
-        <span class="quick-action-icon">&#43;</span>
+        <span class="quick-action-icon">{{ icon('plus', 20) }}</span>
         <span class="quick-action-label">Agregar disco</span>
         <span class="quick-action-sub">Carga manual</span>
     </a>
     <a href="{{ url_for('disc_new_from_invoice') }}" class="quick-action">
-        <span class="quick-action-icon">&#128196;</span>
+        <span class="quick-action-icon">{{ icon('file', 20) }}</span>
         <span class="quick-action-label">Desde factura</span>
         <span class="quick-action-sub">Escanear PDF/imagen</span>
     </a>
     <a href="{{ url_for('disc_new_from_url') }}" class="quick-action">
-        <span class="quick-action-icon">&#128279;</span>
+        <span class="quick-action-icon">{{ icon('link', 20) }}</span>
         <span class="quick-action-label">Desde URL</span>
         <span class="quick-action-sub">Deejay.de</span>
     </a>
     <a href="{{ url_for('admin_reservas') }}" class="quick-action {% if reservas_pendientes_count > 0 %}quick-action-alert{% endif %}">
-        <span class="quick-action-icon">&#9873;</span>
+        <span class="quick-action-icon">{{ icon('flag', 20) }}</span>
         <span class="quick-action-label">Reservas</span>
         <span class="quick-action-sub">{% if reservas_pendientes_count > 0 %}{{ reservas_pendientes_count }} pendiente{{ 's' if reservas_pendientes_count != 1 else '' }}{% else %}Al dia{% endif %}</span>
     </a>
     <a href="{{ url_for('home') }}" target="_blank" class="quick-action">
-        <span class="quick-action-icon">&#8599;</span>
+        <span class="quick-action-icon">{{ icon('external', 20) }}</span>
         <span class="quick-action-label">Ver tienda</span>
         <span class="quick-action-sub">Vista publica</span>
     </a>
@@ -262,7 +263,7 @@
                                 data-ver="{{ url_for('disc_detail', disc_id=d.id) }}"
                                 data-editar="{{ url_for('disc_edit', disc_id=d.id) }}"
                                 data-duplicar="{{ url_for('disc_duplicate', disc_id=d.id) }}"
-                                data-eliminar="{{ url_for('disc_delete', disc_id=d.id) }}">&#9881; Acciones</button>
+                                data-eliminar="{{ url_for('disc_delete', disc_id=d.id) }}">{{ icon('gear', 13) }} Acciones</button>
                     </div>
                 </td>
                 <td class="col-label col-editable-text" data-edit="sello" data-disc-id="{{ d.id }}" data-raw="{{ d.sello or '' }}" title="Click para editar el sello">{{ d.sello or '—' }}</td>

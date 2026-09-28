@@ -11704,6 +11704,26 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 .tk-new-input::placeholder { color: var(--text-4); }
 .tk-new-input:focus { outline: none; }
 
+/* Pestañas de seccion: Tareas / Ideas de contenido */
+.tk-vistas { display: flex; gap: 0; margin: 4px 0 20px; border-bottom: 1px solid var(--border-2); }
+.tk-vistas a { font-size: 13px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--text-4); text-decoration: none; padding: 10px 18px 12px 0; margin-right: 18px; margin-bottom: -1px; border-bottom: 1px solid transparent; transition: color .18s ease, border-color .18s ease; }
+.tk-vistas a span { font-size: 11px; color: var(--text-5); margin-left: 6px; letter-spacing: 0; }
+.tk-vistas a:hover { color: var(--text-1); }
+.tk-vistas a.is-on { color: var(--text-1); border-bottom-color: var(--tk-ink); }
+
+/* Tabla de ideas */
+.tk-table-ideas { min-width: 680px; }
+.tk-c-formato { width: 140px; }
+.tk-c-creada { width: 100px; }
+.tk-c-atarea { width: 110px; text-align: right; }
+.tk-fecha-txt { color: var(--text-4); font-variant-numeric: tabular-nums; font-size: 12.5px; }
+.tk-sel-formato { color: var(--text-2); }
+.tk-btn-tarea, .tk-link-tarea { font: inherit; font-size: 11px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3); background: transparent; border: 1px solid var(--border-2); border-radius: 3px; padding: 4px 9px; cursor: pointer; text-decoration: none; white-space: nowrap; transition: color .15s ease, border-color .15s ease; }
+.tk-btn-tarea:hover { color: var(--text-1); border-color: var(--tk-ink); }
+.tk-link-tarea { border-color: transparent; color: var(--text-4); }
+.tk-link-tarea:hover { color: var(--text-1); }
+.tk-new-formato { flex: 0 0 auto; color: var(--text-4); }
+
 /* Feedback de guardado: un destello muy suave */
 .tk-table td.tk-saved { background: var(--tk-ink-soft); }
 .tk-table td.tk-error { background: rgba(239, 68, 68, .16); }
@@ -11741,3 +11761,90 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
     .topbar-meta { gap: 10px; }
     .tc-strip { gap: 8px; }
 }
+
+/* =====================================================================
+   TAREAS · mas cuerpo (v5.50): franja de resumen, encabezado marron de
+   marca, dias en grande, etiquetas finas y marca de urgencia por fila.
+   ===================================================================== */
+.tk-resumen { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin: 0 0 22px; }
+.tk-resumen:has(> :nth-child(3):last-child) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.tk-res { display: flex; flex-direction: column; gap: 6px; padding: 16px 18px 14px; background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 4px; }
+.tk-res:first-child { background: var(--arcano-marron, #3D3033); border-color: var(--arcano-marron, #3D3033); }
+.tk-res:first-child .tk-res-n { color: var(--arcano-crema, #FFF7EC); }
+.tk-res:first-child .tk-res-l { color: rgba(233, 209, 175, .85); }
+.tk-res-n { font-size: 30px; font-weight: 500; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text-1); }
+.tk-res-l { font-size: 10px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; color: var(--text-4); }
+.tk-res.is-late .tk-res-n { color: var(--loss); }
+@media (max-width: 700px) { .tk-resumen, .tk-resumen:has(> :nth-child(3):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tk-res-n { font-size: 24px; } }
+
+/* Contenedor y encabezado marron (como los paneles del manual) */
+.tk-table-wrap { border-radius: 4px; border-color: var(--border-2); }
+.tk-table thead th {
+    background: var(--arcano-marron, #3D3033);
+    color: rgba(255, 247, 236, .62);
+    border-bottom: 0;
+    padding-top: 13px; padding-bottom: 13px;
+}
+.tk-table thead .tk-th-link:hover, .tk-table thead .tk-th-link.is-on { color: var(--arcano-crema, #FFF7EC); }
+.tk-table tbody td { height: 60px; }
+.tk-in-nombre { font-size: 14.5px; }
+
+/* Marca de urgencia a la izquierda de cada fila */
+.tk-row > td:first-child { box-shadow: inset 2px 0 0 transparent; transition: box-shadow .2s ease; }
+.tk-row.row-late > td:first-child { box-shadow: inset 2px 0 0 var(--loss); }
+.tk-row.row-today > td:first-child { box-shadow: inset 2px 0 0 var(--tk-ink); }
+.tk-row.row-soon > td:first-child { box-shadow: inset 2px 0 0 var(--border-3); }
+
+/* Categoria como etiqueta fina (solo si tiene texto) */
+.tk-in-cat { field-sizing: content; min-width: 40px; max-width: 100%; width: auto; }
+.tk-in-cat:not(:placeholder-shown):not(:focus) { border-color: var(--border-3); border-radius: 3px; padding: 3px 8px; }
+
+/* Estado como etiqueta con puntito */
+.tk-estado { border: 1px solid var(--border-2); border-radius: 3px; padding: 0 2px 0 9px; background: var(--bg-1); transition: border-color .2s ease, background-color .2s ease; }
+.tk-estado .tk-sel { border-color: transparent !important; padding: 3px 6px 3px 4px; }
+.tk-estado[data-estado="curso"] { border-color: var(--tk-ink); background: var(--tk-ink-soft); }
+.tk-estado[data-estado="hecha"] { border-color: var(--border-1); background: transparent; }
+
+/* Dias restantes: numero grande + unidad chica */
+.tk-dias { display: inline-flex; align-items: baseline; gap: 5px; }
+.tk-dias-n { font-size: 20px; font-weight: 500; line-height: 1; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.tk-dias-u { font-size: 10.5px; letter-spacing: .06em; color: var(--text-4); }
+.tk-dias.is-soon .tk-dias-n { color: var(--text-1); }
+.tk-dias.is-today .tk-dias-n { font-size: 13px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--text-1); }
+.tk-dias.is-late .tk-dias-n, .tk-dias.is-late .tk-dias-u { color: var(--loss); }
+
+/* Menos ruido: lo vacio (fecha, progreso, meta, avance) aparece al pasar el mouse */
+.tk-in-num::placeholder { color: transparent; }
+.tk-row:hover .tk-in-num::placeholder { color: var(--text-5); }
+.tk-in-fecha.is-empty:not(:focus) { color: transparent; }
+.tk-row:hover .tk-in-fecha.is-empty:not(:focus) { color: var(--text-5); }
+.tk-in-fecha::-webkit-calendar-picker-indicator { opacity: 0; cursor: pointer; transition: opacity .15s ease; }
+.tk-row:hover .tk-in-fecha::-webkit-calendar-picker-indicator, .tk-in-fecha:focus::-webkit-calendar-picker-indicator { opacity: .55; }
+.tk-av-track { height: 4px; }
+.tk-av.is-off { opacity: 0; transition: opacity .15s ease; }
+.tk-row:hover .tk-av.is-off { opacity: .7; }
+
+/* Hover de fila un poco mas presente */
+.tk-row:hover { background: var(--bg-2); }
+[data-theme="light"] .tk-row:hover { background: var(--bg-hover); }
+
+/* Pestañas de seccion con mas peso */
+.tk-vistas a { font-size: 14px; }
+.tk-vistas a.is-on { border-bottom-width: 2px; }
+
+/* Nombre en hasta 2+ lineas (textarea que crece sola) y columnas mas ajustadas */
+.tk-in-nombre { resize: none; overflow: hidden; field-sizing: content; min-height: 30px; line-height: 1.35; display: block; }
+.tk-nombre { align-items: flex-start; }
+.tk-nombre .tk-nota-btn { margin-top: 5px; }
+.tk-c-nombre { min-width: 300px; }
+.tk-c-ag { width: 72px; }
+.tk-c-num { width: 80px; }
+.tk-c-fecha { width: 128px; }
+.tk-c-avance { width: 124px; }
+.tk-table tbody td { height: auto; padding-top: 12px; padding-bottom: 12px; }
+
+/* El recuadro de la tabla es la referencia de lo posicionado adentro (ej. .sr-only):
+   si no, se escapaba del scroll y estiraba la pagina en el celular. */
+.tk-table-wrap { position: relative; }
+/* Contabilidad: el grafico de 6 meses se desliza dentro de su recuadro en el celular */
+@media (max-width: 600px) { .chart6 { max-width: 100%; overflow-x: auto; } }

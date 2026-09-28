@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}Reserva #{{ reserva.id }} &middot; Arcano admin{% endblock %}
 
@@ -71,7 +72,7 @@
                     {% else %}Coordinar por mensaje{% endif %}
                 </p>
                 {% if reserva.comprobante_file %}
-                <a href="{{ url_for('serve_comprobante', filename=reserva.comprobante_file) }}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top: 8px;">&#128206; Ver comprobante</a>
+                <a href="{{ url_for('serve_comprobante', filename=reserva.comprobante_file) }}" target="_blank" rel="noopener" class="btn btn-ghost btn-sm" style="margin-top: 8px;">{{ icon('clip', 13) }} Ver comprobante</a>
                 {% elif reserva.metodo_pago == 'transferencia' %}
                 <p class="form-field-hint" style="margin-top: 6px;">El cliente todav&iacute;a no adjunt&oacute; comprobante.</p>
                 {% endif %}
@@ -93,7 +94,7 @@
                 </p>
                 {% if reserva.envio_direccion %}
                 <p class="detail-notas" style="margin-top: 6px;">
-                    &#128205; {{ reserva.envio_direccion }}{% if reserva.envio_agencia %} &middot; Agencia: <strong>{{ reserva.envio_agencia }}</strong>{% endif %}
+                    {{ icon('pin', 13) }} {{ reserva.envio_direccion }}{% if reserva.envio_agencia %} &middot; Agencia: <strong>{{ reserva.envio_agencia }}</strong>{% endif %}
                 </p>
                 {% endif %}
             </div>
@@ -105,9 +106,9 @@
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="entrega-toggle {{ 'on' if reserva.entregado else 'off' }}" title="Tocá para cambiar entre entregado y pendiente de entrega">
                         {% if reserva.entregado %}
-                        <span class="entrega-ico">&#10003;</span><span class="entrega-txt">Entregado</span>
+                        <span class="entrega-ico">{{ icon('check', 18) }}</span><span class="entrega-txt">Entregado</span>
                         {% else %}
-                        <span class="entrega-ico">&#8987;</span><span class="entrega-txt">Pendiente de entrega</span>
+                        <span class="entrega-ico">{{ icon('clock', 18) }}</span><span class="entrega-txt">Pendiente de entrega</span>
                         {% endif %}
                     </button>
                 </form>
@@ -199,7 +200,7 @@ Montevideo, Uruguay</div>
     <div class="detail-right">
         {% if conflictos %}
         <div class="detail-card" style="border-color: var(--status-reservado-border); background: var(--status-reservado-bg);">
-            <h2 class="detail-card-title" style="color: var(--status-reservado-fg);">&#9888; Atencion: posible conflicto</h2>
+            <h2 class="detail-card-title" style="color: var(--status-reservado-fg);">{{ icon('alert', 15) }} Atencion: posible conflicto</h2>
             <p style="color: var(--text-2); font-size: 13px; line-height: 1.6;">
                 {{ conflictos|length }} disco(s) de esta reserva ya est&aacute;n <strong>Vendidos por otra v&iacute;a</strong> (otra reserva o venta) &mdash; ojo con el doble cobro.
                 Revisá antes de confirmar:
@@ -219,7 +220,7 @@ Montevideo, Uruguay</div>
             <div class="reserva-item-row reserva-item-mbox">
                 <img src="{{ url_for('static', filename='brand/mystery-box.svg') }}" alt="" class="reserva-item-cover">
                 <div class="reserva-item-body">
-                    <div class="reserva-item-title">&#127873; {{ item.titulo_snap }}</div>
+                    <div class="reserva-item-title">{{ icon('gift', 15) }} {{ item.titulo_snap }}</div>
                     <div class="reserva-item-meta">
                         {% if item.precio_uyu_snap %}$ {{ '{:,.0f}'.format(item.precio_uyu_snap).replace(',', '.') }}{% endif %}
                         &middot; caja curada &middot; asign&aacute; los discos abajo &darr;
@@ -297,7 +298,7 @@ Montevideo, Uruguay</div>
 
         {% if tiene_mbox %}
         <div class="detail-card">
-            <h2 class="detail-card-title">&#127873; Asignar discos a la Mystery Box</h2>
+            <h2 class="detail-card-title">{{ icon('gift', 15) }} Asignar discos a la Mystery Box</h2>
             <p style="color: var(--text-3); font-size: 13px; line-height: 1.6; margin-bottom: 12px;">
                 Eleg&iacute; los discos que le vas a mandar. Al asignarlos quedan <strong>Vendidos</strong>,
                 se descuenta el stock y se atribuyen a este cliente. La plata de la caja se cuenta una sola

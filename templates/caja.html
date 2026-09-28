@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}Caja / Banco &middot; Arcano{% endblock %}
 
@@ -33,7 +34,7 @@
         <span class="caja-hero-sub">Esto es lo que ten&eacute;s <strong>en el banco</strong> (ya incluye los <strong>$ {{ fmt_uyu(resumen.adelanto_pendiente_total) }}</strong> que adelantaste de tu plata). Cuando MP te pague, recuper&aacute;s ese adelanto &mdash; abajo en &laquo;Adelantos a recuperar&raquo;.</span>
         {% endif %}
         <details class="caja-cuadrar">
-            <summary>&#9878;&#65039; &iquest;Tu banco marca otra cosa? Cuadrar la caja</summary>
+            <summary>{{ icon('scale', 14) }} &iquest;Tu banco marca otra cosa? Cuadrar la caja</summary>
             <form method="post" action="{{ url_for('caja_cuadrar') }}" class="caja-cuadrar-form">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                 <label class="caja-cuadrar-lbl">Escrib&iacute; el saldo REAL de tu banco:</label>
@@ -171,7 +172,7 @@
 <section class="caja-acciones">
     <!-- Saldo inicial -->
     <details class="caja-panel">
-        <summary class="caja-panel-toggle">&#9881; Saldo inicial de la caja</summary>
+        <summary class="caja-panel-toggle">{{ icon('gear', 14) }} Saldo inicial de la caja</summary>
         <form method="post" action="{{ url_for('caja_saldo_inicial') }}" class="caja-form-inline">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <p class="caja-hint">La plata que ya había en la caja antes de empezar a registrar acá. Se suma al saldo.</p>
@@ -241,7 +242,7 @@
 
 <section class="caja-section">
     <details class="caja-panel" open>
-        <summary class="caja-panel-toggle">&#127912; Categorías de origen (agregar, eliminar y colorear)</summary>
+        <summary class="caja-panel-toggle">{{ icon('palette', 14) }} Categorías de origen (agregar, eliminar y colorear)</summary>
 
         <p class="caja-field-hint">Orígenes del sistema (renombralos y elegí el color; no se borran porque se generan solos desde tus ventas/pedidos/gastos):</p>
         <div class="caja-colores-grid">
@@ -404,7 +405,7 @@
                                     {% if m.tipo == 'egreso' %}
                                     <div class="caja-editar-aporte-box">
                                         <span class="caja-editar-aporte-txt">¿Este gasto lo pagaste con tu plata?</span>
-                                        <button type="submit" formaction="{{ url_for('caja_marcar_aporte', mov_id=m.id) }}" class="btn btn-ghost btn-sm">&#128176; Lo pagué con mi plata (registrar aporte)</button>
+                                        <button type="submit" formaction="{{ url_for('caja_marcar_aporte', mov_id=m.id) }}" class="btn btn-ghost btn-sm">{{ icon('coins', 13) }} Lo pagué con mi plata (registrar aporte)</button>
                                     </div>
                                     {% endif %}
                                 </form>

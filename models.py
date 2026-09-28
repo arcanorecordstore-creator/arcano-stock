@@ -1621,6 +1621,31 @@ class Tarea(db.Model):
         return f"<Tarea {self.id} {self.titulo!r} {self.estado}>"
 
 
+FORMATOS_IDEA = ["Reel", "Historia", "Posteo", "Carrusel", "Unboxing", "Otro"]
+ESTADOS_IDEA = ["Idea", "En producción", "Publicada"]
+
+
+class IdeaContenido(db.Model):
+    """Idea para crear contenido (redes). Tabla nueva (create_all), no toca nada mas."""
+    __tablename__ = "ideas_contenido"
+
+    id = db.Column(db.Integer, primary_key=True)
+    titulo = db.Column(db.String(200), nullable=False)
+    detalle = db.Column(db.Text, nullable=True)
+    formato = db.Column(db.String(30), nullable=True)
+    estado = db.Column(db.String(20), nullable=False, default="Idea")
+    creada = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    publicada_en = db.Column(db.DateTime, nullable=True)
+    tarea_id = db.Column(db.Integer, nullable=True)   # tarea creada a partir de la idea
+
+    @property
+    def estado_key(self) -> str:
+        return {"Idea": "nueva", "En producción": "curso", "Publicada": "hecha"}.get(self.estado, "nueva")
+
+    def __repr__(self):
+        return f"<IdeaContenido {self.id} {self.titulo!r} {self.estado}>"
+
+
 # ---------------------------------------------------------------------------
 # Inicializacion
 # ---------------------------------------------------------------------------

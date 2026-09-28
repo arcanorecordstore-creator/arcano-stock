@@ -1,0 +1,347 @@
+/* =========================================================================
+   ARCANO · CAPA DE MARCA DEL ADMIN (v5.50)
+   Aplica el manual de identidad (set. 2026) a todo el panel:
+   - Paleta: negro/crema de fondo, beige y marron acompañan, blanco neutro.
+     Sin acentos saturados. Los colores "de estado" (ganancia, perdida, aviso)
+     se mantienen pero apagados y calidos, para que se sigan leyendo.
+   - Tipografia: Space Grotesk. Titulos Medium en MAYUSCULAS con tracking;
+     etiquetas chicas muy espaciadas; cuerpo Light.
+   - Forma: esquinas casi rectas, lineas finas, sin sombras pesadas.
+   - Movimiento: sutil (fundidos cortos, sin rebotes ni escalas).
+   Se carga SOLO en el admin (templates/base.html), despues de style.css.
+   ========================================================================= */
+
+/* ---------- 1. Tokens ---------- */
+:root {
+    --ink: #E9D1AF;                          /* beige: el "color de marca" sobre negro */
+    --ink-contrast: #1E1C1C;                 /* texto sobre --ink */
+    --ink-soft: rgba(233, 209, 175, 0.10);
+    --ink-line: rgba(233, 209, 175, 0.32);
+    --ok: #9cc3a0;                           /* verde salvia (ganancia / ok) */
+    --ok-soft: rgba(156, 195, 160, 0.12);
+    --warn: #d9b57e;                         /* ocre (pendiente / atencion) */
+    --warn-soft: rgba(217, 181, 126, 0.12);
+    --bad: #e2917f;                          /* arcilla (perdida / error) */
+    --bad-soft: rgba(226, 145, 127, 0.12);
+    /* --gain / --loss / --danger NO se tocan: los montos siguen verde (ganancia) y
+       rojo (perdida) como siempre (pedido explicito de Facundo). */
+    --radius: 4px;
+    --radius-sm: 3px;
+    --card-shadow: none;
+    --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+    --status-disponible-bg: var(--ok-soft);
+    --status-disponible-fg: var(--ok);
+    --status-disponible-border: rgba(156, 195, 160, 0.35);
+    --status-reservado-bg: var(--ink-soft);
+    --status-reservado-fg: var(--ink);
+    --status-reservado-border: var(--ink-line);
+    --status-vendido-bg: rgba(168, 159, 146, 0.12);
+    --status-vendido-fg: #a89f92;
+    --status-vendido-border: rgba(168, 159, 146, 0.3);
+    --status-apartado-bg: rgba(168, 159, 146, 0.1);
+    --status-apartado-fg: #cfc7ba;
+    --status-apartado-border: rgba(207, 199, 186, 0.28);
+    --status-encamino-bg: var(--ink-soft);
+    --status-encamino-fg: var(--ink);
+    --status-encamino-border: var(--ink-line);
+    --status-descartado-bg: var(--bad-soft);
+    --status-descartado-fg: var(--bad);
+    --status-descartado-border: rgba(226, 145, 127, 0.35);
+}
+
+/* Tema claro del admin: crema + blanco + marron (antes era gris neutro) */
+[data-theme="light"] {
+    /* Todo en crema, tono sobre tono: los paneles se separan por lineas beige,
+       no por un fondo blanco (el salto crema/blanco quedaba a parches). */
+    --bg-0: #FFF7EC;
+    --bg-1: #FFF7EC;
+    --bg-2: #F9EEDD;
+    --bg-3: #F2E4CE;
+    --bg-hover: #FAF0E1;
+    --border-1: #EEDFC8;
+    --border-2: #E6D2B4;
+    --border-3: #D6BD98;
+    --text-1: #1E1C1C;
+    --text-2: #3D3033;
+    --text-3: #5f524d;
+    --text-4: #75675f;
+    --text-5: #8c7d73;
+    --accent: #1E1C1C;
+    --ink: #3D3033;
+    --ink-contrast: #FFF7EC;
+    --ink-soft: rgba(61, 48, 51, 0.07);
+    --ink-line: rgba(61, 48, 51, 0.3);
+    --ok: #3f6e4b;
+    --ok-soft: rgba(63, 110, 75, 0.09);
+    --warn: #8a6424;
+    --warn-soft: rgba(138, 100, 36, 0.09);
+    --bad: #ad4632;
+    --bad-soft: rgba(173, 70, 50, 0.08);
+    --status-disponible-border: rgba(63, 110, 75, 0.3);
+    --status-vendido-bg: rgba(95, 82, 77, 0.08);
+    --status-vendido-fg: #5f524d;
+    --status-vendido-border: rgba(95, 82, 77, 0.25);
+    --status-apartado-bg: rgba(95, 82, 77, 0.06);
+    --status-apartado-fg: #3D3033;
+    --status-apartado-border: rgba(61, 48, 51, 0.22);
+    --status-descartado-border: rgba(173, 70, 50, 0.3);
+}
+
+/* ---------- 2. Base y tipografia ---------- */
+body.app { background-color: var(--bg-0); font-weight: 400; }
+.app ::selection { background: var(--ink); color: var(--ink-contrast); }
+
+.page-title {
+    font-weight: 500;
+    font-size: 26px;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    line-height: 1.1;
+}
+.page-sub {
+    font-size: 13px;
+    font-weight: 300;
+    color: var(--text-3);
+    margin-top: 6px;
+    max-width: 78ch;
+}
+
+/* Titulos de seccion unificados (Radar / Contabilidad / Caja): etiqueta en mayuscula
+   espaciada con una linea corta beige delante (eco de los surcos del logo). */
+.gest-sec-title, .conta-block-title, .caja-section-title {
+    font-size: 12px !important;
+    font-weight: 500 !important;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding-left: 26px !important;
+    color: var(--text-2);
+}
+.gest-sec-title::before, .conta-block-title::before, .caja-section-title::before {
+    width: 16px !important;
+    height: 1px !important;
+    border-radius: 0 !important;
+    background: var(--ink) !important;
+}
+/* Texto descriptivo: Light, como pide el manual para el cuerpo */
+.app-main p, .form-field-hint, .calc-hint, .quick-action-sub, .conta-row-sub,
+.kpi-sub, .ped-stat-detail, .caja-sub { font-weight: 300; }
+.app-main strong, .app-main b { font-weight: 500; }
+
+/* Encabezados de seccion: etiqueta chica muy espaciada (estilo "01 — LA MARCA") */
+.cli-panel-title, .section-title, .conta-section-title, .card-title,
+.settings-section h2, .settings-card h2, .kpi-label, .summary-label, .ped-stat-label,
+.caja-label, .filter-group label {
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+/* ---------- 3. Barra superior ---------- */
+.topbar { background-color: var(--bg-0); border-bottom-color: var(--border-2); }
+.nav-link { letter-spacing: 0.06em; transition: color .18s var(--ease), background-color .18s var(--ease); }
+.nav-link.active {
+    background-color: transparent;
+    color: var(--text-1);
+    box-shadow: inset 0 -1px 0 var(--ink);
+    border-radius: 0;
+}
+.nav-link:hover { background-color: transparent; color: var(--text-1); }
+.nav-badge { background: var(--ink) !important; color: var(--ink-contrast) !important; }
+.nav-group-menu {
+    border-radius: var(--radius);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+    animation: ab-drop .16s var(--ease);
+}
+.nav-group-menu .nav-link.active { box-shadow: inset 2px 0 0 var(--ink); }
+@keyframes ab-drop { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+/* ---------- 4. Botones ---------- */
+.btn {
+    border-radius: var(--radius);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    transition: background-color .18s var(--ease), border-color .18s var(--ease), color .18s var(--ease), opacity .12s ease;
+}
+.btn:active { opacity: .7; }
+.btn-primary { background-color: var(--ink); color: var(--ink-contrast); border-color: var(--ink); }
+.btn-primary:hover { background-color: var(--text-1); border-color: var(--text-1); color: var(--bg-0); }
+.btn-ghost:hover { border-color: var(--ink-line); }
+.btn:focus-visible, .app a:focus-visible, .app button:focus-visible,
+.app input:focus-visible, .app select:focus-visible, .app textarea:focus-visible {
+    outline: 2px solid var(--ink-line);
+    outline-offset: 2px;
+}
+
+/* ---------- 5. Formas: esquinas casi rectas, sin sombras ---------- */
+.app-main :is([class*="card"], [class*="panel"], [class*="-box"], [class*="wrap"], [class*="stat"],
+              .filters, .quick-action, .flash, details, table, textarea, select,
+              input:not([type="checkbox"]):not([type="radio"]):not([type="range"])):not([class*="dot"]):not([class*="semaforo"]):not([class*="avatar"]):not([class*="switch"]):not([class*="knob"]) {
+    border-radius: var(--radius);
+}
+.app-main :is(.badge, [class*="chip"], [class*="-tag"], [class*="badge"], [class*="pill"]) { border-radius: var(--radius-sm); }
+.app-main :is([class*="card"], [class*="panel"], .quick-action) { box-shadow: none; }
+.flash { border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+
+/* ---------- 6. Etiquetas de estado de discos ---------- */
+.badge { font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; font-size: 10px; padding: 3px 8px; }
+.badge-disponible { background: var(--ok-soft); color: var(--ok); border-color: var(--status-disponible-border); }
+.badge-preorder   { background: transparent; color: var(--ink); border: 1px dashed var(--ink-line); }
+.badge-encargo    { background: var(--ink-soft); color: var(--ink); border-color: var(--ink); }
+.badge-reservado  { background: var(--ink); color: var(--ink-contrast); border-color: var(--ink); }
+.badge-vendido    { background: var(--status-vendido-bg); color: var(--status-vendido-fg); border-color: var(--status-vendido-border); }
+.badge-pagada     { background: var(--ok-soft) !important; color: var(--ok) !important; border-color: var(--status-disponible-border) !important; }
+.badge-personal   { background: transparent !important; color: var(--ink) !important; border: 1px solid var(--ink-line) !important; }
+.badge-arcano     { background: transparent !important; color: var(--text-3) !important; border: 1px solid var(--border-3) !important; }
+
+/* Audio (semaforo del dashboard): mismos significados, tonos apagados */
+.audio-ind.audio-full { background: var(--ok) !important; }
+.audio-ind.audio-part { background: var(--warn) !important; }
+.audio-ind.audio-none { background: var(--bad) !important; }
+
+/* ---------- 7. Dashboard ---------- */
+.quick-action { border-color: var(--border-2); background: var(--bg-1); transition: border-color .2s var(--ease), background-color .2s var(--ease); }
+.quick-action:hover { border-color: var(--ink-line); background: var(--bg-2); transform: none; }
+.quick-action-icon { color: var(--ink); display: inline-flex; }
+.quick-action-icon svg { width: 20px; height: 20px; }
+.quick-action-label { font-weight: 500; }
+.quick-action.quick-action-alert { border-color: var(--ink-line); }
+.quick-action.quick-action-alert .quick-action-icon,
+.quick-action.quick-action-alert .quick-action-sub { color: var(--ink) !important; }
+.quick-action.quick-action-alert::after, .quick-action-alert .quick-action-dot { background: var(--ink) !important; box-shadow: none !important; }
+.summary-card.highlight, .kpi-card.kpi-highlight { background: var(--ink-soft) !important; border-color: var(--ink-line) !important; }
+.sena-chip { background: var(--ink-soft) !important; color: var(--ink) !important; border-color: var(--ink-line) !important; }
+.sena-add:hover { border-color: var(--ink) !important; color: var(--ink) !important; }
+.stock-table thead th { background-color: var(--bg-1); }
+
+/* ---------- 8. Reservas ---------- */
+.reserva-card.reserva-pending { border-left-color: var(--ink) !important; }
+.entrega-toggle.on { background: var(--ok-soft) !important; color: var(--ok) !important; }
+.entrega-toggle.on .entrega-ico, .entrega-toggle.on .entrega-txt { color: var(--ok) !important; }
+.entrega-toggle.off { background: var(--ink-soft) !important; color: var(--ink) !important; }
+.entrega-toggle.off .entrega-ico, .entrega-toggle.off .entrega-txt { color: var(--ink) !important; }
+.entrega-ico svg { width: 18px; height: 18px; }
+.reserva-comprobante-chip { background: var(--ok-soft) !important; color: var(--ok) !important; }
+.reserva-card-mbox-badge { background: var(--ink) !important; color: var(--ink-contrast) !important; }
+.reserva-card-encargo { background: transparent !important; color: var(--ink) !important; border: 1px solid var(--ink-line); }
+
+/* ---------- 9. Contabilidad / Ventas / KPIs ----------
+   Ingresos/egresos, ganancias/perdidas y deltas conservan su verde/rojo original.
+   Solo se apagan las series que NO son ganancia/perdida (arcano/personal). */
+.chart6-bar.c-arc { background: var(--ink) !important; }
+.chart6-val.c-arc-t { color: var(--ink) !important; }
+.chart6-bar.c-per { background: var(--text-4) !important; }
+.chart6-val.c-per-t { color: var(--text-3) !important; }
+.pv-fill, .pv-fill.canal-web { background: var(--ink) !important; }
+
+/* ---------- 10. Caja ---------- */
+.caja-liq-card.mp, .caja-liq-card.stock, .caja-adelanto-item, .caja-desglose-item.ing,
+.caja-desglose-item.egr, .caja-desglose-item { border-left-color: var(--border-3) !important; }
+.caja-liq-card.mp { border-left-color: var(--ink) !important; }
+.caja-liq-val { color: var(--text-1) !important; }
+.caja-adelantos-total { color: var(--ink) !important; }
+/* Las etiquetas de origen de la caja NO se tocan: sus colores los elegis vos en
+   "Categorias de origen (colorear)". */
+.caja-chip.cap .caja-chip-val { color: var(--ink); }
+.caja-chip.cap { border-color: var(--ink-line) !important; }
+.caja-tag-capital { background: var(--ink-soft) !important; color: var(--ink) !important; }
+
+/* ---------- 11. Pedidos ---------- */
+.ped-disco-estado.disponible { background: var(--ok-soft) !important; color: var(--ok) !important; }
+.ped-manual-tag { background: var(--ink-soft) !important; color: var(--ink) !important; }
+.ped-badge.ped-badge-pend { background: var(--ink-soft) !important; color: var(--ink) !important; border-color: var(--ink-line) !important; }
+.ped-badge.ped-badge-ok { background: var(--ok-soft) !important; color: var(--ok) !important; }
+.ped-progress-fill { background: var(--ink) !important; }
+.ped-recuperado { border-color: var(--status-disponible-border) !important; }
+
+/* ---------- 12. Radar / Clientes / Ajustes ---------- */
+.ra-num.ra-interes { color: var(--ink) !important; }
+.radar-search-row.nores { border-left-color: var(--warn) !important; }
+.rs-term { color: var(--warn) !important; }
+.cli-origen.web { background: transparent !important; color: var(--text-3) !important; border: 1px solid var(--border-3); }
+.cli-origen.manual { background: transparent !important; color: var(--ink) !important; border: 1px solid var(--ink-line); }
+.cli-wa-send { background: var(--ok-soft) !important; color: var(--ok) !important; }
+.cli-gastado { color: var(--text-1) !important; }
+.cli-premio-chip { background: var(--ink-soft) !important; color: var(--ink) !important; border-color: var(--ink-line) !important; }
+.carrusel-toggle { background: var(--ink-soft) !important; }
+.recalc-warning { background: var(--warn-soft) !important; color: var(--warn) !important; border-color: rgba(217, 181, 126, .3) !important; }
+.mp-warn, .app-main code { color: var(--warn) !important; }
+.req { color: var(--bad) !important; }
+
+/* ---------- 13. Avisos (flash) ---------- */
+.flash-success { background-color: var(--bg-2); border-color: var(--status-disponible-border); color: var(--text-1); box-shadow: inset 2px 0 0 var(--ok), 0 10px 30px rgba(0,0,0,.3); }
+.flash-error { background-color: var(--bg-2); border-color: var(--status-descartado-border); color: var(--text-1); box-shadow: inset 2px 0 0 var(--bad), 0 10px 30px rgba(0,0,0,.3); }
+.flash-info, .flash-warning { background-color: var(--bg-2); border-color: var(--ink-line); color: var(--text-1); box-shadow: inset 2px 0 0 var(--ink), 0 10px 30px rgba(0,0,0,.3); }
+@keyframes flash-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+.flash-fade { opacity: 0; transform: translateY(-6px); transition: opacity .3s var(--ease), transform .3s var(--ease); }
+
+/* ---------- 14. Tareas: el dashboard usa el mismo tono ---------- */
+.tareas-strip { border-radius: var(--radius); }
+.tareas-strip.has-vencidas { border-left: 1px solid var(--border-2); box-shadow: inset 2px 0 0 var(--bad); }
+
+/* ---------- 15. Movimiento ---------- */
+/* Entrada de pagina: cada bloque aparece con un fundido corto y escalonado.
+   Solo opacidad + 4px (sin escalas ni rebotes); al terminar no queda transform. */
+.app-main > * { animation: ab-enter .38s var(--ease) backwards; }
+.app-main > *:nth-child(2) { animation-delay: .04s; }
+.app-main > *:nth-child(3) { animation-delay: .08s; }
+.app-main > *:nth-child(4) { animation-delay: .12s; }
+.app-main > *:nth-child(5) { animation-delay: .16s; }
+.app-main > *:nth-child(n+6) { animation-delay: .2s; }
+@keyframes ab-enter { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* Hover sobrio en tarjetas y filas: solo cambia el borde / fondo */
+.app-main :is([class*="-card"], .quick-action) { transition: border-color .2s var(--ease), background-color .2s var(--ease); }
+.app-main a[class*="-card"]:hover, .app-main a[class*="-item"]:hover { border-color: var(--ink-line); }
+details > summary { transition: color .15s var(--ease); }
+details[open] > *:not(summary) { animation: ab-fade .22s var(--ease); }
+@keyframes ab-fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Barra de progreso de navegacion (ya existe): en beige */
+.nav-progress { background: var(--ink) !important; box-shadow: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+    .app-main > *, .nav-group-menu, details[open] > *:not(summary), .flash { animation: none !important; }
+    .app * { transition: none !important; }
+}
+
+/* Iconos de linea (reemplazan a los emojis) */
+.ab-icon { display: inline-block; vertical-align: -0.18em; flex: none; }
+.empty-icon .ab-icon { color: var(--text-4); }
+
+/* ---------- 16. Ultimos acentos sueltos (relevamiento v5.50) ---------- */
+.home-check-icon { color: var(--ink) !important; border-color: var(--ink-line) !important; }
+.cli-wa-send { border-color: rgba(156, 195, 160, .35) !important; }
+.kpi-card { border-top-color: var(--border-2) !important; }
+.conta-cobrar { background: var(--ink-soft) !important; border-color: var(--ink-line) !important; }
+.conta-cobrar-value { color: var(--ink) !important; }
+.chart6-sw.c-arc { background: var(--ink) !important; }
+.chart6-sw.c-per { background: var(--text-4) !important; }
+.recup-bar-fill { background: var(--ink) !important; }
+
+/* Tema claro: campos y selectores en crema (sin blancos sueltos) */
+[data-theme="light"] .app-main :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea):not(.tk-in):not(.tk-sel):not(.tk-new-input) {
+    background-color: var(--bg-2);
+    border-color: var(--border-2);
+}
+[data-theme="light"] .home-check-icon { background-color: var(--bg-2) !important; }
+
+/* ---------- 17. Violeta residual -> marca ---------- */
+:root { --accent-2: var(--ink); }
+.c-arc, .avp-arc, .avp-dot-arc { background: var(--ink) !important; }
+.dash-kpi-top { border-top-color: var(--ink) !important; border-top-width: 1px !important; border-radius: var(--radius) !important; }
+body.app .btn-primary, body.app .btn-primary:hover { box-shadow: none; }
+body.app .btn:focus-visible, body.app .action-btn:focus-visible, body.app .nav-link:focus-visible,
+body.app input:focus-visible, body.app select:focus-visible, body.app textarea:focus-visible {
+    outline: 2px solid var(--ink-line);
+    outline-offset: 2px;
+}
+body.app input:focus, body.app select:focus, body.app textarea:focus {
+    border-color: var(--ink);
+    box-shadow: 0 0 0 3px var(--ink-soft);
+}
+body.app .tk-in:focus, body.app .tk-sel:focus, body.app .tk-new-input:focus { box-shadow: none; }
+.nav-progress { background: var(--ink) !important; }
+
+/* Contabilidad en celular: las tarjetas de la fila no se estiran mas que la pantalla */
+.resumen-row > * { min-width: 0; }

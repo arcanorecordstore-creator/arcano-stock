@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.49"
+APP_VERSION = "5.50"
 import metrics
 import auth
 import mailer
@@ -9355,10 +9355,24 @@ def register_routes(app: Flask) -> None:
             return ("Mañana", "soon")
         return (f"{dr} días", "soon" if dr <= 3 else "")
 
+    def _tk_dias_partes(t, hoy):
+        """Dias restantes como (numero, unidad) para mostrarlo grande: '5' + 'días'."""
+        dr = t.dias_restantes(hoy)
+        if dr is None:
+            return "", ""
+        if dr < 0:
+            return (str(-dr), "día de atraso" if dr == -1 else "días de atraso")
+        if dr == 0:
+            return ("Hoy", "")
+        return (str(dr), "día" if dr == 1 else "días")
+
     def _tk_json(t):
         hoy = today_uy()
         txt, tono = _tk_dias_txt(t, hoy)
+        n, u = _tk_dias_partes(t, hoy)
         return {"ok": True, "id": t.id, "estado": t.estado, "dias_txt": txt, "dias_tono": tono,
+                "estado_key": "curso" if t.estado == "En curso" else ("hecha" if t.hecha else "nueva"),
+                "dias_n": n, "dias_u": u,
                 "avance": t.avance_pct, "progreso": t.progreso, "meta": t.meta,
                 "hecha": t.hecha}
 
@@ -9367,6 +9381,11 @@ def register_routes(app: Flask) -> None:
     def tareas_page():
         from models import Tarea, CATEGORIAS_TAREA, PRIORIDADES_TAREA, ESTADOS_TAREA
         hoy = today_uy()
+        vista = "ideas" if request.args.get("vista") == "ideas" else "tareas"
+        if vista == "ideas":
+            n_abiertas = Tarea.query.filter(Tarea.estado != "Hecha").count()
+            return render_template("tareas.html", vista=vista, n_abiertas=n_abiertas,
+                                   hoy=hoy, **_ideas_ctx())
         cat = (request.args.get("cat") or "").strip()
         ver = (request.args.get("ver") or "abiertas").strip()      # abiertas | todas | hechas
         orden = (request.args.get("orden") or "dias").strip()      # dias | prioridad | nombre | creada
@@ -9387,13 +9406,21 @@ def register_routes(app: Flask) -> None:
             orden = "dias"
             filas.sort(key=lambda t: (t.fecha_limite or _date_max, -(t.prioridad or 0), t.id))
         n_abiertas = sum(1 for t in todas_db if not t.hecha)
+        _ab = [t for t in todas_db if not t.hecha]
+        resumen = {
+            "pendientes": len(_ab),
+            "vencidas": sum(1 for t in _ab if t.fecha_limite and t.fecha_limite < hoy),
+            "semana": sum(1 for t in _ab if t.fecha_limite and 0 <= (t.fecha_limite - hoy).days <= 7),
+            "en_curso": sum(1 for t in _ab if t.estado == "En curso"),
+        }
         cats_usadas = sorted({t.categoria for t in todas_db if t.categoria}, key=str.lower)
         cats = CATEGORIAS_TAREA + [c for c in cats_usadas if c not in CATEGORIAS_TAREA]
         return render_template(
-            "tareas.html", filas=filas, n_abiertas=n_abiertas, n_hechas=len(todas_db) - n_abiertas,
+            "tareas.html", vista=vista, filas=filas, n_abiertas=n_abiertas, n_hechas=len(todas_db) - n_abiertas,
+            n_ideas_pend=_n_ideas_pend(),
             sugeridas=_tareas_sugeridas(), hoy=hoy, cat=cat, ver=ver, orden=orden, cats=cats,
             cats_usadas=cats_usadas, prioridades=PRIORIDADES_TAREA, estados_tarea=ESTADOS_TAREA,
-            dias_txt=_tk_dias_txt,
+            dias_txt=_tk_dias_txt, dias_partes=_tk_dias_partes, resumen=resumen,
         )
 
     @app.route("/admin/tareas/<int:tarea_id>/campo", methods=["POST"])
@@ -9459,6 +9486,118 @@ def register_routes(app: Flask) -> None:
             return jsonify({"ok": False, "error": "Campo no editable."}), 400
         db.session.commit()
         return jsonify(_tk_json(t))
+
+    # ------------------------------------------------------------------
+    # IDEAS DE CONTENIDO (segunda pestaña de Tareas)
+    # ------------------------------------------------------------------
+    def _ideas_ctx():
+        """Datos de la pestaña 'Ideas de contenido' para el template de tareas."""
+        from models import IdeaContenido, FORMATOS_IDEA, ESTADOS_IDEA
+        ver_i = (request.args.get("ver") or "pendientes").strip()   # pendientes | publicadas | todas
+        todas = IdeaContenido.query.order_by(IdeaContenido.id.desc()).all()
+        if ver_i == "publicadas":
+            ideas = [i for i in todas if i.estado == "Publicada"]
+        elif ver_i == "todas":
+            ideas = todas
+        else:
+            ver_i = "pendientes"
+            # En produccion primero, despues las ideas nuevas (las mas recientes arriba)
+            ideas = sorted([i for i in todas if i.estado != "Publicada"],
+                           key=lambda i: (0 if i.estado == "En producción" else 1, -i.id))
+        n_pend = sum(1 for i in todas if i.estado != "Publicada")
+        resumen_i = {"ideas": sum(1 for i in todas if i.estado == "Idea"),
+                     "produccion": sum(1 for i in todas if i.estado == "En producción"),
+                     "publicadas": len(todas) - n_pend}
+        return {"ideas": ideas, "ver_i": ver_i, "n_ideas_pend": n_pend, "resumen_i": resumen_i,
+                "n_ideas_pub": len(todas) - n_pend,
+                "formatos_idea": FORMATOS_IDEA, "estados_idea": ESTADOS_IDEA}
+
+    def _n_ideas_pend():
+        from models import IdeaContenido
+        try:
+            return IdeaContenido.query.filter(IdeaContenido.estado != "Publicada").count()
+        except Exception:
+            db.session.rollback()
+            return 0
+
+    def _volver_ideas():
+        ver_i = request.form.get("volver_ver") or None
+        return redirect(url_for("tareas_page", vista="ideas", ver=ver_i))
+
+    @app.route("/admin/ideas/nueva", methods=["POST"])
+    @auth.admin_required
+    def idea_nueva():
+        from models import IdeaContenido, FORMATOS_IDEA
+        titulo = (request.form.get("titulo") or "").strip()[:200]
+        if not titulo:
+            flash("La idea necesita un texto.", "error")
+            return _volver_ideas()
+        fmt = (request.form.get("formato") or "").strip()
+        db.session.add(IdeaContenido(titulo=titulo, formato=fmt if fmt in FORMATOS_IDEA else None))
+        db.session.commit()
+        flash("Idea anotada.", "success")
+        return _volver_ideas()
+
+    @app.route("/admin/ideas/<int:idea_id>/campo", methods=["POST"])
+    @auth.admin_required
+    def idea_campo(idea_id):
+        """Edicion en la celda (AJAX), igual que las tareas."""
+        from models import IdeaContenido, FORMATOS_IDEA, ESTADOS_IDEA
+        i = IdeaContenido.query.get_or_404(idea_id)
+        data = request.get_json(silent=True) or {}
+        campo = (data.get("campo") or "").strip()
+        txt = ("" if data.get("valor") is None else str(data.get("valor"))).strip()
+        if campo == "titulo":
+            if not txt:
+                return jsonify({"ok": False, "error": "La idea necesita un texto."}), 400
+            i.titulo = txt[:200]
+        elif campo == "detalle":
+            i.detalle = txt or None
+        elif campo == "formato":
+            i.formato = txt if txt in FORMATOS_IDEA else None
+        elif campo == "estado":
+            if txt not in ESTADOS_IDEA:
+                return jsonify({"ok": False, "error": "Estado inválido."}), 400
+            if txt == "Publicada" and i.estado != "Publicada":
+                i.publicada_en = datetime.utcnow()
+            elif txt != "Publicada":
+                i.publicada_en = None
+            i.estado = txt
+        else:
+            return jsonify({"ok": False, "error": "Campo no editable."}), 400
+        db.session.commit()
+        return jsonify({"ok": True, "id": i.id, "estado": i.estado, "estado_key": i.estado_key,
+                        "hecha": i.estado == "Publicada"})
+
+    @app.route("/admin/ideas/<int:idea_id>/a-tarea", methods=["POST"])
+    @auth.admin_required
+    def idea_a_tarea(idea_id):
+        """Convierte la idea en una tarea (categoria Contenido) y la pasa a 'En produccion'."""
+        from models import IdeaContenido, Tarea
+        i = IdeaContenido.query.get_or_404(idea_id)
+        if i.tarea_id and Tarea.query.get(i.tarea_id):
+            flash("Esa idea ya tiene su tarea creada.", "info")
+            return _volver_ideas()
+        nombre = (f"{i.formato}: " if i.formato else "") + i.titulo
+        t = Tarea(titulo=nombre[:200], categoria="Contenido", estado="Sin empezar", detalle=i.detalle)
+        db.session.add(t)
+        db.session.flush()
+        i.tarea_id = t.id
+        if i.estado == "Idea":
+            i.estado = "En producción"
+        db.session.commit()
+        flash(f"Listo: creé la tarea “{t.titulo}”.", "success")
+        return _volver_ideas()
+
+    @app.route("/admin/ideas/<int:idea_id>/borrar", methods=["POST"])
+    @auth.admin_required
+    def idea_borrar(idea_id):
+        from models import IdeaContenido
+        i = IdeaContenido.query.get_or_404(idea_id)
+        db.session.delete(i)
+        db.session.commit()
+        flash("Idea borrada.", "success")
+        return _volver_ideas()
 
     @app.route("/admin/tareas/nueva", methods=["POST"])
     @auth.admin_required

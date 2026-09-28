@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}Reservas &middot; Arcano admin{% endblock %}
 
@@ -15,9 +16,9 @@
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="entrega-toggle {{ 'on' if r.entregado else 'off' }}" title="Toc&aacute; para cambiar entre entregado y pendiente">
             {% if r.entregado %}
-            <span class="entrega-ico">&#10003;</span><span class="entrega-txt">Entregado</span>
+            <span class="entrega-ico">{{ icon('check', 18) }}</span><span class="entrega-txt">Entregado</span>
             {% else %}
-            <span class="entrega-ico">&#8987;</span><span class="entrega-txt">Pendiente de entrega</span>
+            <span class="entrega-ico">{{ icon('clock', 18) }}</span><span class="entrega-txt">Pendiente de entrega</span>
             {% endif %}
         </button>
     </form>
@@ -43,7 +44,7 @@
         </span>
         {% endif %}
         {% if r.comprobante_file %}
-        <span class="reserva-comprobante-chip">&#128206; Comprobante</span>
+        <span class="reserva-comprobante-chip">{{ icon('clip', 12) }} Comprobante</span>
         {% endif %}
         <span class="reserva-card-date">{{ r.fecha_utc|hora_uy }}</span>
     </div>
@@ -61,7 +62,7 @@
             {% endif %}
             {% set _enc = items|selectattr('disco')|selectattr('disco.estado', 'equalto', 'Encargo')|list %}
             {% if _enc %}<span class="reserva-card-encargo" title="Encargo: el disco todav&iacute;a no lo compraste y el cliente no lo pag&oacute;. No cuenta en la contabilidad.">Encargo{% if items|length > 1 %} &middot; {{ _enc|length }} de {{ items|length }}{% endif %} &middot; sin comprar ni pagar</span>{% endif %}
-            {% if _box %}<span class="reserva-card-mbox-badge">&#127873; Mystery Box &middot; {{ _box.mbox_cantidad }} discos</span>{% endif %}
+            {% if _box %}<span class="reserva-card-mbox-badge">Mystery Box &middot; {{ _box.mbox_cantidad }} discos</span>{% endif %}
             {% if r.total_uyu > 0 %}<span class="reserva-card-total">$ {{ '{:,.0f}'.format(r.total_uyu).replace(',', '.') }}</span>{% endif %}
         </div>
         {% if r.sena_cobrada_total > 0 %}
@@ -124,7 +125,7 @@
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="ids" id="reserva-bulk-ids">
     <div class="reserva-bulkbar" id="reserva-bulkbar" hidden>
-        <span>&#128230; <strong id="reserva-bulk-n">0</strong> reservas elegidas</span>
+        <span>{{ icon('box', 14) }} <strong id="reserva-bulk-n">0</strong> reservas elegidas</span>
         <button type="submit" class="btn btn-primary btn-sm">Unir en un pedido</button>
     </div>
 </form>
@@ -141,7 +142,7 @@
         {% if u.es_grupo %}
         <div class="reserva-grupo">
             <div class="reserva-grupo-head">
-                <span class="reserva-grupo-tag">&#128230; Pedido agrupado</span>
+                <span class="reserva-grupo-tag">{{ icon('box', 12) }} Pedido agrupado</span>
                 <span class="reserva-grupo-meta">{{ u.reservas|length }} reservas &middot; {{ u.n_discos }} disco{{ 's' if u.n_discos != 1 else '' }} &middot; {{ u.cliente }}</span>
                 {% if u.entregado %}<span class="reserva-grupo-entregado">&#10003; Todo entregado</span>{% endif %}
                 {% set _sena = u.reservas | sum(attribute='sena_cobrada_total') %}

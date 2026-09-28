@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}Nueva reserva manual &middot; Arcano admin{% endblock %}
 
@@ -138,7 +139,7 @@
     </div>
     {% else %}
     <div class="empty-state">
-        <div class="empty-icon">&#128191;</div>
+        <div class="empty-icon">{{ icon('disc', 34) }}</div>
         <h2>No hay discos para reservar</h2>
         <p>Todos est&aacute;n vendidos o descartados. Carg&aacute; discos nuevos primero.</p>
     </div>

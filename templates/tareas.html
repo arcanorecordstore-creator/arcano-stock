@@ -23,11 +23,31 @@
 <section class="page-head">
     <div>
         <h1 class="page-title">Tareas</h1>
+        {% if vista == 'ideas' %}
+        <p class="page-sub">{{ n_ideas_pend }} idea{{ 's' if n_ideas_pend != 1 else '' }} por hacer &middot; {{ n_ideas_pub }} publicada{{ 's' if n_ideas_pub != 1 else '' }}</p>
+        {% else %}
         <p class="page-sub">{{ n_abiertas }} pendiente{{ 's' if n_abiertas != 1 else '' }} &middot; {{ n_hechas }} hecha{{ 's' if n_hechas != 1 else '' }}</p>
+        {% endif %}
     </div>
 </section>
 
+<nav class="tk-vistas" aria-label="Secciones">
+    <a href="{{ url_for('tareas_page') }}" class="{% if vista != 'ideas' %}is-on{% endif %}">Tareas <span>{{ n_abiertas }}</span></a>
+    <a href="{{ url_for('tareas_page', vista='ideas') }}" class="{% if vista == 'ideas' %}is-on{% endif %}">Ideas de contenido <span>{{ n_ideas_pend }}</span></a>
+</nav>
+
+{% if vista == 'ideas' %}
+{% include "_ideas_contenido.html" %}
+{% else %}
+
 <datalist id="tk-cats">{% for c in cats %}<option value="{{ c }}">{% endfor %}</datalist>
+
+<div class="tk-resumen">
+    <div class="tk-res"><span class="tk-res-n">{{ resumen.pendientes }}</span><span class="tk-res-l">Pendientes</span></div>
+    <div class="tk-res{% if resumen.vencidas %} is-late{% endif %}"><span class="tk-res-n">{{ resumen.vencidas }}</span><span class="tk-res-l">Vencidas</span></div>
+    <div class="tk-res"><span class="tk-res-n">{{ resumen.semana }}</span><span class="tk-res-l">Próximos 7 días</span></div>
+    <div class="tk-res"><span class="tk-res-n">{{ resumen.en_curso }}</span><span class="tk-res-l">En curso</span></div>
+</div>
 
 <div class="tk-toolbar">
     <nav class="tk-tabs" aria-label="Qué tareas ver">
@@ -49,7 +69,7 @@
 </div>
 
 <div class="tk-table-wrap">
-<table class="tk-table" id="tk-table">
+<table class="tk-table" id="tk-table" data-base="/admin/tareas/">
     <thead>
         <tr>
             {{ th_orden('nombre', 'Tarea', 'tk-c-nombre') }}
@@ -68,13 +88,14 @@
     <tbody>
         {% for t in filas %}
         {% set dtxt, dtono = dias_txt(t, hoy) %}
-        <tr class="tk-row{% if t.hecha %} is-hecha{% endif %}" id="t{{ t.id }}" data-id="{{ t.id }}">
+        {% set dn, du = dias_partes(t, hoy) %}
+        <tr class="tk-row{% if t.hecha %} is-hecha{% endif %}{% if dtono and not t.hecha %} row-{{ dtono }}{% endif %}" id="t{{ t.id }}" data-id="{{ t.id }}">
             <td class="tk-c-nombre">
                 <div class="tk-nombre">
                     <button type="button" class="tk-nota-btn{% if t.detalle %} has-nota{% endif %}" title="{{ 'Ver nota' if t.detalle else 'Agregar nota' }}" aria-label="Nota" aria-expanded="false">
                         <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2.5L8 6l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </button>
-                    <input type="text" class="tk-in tk-in-nombre" data-campo="titulo" value="{{ t.titulo }}" maxlength="200" aria-label="Nombre de la tarea">
+                    <textarea class="tk-in tk-in-nombre" data-campo="titulo" rows="1" maxlength="200" aria-label="Nombre de la tarea">{{ t.titulo }}</textarea>
                 </div>
             </td>
             <td class="tk-c-cat">
@@ -101,7 +122,7 @@
                     </select>
                 </span>
             </td>
-            <td class="tk-c-dias"><span class="tk-dias{% if dtono %} is-{{ dtono }}{% endif %}">{{ dtxt or '—' }}</span></td>
+            <td class="tk-c-dias"><span class="tk-dias{% if dtono %} is-{{ dtono }}{% endif %}"><span class="tk-dias-n">{{ dn }}</span><span class="tk-dias-u">{{ du }}</span></span></td>
             <td class="tk-c-fecha">
                 <input type="date" class="tk-in tk-in-fecha{% if not t.fecha_limite %} is-empty{% endif %}" data-campo="fecha_limite"
                        value="{{ t.fecha_limite.strftime('%Y-%m-%d') if t.fecha_limite else '' }}" aria-label="Deadline">
@@ -163,6 +184,7 @@
     </ul>
 </section>
 {% endif %}
+{% endif %}{# /vista tareas #}
 </div>
 {% endblock %}
 

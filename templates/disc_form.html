@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}{{ 'Editar' if mode == 'edit' else 'Agregar' }} disco &middot; Arcano{% endblock %}
 
@@ -163,7 +164,7 @@
                     <div class="tracks-new-editor" id="tracks-new-editor" data-disc-artista-field="artista">
                         <div class="tracks-editor-toolbar">
                             <button type="button" class="btn btn-ghost btn-sm" id="tracks-new-load">Cargar tracks del tracklist</button>
-                            <button type="button" class="btn btn-ghost btn-sm" id="tracks-new-search-all" title="Busca en YouTube y SoundCloud el audio de cada track">&#128269; Buscar audios de todos</button>
+                            <button type="button" class="btn btn-ghost btn-sm" id="tracks-new-search-all" title="Busca en YouTube y SoundCloud el audio de cada track">{{ icon('search', 13) }} Buscar audios de todos</button>
                             <span class="tracks-search-all-status" id="tracks-new-status"></span>
                         </div>
                         <div class="tracks-new-list" id="tracks-new-list">

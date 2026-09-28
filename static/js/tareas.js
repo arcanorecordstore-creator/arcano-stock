@@ -1,12 +1,13 @@
-/* Tareas: edicion en la celda (como una tabla de Notion). Cada cambio se guarda
-   solo via /admin/tareas/<id>/campo y se actualizan las columnas calculadas. */
+/* Tareas e Ideas de contenido: edicion en la celda. Cada cambio se guarda solo via
+   <data-base de la tabla><id>/campo (/admin/tareas/ o /admin/ideas/) y se actualizan
+   las columnas calculadas de esa fila. */
 (function () {
     'use strict';
-    var tabla = document.getElementById('tk-table');
-    if (!tabla) return;
+    var tablas = document.querySelectorAll('.tk-table[data-base]');
+    if (!tablas.length) return;
 
-    function guardar(id, campo, valor) {
-        return fetch('/admin/tareas/' + id + '/campo', {
+    function guardar(base, id, campo, valor) {
+        return fetch(base + id + '/campo', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
             body: JSON.stringify({ campo: campo, valor: valor })
@@ -20,21 +21,20 @@
         return el.value;
     }
 
-    function claseEstado(estado) {
-        return estado === 'En curso' ? 'curso' : (estado === 'Hecha' ? 'hecha' : 'nueva');
-    }
-
     function refrescarFila(fila, d) {
         if (!fila) return;
         var dias = fila.querySelector('.tk-dias');
         if (dias) {
-            dias.textContent = d.dias_txt || '—';
+            dias.querySelector('.tk-dias-n').textContent = d.dias_n || '';
+            dias.querySelector('.tk-dias-u').textContent = d.dias_u || '';
             dias.className = 'tk-dias' + (d.dias_tono ? ' is-' + d.dias_tono : '');
+            fila.classList.remove('row-late', 'row-today', 'row-soon');
+            if (d.dias_tono && !d.hecha) fila.classList.add('row-' + d.dias_tono);
         }
         var est = fila.querySelector('[data-campo="estado"]');
         if (est) {
             est.value = d.estado;
-            est.closest('.tk-estado').dataset.estado = claseEstado(d.estado);
+            if (d.estado_key) est.closest('.tk-estado').dataset.estado = d.estado_key;
         }
         var prio = fila.querySelector('[data-campo="prioridad"]');
         if (prio) prio.closest('.tk-prio').dataset.prio = prio.value || '0';
@@ -60,61 +60,67 @@
         setTimeout(function () { celda.classList.remove('tk-saved', 'tk-error'); }, 900);
     }
 
-    function enviar(el) {
-        var filaId = el.closest('tr[data-id]');
-        var id = el.dataset.id || (filaId && filaId.dataset.id);
-        var campo = el.dataset.campo;
-        var valor = valorDe(el);
-        if (el.dataset.ultimo === String(valor)) return;   // no cambio nada
-        var anterior = el.dataset.ultimo;
-        el.dataset.ultimo = String(valor);
-        guardar(id, campo, valor).then(function (res) {
-            if (res.ok) {
-                refrescarFila(document.getElementById('t' + id), res.data);
-                if (campo === 'detalle') {
-                    var btn = document.querySelector('#t' + id + ' .tk-nota-btn');
-                    if (btn) btn.classList.toggle('has-nota', !!String(valor).trim());
+    Array.prototype.forEach.call(tablas, function (tabla) {
+        var base = tabla.dataset.base;
+
+        function filaDe(id) { return tabla.querySelector('tr.tk-row[data-id="' + id + '"]'); }
+
+        function enviar(el) {
+            var tr = el.closest('tr[data-id]');
+            var id = el.dataset.id || (tr && tr.dataset.id);
+            var campo = el.dataset.campo;
+            var valor = valorDe(el);
+            if (el.dataset.ultimo === String(valor)) return;   // no cambio nada
+            var anterior = el.dataset.ultimo;
+            el.dataset.ultimo = String(valor);
+            guardar(base, id, campo, valor).then(function (res) {
+                if (res.ok) {
+                    refrescarFila(filaDe(id), res.data);
+                    if (campo === 'detalle') {
+                        var fila = filaDe(id);
+                        var btn = fila && fila.querySelector('.tk-nota-btn');
+                        if (btn) btn.classList.toggle('has-nota', !!String(valor).trim());
+                    }
+                    marcar(el, true);
+                } else {
+                    alert((res.data && res.data.error) || 'No se pudo guardar.');
+                    if (el.type === 'checkbox') el.checked = anterior === '1';
+                    else if (anterior !== undefined) el.value = anterior;
+                    el.dataset.ultimo = anterior;
+                    marcar(el, false);
                 }
-                marcar(el, true);
-            } else {
-                alert((res.data && res.data.error) || 'No se pudo guardar.');
-                if (el.type === 'checkbox') el.checked = anterior === '1';
-                else if (anterior !== undefined) el.value = anterior;
+            }).catch(function () {
                 el.dataset.ultimo = anterior;
                 marcar(el, false);
-            }
-        }).catch(function () {
-            el.dataset.ultimo = anterior;
-            marcar(el, false);
-        });
-    }
-
-    var campos = document.querySelectorAll('#tk-table [data-campo]');
-    Array.prototype.forEach.call(campos, function (el) {
-        el.dataset.ultimo = String(valorDe(el));
-        var inmediato = el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'date';
-        if (inmediato) {
-            el.addEventListener('change', function () { enviar(el); });
-        } else {
-            // Texto y numeros: se guarda al salir de la celda o con Enter.
-            el.addEventListener('blur', function () { enviar(el); });
-            el.addEventListener('keydown', function (e) {
-                if (e.key === 'Enter' && el.tagName !== 'TEXTAREA') { e.preventDefault(); el.blur(); }
-                if (e.key === 'Escape') { el.value = el.dataset.ultimo; el.blur(); }
             });
-            if (el.list) el.addEventListener('change', function () { enviar(el); });
         }
-    });
 
-    // Nota: el iconito de hoja abre/cierra una fila debajo con el texto.
-    tabla.addEventListener('click', function (e) {
-        var btn = e.target.closest('.tk-nota-btn');
-        if (!btn) return;
-        var fila = btn.closest('tr');
-        var nota = tabla.querySelector('.tk-nota-row[data-for="' + fila.dataset.id + '"]');
-        if (!nota) return;
-        nota.hidden = !nota.hidden;
-        btn.setAttribute('aria-expanded', nota.hidden ? 'false' : 'true');
-        if (!nota.hidden) nota.querySelector('textarea').focus();
+        Array.prototype.forEach.call(tabla.querySelectorAll('[data-campo]'), function (el) {
+            el.dataset.ultimo = String(valorDe(el));
+            var inmediato = el.tagName === 'SELECT' || el.type === 'checkbox' || el.type === 'date';
+            if (inmediato) {
+                el.addEventListener('change', function () { enviar(el); });
+            } else {
+                // Texto y numeros: se guarda al salir de la celda o con Enter.
+                el.addEventListener('blur', function () { enviar(el); });
+                el.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter' && (el.tagName !== 'TEXTAREA' || el.dataset.campo === 'titulo')) { e.preventDefault(); el.blur(); }
+                    if (e.key === 'Escape') { el.value = el.dataset.ultimo; el.blur(); }
+                });
+                if (el.list) el.addEventListener('change', function () { enviar(el); });
+            }
+        });
+
+        // Nota: la flechita abre/cierra una fila debajo con el texto.
+        tabla.addEventListener('click', function (e) {
+            var btn = e.target.closest('.tk-nota-btn');
+            if (!btn) return;
+            var fila = btn.closest('tr');
+            var nota = tabla.querySelector('.tk-nota-row[data-for="' + fila.dataset.id + '"]');
+            if (!nota) return;
+            nota.hidden = !nota.hidden;
+            btn.setAttribute('aria-expanded', nota.hidden ? 'false' : 'true');
+            if (!nota.hidden) nota.querySelector('textarea').focus();
+        });
     });
 })();

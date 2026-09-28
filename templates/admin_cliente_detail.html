@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}{{ cli.nombre }} &middot; Clientes &middot; Arcano{% endblock %}
 
@@ -29,8 +30,8 @@
 {% if lealtad and lealtad.activa %}
 <section class="cli-panel cli-lealtad">
     <div class="cli-lealtad-head">
-        <h2 class="cli-panel-title" style="margin:0;">&#127873; Lealtad</h2>
-        {% if lealtad.tiene_premio %}<span class="cli-premio-badge">&#9873; Premio para entregar</span>{% endif %}
+        <h2 class="cli-panel-title" style="margin:0;">Lealtad</h2>
+        {% if lealtad.tiene_premio %}<span class="cli-premio-badge">{{ icon('gift', 12) }} Premio para entregar</span>{% endif %}
     </div>
     <div class="cli-lealtad-bar" role="img" aria-label="Progreso {{ lealtad.pct }}%">
         <div class="cli-lealtad-fill" style="width: {{ lealtad.pct }}%;"></div>

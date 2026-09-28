@@ -330,7 +330,7 @@
 <script>
 // Mystery Box: datos que necesita el JS estatico (precios del server, portada y ficha).
 window.ARCANO_MBOX = {
-    precios: {{ mbox_precios|tojson }},
+    precios: {{ (mbox_precios or {})|tojson }},
     cover: "{{ url_for('static', filename='brand/mystery-box.svg') }}",
     url: "{{ url_for('public_disc', disc_id=mbox_disc_id) if mbox_disc_id else '' }}"
 };

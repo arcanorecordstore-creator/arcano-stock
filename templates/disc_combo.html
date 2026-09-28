@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}Agregar disco (URL + video) &middot; Arcano{% endblock %}
 
@@ -35,7 +36,7 @@
             <div class="combo-field">
                 <label class="combo-label">2 &middot; Screenshot de la ficha <span class="combo-opt">(opcional)</span></label>
                 <label class="video-drop" for="screenshot">
-                    <span class="video-drop-icon">&#128247;</span>
+                    <span class="video-drop-icon">{{ icon('camera', 28) }}</span>
                     <span class="video-drop-title" id="ss-title">Eleg&iacute; una captura</span>
                     <span class="video-drop-sub">PNG / JPG / WEBP &middot; de la p&aacute;gina del disco</span>
                     <input type="file" id="screenshot" name="screenshot" accept="image/*" hidden>

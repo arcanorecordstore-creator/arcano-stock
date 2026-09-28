@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}Cargar venta &middot; Arcano admin{% endblock %}
 
@@ -80,7 +81,7 @@
     </div>
     {% else %}
     <div class="empty-state">
-        <div class="empty-icon">&#128191;</div>
+        <div class="empty-icon">{{ icon('disc', 34) }}</div>
         <h2>No hay discos para vender</h2>
         <p>Todos est&aacute;n vendidos o descartados. Cargá discos nuevos primero.</p>
     </div>

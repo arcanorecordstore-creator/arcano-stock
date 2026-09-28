@@ -1,0 +1,97 @@
+{#- Pestaña "Ideas de contenido" de /admin/tareas (se incluye desde tareas.html) -#}
+<div class="tk-resumen">
+    <div class="tk-res"><span class="tk-res-n">{{ resumen_i.ideas }}</span><span class="tk-res-l">Ideas</span></div>
+    <div class="tk-res"><span class="tk-res-n">{{ resumen_i.produccion }}</span><span class="tk-res-l">En producción</span></div>
+    <div class="tk-res"><span class="tk-res-n">{{ resumen_i.publicadas }}</span><span class="tk-res-l">Publicadas</span></div>
+</div>
+
+<div class="tk-toolbar">
+    <nav class="tk-tabs" aria-label="Qué ideas ver">
+        <a href="{{ url_for('tareas_page', vista='ideas', ver='pendientes') }}" class="{% if ver_i == 'pendientes' %}is-on{% endif %}">Por hacer</a>
+        <a href="{{ url_for('tareas_page', vista='ideas', ver='publicadas') }}" class="{% if ver_i == 'publicadas' %}is-on{% endif %}">Publicadas</a>
+        <a href="{{ url_for('tareas_page', vista='ideas', ver='todas') }}" class="{% if ver_i == 'todas' %}is-on{% endif %}">Todas</a>
+    </nav>
+</div>
+
+<div class="tk-table-wrap">
+<table class="tk-table tk-table-ideas" id="tk-ideas" data-base="/admin/ideas/">
+    <thead>
+        <tr>
+            <th class="tk-c-nombre">Idea</th>
+            <th class="tk-c-formato">Formato</th>
+            <th class="tk-c-estado">Estado</th>
+            <th class="tk-c-creada">Anotada</th>
+            <th class="tk-c-atarea"><span class="sr-only">Pasar a tarea</span></th>
+            <th class="tk-c-acc"><span class="sr-only">Acciones</span></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for i in ideas %}
+        <tr class="tk-row{% if i.estado == 'Publicada' %} is-hecha{% endif %}" id="i{{ i.id }}" data-id="{{ i.id }}">
+            <td class="tk-c-nombre">
+                <div class="tk-nombre">
+                    <button type="button" class="tk-nota-btn{% if i.detalle %} has-nota{% endif %}" title="{{ 'Ver nota' if i.detalle else 'Agregar nota' }}" aria-label="Nota" aria-expanded="false">
+                        <svg viewBox="0 0 12 12" aria-hidden="true"><path d="M4.5 2.5L8 6l-3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                    <textarea class="tk-in tk-in-nombre" data-campo="titulo" rows="1" maxlength="200" aria-label="Idea">{{ i.titulo }}</textarea>
+                </div>
+            </td>
+            <td class="tk-c-formato">
+                <select class="tk-sel tk-sel-formato" data-campo="formato" aria-label="Formato">
+                    <option value="" {% if not i.formato %}selected{% endif %}>&mdash;</option>
+                    {% for f in formatos_idea %}<option value="{{ f }}" {% if i.formato == f %}selected{% endif %}>{{ f }}</option>{% endfor %}
+                </select>
+            </td>
+            <td class="tk-c-estado">
+                <span class="tk-estado" data-estado="{{ i.estado_key }}">
+                    <select class="tk-sel" data-campo="estado" aria-label="Estado">
+                        {% for e in estados_idea %}<option value="{{ e }}" {% if i.estado == e %}selected{% endif %}>{{ e }}</option>{% endfor %}
+                    </select>
+                </span>
+            </td>
+            <td class="tk-c-creada"><span class="tk-fecha-txt">{{ i.creada.strftime('%d/%m') }}</span></td>
+            <td class="tk-c-atarea">
+                {% if i.tarea_id %}
+                <a href="{{ url_for('tareas_page', ver='todas') }}#t{{ i.tarea_id }}" class="tk-link-tarea" title="Ver la tarea creada">Ver tarea</a>
+                {% else %}
+                <form method="post" action="{{ url_for('idea_a_tarea', idea_id=i.id) }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="volver_ver" value="{{ ver_i }}">
+                    <button type="submit" class="tk-btn-tarea" title="Crear una tarea (categoría Contenido) con esta idea">&rarr; Tarea</button>
+                </form>
+                {% endif %}
+            </td>
+            <td class="tk-c-acc">
+                <form method="post" action="{{ url_for('idea_borrar', idea_id=i.id) }}" onsubmit="return confirm('¿Borrar esta idea?');">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="volver_ver" value="{{ ver_i }}">
+                    <button type="submit" class="tk-del" title="Borrar idea" aria-label="Borrar idea">&times;</button>
+                </form>
+            </td>
+        </tr>
+        <tr class="tk-nota-row" data-for="{{ i.id }}" hidden>
+            <td colspan="6">
+                <textarea class="tk-nota" data-campo="detalle" data-id="{{ i.id }}" rows="3" placeholder="Cómo lo imaginás: disco, plano, texto, audio…">{{ i.detalle or '' }}</textarea>
+            </td>
+        </tr>
+        {% endfor %}
+        <tr class="tk-new-row">
+            <td colspan="6">
+                <form method="post" action="{{ url_for('idea_nueva') }}" class="tk-new">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="volver_ver" value="{{ ver_i }}">
+                    <span class="tk-new-plus" aria-hidden="true">+</span>
+                    <input type="text" name="titulo" maxlength="200" required placeholder="Nueva idea · Enter para anotarla" aria-label="Nueva idea" class="tk-new-input">
+                    <select name="formato" class="tk-sel tk-new-formato" aria-label="Formato de la idea nueva">
+                        <option value="">Formato</option>
+                        {% for f in formatos_idea %}<option value="{{ f }}">{{ f }}</option>{% endfor %}
+                    </select>
+                </form>
+            </td>
+        </tr>
+    </tbody>
+</table>
+</div>
+{% if not ideas %}
+<p class="tk-empty">{% if ver_i == 'publicadas' %}Todavía no marcaste ideas como publicadas.{% else %}No hay ideas anotadas. Escribí la primera en la última fila.{% endif %}</p>
+{% endif %}

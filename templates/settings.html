@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}Ajustes &middot; Arcano{% endblock %}
 
@@ -14,12 +15,12 @@
 
     <section class="settings-card">
         <header class="settings-card-head">
-            <h2 class="settings-card-title">&#128241; App y avisos en el celular</h2>
+            <h2 class="settings-card-title">{{ icon('phone', 15) }} App y avisos en el celular</h2>
             <p class="settings-card-sub">
                 Instal&aacute; Arcano como app (en el men&uacute; del navegador: <strong>"Instalar app"</strong> o "Agregar a inicio") y activ&aacute; los avisos para recibir una notificaci&oacute;n cuando entra una venta o una reserva.
             </p>
         </header>
-        <button type="button" class="btn btn-primary" id="push-activar-btn" onclick="arcanoActivarAvisos(this)">&#128276; Activar avisos en este celular</button>
+        <button type="button" class="btn btn-primary" id="push-activar-btn" onclick="arcanoActivarAvisos(this)">{{ icon('bell', 14) }} Activar avisos en este celular</button>
         <p class="form-field-hint" style="margin-top: 8px;">Toc&aacute; el bot&oacute;n desde el celular donde quer&eacute;s los avisos (pod&eacute;s activarlo en varios). En Android va directo; en iPhone, hacelo desde la app ya instalada.</p>
     </section>
 
@@ -171,7 +172,7 @@
 
     <section class="settings-card">
         <header class="settings-card-head">
-            <h2 class="settings-card-title">&#128190; Espacio en disco</h2>
+            <h2 class="settings-card-title">{{ icon('drive', 15) }} Espacio en disco</h2>
             <p class="settings-card-sub">Cu&aacute;nto lugar queda en el servidor. Si se llena, no se pueden guardar cambios (ventas, reservas, altas).</p>
         </header>
         {% set u = uso_disco or {} %}
@@ -190,13 +191,13 @@
             <p style="margin:0 0 8px;font-size:13.5px;color:var(--text-2);"><strong>{{ u.video_n }}</strong> sample(s) todav&iacute;a en video ({{ '%.0f'|format(u.video_mb or 0) }} MB). Convertilos a audio para liberar la mayor parte &mdash; el cliente escucha igual. Se hace de a poco: toc&aacute; y repet&iacute; hasta que llegue a 0.</p>
             <form method="post" action="{{ url_for('admin_comprimir_samples') }}">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="btn btn-primary">&#127925; Comprimir videos a audio</button>
+                <button type="submit" class="btn btn-primary">{{ icon('music', 14) }} Comprimir videos a audio</button>
             </form>
         </div>
         {% endif %}
         <form method="post" action="{{ url_for('admin_limpiar_samples') }}" style="padding:6px 0;" onsubmit="return confirm('¿Borrar los samples que ningún disco usa? Libera espacio y NO afecta las fichas.');">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="btn {% if u.huerfanos_n %}btn-primary{% else %}btn-ghost{% endif %}">&#129529; Limpiar samples sin usar{% if u.huerfanos_n %} ({{ u.huerfanos_n }}){% endif %}</button>
+            <button type="submit" class="btn {% if u.huerfanos_n %}btn-primary{% else %}btn-ghost{% endif %}">{{ icon('broom', 14) }} Limpiar samples sin usar{% if u.huerfanos_n %} ({{ u.huerfanos_n }}){% endif %}</button>
         </form>
         {% if u.libre_mb is not none and u.libre_mb < 150 %}
         <p class="settings-card-sub" style="color:#c0341e;">Queda muy poco espacio. Limpi&aacute; los samples sin usar; si sigue lleno, hay que agrandar el disco en Render.</p>
@@ -205,7 +206,7 @@
 
     <section class="settings-card">
         <header class="settings-card-head">
-            <h2 class="settings-card-title">&#127919; Drop Hunter (crear fichas desde afuera)</h2>
+            <h2 class="settings-card-title">{{ icon('target', 15) }} Drop Hunter (crear fichas desde afuera)</h2>
             <p class="settings-card-sub">El Drop Hunter puede crear fichas ac&aacute; solo. Peg&aacute; esta direcci&oacute;n y esta clave en el Drop Hunter (una vez). No compartas la clave.</p>
         </header>
         <div class="form-field">
@@ -395,7 +396,7 @@
                     Prendido: en el checkout aparece "Pagar con Mercado Pago" (el cliente paga el total + el recargo de abajo). Apagado: la web funciona como siempre (reservan y coordinan por mensaje).
                 </p>
                 {% if not mp_credencial_ok %}
-                <p class="mp-warn">&#9888; Falta cargar la credencial <code>MP_ACCESS_TOKEN</code> en Render. Hasta que no est&eacute;, aunque prendas el toggle el pago online no se activa.</p>
+                <p class="mp-warn">{{ icon('alert', 13) }} Falta cargar la credencial <code>MP_ACCESS_TOKEN</code> en Render. Hasta que no est&eacute;, aunque prendas el toggle el pago online no se activa.</p>
                 {% elif mp_sandbox %}
                 <p class="mp-info">&#9432; Est&aacute;s con credenciales de PRUEBA (sandbox): los pagos son de mentira, para testear. Cambiala por la de producci&oacute;n cuando quieras cobrar de verdad.</p>
                 {% else %}
@@ -449,7 +450,7 @@
             <div class="form-field" style="margin-top: 22px; border-top: 1px solid var(--border-2, #333); padding-top: 18px;">
                 <label class="carrusel-toggle" style="font-size: 15px;">
                     <input type="checkbox" name="fire_sale_activa" value="1" {% if fire_sale_activa %}checked{% endif %}>
-                    <span><strong>&#128293; Fire Sale</strong> (descuento exclusivo para clientes con cuenta)</span>
+                    <span><strong>{{ icon('fire', 14) }} Fire Sale</strong> (descuento exclusivo para clientes con cuenta)</span>
                 </label>
                 <p class="form-field-hint" style="margin-top: 6px;">
                     Prendido: los discos elegidos muestran un precio con descuento y un <strong>candado</strong>. Solo quien inici&oacute; sesi&oacute;n puede comprarlos a ese precio. El que no tiene cuenta ve el precio Fire Sale pero no puede comprar: lo empuja a registrarse.
@@ -495,7 +496,7 @@
             <div class="form-field" style="margin-top: 22px; border-top: 1px solid var(--border-2, #333); padding-top: 18px;">
                 <label class="carrusel-toggle" style="font-size: 15px;">
                     <input type="checkbox" name="lealtad_activa" value="1" {% if lealtad_activa %}checked{% endif %}>
-                    <span><strong>&#127873; Programa de lealtad</strong> (barra de premios en "Mi cuenta")</span>
+                    <span><strong>{{ icon('gift', 14) }} Programa de lealtad</strong> (barra de premios en "Mi cuenta")</span>
                 </label>
                 <p class="form-field-hint" style="margin-top: 6px;">
                     Prendido: cada cliente con cuenta ve una barra que se llena con lo que gasta. Al llegar a cada meta desbloquea un premio y a vos te avisa (en Clientes). La entrega la hac&eacute;s vos a mano; nada autom&aacute;tico.
