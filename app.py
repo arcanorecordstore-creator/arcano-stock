@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.65"
+APP_VERSION = "5.66"
 import metrics
 import auth
 import mailer
@@ -7209,32 +7209,33 @@ def register_routes(app: Flask) -> None:
                 if not d.esta_agotado or d.mostrar_preorder
             ]
             # --- DESTACADOS ---
-            # Los marcados manualmente tienen prioridad. Si faltan para 6,
+            # Los marcados manualmente tienen prioridad. Si faltan para 16,
             # se completan con aleatorios que rotan cada 10 dias.
+            _N_CARR = 16  # discos por carrusel (Destacados y Nuevos ingresos)
             marcados_dest = [d for d in disponibles_carrusel if d.destacado]
-            destacados = list(marcados_dest[:6])
-            if len(destacados) < 6:
+            destacados = list(marcados_dest[:_N_CARR])
+            if len(destacados) < _N_CARR:
                 import random as _random
                 # Semilla estable por periodo de 10 dias
                 periodo = int(datetime.utcnow().timestamp() // (10 * 86400))
                 resto = [d for d in disponibles_carrusel if not d.destacado]
                 rng = _random.Random(periodo)
                 rng.shuffle(resto)
-                destacados += resto[: 6 - len(destacados)]
+                destacados += resto[: _N_CARR - len(destacados)]
 
             # --- NUEVOS INGRESOS ---
             # Los marcados manualmente van primero, despues los mas recientes
-            # por fecha de ingreso, hasta completar 6.
+            # por fecha de ingreso, hasta completar 16.
             marcados_nuevos = [d for d in disponibles_carrusel if d.en_nuevos]
             por_fecha = sorted(
                 disponibles_carrusel,
                 key=lambda d: d.fecha_ingreso or datetime.min,
                 reverse=True,
             )
-            nuevos_ingresos = list(marcados_nuevos[:6])
+            nuevos_ingresos = list(marcados_nuevos[:_N_CARR])
             ids_ya = {d.id for d in nuevos_ingresos}
             for d in por_fecha:
-                if len(nuevos_ingresos) >= 6:
+                if len(nuevos_ingresos) >= _N_CARR:
                     break
                 if d.id not in ids_ya:
                     nuevos_ingresos.append(d)
