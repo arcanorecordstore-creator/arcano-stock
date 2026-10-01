@@ -676,7 +676,7 @@ window.arcanoGA = function (name, params) {
         var dx = (d.left + d.width / 2) - (o.left + o.width / 2);
         var dy = (d.top + d.height / 2) - (o.top + o.height / 2);
         requestAnimationFrame(function () {
-            clone.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(0.12) rotate(12deg)';
+            clone.style.transform = 'translate(' + dx + 'px,' + dy + 'px) scale(0.12)';
             clone.style.opacity = '0.25';
         });
         setTimeout(function () {
@@ -686,7 +686,7 @@ window.arcanoGA = function (name, params) {
                 void c.offsetWidth; // reiniciar la animacion
                 c.classList.add('bounce');
             });
-        }, 660);
+        }, 1620);   // = duracion del vuelo en CSS (1,6 s; pedido de Facundo: mucho mas lenta)
     }
     // La animacion la dispara el handler del boton (ArcanoCart), que SI sabe si fue
     // agregar o quitar. El listener global de antes usaba una clase mal escrita

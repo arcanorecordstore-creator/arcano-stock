@@ -1,0 +1,139 @@
+/* =====================================================================
+   VISTA GRILLA / LISTA (pedido de Facundo a partir de la opcion E)
+   El cliente elige como diggear: en grilla (tapas) o en lista (una fila por
+   disco, como la lista de precios de una disqueria). Funciona sobre CUALQUIER
+   diseno porque usa las variables de color de cada tema (--text-1, --border-2...).
+   El boton lo agrega static/js/temas/_vista.js y la eleccion queda guardada.
+   ===================================================================== */
+.vista-toggle { display: inline-flex; border: 1px solid var(--border-3); border-radius: 999px; padding: 3px; gap: 2px; margin-left: auto; }
+.vista-toggle button {
+    display: inline-flex; align-items: center; gap: 6px; border: 0; background: transparent; color: var(--text-3);
+    font: 500 10.5px/1 'Space Grotesk', sans-serif; letter-spacing: .12em; text-transform: uppercase;
+    padding: 7px 12px; border-radius: 999px; cursor: pointer; transition: background-color .25s ease, color .25s ease, opacity .15s;
+}
+.vista-toggle button svg { width: 13px; height: 13px; }
+.vista-toggle button.is-on { background: var(--text-1); color: var(--bg-1); }
+.vista-toggle button:active { opacity: .6; }
+.public-results-head:has(.vista-toggle) { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+/* En E la lista ya es el diseno, y en L el carrete es otra forma de mirar */
+body.tema-lista .vista-toggle, body.tema-carrete .vista-toggle { display: none; }
+
+/* ---------- LA LISTA ---------- */
+html body.vista-lista .public-catalog .public-grid {
+    display: flex !important; flex-direction: column; gap: 0 !important; padding: 0 !important;
+    border-top: 1px solid var(--border-3); background: none !important;
+}
+html body.vista-lista .public-catalog .public-grid > .public-card {
+    display: grid !important; grid-template-columns: 64px minmax(0, 1fr); align-items: center; column-gap: 18px;
+    width: auto !important; height: auto !important; margin: 0 !important; padding: 10px 8px !important;
+    background: transparent !important; border: 0 !important; border-bottom: 1px solid var(--border-2) !important; border-radius: 0 !important;
+    box-shadow: none !important; transform: none !important; translate: none !important; rotate: none !important; animation: none !important;
+    overflow: visible !important; opacity: 1 !important; filter: none !important; text-align: left !important;
+    transition: background-color .25s ease !important;
+}
+html body.vista-lista .public-catalog .public-grid > .public-card:hover { background: var(--bg-2) !important; }
+html body.vista-lista .public-catalog .public-grid > .public-card::before,
+html body.vista-lista .public-catalog .public-grid > .public-card::after { display: none !important; }
+html body.vista-lista .public-catalog .public-grid .public-card-cover {
+    position: relative !important; width: 64px !important; height: 64px !important; aspect-ratio: 1 !important; inset: auto !important;
+    border-radius: 4px !important; box-shadow: none !important; outline: 0 !important; opacity: 1 !important; margin: 0 !important; order: 0 !important;
+    -webkit-box-reflect: none !important;
+}
+html body.vista-lista .public-catalog .public-grid .public-card-cover img { transform: none !important; filter: none !important; }
+html body.vista-lista .public-catalog .public-grid :is(.public-card-badges, .fav-btn-card, .card-staff-sticker, .public-card-resena, .public-card-agotado-overlay) { display: none !important; }
+html body.vista-lista .public-catalog .public-grid .card-play-btn {
+    opacity: 1 !important; width: 30px !important; height: 30px !important; font-size: 11px !important; transform: translate(-50%, -50%) !important; visibility: visible !important;
+}
+html body.vista-lista .public-catalog .public-grid .public-card-info {
+    display: grid !important; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) minmax(0, 1fr) 290px; align-items: center; column-gap: 18px;
+    position: static !important; padding: 0 !important; margin: 0 !important; background: transparent !important; box-shadow: none !important;
+    opacity: 1 !important; transform: none !important; pointer-events: auto !important; text-align: left !important; order: 1 !important; width: auto !important;
+}
+html body.vista-lista .public-catalog .public-grid .public-card-info::before { display: none !important; }
+html body.vista-lista .public-catalog .public-grid .public-card-artist {
+    grid-column: 1; font-weight: 500 !important; text-transform: uppercase; letter-spacing: .06em; font-size: 13px !important; line-height: 1.3 !important;
+    color: var(--text-1) !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; translate: none !important;
+}
+html body.vista-lista .public-catalog .public-grid .public-card:has(.card-staff-sticker) .public-card-artist::after {
+    content: "Staff pick"; margin-left: 8px; font-size: 9.5px; letter-spacing: .12em; padding: 2px 7px; border-radius: 999px; background: var(--text-1); color: var(--bg-1); vertical-align: 1px;
+}
+html body.vista-lista .public-catalog .public-grid .public-card-title { grid-column: 2; font-size: 15px !important; color: var(--text-2) !important; -webkit-line-clamp: 1; margin: 0 !important; }
+html body.vista-lista .public-catalog .public-grid .public-card-label { grid-column: 3; font-size: 12px !important; color: var(--text-4) !important; margin: 0 !important; opacity: 1 !important; text-transform: none !important; letter-spacing: .03em !important; font-weight: 300 !important; }
+html body.vista-lista .public-catalog .public-grid .public-card-buy,
+html body.vista-lista .public-catalog .public-grid .fl-pie .public-card-buy {
+    grid-column: 4; display: flex !important; flex-direction: row !important; flex-wrap: nowrap !important; justify-content: flex-end; align-items: center;
+    gap: 16px !important; margin: 0 !important; padding: 0 !important; width: auto !important;
+}
+html body.vista-lista .public-catalog .public-grid > .public-card:has(> .fl-pie) { grid-template-columns: 64px minmax(0, 1fr) auto; }
+html body.vista-lista .public-catalog .public-grid > .public-card > .fl-pie { grid-column: 3; grid-row: 1; padding: 0 0 0 18px !important; order: 2 !important; }
+html body.vista-lista .public-catalog .public-grid .public-card-price { font-size: 15px !important; min-width: 70px; text-align: right; white-space: nowrap; margin: 0 !important; }
+html body.vista-lista .public-catalog .public-grid .public-card-price::before { content: none !important; }
+html body.vista-lista .public-catalog .public-grid .cart-btn-inline { align-self: auto !important; width: auto !important; white-space: nowrap !important; padding: 9px 14px !important; font-size: 10.5px !important; }
+html body.vista-lista .public-catalog .public-grid .public-card-cover-empty { font-size: 20px; }
+
+@media (max-width: 760px) {
+    html body.vista-lista .public-catalog .public-grid > .public-card { grid-template-columns: 56px minmax(0, 1fr); column-gap: 12px; padding: 10px 2px !important; }
+    html body.vista-lista .public-catalog .public-grid .public-card-cover { width: 56px !important; height: 56px !important; }
+    html body.vista-lista .public-catalog .public-grid .public-card-info { grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; column-gap: 10px; }
+    html body.vista-lista .public-catalog .public-grid .public-card-artist { grid-column: 1; grid-row: 1; font-size: 12px !important; }
+    html body.vista-lista .public-catalog .public-grid .public-card-title { grid-column: 1; grid-row: 2; font-size: 14px !important; }
+    html body.vista-lista .public-catalog .public-grid .public-card-label { display: none !important; }
+    html body.vista-lista .public-catalog .public-grid .public-card-buy { grid-column: 2; grid-row: 1 / span 2; flex-direction: column !important; align-items: flex-end; gap: 6px !important; }
+    html body.vista-lista .public-catalog .public-grid > .public-card:has(> .fl-pie) { grid-template-columns: 56px minmax(0, 1fr) auto; }
+    html body.vista-lista .public-catalog .public-grid > .public-card > .fl-pie { padding-left: 8px !important; }
+    html body.vista-lista .public-catalog .public-grid > .public-card > .fl-pie .public-card-buy { flex-direction: column !important; align-items: flex-end; gap: 6px !important; }
+    html body.vista-lista .public-catalog .public-grid .public-card-price { min-width: 0; font-size: 14px !important; }
+    html body.vista-lista .public-catalog .public-grid .cart-btn-inline { padding: 7px 10px !important; font-size: 9.5px !important; }
+    .vista-toggle button span { display: none; }
+}
+
+/* Textos de la Mystery Box: en la lista toman el color normal del tema */
+html body.vista-lista .public-catalog .public-grid > .public-card-mbox { background: transparent !important; }
+html body.vista-lista .public-catalog .public-grid > .public-card-mbox .public-card-info :is(.public-card-artist, .public-card-title, .public-card-price) { color: var(--text-1) !important; }
+
+/* =====================================================================
+   DISENO DE LISTA POR DEFECTO = el de Q · Disqueria (eleccion de Facundo)
+   Miniaturas como vinilos que giran despacio al pasar el mouse y al sonar,
+   indice A-Z por artista y encabezado de columnas. Vale para todos los temas.
+   ===================================================================== */
+html body.vista-lista .public-catalog .public-grid { border-top-color: var(--text-1) !important; }
+html body.vista-lista .public-catalog .public-grid .public-card:not(.public-card-mbox) .public-card-cover {
+    border-radius: 50% !important; box-shadow: 0 0 0 3px #1E1C1C !important; overflow: hidden !important;
+}
+html body.vista-lista .public-catalog .public-grid .public-card:not(.public-card-mbox) .public-card-cover::before { display: none !important; }
+html body.vista-lista .public-catalog .public-grid .public-card:not(.public-card-mbox) .public-card-cover::after {
+    content: "" !important; display: block !important; position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 1;
+    background: radial-gradient(circle, var(--bg-1) 0 5%, #1E1C1C 5.5% 8%, transparent 8.5%),
+                repeating-radial-gradient(circle, rgba(30,28,28,.18) 0 1px, transparent 1px 3px) !important;
+    -webkit-mask: none !important; mask: none !important;
+}
+html body.vista-lista .public-catalog .public-grid .public-card:not(.public-card-mbox) .public-card-cover img { animation: vl-gira 12s linear infinite !important; animation-play-state: paused !important; }
+html body.vista-lista .public-catalog .public-grid .public-card:hover .public-card-cover img { animation-play-state: running !important; }
+html body.vista-lista .public-catalog .public-grid .public-card.vl-sonando .public-card-cover img { animation-play-state: running !important; animation-duration: 6s !important; }
+html body.vista-lista .public-catalog .public-grid .card-play-btn { opacity: 0 !important; z-index: 2 !important; background: rgba(30,28,28,.8) !important; color: #FFF7EC !important; transition: opacity .2s ease !important; border-radius: 50% !important; }
+html body.vista-lista .public-catalog .public-grid .public-card:is(:hover, .vl-sonando) .card-play-btn { opacity: 1 !important; }
+html body.vista-lista .public-catalog .public-grid .public-card.vl-sonando .public-card-artist::before { content: "\25B6  "; font-size: 10px; vertical-align: 1px; }
+@keyframes vl-gira { to { rotate: 360deg; } }
+
+/* indice A-Z y encabezado (los arma _vista.js) */
+.vl-indice, .vl-cab { display: none; }
+body.vista-lista .vl-indice { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0 14px; }
+.vl-indice button {
+    min-width: 32px; height: 32px; padding: 0 8px; border-radius: 8px; border: 1px solid var(--border-3); background: transparent; color: var(--text-1);
+    font: 500 12px/1 'Space Grotesk', sans-serif; letter-spacing: .06em; cursor: pointer; transition: background-color .25s ease, opacity .15s;
+}
+.vl-indice button:hover { background: var(--bg-2); }
+.vl-indice button:active { opacity: .6; }
+body.vista-lista .vl-cab {
+    display: grid; grid-template-columns: 64px minmax(0, 1.1fr) minmax(0, 1.4fr) minmax(0, 1fr) 290px; column-gap: 18px;
+    padding: 0 8px 8px; font: 500 10px/1.2 'Space Grotesk', sans-serif; letter-spacing: .18em; text-transform: uppercase; color: var(--text-4);
+}
+body.vista-lista .vl-cab span:last-child { text-align: right; }
+html body.vista-lista .public-catalog .public-grid > .public-card.vl-salto { background: var(--bg-2) !important; box-shadow: inset 3px 0 0 var(--text-1) !important; }
+@media (max-width: 760px) {
+    body.vista-lista .vl-cab { display: none; }
+    body.vista-lista .vl-indice { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+    .vl-indice button { flex: 0 0 auto; }
+    html body.vista-lista .public-catalog .public-grid .card-play-btn { opacity: 1 !important; }
+}
+@media (prefers-reduced-motion: reduce) { html body.vista-lista .public-catalog .public-grid .public-card-cover img { animation: none !important; } }

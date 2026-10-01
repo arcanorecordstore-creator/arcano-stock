@@ -1,0 +1,82 @@
+/* =====================================================================
+   MODO CLARO de las finalistas (H · Tocadiscos, M · Funda viva, S · Picture)
+   + REPRODUCTOR con los colores de la marca en los dos modos.
+   - Modo OSCURO = el marron de siempre (sin data-theme="light").
+   - Modo CLARO  = crema + beige (par del manual), texto negro, acentos marron.
+   El boton sol/luna del header cambia entre los dos; cual arranca por defecto
+   se elige en Ajustes -> Diseno de la tienda.
+   Truco: los temas usan variables (--fv-*, --td-*); aca se les cambia el valor.
+   El "beige" de acento pasa a marron y el "marron oscuro" (fondos de inputs y
+   texto sobre acento) pasa a crema.
+   ===================================================================== */
+
+/* ---------- variables del modo claro ---------- */
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture) {
+    --fv-bg: #FFF7EC; --fv-deep: #FFF7EC; --fv-core: #F6E8D3; --fv-beige: #3D3033; --fv-crema: #1E1C1C; --fv-mute: #7a6a5f;
+}
+html[data-theme="light"] body.tema-tocadiscos {
+    --td-bg: #FFF7EC; --td-deep: #FFF7EC; --td-core: #F6E8D3; --td-beige: #3D3033; --td-crema: #1E1C1C; --td-mute: #7a6a5f;
+}
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) {
+    --bg-0: #FFF7EC; --bg-1: #F6E8D3; --bg-2: #EFDDC3; --bg-3: #E9D1AF; --bg-hover: #EFDDC3;
+    --text-1: #1E1C1C; --text-2: #3D3033; --text-3: #5f524d; --text-4: #7a6a5f; --text-5: #8c7d73;
+    --border-1: rgba(61,48,51,.10); --border-2: rgba(61,48,51,.16); --border-3: rgba(61,48,51,.30);
+    --accent: #3D3033;
+}
+/* logo oscuro sobre crema */
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .brand-neg { display: block !important; }
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .brand-bla { display: none !important; }
+
+/* ---------- colores fijos que hay que dar vuelta ---------- */
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture) .public-topbar-inner { background: rgba(255,247,236,.86) !important; box-shadow: 0 18px 40px -24px rgba(61,48,51,.35) !important; }
+html[data-theme="light"] body.tema-tocadiscos .public-topbar { background: #F6E8D3 !important; }
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .public-anuncio-bar { background: #3D3033 !important; color: #FFF7EC !important; }
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .public-footer { background: #E9D1AF !important; }
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .public-footer * { color: #3D3033 !important; }
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .fav-btn-card { background: rgba(255,247,236,.92) !important; color: #1E1C1C !important; }
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture) .public-grid > .public-card:not(.public-card-mbox) .card-play-btn { color: #1E1C1C !important; }
+html[data-theme="light"] body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .card-play-btn { color: #FFF7EC !important; }
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .public-card-mbox { background: #E9D1AF !important; }
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .public-card-mbox .public-card-info { background: #E9D1AF !important; }
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .public-card-mbox .public-card-info :is(.public-card-artist, .public-card-title, .public-card-resena, .public-card-price) { color: #1E1C1C !important; }
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .public-disc-backdrop-fade { background: linear-gradient(to bottom, rgba(255,247,236,.55), #FFF7EC 85%) !important; }
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .public-search-bar input::placeholder { color: #7a6a5f !important; }
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos)::after { opacity: .035; }
+/* H: la bandeja en beige; el tocadiscos sigue negro (es un aparato) */
+html[data-theme="light"] body.tema-tocadiscos .td-deck { background: linear-gradient(160deg, #F6E8D3, #EFDDC3) !important; box-shadow: 0 30px 60px -44px rgba(61,48,51,.5) !important; }
+html[data-theme="light"] body.tema-tocadiscos .td-etiqueta { background: #E9D1AF; color: #3D3033; }
+html[data-theme="light"] body.tema-tocadiscos .public-card-badge { background: #3D3033 !important; color: #FFF7EC !important; }
+html[data-theme="light"] body.tema-tocadiscos .td-acciones .td-play { color: #FFF7EC; }
+
+/* =====================================================================
+   REPRODUCTOR (los dos modos). Antes quedaba blanco con letras crema y un
+   boton verde: no se leia y no era de la marca.
+   ===================================================================== */
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player {
+    --pl-bg: #2A2124; --pl-txt: #FFF7EC; --pl-mute: #c9b8a3; --pl-acc: #E9D1AF; --pl-acc-txt: #2A2124; --pl-line: rgba(233,209,175,.18);
+}
+html[data-theme="light"] body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player {
+    --pl-bg: #F6E8D3; --pl-txt: #1E1C1C; --pl-mute: #7a6a5f; --pl-acc: #3D3033; --pl-acc-txt: #FFF7EC; --pl-line: rgba(61,48,51,.18);
+}
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player {
+    background: var(--pl-bg) !important; color: var(--pl-txt) !important;
+    border-top: 1px solid var(--pl-line) !important; box-shadow: 0 -14px 34px -18px rgba(0,0,0,.45) !important;
+}
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player :is(.fp-title) { color: var(--pl-txt) !important; font-weight: 500 !important; text-transform: uppercase; letter-spacing: .06em; font-size: 13px; }
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player :is(.fp-sub, .fp-time, .fp-fallback-link) { color: var(--pl-mute) !important; }
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player .fp-progress { background: var(--pl-line) !important; }
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player :is(.fp-progress-fill, .fp-progress-knob) { background: var(--pl-acc) !important; }
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player .fp-ctrl { color: var(--pl-txt) !important; border-color: var(--pl-line) !important; background: transparent !important; }
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player .fp-ctrl-play { background: var(--pl-acc) !important; border-color: var(--pl-acc) !important; color: var(--pl-acc-txt) !important; }
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player .fp-ctrl:active { opacity: .65; }
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player .fp-cart-btn {
+    background: var(--pl-acc) !important; color: var(--pl-acc-txt) !important; font-weight: 500 !important; letter-spacing: .08em; text-transform: uppercase; font-size: 11px !important;
+    filter: none !important; transition: opacity .15s ease;
+}
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player .fp-cart-btn:active { opacity: .65; }
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player .fp-cart-btn.is-in-cart { background: transparent !important; color: var(--pl-txt) !important; box-shadow: inset 0 0 0 1px var(--pl-line); }
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player :is(button, a):not(.fp-cart-btn):not(.fp-ctrl-play) { color: var(--pl-txt); }
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player input[type="range"] { accent-color: var(--pl-acc); }
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player .fp-queue-panel { border-top-color: var(--pl-line) !important; }
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player .fp-queue-item { color: var(--pl-mute) !important; border-bottom-color: var(--pl-line) !important; }
+body:is(.tema-fundaviva, .tema-picture, .tema-tocadiscos) .floating-player .fp-queue-item.actual { color: var(--pl-txt) !important; font-weight: 500 !important; }

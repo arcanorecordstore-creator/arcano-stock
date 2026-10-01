@@ -39,14 +39,25 @@
     <link rel="icon" type="image/png" sizes="512x512" href="{{ url_for('static', filename='brand/favicon-512.png') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='brand/apple-touch-icon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    {# ===== Diseno de la tienda (se elige en Ajustes) ===== #}
+    {# El diseno lo elige Facundo en Ajustes -> Diseno de la tienda. ?tema=X sirve para previsualizar sin guardar. #}
+    {% set _tema = request.args.get('tema') or diseno_tienda or '' %}
+    {% set _temas = ('tocadiscos', 'fundaviva', 'picture') %}{% set _temas_js = ('tocadiscos', 'fundaviva', 'picture') %}{% set _carr = request.args.get('carr') or carrusel_modo or 'compacto' %}{% if _carr not in ('normal', 'carrete') %}{% set _carr = 'compacto' %}{% endif %}{% if _tema in _temas %}<link rel="stylesheet" href="{{ url_for('static', filename='css/temas/' ~ _tema ~ '.css') }}">{% endif %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/temas/_vista.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/temas/_comun.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/temas/_claro.css') }}">
+    {# Modo con el que arranca (Ajustes -> Diseno de la tienda). ?modo=claro|oscuro previsualiza sin guardar. #}
+    {% set _modo_q = request.args.get('modo') %}
+    {% set _modo_def = 'dark' if (_tema in _temas and (_modo_q or modo_defecto) == 'oscuro') else 'light' %}
     <script>
     // Anti-flash: setear tema ANTES de renderizar el body.
     (function () {
         try {
             var saved = localStorage.getItem('arcano-theme');
-            // Por defecto la tienda arranca en tema CLARO. Solo si el visitante
-            // eligio "oscuro" antes (guardado en su navegador) respetamos eso.
-            var theme = saved || 'light';
+            // Arranca en el modo elegido en Ajustes (copia de diseno). Si el
+            // visitante ya eligio con el sol/luna, se respeta lo suyo.
+            var forzado = {{ ('light' if _modo_q == 'claro' else ('dark' if _modo_q == 'oscuro' else '')) | tojson }};
+            var theme = forzado || saved || {{ _modo_def | tojson }};
             if (theme === 'light') {
                 document.documentElement.setAttribute('data-theme', 'light');
             }
@@ -56,7 +67,7 @@
     })();
     </script>
 </head>
-<body class="public-body" data-logged-in="{% if cliente_actual %}1{% else %}0{% endif %}">
+<body class="public-body{% if _tema in _temas %} tema-{{ _tema }}{% endif %}{% if _carr in ('compacto', 'carrete') %} carr-{{ _carr }}{% endif %}" data-logged-in="{% if cliente_actual %}1{% else %}0{% endif %}">
 
 {% if anuncio_texto %}
 <a href="{{ url_for('home') }}#catalogo" class="public-anuncio-bar" aria-label="Ir al catalogo">{{ anuncio_texto }}</a>
@@ -338,6 +349,9 @@ window.ARCANO_MBOX = {
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
 <script src="{{ url_for('static', filename='js/public_anim.js') }}"></script>
 <script src="{{ url_for('static', filename='js/pjax.js') }}"></script>
+<script src="{{ url_for('static', filename='js/temas/_vista.js') }}"></script>
+<script src="{{ url_for('static', filename='js/temas/_comun.js') }}"></script>
+{% if _tema in _temas_js %}<script src="{{ url_for('static', filename='js/temas/' ~ _tema ~ '.js') }}"></script>{% endif %}
 <script>
 // Cuenta atras del Fire Sale (si la barra trae data-fs-end = segundos restantes).
 (function () {
@@ -406,6 +420,7 @@ window.ARCANO_MBOX = {
         if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', sweep); else sweep();
     })();
 </script>
+
 
 </body>
 </html>

@@ -1,0 +1,191 @@
+/* =====================================================================
+   OPCION S · PICTURE  (los discos de H dentro de las tarjetas de M)
+   La tarjeta de doble borde de M, pero adentro el disco es un VINILO redondo
+   (la tapa como picture disc, con surcos y la etiqueta beige del centro como
+   boton de play). Gira despacio al pasar el mouse y al sonar. Datos siempre
+   visibles abajo. Ficha = la de M. JS: static/js/temas/picture.js
+   ===================================================================== */
+
+body.tema-picture {
+    --fv-bg: #3D3033;          /* marron */
+    --fv-deep: #2A2124;        /* marron oscuro */
+    --fv-core: #33282b;
+    --fv-beige: #E9D1AF;
+    --fv-crema: #FFF7EC;
+    --fv-mute: #c9b8a3;
+    --fv-ease: cubic-bezier(.32, .72, 0, 1);
+    --bg-0: #3D3033; --bg-1: #33282b; --bg-2: #2A2124; --bg-3: #463a3d; --bg-hover: #463a3d;
+    --text-1: #FFF7EC; --text-2: #f1e6d6; --text-3: #d8c8b4; --text-4: #c9b8a3; --text-5: #ad9c8a;
+    --border-1: rgba(233,209,175,.10); --border-2: rgba(233,209,175,.16); --border-3: rgba(233,209,175,.28);
+    --accent: #E9D1AF; --card-shadow: none;
+    background: var(--fv-bg) !important; color: var(--fv-crema);
+}
+body.tema-picture, body.tema-picture button, body.tema-picture input, body.tema-picture select, body.tema-picture textarea { font-family: 'Space Grotesk', sans-serif !important; }
+body.tema-picture .public-main { font-weight: 300; }
+body.tema-picture strong, body.tema-picture b { font-weight: 500; }
+body.tema-picture .brand-neg { display: none !important; }
+body.tema-picture .brand-bla { display: block !important; }
+/* grano de papel/carton, fijo y sin eventos */
+body.tema-picture::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: .06;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+/* Barra de anuncio y header "isla" flotante */
+body.tema-picture .public-anuncio-bar { background: var(--fv-deep) !important; color: var(--fv-beige) !important; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; font-size: 11px; }
+body.tema-picture .public-topbar { background: transparent !important; border: 0 !important; box-shadow: none !important; padding-top: 12px !important; }
+body.tema-picture .public-topbar-inner {
+    background: rgba(42, 33, 36, .82); backdrop-filter: blur(14px);
+    border: 1px solid var(--border-2); border-radius: 999px; padding-left: 22px !important; padding-right: 14px !important;
+    box-shadow: 0 18px 40px -20px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 247, 236, .06);
+}
+body.tema-picture .public-nav-link { color: var(--fv-mute) !important; background: transparent !important; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; font-size: 11.5px; }
+body.tema-picture .public-nav-link.active, body.tema-picture .public-nav-link:hover { color: var(--fv-crema) !important; }
+body.tema-picture .public-topbar-actions, body.tema-picture .public-topbar-actions * { color: var(--fv-crema) !important; }
+body.tema-picture .public-cuenta-bar { background: transparent !important; color: var(--fv-mute) !important; border: 0 !important; }
+
+/* Titular con etiqueta-cejilla */
+body.tema-picture .public-filters-top { flex-wrap: wrap; row-gap: 18px; }
+body.tema-picture .public-filters-top::before {
+    content: "Girá un disco";
+    flex: 0 0 100%;
+    font-weight: 500; text-transform: uppercase; letter-spacing: .06em;
+    font-size: clamp(32px, 4.6vw, 68px); line-height: 1.02; color: var(--fv-crema);
+    margin: 34px 0 6px; max-width: 18ch;
+}
+body.tema-picture .public-search-bar input, body.tema-picture .public-filter-search, body.tema-picture .public-filter-select {
+    background: var(--fv-deep) !important; border: 1px solid var(--border-2) !important; color: var(--fv-crema) !important; border-radius: 999px !important; padding-left: 18px !important;
+}
+body.tema-picture .public-search-bar input::placeholder { color: var(--fv-mute) !important; }
+body.tema-picture .btn, body.tema-picture .btn-primary, body.tema-picture .cart-btn-inline, body.tema-picture .listen-all-btn {
+    background: var(--fv-beige) !important; color: var(--fv-deep) !important; border: 0 !important; border-radius: 999px !important;
+    font-weight: 500; letter-spacing: .08em; text-transform: uppercase; font-size: 11.5px !important; box-shadow: none !important;
+    transition: background-color .5s var(--fv-ease), opacity .15s ease;
+}
+body.tema-picture .btn:hover, body.tema-picture .cart-btn-inline:hover { background: var(--fv-crema) !important; }
+body.tema-picture .btn:active, body.tema-picture .cart-btn-inline:active { opacity: .7; }
+body.tema-picture .btn-ghost { background: transparent !important; color: var(--fv-crema) !important; border: 1px solid var(--border-3) !important; }
+body.tema-picture .public-trust-item { color: var(--fv-mute) !important; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; font-size: 10.5px; }
+
+/* Carruseles */
+body.tema-picture .public-carrusel { margin: 56px 0 40px; }
+body.tema-picture .public-carrusel-title { font-weight: 500 !important; text-transform: uppercase; letter-spacing: .14em; font-size: 15px !important; color: var(--fv-beige) !important; }
+body.tema-picture .public-carrusel-icon { color: var(--fv-beige) !important; }
+body.tema-picture .carrusel-btn { background: var(--fv-deep) !important; border: 1px solid var(--border-2) !important; color: var(--fv-crema) !important; }
+body.tema-picture .carrusel-card {
+    background: rgba(255, 247, 236, .03) !important; border: 1px solid var(--border-1) !important; border-radius: 26px !important;
+    padding: 7px !important; box-shadow: none !important; transform: none !important;
+}
+body.tema-picture .carrusel-body { background: var(--fv-core); border-radius: 20px; padding: 14px; box-shadow: inset 0 1px 0 rgba(255,247,236,.06); }
+body.tema-picture .carrusel-cover { border-radius: 14px !important; }
+body.tema-picture .carrusel-artist { font-weight: 500; text-transform: uppercase; letter-spacing: .08em; font-size: 13px; }
+body.tema-picture .carrusel-label { color: var(--fv-mute) !important; }
+body.tema-picture .carrusel-price { color: var(--fv-beige); font-weight: 500; }
+body.tema-picture .public-carrusel-progress-bar { background: var(--fv-beige) !important; }
+
+/* Filtros */
+body.tema-picture .public-sidebar { background: rgba(255,247,236,.03) !important; border: 1px solid var(--border-1) !important; border-radius: 24px !important; box-shadow: none !important; }
+body.tema-picture .public-sidebar *, body.tema-picture .filter-check { color: var(--text-2); }
+body.tema-picture .filter-block-title, body.tema-picture .public-sidebar-title { color: var(--fv-beige) !important; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; font-size: 11px; }
+body.tema-picture .filter-count { background: var(--fv-deep) !important; color: var(--fv-mute) !important; }
+body.tema-picture .filter-price-input { background: var(--fv-deep) !important; border: 1px solid var(--border-2) !important; color: var(--fv-crema) !important; }
+body.tema-picture .public-results-count { color: var(--fv-mute) !important; letter-spacing: .1em; }
+
+/* Grilla: tarjetas de doble borde + el vinilo que asoma de la funda */
+body.tema-picture .public-grid { gap: 30px 22px !important; padding-top: 34px; }
+body.tema-picture .public-grid > .public-card {
+    position: relative; overflow: visible !important;
+    background: rgba(255, 247, 236, .03) !important; border: 1px solid var(--border-1) !important;
+    border-radius: 26px !important; padding: 7px !important; box-shadow: none !important; transform: none !important;
+    transition: border-color .6s var(--fv-ease);
+}
+body.tema-picture .public-grid > .public-card:hover { border-color: var(--border-3) !important; }
+body.tema-picture .public-card-cover {
+    position: relative; z-index: 1; border-radius: 20px !important; overflow: hidden; background: var(--fv-deep) !important;
+    box-shadow: 0 16px 30px -18px rgba(0,0,0,.6);
+}
+body.tema-picture .public-card-info {
+    position: relative; z-index: 1; background: var(--fv-core); border-radius: 20px; margin-top: 7px;
+    padding: 16px !important; box-shadow: inset 0 1px 0 rgba(255,247,236,.06);
+}
+body.tema-picture .public-card-artist { font-weight: 500; text-transform: uppercase; letter-spacing: .08em; font-size: 13px; color: var(--fv-crema) !important; }
+body.tema-picture .public-card-title { font-weight: 300; font-size: 16px; color: var(--text-2) !important; }
+body.tema-picture .public-card-label { color: var(--fv-mute) !important; font-size: 12px; }
+body.tema-picture .public-card-resena { color: var(--text-3); font-style: normal; }
+body.tema-picture .public-card-price { color: var(--fv-beige) !important; font-weight: 500; font-variant-numeric: tabular-nums; }
+body.tema-picture .public-card-badge { background: var(--fv-crema) !important; color: var(--fv-deep) !important; border: 0 !important; border-radius: 999px !important; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; font-size: 10px; }
+body.tema-picture .card-staff-sticker { z-index: 3; background: var(--fv-beige) !important; color: var(--fv-deep) !important; }
+body.tema-picture .card-play-btn { background: rgba(255,247,236,.92) !important; color: var(--fv-deep) !important; }
+body.tema-picture .fav-btn-card { background: rgba(42,33,36,.75) !important; color: var(--fv-crema) !important; border: 0 !important; }
+body.tema-picture .public-card-mbox { background: var(--fv-beige) !important; }
+body.tema-picture .public-card-mbox .public-card-info { background: var(--fv-crema); }
+body.tema-picture .public-card-mbox .public-card-info * { color: var(--fv-deep) !important; }
+
+body.tema-picture .pagination-page, body.tema-picture .pagination-btn { background: var(--fv-deep) !important; border: 1px solid var(--border-2) !important; color: var(--fv-crema) !important; border-radius: 999px !important; }
+body.tema-picture .pagination-page.active { background: var(--fv-beige) !important; color: var(--fv-deep) !important; }
+body.tema-picture .public-footer { background: var(--fv-deep) !important; border-top: 1px solid var(--border-1) !important; }
+body.tema-picture .public-footer * { color: var(--fv-mute) !important; }
+
+/* Ficha */
+body.tema-picture .public-disc-backdrop-fade { background: linear-gradient(to bottom, rgba(61,48,51,.5), #3D3033 85%) !important; }
+body.tema-picture .public-disc-artist { font-weight: 500 !important; text-transform: uppercase; letter-spacing: .04em; }
+body.tema-picture .public-disc-cover { border-radius: 24px !important; }
+body.tema-picture .public-disc-price { color: var(--fv-beige) !important; }
+body.tema-picture .public-disc-section-title { color: var(--fv-beige) !important; font-weight: 500; text-transform: uppercase; letter-spacing: .14em; }
+
+@media (max-width: 768px) {
+    body.tema-picture .public-topbar { padding-top: 0 !important; }
+    body.tema-picture .public-topbar-inner { border-radius: 0; border-left: 0; border-right: 0; }
+    body.tema-picture .public-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 22px 10px !important; }
+    body.tema-picture .public-grid > .public-card { border-radius: 20px !important; padding: 5px !important; }
+    body.tema-picture .public-card-cover, body.tema-picture .public-card-info { border-radius: 15px !important; }
+}
+
+/* ---------- Manual: sin Bold fuera del logo + grilla que se achica en el celu ---------- */
+body.tema-picture :is(.card-staff-sticker, .cart-label-add, .cart-label-in, .public-sidebar-title, .filter-block-title,
+  .listen-all-play, .listen-all-stop, .cart-btn-inline, .pagination-page, .pagination-btn, .public-footer-title, .fp-title,
+  .fp-cart-add, .fp-cart-in, .fav-count, .cart-count, .bottom-nav-badge, .cart-drawer-title, .public-anuncio-bar,
+  .carrusel-price, .public-card-price, .public-disc-price, .public-track-side, .public-related-genre, .disc-buybar-price,
+  h1, h2, h3, h4, th) { font-weight: 500 !important; }
+body.tema-picture .public-catalog, body.tema-picture .public-grid > .public-card { min-width: 0; }
+@media (max-width: 700px) {
+    body.tema-picture .public-grid .cart-btn-inline { font-size: 10px !important; padding-left: 8px !important; padding-right: 8px !important; white-space: normal; }
+    body.tema-picture .listen-all-btn { white-space: nowrap; }
+    body.tema-picture .public-results-head { flex-wrap: wrap; gap: 8px; }
+}
+
+
+/* ===================== EL PICTURE DISC EN LA BANDEJA ===================== */
+body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-cover {
+    width: auto; margin: 12px 12px 4px; border-radius: 50% !important; background: #1E1C1C !important;
+    box-shadow: 0 0 0 6px #1E1C1C, 0 18px 30px -16px rgba(0,0,0,.7) !important;
+}
+body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-cover img { transform: none !important; animation: ps-gira 14s linear infinite; animation-play-state: paused; }
+body.tema-picture:not(.vista-lista) .public-grid > .public-card:hover .public-card-cover img { animation-play-state: running; }
+body.tema-picture:not(.vista-lista) .public-grid > .public-card.ps-sonando .public-card-cover img { animation-play-state: running; animation-duration: 5.4s; }
+body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-cover::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 1;
+    background:
+        radial-gradient(circle, transparent 0 15%, rgba(30,28,28,.55) 15.4% 16.2%, transparent 16.6%),
+        repeating-radial-gradient(circle, rgba(30,28,28,.20) 0 1px, transparent 1px 3.5px),
+        conic-gradient(from 30deg, rgba(255,247,236,.10), transparent 18%, transparent 50%, rgba(255,247,236,.08) 68%, transparent 86%);
+    -webkit-mask: radial-gradient(circle, transparent 0 16%, #000 16.5% 100%); mask: radial-gradient(circle, transparent 0 16%, #000 16.5% 100%);
+}
+body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-cover::before {
+    content: ""; display: block !important; animation: none !important; position: absolute; left: 50%; top: 50%; width: 30%; aspect-ratio: 1; border-radius: 50%; translate: -50% -50%; background: var(--fv-beige); z-index: 2;
+}
+body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .card-play-btn {
+    opacity: 1 !important; width: 30% !important; height: auto !important; aspect-ratio: 1; transform: translate(-50%, -50%) !important;
+    background: var(--fv-beige) !important; color: var(--fv-deep) !important; backdrop-filter: none !important; font-size: 15px !important; z-index: 3 !important;
+}
+body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .fav-btn-card { top: 4% !important; right: 4% !important; z-index: 4 !important; }
+body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-badges { left: 50% !important; right: auto !important; top: auto !important; bottom: 10% !important; translate: -50% 0; z-index: 4 !important; justify-content: center; }
+body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-agotado-overlay { border-radius: 50%; }
+body.tema-picture .public-grid > .public-card.ps-sonando { border-color: var(--border-3) !important; }
+body.tema-picture .public-grid > .public-card.ps-sonando .public-card-artist::before { content: "Sonando · "; color: var(--fv-beige); }
+@keyframes ps-gira { to { rotate: 360deg; } }
+@media (prefers-reduced-motion: reduce) { body.tema-picture .public-card-cover img { animation: none !important; } }
+
+/* El corazon no se corta: el circulo recorta solo la IMAGEN (no la tapa entera),
+   asi el favorito queda entero en la esquina, afuera del disco. */
+body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-cover { overflow: visible !important; }
+body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-cover img { border-radius: 50%; }
+body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .fav-btn-card { top: -6px !important; right: -6px !important; }

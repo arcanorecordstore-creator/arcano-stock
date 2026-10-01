@@ -1,0 +1,180 @@
+/* =====================================================================
+   OPCION M · FUNDA VIVA  (D · Funda + el vinilo de H · Tocadiscos)
+   La base es D (marron tono sobre tono, tarjetas de doble borde, header isla).
+   El vinilo ahora es un disco "de verdad" con la tapa como etiqueta:
+   - al pasar el mouse asoma de la funda (como en D);
+   - cuando el disco SUENA sale mas y gira despacio (6 s por vuelta).
+   Lo arma static/js/temas/fundaviva.js.
+   ===================================================================== */
+
+body.tema-fundaviva {
+    --fv-bg: #3D3033;          /* marron */
+    --fv-deep: #2A2124;        /* marron oscuro */
+    --fv-core: #33282b;
+    --fv-beige: #E9D1AF;
+    --fv-crema: #FFF7EC;
+    --fv-mute: #c9b8a3;
+    --fv-ease: cubic-bezier(.32, .72, 0, 1);
+    --bg-0: #3D3033; --bg-1: #33282b; --bg-2: #2A2124; --bg-3: #463a3d; --bg-hover: #463a3d;
+    --text-1: #FFF7EC; --text-2: #f1e6d6; --text-3: #d8c8b4; --text-4: #c9b8a3; --text-5: #ad9c8a;
+    --border-1: rgba(233,209,175,.10); --border-2: rgba(233,209,175,.16); --border-3: rgba(233,209,175,.28);
+    --accent: #E9D1AF; --card-shadow: none;
+    background: var(--fv-bg) !important; color: var(--fv-crema);
+}
+body.tema-fundaviva, body.tema-fundaviva button, body.tema-fundaviva input, body.tema-fundaviva select, body.tema-fundaviva textarea { font-family: 'Space Grotesk', sans-serif !important; }
+body.tema-fundaviva .public-main { font-weight: 300; }
+body.tema-fundaviva strong, body.tema-fundaviva b { font-weight: 500; }
+body.tema-fundaviva .brand-neg { display: none !important; }
+body.tema-fundaviva .brand-bla { display: block !important; }
+/* grano de papel/carton, fijo y sin eventos */
+body.tema-fundaviva::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: .06;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"); }
+
+/* Barra de anuncio y header "isla" flotante */
+body.tema-fundaviva .public-anuncio-bar { background: var(--fv-deep) !important; color: var(--fv-beige) !important; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; font-size: 11px; }
+body.tema-fundaviva .public-topbar { background: transparent !important; border: 0 !important; box-shadow: none !important; padding-top: 12px !important; }
+body.tema-fundaviva .public-topbar-inner {
+    background: rgba(42, 33, 36, .82); backdrop-filter: blur(14px);
+    border: 1px solid var(--border-2); border-radius: 999px; padding-left: 22px !important; padding-right: 14px !important;
+    box-shadow: 0 18px 40px -20px rgba(0, 0, 0, .55), inset 0 1px 0 rgba(255, 247, 236, .06);
+}
+body.tema-fundaviva .public-nav-link { color: var(--fv-mute) !important; background: transparent !important; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; font-size: 11.5px; }
+body.tema-fundaviva .public-nav-link.active, body.tema-fundaviva .public-nav-link:hover { color: var(--fv-crema) !important; }
+body.tema-fundaviva .public-topbar-actions, body.tema-fundaviva .public-topbar-actions * { color: var(--fv-crema) !important; }
+body.tema-fundaviva .public-cuenta-bar { background: transparent !important; color: var(--fv-mute) !important; border: 0 !important; }
+
+/* Titular con etiqueta-cejilla */
+body.tema-fundaviva .public-filters-top { flex-wrap: wrap; row-gap: 18px; }
+body.tema-fundaviva .public-filters-top::before {
+    content: "Vinilos elegidos uno por uno";
+    flex: 0 0 100%;
+    font-weight: 500; text-transform: uppercase; letter-spacing: .06em;
+    font-size: clamp(32px, 4.6vw, 68px); line-height: 1.02; color: var(--fv-crema);
+    margin: 34px 0 6px; max-width: 18ch;
+}
+body.tema-fundaviva .public-search-bar input, body.tema-fundaviva .public-filter-search, body.tema-fundaviva .public-filter-select {
+    background: var(--fv-deep) !important; border: 1px solid var(--border-2) !important; color: var(--fv-crema) !important; border-radius: 999px !important; padding-left: 18px !important;
+}
+body.tema-fundaviva .public-search-bar input::placeholder { color: var(--fv-mute) !important; }
+body.tema-fundaviva .btn, body.tema-fundaviva .btn-primary, body.tema-fundaviva .cart-btn-inline, body.tema-fundaviva .listen-all-btn {
+    background: var(--fv-beige) !important; color: var(--fv-deep) !important; border: 0 !important; border-radius: 999px !important;
+    font-weight: 500; letter-spacing: .08em; text-transform: uppercase; font-size: 11.5px !important; box-shadow: none !important;
+    transition: background-color .5s var(--fv-ease), opacity .15s ease;
+}
+body.tema-fundaviva .btn:hover, body.tema-fundaviva .cart-btn-inline:hover { background: var(--fv-crema) !important; }
+body.tema-fundaviva .btn:active, body.tema-fundaviva .cart-btn-inline:active { opacity: .7; }
+body.tema-fundaviva .btn-ghost { background: transparent !important; color: var(--fv-crema) !important; border: 1px solid var(--border-3) !important; }
+body.tema-fundaviva .public-trust-item { color: var(--fv-mute) !important; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; font-size: 10.5px; }
+
+/* Carruseles */
+body.tema-fundaviva .public-carrusel { margin: 56px 0 40px; }
+body.tema-fundaviva .public-carrusel-title { font-weight: 500 !important; text-transform: uppercase; letter-spacing: .14em; font-size: 15px !important; color: var(--fv-beige) !important; }
+body.tema-fundaviva .public-carrusel-icon { color: var(--fv-beige) !important; }
+body.tema-fundaviva .carrusel-btn { background: var(--fv-deep) !important; border: 1px solid var(--border-2) !important; color: var(--fv-crema) !important; }
+body.tema-fundaviva .carrusel-card {
+    background: rgba(255, 247, 236, .03) !important; border: 1px solid var(--border-1) !important; border-radius: 26px !important;
+    padding: 7px !important; box-shadow: none !important; transform: none !important;
+}
+body.tema-fundaviva .carrusel-body { background: var(--fv-core); border-radius: 20px; padding: 14px; box-shadow: inset 0 1px 0 rgba(255,247,236,.06); }
+body.tema-fundaviva .carrusel-cover { border-radius: 14px !important; }
+body.tema-fundaviva .carrusel-artist { font-weight: 500; text-transform: uppercase; letter-spacing: .08em; font-size: 13px; }
+body.tema-fundaviva .carrusel-label { color: var(--fv-mute) !important; }
+body.tema-fundaviva .carrusel-price { color: var(--fv-beige); font-weight: 500; }
+body.tema-fundaviva .public-carrusel-progress-bar { background: var(--fv-beige) !important; }
+
+/* Filtros */
+body.tema-fundaviva .public-sidebar { background: rgba(255,247,236,.03) !important; border: 1px solid var(--border-1) !important; border-radius: 24px !important; box-shadow: none !important; }
+body.tema-fundaviva .public-sidebar *, body.tema-fundaviva .filter-check { color: var(--text-2); }
+body.tema-fundaviva .filter-block-title, body.tema-fundaviva .public-sidebar-title { color: var(--fv-beige) !important; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; font-size: 11px; }
+body.tema-fundaviva .filter-count { background: var(--fv-deep) !important; color: var(--fv-mute) !important; }
+body.tema-fundaviva .filter-price-input { background: var(--fv-deep) !important; border: 1px solid var(--border-2) !important; color: var(--fv-crema) !important; }
+body.tema-fundaviva .public-results-count { color: var(--fv-mute) !important; letter-spacing: .1em; }
+
+/* Grilla: tarjetas de doble borde + el vinilo que asoma de la funda */
+body.tema-fundaviva .public-grid { gap: 30px 22px !important; padding-top: 34px; }
+body.tema-fundaviva .public-grid > .public-card {
+    position: relative; overflow: visible !important;
+    background: rgba(255, 247, 236, .03) !important; border: 1px solid var(--border-1) !important;
+    border-radius: 26px !important; padding: 7px !important; box-shadow: none !important; transform: none !important;
+    transition: border-color .6s var(--fv-ease);
+}
+body.tema-fundaviva .public-grid > .public-card:hover { border-color: var(--border-3) !important; }
+body.tema-fundaviva .public-card-cover {
+    position: relative; z-index: 1; border-radius: 20px !important; overflow: hidden; background: var(--fv-deep) !important;
+    box-shadow: 0 16px 30px -18px rgba(0,0,0,.6);
+}
+body.tema-fundaviva .public-card-info {
+    position: relative; z-index: 1; background: var(--fv-core); border-radius: 20px; margin-top: 7px;
+    padding: 16px !important; box-shadow: inset 0 1px 0 rgba(255,247,236,.06);
+}
+body.tema-fundaviva .public-card-artist { font-weight: 500; text-transform: uppercase; letter-spacing: .08em; font-size: 13px; color: var(--fv-crema) !important; }
+body.tema-fundaviva .public-card-title { font-weight: 300; font-size: 16px; color: var(--text-2) !important; }
+body.tema-fundaviva .public-card-label { color: var(--fv-mute) !important; font-size: 12px; }
+body.tema-fundaviva .public-card-resena { color: var(--text-3); font-style: normal; }
+body.tema-fundaviva .public-card-price { color: var(--fv-beige) !important; font-weight: 500; font-variant-numeric: tabular-nums; }
+body.tema-fundaviva .public-card-badge { background: var(--fv-crema) !important; color: var(--fv-deep) !important; border: 0 !important; border-radius: 999px !important; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; font-size: 10px; }
+body.tema-fundaviva .card-staff-sticker { z-index: 3; background: var(--fv-beige) !important; color: var(--fv-deep) !important; }
+body.tema-fundaviva .card-play-btn { background: rgba(255,247,236,.92) !important; color: var(--fv-deep) !important; }
+body.tema-fundaviva .fav-btn-card { background: rgba(42,33,36,.75) !important; color: var(--fv-crema) !important; border: 0 !important; }
+body.tema-fundaviva .public-card-mbox { background: var(--fv-beige) !important; }
+body.tema-fundaviva .public-card-mbox .public-card-info { background: var(--fv-crema); }
+body.tema-fundaviva .public-card-mbox .public-card-info * { color: var(--fv-deep) !important; }
+
+body.tema-fundaviva .pagination-page, body.tema-fundaviva .pagination-btn { background: var(--fv-deep) !important; border: 1px solid var(--border-2) !important; color: var(--fv-crema) !important; border-radius: 999px !important; }
+body.tema-fundaviva .pagination-page.active { background: var(--fv-beige) !important; color: var(--fv-deep) !important; }
+body.tema-fundaviva .public-footer { background: var(--fv-deep) !important; border-top: 1px solid var(--border-1) !important; }
+body.tema-fundaviva .public-footer * { color: var(--fv-mute) !important; }
+
+/* Ficha */
+body.tema-fundaviva .public-disc-backdrop-fade { background: linear-gradient(to bottom, rgba(61,48,51,.5), #3D3033 85%) !important; }
+body.tema-fundaviva .public-disc-artist { font-weight: 500 !important; text-transform: uppercase; letter-spacing: .04em; }
+body.tema-fundaviva .public-disc-cover { border-radius: 24px !important; }
+body.tema-fundaviva .public-disc-price { color: var(--fv-beige) !important; }
+body.tema-fundaviva .public-disc-section-title { color: var(--fv-beige) !important; font-weight: 500; text-transform: uppercase; letter-spacing: .14em; }
+
+@media (max-width: 768px) {
+    body.tema-fundaviva .public-topbar { padding-top: 0 !important; }
+    body.tema-fundaviva .public-topbar-inner { border-radius: 0; border-left: 0; border-right: 0; }
+    body.tema-fundaviva .public-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 22px 10px !important; }
+    body.tema-fundaviva .public-grid > .public-card { border-radius: 20px !important; padding: 5px !important; }
+    body.tema-fundaviva .public-card-cover, body.tema-fundaviva .public-card-info { border-radius: 15px !important; }
+}
+
+/* ---------- Manual: sin Bold fuera del logo + grilla que se achica en el celu ---------- */
+body.tema-fundaviva :is(.card-staff-sticker, .cart-label-add, .cart-label-in, .public-sidebar-title, .filter-block-title,
+  .listen-all-play, .listen-all-stop, .cart-btn-inline, .pagination-page, .pagination-btn, .public-footer-title, .fp-title,
+  .fp-cart-add, .fp-cart-in, .fav-count, .cart-count, .bottom-nav-badge, .cart-drawer-title, .public-anuncio-bar,
+  .carrusel-price, .public-card-price, .public-disc-price, .public-track-side, .public-related-genre, .disc-buybar-price,
+  h1, h2, h3, h4, th) { font-weight: 500 !important; }
+body.tema-fundaviva .public-catalog, body.tema-fundaviva .public-grid > .public-card { min-width: 0; }
+@media (max-width: 700px) {
+    body.tema-fundaviva .public-grid .cart-btn-inline { font-size: 10px !important; padding-left: 8px !important; padding-right: 8px !important; white-space: normal; }
+    body.tema-fundaviva .listen-all-btn { white-space: nowrap; }
+    body.tema-fundaviva .public-results-head { flex-wrap: wrap; gap: 8px; }
+}
+
+/* ===================== EL VINILO VIVO ===================== */
+body.tema-fundaviva .public-grid { gap: 62px 22px !important; padding-top: 56px; }
+body.tema-fundaviva .fv-disco {
+    position: absolute; z-index: 0; left: 13%; right: 13%; top: 10px; aspect-ratio: 1; border-radius: 50%; pointer-events: none;
+    background: repeating-radial-gradient(circle, #1E1C1C 0 2px, #2a2626 2px 3px);
+    box-shadow: 0 -6px 20px rgba(0,0,0,.35);
+    transform: translateY(0); transition: transform .9s var(--fv-ease);
+}
+body.tema-fundaviva .fv-giro { position: absolute; inset: 0; border-radius: 50%; animation: fv-gira 6s linear infinite; animation-play-state: paused; }
+body.tema-fundaviva .fv-giro::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 20deg, rgba(255,247,236,.10), transparent 16%, transparent 50%, rgba(255,247,236,.07) 66%, transparent 84%); }
+body.tema-fundaviva .fv-etiqueta { position: absolute; left: 50%; top: 50%; width: 34%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; overflow: hidden; background: var(--fv-beige); box-shadow: 0 0 0 3px #1E1C1C; }
+body.tema-fundaviva .fv-etiqueta img { width: 100%; height: 100%; object-fit: cover; display: block; }
+body.tema-fundaviva .fv-etiqueta::after { content: ""; position: absolute; left: 50%; top: 50%; width: 12%; aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; background: var(--fv-bg); }
+body.tema-fundaviva .public-grid > .public-card:hover .fv-disco { transform: translateY(-20%); }
+body.tema-fundaviva .public-grid > .public-card.fv-sonando .fv-disco { transform: translateY(-34%); }
+body.tema-fundaviva .public-grid > .public-card.fv-sonando .fv-giro { animation-play-state: running; }
+body.tema-fundaviva .public-grid > .public-card.fv-sonando { border-color: var(--border-3) !important; }
+body.tema-fundaviva .public-grid > .public-card.fv-sonando .public-card-artist::before { content: "Sonando · "; color: var(--fv-beige); }
+@keyframes fv-gira { to { rotate: 360deg; } }
+/* en la lista, el vinilo no aplica */
+body.tema-fundaviva.vista-lista .fv-disco { display: none; }
+body.tema-fundaviva.vista-lista .public-grid { padding-top: 0 !important; }
+@media (max-width: 768px) { body.tema-fundaviva .public-grid { gap: 46px 10px !important; padding-top: 40px; } }
+@media (prefers-reduced-motion: reduce) { body.tema-fundaviva .fv-disco { transition: none; } body.tema-fundaviva .fv-giro { animation: none; } }

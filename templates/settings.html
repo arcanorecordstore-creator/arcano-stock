@@ -229,6 +229,68 @@
             <p class="settings-card-sub">Distribucion actual de discos por estado.</p>
         </header>
 
+    {# Eleccion del diseno de la tienda #}
+    <section class="settings-section" id="diseno-tienda">
+        <header class="settings-section-head">
+            <h2 class="settings-section-title">Diseño de la tienda</h2>
+            <p class="settings-section-sub">Elegí cómo se ve la tienda para todos los visitantes. La ficha de cada disco usa el mismo estilo final en todos. Con "Ver cómo queda" lo mirás en otra pestaña antes de guardar.</p>
+        </header>
+        <form method="post" action="{{ url_for('settings_update_diseno') }}" class="settings-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <div class="diseno-opciones">
+                {% for valor, letra, nombre, desc in [
+                    ('', '—', 'Actual', 'El diseño de la web oficial hoy, como referencia.'),
+                    ('tocadiscos', 'H', 'Tocadiscos', 'Discos redondos que giran al pasar el mouse y una bandeja grande con brazo arriba del catálogo.'),
+                    ('fundaviva', 'M', 'Funda viva', 'Tarjetas marrones de doble borde; el vinilo asoma de la funda y gira lento cuando suena.'),
+                    ('picture', 'S', 'Picture', 'Las tarjetas de M con los discos redondos de H adentro (la etiqueta es el play).')
+                ] %}
+                <label class="diseno-opcion{% if (public_diseno or '') == valor %} is-on{% endif %}">
+                    <input type="radio" name="public_diseno" value="{{ valor }}" {% if (public_diseno or '') == valor %}checked{% endif %}>
+                    <span class="diseno-opcion-letra">{{ letra }}</span>
+                    <span class="diseno-opcion-txt">
+                        <span class="diseno-opcion-nombre">{{ nombre }}{% if (public_diseno or '') == valor %} <em>· en uso</em>{% endif %}</span>
+                        <span class="diseno-opcion-desc">{{ desc }}</span>
+                        <a class="diseno-opcion-ver" href="{{ url_for('home') }}?tema={{ valor or 'actual' }}" target="_blank" rel="noopener">Ver cómo queda &rarr;</a>
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+            <div class="form-row" style="margin-top: 14px;">
+                <div class="form-field">
+                    <label for="public_carrusel_modo">Carruseles del inicio</label>
+                    <select id="public_carrusel_modo" name="public_carrusel_modo">
+                        <option value="compacto" {% if (public_carrusel_modo or 'compacto') == 'compacto' %}selected{% endif %}>Compacto (recomendado)</option>
+                        <option value="normal" {% if public_carrusel_modo == 'normal' %}selected{% endif %}>Normal (tarjetas anchas)</option>
+                        <option value="carrete" {% if public_carrusel_modo == 'carrete' %}selected{% endif %}>Carrete (giran en 3D)</option>
+                    </select>
+                </div>
+                <div class="form-field">
+                    <label for="public_modo_defecto">Modo con el que arranca <span class="form-field-hint">(el cliente lo cambia con el sol/luna)</span></label>
+                    <select id="public_modo_defecto" name="public_modo_defecto">
+                        <option value="oscuro" {% if (public_modo_defecto or 'oscuro') == 'oscuro' %}selected{% endif %}>Oscuro (marrón)</option>
+                        <option value="claro" {% if public_modo_defecto == 'claro' %}selected{% endif %}>Claro (crema y beige)</option>
+                    </select>
+                    <p class="form-field-hint" style="margin-top: 6px;">Vista previa: {% for v, n in [('tocadiscos','H'), ('fundaviva','M'), ('picture','S')] %}<a class="diseno-opcion-ver" href="{{ url_for('home') }}?tema={{ v }}&amp;modo=claro" target="_blank" rel="noopener">{{ n }} claro</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>
+                </div>
+            </div>
+            <div class="form-actions"><button type="submit" class="btn btn-primary">Guardar diseño</button></div>
+        </form>
+        <style>
+            .diseno-opciones { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+            .diseno-opcion { position: relative; display: flex; gap: 12px; align-items: flex-start; padding: 14px; border: 1px solid var(--border-2); border-radius: 14px; cursor: pointer; transition: border-color .2s ease, background-color .2s ease; }
+            .diseno-opcion:hover { border-color: var(--border-3); }
+            .diseno-opcion.is-on, .diseno-opcion:has(input:checked) { border-color: var(--text-1); background: var(--bg-2); }
+            .diseno-opcion input { position: absolute; opacity: 0; pointer-events: none; }
+            .diseno-opcion-letra { flex: 0 0 34px; height: 34px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: 500; background: var(--bg-3); color: var(--text-1); }
+            .diseno-opcion:has(input:checked) .diseno-opcion-letra { background: var(--text-1); color: var(--bg-1); }
+            .diseno-opcion-txt { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+            .diseno-opcion-nombre { font-weight: 500; }
+            .diseno-opcion-nombre em { font-style: normal; font-weight: 400; color: var(--text-4); font-size: 12px; }
+            .diseno-opcion-desc { font-size: 13px; color: var(--text-3); line-height: 1.4; }
+            .diseno-opcion-ver { font-size: 12px; margin-top: 2px; color: var(--text-2); text-decoration: underline; text-underline-offset: 3px; }
+        </style>
+    </section>
+
     <section class="settings-section">
         <header class="settings-section-head">
             <h2 class="settings-section-title">Tienda publica</h2>

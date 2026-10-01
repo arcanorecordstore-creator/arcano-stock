@@ -1,0 +1,236 @@
+/* =====================================================================
+   OPCION H · TOCADISCOS
+   Cada disco del catalogo es un VINILO redondo (la tapa como picture disc,
+   con surcos y una etiqueta beige en el centro que es el boton de play).
+   Arriba del catalogo hay una BANDEJA grande: al pasar el mouse por un disco
+   se apoya ahi; cuando suena, gira a 33⅓ (o 45, se elige) y baja el brazo.
+   La arma static/js/temas/tocadiscos.js.
+   Paleta: marron + marron oscuro (par del manual), textos crema, detalles beige.
+   ===================================================================== */
+body.tema-tocadiscos {
+    --td-bg: #3D3033; --td-deep: #2A2124; --td-core: #33282b; --td-beige: #E9D1AF; --td-crema: #FFF7EC; --td-mute: #c9b8a3;
+    --td-ease: cubic-bezier(.32, .72, 0, 1); --td-vuelta: 5.4s;
+    --bg-0: #3D3033; --bg-1: #33282b; --bg-2: #2A2124; --bg-3: #463a3d; --bg-hover: #463a3d;
+    --text-1: #FFF7EC; --text-2: #f1e6d6; --text-3: #d8c8b4; --text-4: #c9b8a3; --text-5: #ad9c8a;
+    --border-1: rgba(233,209,175,.10); --border-2: rgba(233,209,175,.16); --border-3: rgba(233,209,175,.3);
+    --accent: #E9D1AF; --card-shadow: none;
+    background: var(--td-bg) !important; color: var(--td-crema);
+}
+body.tema-tocadiscos, body.tema-tocadiscos button, body.tema-tocadiscos input, body.tema-tocadiscos select, body.tema-tocadiscos textarea { font-family: 'Space Grotesk', sans-serif !important; }
+body.tema-tocadiscos .public-main { font-weight: 300; }
+body.tema-tocadiscos strong, body.tema-tocadiscos b { font-weight: 500; }
+body.tema-tocadiscos .brand-neg { display: none !important; }
+body.tema-tocadiscos .brand-bla { display: block !important; }
+
+body.tema-tocadiscos .public-anuncio-bar { background: var(--td-deep) !important; color: var(--td-beige) !important; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; font-size: 11px; }
+body.tema-tocadiscos .public-topbar { background: var(--td-deep) !important; border-bottom: 1px solid var(--border-1) !important; box-shadow: none !important; }
+body.tema-tocadiscos .public-nav-link { color: var(--td-mute) !important; background: transparent !important; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; font-size: 11.5px; }
+body.tema-tocadiscos .public-nav-link.active, body.tema-tocadiscos .public-nav-link:hover { color: var(--td-crema) !important; }
+body.tema-tocadiscos .public-topbar-actions, body.tema-tocadiscos .public-topbar-actions * { color: var(--td-crema) !important; }
+body.tema-tocadiscos .public-cuenta-bar { background: var(--td-core) !important; color: var(--td-mute) !important; border: 0 !important; }
+
+body.tema-tocadiscos .public-filters-top { flex-wrap: wrap; row-gap: 16px; }
+body.tema-tocadiscos .public-filters-top::before {
+    content: "Poné un disco"; flex: 0 0 100%;
+    font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--td-crema);
+    font-size: clamp(32px, 5vw, 72px); line-height: 1; margin: 32px 0 4px;
+}
+body.tema-tocadiscos .public-search-bar input, body.tema-tocadiscos .public-filter-search, body.tema-tocadiscos .public-filter-select {
+    background: var(--td-deep) !important; border: 1px solid var(--border-2) !important; color: var(--td-crema) !important; border-radius: 999px !important; padding-left: 18px !important;
+}
+body.tema-tocadiscos .public-search-bar input::placeholder { color: var(--td-mute) !important; }
+body.tema-tocadiscos .btn, body.tema-tocadiscos .btn-primary, body.tema-tocadiscos .cart-btn-inline, body.tema-tocadiscos .listen-all-btn {
+    background: var(--td-beige) !important; color: var(--td-deep) !important; border: 0 !important; border-radius: 999px !important; box-shadow: none !important;
+    font-weight: 500; letter-spacing: .1em; text-transform: uppercase; font-size: 11px !important; transition: background-color .4s var(--td-ease), opacity .15s ease;
+}
+body.tema-tocadiscos .btn:hover, body.tema-tocadiscos .cart-btn-inline:hover { background: var(--td-crema) !important; }
+body.tema-tocadiscos .btn:active, body.tema-tocadiscos .cart-btn-inline:active { opacity: .65; }
+body.tema-tocadiscos .btn-ghost { background: transparent !important; color: var(--td-crema) !important; border: 1px solid var(--border-3) !important; }
+body.tema-tocadiscos .public-trust-item { color: var(--td-mute) !important; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; font-size: 10.5px; }
+
+/* Carruseles */
+body.tema-tocadiscos .public-carrusel { margin: 54px 0 38px; }
+body.tema-tocadiscos .public-carrusel-title { font-weight: 500 !important; text-transform: uppercase; letter-spacing: .16em; font-size: 14px !important; color: var(--td-beige) !important; }
+body.tema-tocadiscos .public-carrusel-icon { color: var(--td-beige) !important; }
+body.tema-tocadiscos .carrusel-btn { background: var(--td-deep) !important; border: 1px solid var(--border-2) !important; color: var(--td-crema) !important; }
+body.tema-tocadiscos .carrusel-card { background: var(--td-core) !important; border: 1px solid var(--border-1) !important; border-radius: 18px !important; box-shadow: none !important; transform: none !important; }
+body.tema-tocadiscos .carrusel-cover { border-radius: 50% !important; overflow: hidden; box-shadow: 0 0 0 6px #1E1C1C; }
+body.tema-tocadiscos .carrusel-artist { font-weight: 500; text-transform: uppercase; letter-spacing: .08em; font-size: 13px; }
+body.tema-tocadiscos .carrusel-label { color: var(--td-mute) !important; }
+body.tema-tocadiscos .carrusel-price { color: var(--td-beige); font-weight: 500; }
+body.tema-tocadiscos .public-carrusel-progress-bar { background: var(--td-beige) !important; }
+
+/* Filtros */
+body.tema-tocadiscos .public-sidebar { background: var(--td-core) !important; border: 1px solid var(--border-1) !important; border-radius: 18px !important; box-shadow: none !important; }
+body.tema-tocadiscos .public-sidebar *, body.tema-tocadiscos .filter-check { color: var(--text-2); }
+body.tema-tocadiscos .filter-block-title, body.tema-tocadiscos .public-sidebar-title { color: var(--td-beige) !important; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; font-size: 11px; }
+body.tema-tocadiscos .filter-count { background: var(--td-deep) !important; color: var(--td-mute) !important; }
+body.tema-tocadiscos .filter-price-input { background: var(--td-deep) !important; border: 1px solid var(--border-2) !important; color: var(--td-crema) !important; }
+body.tema-tocadiscos .public-results-count { color: var(--td-mute) !important; letter-spacing: .12em; text-transform: uppercase; font-size: 11px; }
+
+/* ===================== LA BANDEJA ===================== */
+body.tema-tocadiscos .td-deck {
+    display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 40px; align-items: center;
+    margin: 6px 0 34px; padding: 30px; border-radius: 26px;
+    background: linear-gradient(160deg, #33282b, #2A2124); border: 1px solid var(--border-1);
+    box-shadow: inset 0 1px 0 rgba(255,247,236,.05), 0 30px 60px -40px rgba(0,0,0,.7);
+}
+body.tema-tocadiscos .td-plato { position: relative; aspect-ratio: 1.12 / 1; }
+body.tema-tocadiscos .td-plinto { position: absolute; inset: 0; border-radius: 18px; background: #1E1C1C; box-shadow: inset 0 1px 0 rgba(255,247,236,.06), inset 0 -18px 30px rgba(0,0,0,.35); }
+body.tema-tocadiscos .td-giradiscos {
+    position: absolute; left: 5%; top: 6%; width: 78%; aspect-ratio: 1; border-radius: 50%;
+    background: repeating-radial-gradient(circle, #232020 0 1px, #2c2828 1px 3px); box-shadow: 0 0 0 4px #2f2b2b, 0 12px 26px rgba(0,0,0,.5);
+}
+body.tema-tocadiscos .td-disco {
+    position: absolute; inset: 4%; border-radius: 50%; overflow: hidden; background: #1E1C1C;
+    animation: td-gira var(--td-vuelta) linear infinite; animation-play-state: paused;
+    transition: opacity .45s ease, translate .6s var(--td-ease);
+}
+body.tema-tocadiscos .td-disco img { width: 100%; height: 100%; object-fit: cover; display: block; }
+body.tema-tocadiscos .td-disco::after, body.tema-tocadiscos .public-card-cover::after {
+    content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none;
+    background:
+        radial-gradient(circle, transparent 0 15%, rgba(30,28,28,.55) 15.4% 16.2%, transparent 16.6%),
+        repeating-radial-gradient(circle, rgba(30,28,28,.20) 0 1px, transparent 1px 3.5px),
+        conic-gradient(from 30deg, rgba(255,247,236,.10), transparent 18%, transparent 50%, rgba(255,247,236,.08) 68%, transparent 86%);
+    -webkit-mask: radial-gradient(circle, transparent 0 16%, #000 16.5% 100%); mask: radial-gradient(circle, transparent 0 16%, #000 16.5% 100%);
+}
+body.tema-tocadiscos .td-eje { position: absolute; left: 50%; top: 50%; width: 3.2%; aspect-ratio: 1; border-radius: 50%; background: #c9b8a3; translate: -50% -50%; box-shadow: 0 0 0 3px rgba(30,28,28,.6); z-index: 2; }
+body.tema-tocadiscos .td-etiqueta { position: absolute; left: 50%; top: 50%; width: 30%; aspect-ratio: 1; border-radius: 50%; translate: -50% -50%; background: var(--td-beige); z-index: 1;
+    display: flex; align-items: center; justify-content: center; text-align: center; color: var(--td-deep); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; font-weight: 500; line-height: 1.3; }
+body.tema-tocadiscos .td-brazo { position: absolute; right: 4%; top: 4%; width: 34%; height: 78%; transform-origin: 74% 11%; rotate: -24deg; transition: rotate 1.1s var(--td-ease); z-index: 3; pointer-events: none; }
+body.tema-tocadiscos .td-deck.is-sonando .td-brazo { rotate: 0deg; }
+body.tema-tocadiscos .td-deck.is-sonando .td-disco { animation-play-state: running; }
+body.tema-tocadiscos .td-velocidad { position: absolute; left: 6%; bottom: 5%; display: flex; gap: 6px; z-index: 3; }
+body.tema-tocadiscos .td-velocidad button {
+    background: #2c2828; color: var(--td-mute); border: 1px solid rgba(233,209,175,.14); border-radius: 999px; padding: 4px 9px;
+    font-size: 10px; letter-spacing: .1em; font-weight: 500; cursor: pointer; transition: color .2s, background-color .2s;
+}
+body.tema-tocadiscos .td-velocidad button.is-on { background: var(--td-beige); color: var(--td-deep); }
+body.tema-tocadiscos .td-luz { position: absolute; right: 7%; bottom: 7%; width: 7px; height: 7px; border-radius: 50%; background: #5a4b4e; z-index: 3; transition: background-color .4s, box-shadow .4s; }
+body.tema-tocadiscos .td-deck.is-sonando .td-luz { background: var(--td-beige); box-shadow: 0 0 10px rgba(233,209,175,.8); }
+
+body.tema-tocadiscos .td-info { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+body.tema-tocadiscos .td-kicker { color: var(--td-beige); font-weight: 500; letter-spacing: .2em; text-transform: uppercase; font-size: 11px; display: flex; align-items: center; gap: 10px; }
+body.tema-tocadiscos .td-kicker::before { content: ""; width: 26px; height: 1px; background: currentColor; }
+body.tema-tocadiscos .td-art { font-weight: 500; text-transform: uppercase; letter-spacing: .05em; font-size: clamp(26px, 3.4vw, 52px); line-height: 1.02; margin-top: 8px; overflow-wrap: anywhere; }
+body.tema-tocadiscos .td-tit { font-weight: 300; font-size: clamp(17px, 1.6vw, 24px); color: var(--text-2); }
+body.tema-tocadiscos .td-meta { color: var(--td-mute); font-size: 13px; letter-spacing: .06em; }
+body.tema-tocadiscos .td-precio { font-weight: 500; font-size: 22px; color: var(--td-beige); margin-top: 10px; font-variant-numeric: tabular-nums; }
+body.tema-tocadiscos .td-acciones { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+body.tema-tocadiscos .td-acciones button, body.tema-tocadiscos .td-acciones a {
+    border-radius: 999px; padding: 11px 18px; font-size: 11px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; text-decoration: none;
+    background: transparent; color: var(--td-crema); border: 1px solid var(--border-3); transition: opacity .15s, background-color .3s;
+}
+body.tema-tocadiscos .td-acciones .td-play { background: var(--td-beige); color: var(--td-deep); border-color: var(--td-beige); }
+body.tema-tocadiscos .td-acciones button:active, body.tema-tocadiscos .td-acciones a:active { opacity: .65; }
+body.tema-tocadiscos .td-acciones button[disabled] { opacity: .4; cursor: default; }
+@keyframes td-gira { to { rotate: 360deg; } }
+
+/* ===================== LOS DISCOS ===================== */
+body.tema-tocadiscos .public-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)) !important; gap: 44px 30px !important; }
+body.tema-tocadiscos .public-grid > .public-card {
+    background: transparent !important; border: 0 !important; box-shadow: none !important; border-radius: 0 !important; overflow: visible !important;
+    transform: none !important; align-items: center; text-align: center;
+}
+body.tema-tocadiscos .public-card-cover {
+    width: 100%; border-radius: 50% !important; overflow: hidden; background: #1E1C1C !important;
+    box-shadow: 0 0 0 7px #1E1C1C, 0 18px 30px -16px rgba(0,0,0,.7);
+}
+body.tema-tocadiscos .public-card-cover img { transform: none !important; animation: td-gira 14s linear infinite; animation-play-state: paused; }
+body.tema-tocadiscos .public-card:hover .public-card-cover img,
+body.tema-tocadiscos .public-card.td-sonando .public-card-cover img { animation-play-state: running; }
+body.tema-tocadiscos .public-card.td-sonando .public-card-cover img { animation-duration: var(--td-vuelta); }
+/* etiqueta central = boton de play */
+body.tema-tocadiscos .public-card:not(.public-card-mbox) .public-card-cover::before {
+    content: ""; display: block !important; animation: none !important; position: absolute; left: 50%; top: 50%; width: 30%; aspect-ratio: 1; border-radius: 50%; translate: -50% -50%;
+    background: var(--td-beige); z-index: 2; box-shadow: inset 0 0 0 4px rgba(61,48,51,.12);
+}
+body.tema-tocadiscos .public-card-cover::after { z-index: 1; }
+body.tema-tocadiscos .card-play-btn {
+    opacity: 1 !important; width: 30% !important; height: auto !important; aspect-ratio: 1; transform: translate(-50%, -50%) !important;
+    background: var(--td-beige) !important; color: var(--td-deep) !important; backdrop-filter: none !important; font-size: 16px !important; z-index: 3 !important;
+}
+body.tema-tocadiscos .card-play-btn:active { opacity: .7 !important; }
+body.tema-tocadiscos .card-play-btn::after { content: ""; position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--td-deep); bottom: 18%; left: 50%; translate: -50% 0; opacity: .5; }
+body.tema-tocadiscos .fav-btn-card { background: rgba(42,33,36,.85) !important; color: var(--td-crema) !important; border: 0 !important; top: 8% !important; right: 8% !important; z-index: 4 !important; }
+body.tema-tocadiscos .public-card-badges { left: 50% !important; right: auto !important; top: auto !important; bottom: 12% !important; translate: -50% 0; z-index: 4 !important; justify-content: center; }
+body.tema-tocadiscos .public-card-badge { background: var(--td-deep) !important; color: var(--td-beige) !important; border-radius: 999px !important; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; font-size: 9.5px; }
+body.tema-tocadiscos .card-staff-sticker {
+    left: 50% !important; top: -12px !important; width: auto !important; translate: -50% 0; transform: none !important; padding: 5px 12px !important;
+    border-radius: 999px; font-size: 10px !important; box-shadow: none !important; background: var(--td-beige) !important; color: var(--td-deep) !important; z-index: 6;
+}
+body.tema-tocadiscos .public-card-agotado-overlay { border-radius: 50%; }
+body.tema-tocadiscos .public-card-info { padding: 22px 4px 0 !important; align-items: center; width: 100%; box-sizing: border-box; }
+body.tema-tocadiscos .public-card-artist { font-weight: 500; text-transform: uppercase; letter-spacing: .1em; font-size: 13px; color: var(--td-crema) !important; }
+body.tema-tocadiscos .public-card-title { font-weight: 300; font-size: 15px; color: var(--text-2) !important; }
+body.tema-tocadiscos .public-card-label { color: var(--td-mute) !important; max-width: 100%; }
+body.tema-tocadiscos .public-card-resena { color: var(--text-3); font-style: normal; font-size: 13px; }
+body.tema-tocadiscos .public-card-buy { align-items: center; width: 100%; }
+body.tema-tocadiscos .public-card-price { color: var(--td-beige) !important; font-weight: 500; }
+/* mystery box: como una caja de discos */
+body.tema-tocadiscos .public-card-mbox .public-card-cover { border-radius: 22px !important; box-shadow: none; background: var(--td-beige) !important; }
+body.tema-tocadiscos .public-card-mbox .public-card-cover::after { display: none; }
+body.tema-tocadiscos .public-card-mbox .public-card-cover img { animation: none; }
+
+body.tema-tocadiscos .pagination-page, body.tema-tocadiscos .pagination-btn { background: var(--td-deep) !important; border: 1px solid var(--border-2) !important; color: var(--td-crema) !important; border-radius: 999px !important; }
+body.tema-tocadiscos .pagination-page.active { background: var(--td-beige) !important; color: var(--td-deep) !important; }
+body.tema-tocadiscos .public-footer { background: var(--td-deep) !important; border-top: 1px solid var(--border-1) !important; }
+body.tema-tocadiscos .public-footer * { color: var(--td-mute) !important; }
+
+/* Ficha: la tapa como vinilo */
+body.tema-tocadiscos .public-disc-backdrop-fade { background: linear-gradient(to bottom, rgba(61,48,51,.5), #3D3033 85%) !important; }
+body.tema-tocadiscos .public-disc-artist { font-weight: 500 !important; text-transform: uppercase; letter-spacing: .05em; }
+body.tema-tocadiscos .public-disc-cover { border-radius: 24px !important; }
+body.tema-tocadiscos .public-disc-price { color: var(--td-beige) !important; }
+body.tema-tocadiscos .public-disc-section-title { color: var(--td-beige) !important; font-weight: 500; text-transform: uppercase; letter-spacing: .16em; }
+
+@media (max-width: 860px) {
+    body.tema-tocadiscos .td-deck { grid-template-columns: minmax(0, 150px) minmax(0, 1fr); gap: 18px; padding: 16px; border-radius: 20px; }
+    body.tema-tocadiscos .td-velocidad, body.tema-tocadiscos .td-luz { display: none; }
+    body.tema-tocadiscos .td-art { font-size: 22px; margin-top: 2px; }
+    body.tema-tocadiscos .td-tit { font-size: 15px; }
+    body.tema-tocadiscos .td-meta { display: none; }
+    body.tema-tocadiscos .td-precio { font-size: 16px; margin-top: 2px; }
+    body.tema-tocadiscos .td-acciones { margin-top: 6px; gap: 6px; }
+    body.tema-tocadiscos .td-acciones button, body.tema-tocadiscos .td-acciones a { padding: 8px 12px; font-size: 10px; }
+    body.tema-tocadiscos .td-acciones .td-ver { display: none; }
+}
+@media (max-width: 700px) {
+    body.tema-tocadiscos .public-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 34px 16px !important; }
+    body.tema-tocadiscos .public-card-cover { box-shadow: 0 0 0 4px #1E1C1C, 0 12px 20px -14px rgba(0,0,0,.7); }
+    body.tema-tocadiscos .public-grid .cart-btn-inline { font-size: 10px !important; padding-left: 8px !important; padding-right: 8px !important; white-space: normal; }
+    body.tema-tocadiscos .public-card-title { font-size: 13px; }
+    body.tema-tocadiscos .public-results-head { flex-wrap: wrap; gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    body.tema-tocadiscos .td-disco, body.tema-tocadiscos .public-card-cover img { animation: none !important; }
+    body.tema-tocadiscos .td-brazo { transition: none; }
+}
+
+/* ---------- Manual: sin Bold fuera del logo ---------- */
+body.tema-tocadiscos :is(.card-staff-sticker, .cart-label-add, .cart-label-in, .public-sidebar-title, .filter-block-title,
+  .listen-all-play, .listen-all-stop, .cart-btn-inline, .pagination-page, .pagination-btn, .public-footer-title, .fp-title,
+  .fp-cart-add, .fp-cart-in, .fav-count, .cart-count, .bottom-nav-badge, .cart-drawer-title, .public-anuncio-bar,
+  .carrusel-price, .public-card-price, .public-disc-price, .public-track-side, .public-related-genre, .disc-buybar-price,
+  h1, h2, h3, h4, th) { font-weight: 500 !important; }
+body.tema-tocadiscos .public-catalog, body.tema-tocadiscos .public-grid > .public-card { min-width: 0; }
+
+/* Vista lista: las miniaturas siguen siendo vinilos redondos */
+html body.tema-tocadiscos.vista-lista .public-catalog .public-grid .public-card:not(.public-card-mbox) .public-card-cover { border-radius: 50% !important; box-shadow: 0 0 0 3px #1E1C1C !important; }
+
+/* Ficha: estilo final elegido por Facundo (el de C/D/M). En "Similares" las
+   tapas son cuadradas como en M, no vinilos redondos. */
+body.tema-tocadiscos .public-related-card { align-items: stretch !important; text-align: left !important; background: rgba(255,247,236,.03) !important; border: 1px solid var(--border-1) !important; border-radius: 22px !important; padding: 6px !important; }
+body.tema-tocadiscos .public-related-card .public-card-cover { border-radius: 16px !important; box-shadow: none !important; }
+body.tema-tocadiscos .public-related-card .public-card-cover::before, body.tema-tocadiscos .public-related-card .public-card-cover::after { display: none !important; }
+body.tema-tocadiscos .public-related-card .public-card-cover img { animation: none !important; }
+body.tema-tocadiscos .public-related-card .card-play-btn { width: 50px !important; aspect-ratio: auto; height: 50px !important; border-radius: 50% !important; }
+body.tema-tocadiscos .public-related-card .card-play-btn::after { display: none; }
+body.tema-tocadiscos .public-related-card .public-card-info { align-items: flex-start !important; padding: 14px 10px 8px !important; }
+body.tema-tocadiscos .public-related-card .public-card-badges { left: 8px !important; translate: none; bottom: auto !important; top: 8px !important; }
+
+/* El corazon no se corta: el circulo recorta solo la IMAGEN, no la tapa entera */
+body.tema-tocadiscos:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-cover { overflow: visible !important; }
+body.tema-tocadiscos:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-cover img { border-radius: 50%; }
+body.tema-tocadiscos:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .fav-btn-card { top: -4px !important; right: -4px !important; }

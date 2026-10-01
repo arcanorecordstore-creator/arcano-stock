@@ -1,0 +1,137 @@
+/* =====================================================================
+   COMUN A TODOS LOS DISENOS (copia de diseno) — pedidos de Facundo 1/10
+   1) Ficha: el vinilo sale de la funda HACIA ARRIBA (antes salia a la
+      derecha), con la portada como etiqueta; cuando suena sube un poco mas
+      y gira despacio.
+   2) Ficha: "Similares a este disco" se mueve como el carrete (coverflow).
+   3) Carruseles del inicio: variantes "Compacto" y "Carrete", que se eligen
+      en el selector de abajo (fila Carruseles) y valen para cualquier diseno.
+   La parte que se mueve la arma static/js/temas/_comun.js.
+   ===================================================================== */
+:root { --cm-ease: cubic-bezier(.32, .72, 0, 1); }
+
+/* ---------- 1) Vinilo de la ficha: hacia arriba ---------- */
+.public-disc-coverwrap .public-disc-vinyl,
+.public-disc-coverwrap.is-mbox .public-disc-vinyl {
+    transform: none !important; translate: 0 0; rotate: 0deg;
+    transition: translate .9s var(--cm-ease) !important;
+}
+.public-disc-coverwrap.has-sample:hover .public-disc-vinyl,
+.public-disc-coverwrap.is-mbox:hover .public-disc-vinyl { transform: none !important; translate: 0 -22%; }
+.public-disc-coverwrap.cm-sonando .public-disc-vinyl { translate: 0 -30%; animation: cm-gira 6s linear infinite; }
+.public-disc-vinyl-label { background: #E9D1AF center / cover no-repeat !important; }
+.public-disc-vinyl-label.cm-con-tapa { box-shadow: 0 0 0 3px #1E1C1C, inset 0 0 0 1px rgba(0,0,0,.25) !important; }
+/* lugar arriba para que el disco tenga a donde salir */
+@media (min-width: 769px) { .public-disc-left { padding-top: 70px; } }
+@keyframes cm-gira { to { rotate: 360deg; } }
+
+/* ---------- 2) Similares en carrete ---------- */
+html body .public-related-scroll.cm-flow {
+    position: relative; perspective: 1400px; gap: 0 !important; scroll-snap-type: x mandatory;
+    padding: 18px calc(50% - 112px) 30px !important; margin: 0 !important; scrollbar-width: none;
+}
+html body .public-related-scroll.cm-flow::-webkit-scrollbar { display: none; }
+html body .public-related-scroll.cm-flow > .public-related-card {
+    scroll-snap-align: center; margin: 0 -16px !important; position: relative;
+    transform: rotateY(var(--cm-giro, 0deg)) !important; filter: brightness(var(--cm-luz, 1)); opacity: var(--cm-op, 1); z-index: var(--cm-z, 1);
+    transition: transform .55s var(--cm-ease), filter .55s ease, opacity .55s ease, border-color .3s ease !important;
+    animation: none !important;
+}
+html body .public-related-scroll.cm-flow > .public-related-card:not(.cm-centro) { cursor: pointer; }
+html body .public-related-scroll.cm-flow > .public-related-card:not(.cm-centro) :is(.card-play-btn, .fav-btn-card, .cart-btn-inline) { visibility: hidden; }
+html body .public-related-scroll.cm-flow > .public-related-card .public-card-cover img { transform: none !important; }
+html body .public-related-scroll.cm-flow > .public-related-card .public-card-cover { -webkit-box-reflect: below 2px linear-gradient(transparent 72%, rgba(255,255,255,.12)); }
+
+/* ---------- 3) Carruseles: Compacto ---------- */
+html body:is(.carr-compacto, .carr-carrete) .public-carrusel-track { gap: 14px !important; }
+html body:is(.carr-compacto, .carr-carrete) .public-carrusel .carrusel-card {
+    flex: 0 0 196px !important; width: 196px !important; padding: 10px !important; gap: 10px !important; border-radius: 16px !important;
+    flex-direction: column !important; align-items: stretch !important;
+}
+html body:is(.carr-compacto, .carr-carrete) .public-carrusel .carrusel-body { width: 100% !important; }
+html body:is(.carr-compacto, .carr-carrete) .public-carrusel .carrusel-body { flex-direction: column !important; align-items: stretch !important; gap: 10px !important; }
+html body:is(.carr-compacto, .carr-carrete) .public-carrusel .carrusel-cover {
+    flex: none !important; width: 100% !important; height: auto !important; aspect-ratio: 1 / 1; border-radius: 10px !important;
+}
+html body:is(.carr-compacto, .carr-carrete) .public-carrusel .carrusel-info { gap: 2px !important; }
+html body:is(.carr-compacto, .carr-carrete) .public-carrusel .carrusel-artist { font-size: 12px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html body:is(.carr-compacto, .carr-carrete) .public-carrusel .carrusel-title-disc { font-size: 13px !important; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html body:is(.carr-compacto, .carr-carrete) .public-carrusel .carrusel-label { display: none !important; }
+html body:is(.carr-compacto, .carr-carrete) .public-carrusel .carrusel-price { font-size: 14px !important; margin-top: 4px !important; }
+html body:is(.carr-compacto, .carr-carrete) .public-carrusel .cart-btn-carrusel { flex: 0 0 auto !important; height: auto !important; min-height: 0 !important; font-size: 10px !important; padding: 8px 10px !important; width: 100% !important; justify-content: center; border-radius: 999px; }
+html body:is(.carr-compacto, .carr-carrete) .public-carrusel .card-staff-sticker { font-size: 9.5px !important; }
+
+/* ---------- 3) Carruseles: Carrete (compacto + giro 3D) ---------- */
+html body.carr-carrete .public-carrusel-viewport { perspective: 1300px; scroll-snap-type: x mandatory; }
+html body.carr-carrete .public-carrusel-track { position: relative; gap: 0 !important; padding: 14px calc(50% - 98px) 10px; }
+html body.carr-carrete .public-carrusel .carrusel-card {
+    scroll-snap-align: center !important; margin: 0 -12px !important;
+    transform: rotateY(var(--cm-giro, 0deg)) !important; filter: brightness(var(--cm-luz, 1)); opacity: var(--cm-op, 1) !important; z-index: var(--cm-z, 1);
+    transition: transform .55s var(--cm-ease), filter .55s ease, opacity .55s ease !important;
+}
+html body.carr-carrete .public-carrusel .carrusel-card:not(.cm-centro) .cart-btn-carrusel { visibility: hidden; }
+
+@media (max-width: 700px) {
+    html body:is(.carr-compacto, .carr-carrete) .public-carrusel .carrusel-card { flex-basis: 158px !important; width: 158px !important; }
+    html body.carr-carrete .public-carrusel-track { padding-left: calc(50% - 79px); padding-right: calc(50% - 79px); }
+    html body .public-related-scroll.cm-flow { padding-left: calc(50% - 100px) !important; padding-right: calc(50% - 100px) !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .public-disc-coverwrap .public-disc-vinyl { transition: none !important; animation: none !important; }
+    html body .public-related-scroll.cm-flow > .public-related-card, html body.carr-carrete .public-carrusel .carrusel-card { transition: none !important; }
+}
+
+/* Sin titular grande arriba del buscador ("Girá un disco", etc.): pedido de Facundo */
+body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) .public-filters-top::before { content: none !important; display: none !important; }
+
+/* Staff Pick en M y S: las tarjetas dejan asomar el vinilo (overflow visible), asi
+   que la cinta diagonal quedaba colgando afuera. Pasa a etiqueta dentro de la tarjeta. */
+body:is(.tema-fundaviva, .tema-picture):not(.vista-lista) .public-grid > .public-card .card-staff-sticker {
+    top: 16px !important; left: 16px !important; width: auto !important; transform: none !important; rotate: none !important;
+    padding: 5px 11px !important; border-radius: 999px !important; box-shadow: 0 6px 14px -8px rgba(0,0,0,.6) !important;
+    font-size: 10px !important; letter-spacing: .12em !important; font-weight: 500 !important; z-index: 6 !important;
+    background: var(--fv-beige) !important; color: var(--fv-deep) !important;
+}
+
+/* Banner con esquinas bien redondeadas (igual que las tarjetas de M): pedido de Facundo */
+body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) .public-hero { border-radius: 28px !important; overflow: hidden !important; }
+body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) .public-hero :is(.public-hero-overlay, .public-hero-video-bg) { border-radius: inherit; }
+@media (max-width: 700px) { body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) .public-hero { border-radius: 20px !important; } }
+
+/* Animacion de "agregar al carrito" mucho mas lenta y suave (pedido de Facundo):
+   la tapa vuela al carrito en 1,6 s (antes 0,65 s) y el contador late despacio. */
+.fly-to-cart-clone { transition: transform 1.6s cubic-bezier(.32, .72, 0, 1), opacity 1.6s ease !important; }
+.cart-count.bounce { animation-duration: .9s !important; }
+
+/* =====================================================================
+   ARREGLOS DEL QA (1/10) — solo H / M / S, en modo claro y oscuro
+   ===================================================================== */
+body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) { --cm-sobre-acento: #2A2124; }
+html[data-theme="light"] body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) { --cm-sobre-acento: #FFF7EC; }
+
+/* 1) Mystery Box: botones de cantidad legibles (antes blanco con numero crema) */
+body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) .mbox-qty-opt {
+    background: var(--bg-1) !important; color: var(--text-1) !important; border-color: var(--border-3) !important; font-weight: 500 !important;
+}
+body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) .mbox-qty-opt:hover { border-color: var(--text-1) !important; }
+body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) .mbox-qty-opt.is-active { background: var(--accent) !important; color: var(--cm-sobre-acento) !important; border-color: var(--accent) !important; }
+
+/* 2) Sobre Arcano: la linea "Record store · Montevideo" (era marron sobre marron) */
+body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) .public-sobre-eyebrow { color: var(--accent) !important; }
+
+/* 3) Favoritos: el link "inicia sesion" en colores de marca (era azul de navegador) */
+body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) .public-hero-tagline a { color: var(--accent) !important; text-decoration: underline; text-underline-offset: 3px; }
+
+/* 4) Contadores de carrito y favoritos: beige (oscuro) / marron (claro), no rosa */
+html body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) :is(.cart-count, .fav-count, .bottom-nav-badge),
+html body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) .public-topbar-actions :is(.cart-count, .fav-count) {
+    background: var(--accent) !important; color: var(--cm-sobre-acento) !important; font-weight: 500 !important;
+}
+
+/* 5) Restos del verde viejo: titulo del menu "Agregado al carrito" y barrita de carga */
+body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) .cart-drawer-title { color: var(--text-1) !important; font-weight: 500 !important; }
+body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) .pjax-bar { background: var(--accent) !important; box-shadow: none !important; }
+
+/* 11) Sin negrita en las paginas que todavia no se redisenaron (manual: nunca Bold) */
+body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) :is(.mbox-label, .cart-summary-total, .cart-summary-total span, .checkout-pasos-title,
+  .public-disc-cover-overlay span, .public-card-agotado-overlay span, b, strong) { font-weight: 500 !important; }

@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.63"
+APP_VERSION = "5.64"
 import metrics
 import auth
 import mailer
@@ -584,7 +584,19 @@ self.addEventListener('notificationclick', function(e){
         except Exception:
             cliente_actual = None
 
+        # Diseno de la tienda (Ajustes -> Diseno de la tienda): tema, carruseles y modo
+        try:
+            from models import Setting as _SD
+            _diseno = _SD.get("public_diseno", "") or ""
+            _carr_modo = _SD.get("public_carrusel_modo", "compacto") or "compacto"
+            _modo_def = _SD.get("public_modo_defecto", "oscuro") or "oscuro"
+        except Exception:
+            _diseno, _carr_modo, _modo_def = "", "compacto", "oscuro"
+
         return {
+            "diseno_tienda": _diseno,
+            "carrusel_modo": _carr_modo,
+            "modo_defecto": _modo_def,
             "reservas_sin_ver_count": reservas_sin_ver_count,
             "reservas_pendientes_count": reservas_pendientes_count,
             "now": now_uy(),
@@ -6337,6 +6349,9 @@ def register_routes(app: Flask) -> None:
             public_whatsapp=Setting.get("public_whatsapp", ""),
             analytics_snippet=Setting.get("analytics_snippet", ""),
             meta_pixel_id=Setting.get("meta_pixel_id", ""),
+            public_diseno=Setting.get("public_diseno", ""),
+            public_carrusel_modo=Setting.get("public_carrusel_modo", "compacto"),
+            public_modo_defecto=Setting.get("public_modo_defecto", "oscuro"),
             tip_label=Setting.get("tip_label", "Staff Picks"),
             carrusel_preorder=Setting.get("carrusel_preorder", "1") == "1",
             carrusel_tips=Setting.get("carrusel_tips", "1") == "1",
@@ -7181,11 +7196,13 @@ def register_routes(app: Flask) -> None:
         destacados = []
         nuevos_ingresos = []
         preorders_carrusel = []
+        # La Mystery Box NUNCA va en un carrusel (solo como primera card de la grilla).
+        disponibles_sin_mbox = [d for d in all_disponibles if not d.es_mystery_box]
         if pagina == 1 and filtros_activos == 0 and not q and orden == "nuevos":
             # Para los carruseles solo discos realmente disponibles (o pre-order).
             # Los vendidos/agotados NO entran, ni siquiera para completar al azar.
             disponibles_carrusel = [
-                d for d in all_disponibles
+                d for d in disponibles_sin_mbox
                 if not d.esta_agotado or d.mostrar_preorder
             ]
             # --- DESTACADOS ---
@@ -7222,7 +7239,7 @@ def register_routes(app: Flask) -> None:
 
             # --- PRE-ORDER ---
             # Discos en estado Pre-order con el toggle de carrusel prendido
-            preorders_carrusel = [d for d in all_disponibles if d.en_carrusel_preorder][:12]
+            preorders_carrusel = [d for d in disponibles_sin_mbox if d.en_carrusel_preorder][:12]
 
             # Intercalar los staff picks (es_tip) para que no queden todos juntos
             # al principio y parezca que todos los discos lo son.
@@ -7234,7 +7251,7 @@ def register_routes(app: Flask) -> None:
         tips_carrusel = []
         if pagina == 1 and filtros_activos == 0 and not q and orden == "nuevos":
             tips_carrusel = [
-                d for d in all_disponibles
+                d for d in disponibles_sin_mbox
                 if d.es_tip and (not d.esta_agotado or d.mostrar_preorder)
             ][:12]
 
@@ -7253,7 +7270,7 @@ def register_routes(app: Flask) -> None:
             if plays_por_disco:
                 con_plays = [
                     (d, plays_por_disco.get(d.id, 0))
-                    for d in all_disponibles
+                    for d in disponibles_sin_mbox
                     if plays_por_disco.get(d.id, 0) > 0
                     and (not d.esta_agotado or d.mostrar_preorder)
                 ]
@@ -7361,6 +7378,8 @@ def register_routes(app: Flask) -> None:
             .filter(Disc.id != disc.id)
             .filter(Disc.estado == "Disponible")
             .filter(Disc.stock > 0)
+            # La Mystery Box no va en "Similares" (ni en ningun carrusel)
+            .filter(or_(Disc.es_mystery_box == False, Disc.es_mystery_box == None))  # noqa: E711,E712
         )
 
         _N_REL = 12  # se muestran en un carrusel horizontal con scroll (6 + 6)
@@ -8903,6 +8922,24 @@ def register_routes(app: Flask) -> None:
                     (request.form.get("public_banner_video_url") or "").strip())
         flash("Video de fondo actualizado.", "success")
         return redirect(url_for("settings_page"))
+
+    @app.route("/admin/settings/diseno", methods=["POST"])
+    @auth.admin_required
+    def settings_update_diseno():
+        """Elige el diseno de la tienda (Actual / H / M / S) y
+        el modo de los carruseles. Ruta propia para no pisar el form grande."""
+        diseno = (request.form.get("public_diseno") or "").strip()
+        if diseno not in ("", "tocadiscos", "fundaviva", "picture"):
+            diseno = ""
+        carr = (request.form.get("public_carrusel_modo") or "compacto").strip()
+        if carr not in ("compacto", "normal", "carrete"):
+            carr = "compacto"
+        Setting.set("public_diseno", diseno)
+        Setting.set("public_carrusel_modo", carr)
+        modo = (request.form.get("public_modo_defecto") or "oscuro").strip()
+        Setting.set("public_modo_defecto", modo if modo in ("oscuro", "claro") else "oscuro")
+        flash("Diseño de la tienda actualizado.", "success")
+        return redirect(url_for("settings_page") + "#diseno-tienda")
 
     @app.route("/admin/fire-sale/avisar", methods=["POST"])
     @auth.admin_required
