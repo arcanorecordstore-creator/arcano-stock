@@ -18,7 +18,7 @@
 {%- endmacro %}
 
 <div class="tk-table-wrap">
-<table class="tk-table{% if compacto %} tk-table-compacta{% endif %}" id="tk-table" data-base="/admin/tareas/">
+<table class="tk-table{% if compacto %} tk-table-compacta{% endif %}" id="tk-table" data-base="/admin/tareas/"{% if not compacto %} data-resize-key="tareas"{% endif %}>
     <thead>
         <tr>
             {{ th_orden('nombre', 'Tarea', 'tk-c-nombre') }}

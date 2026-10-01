@@ -7,20 +7,23 @@
    achicar por debajo del ancho del contenido, que con el layout automatico no se
    podia). El quick-edit usa <input>/<select> nativos dentro de la celda, asi que
    el overflow:hidden de las celdas no rompe nada (el desplegable nativo del
-   <select> se dibuja por encima, no lo recorta). */
+   <select> se dibuja por encima, no lo recorta).
+
+   v5.69: sirve para cualquier tabla. Ademas del Stock (.stock-table), toda tabla
+   con data-resize-key="x" se vuelve redimensionable y guarda sus anchos aparte
+   (localStorage 'arcano-col-widths-x'). Lo usan las tablas de Tareas/Ideas/Constancia. */
 (function () {
     'use strict';
 
-    var KEY = 'arcano-col-widths-v2';
+    var KEY_STOCK = 'arcano-col-widths-v2';   // la del Stock no cambia (no se pierden los anchos guardados)
     var MIN = 32; // px minimo por columna
 
-    function cargarGuardados() {
+    function cargarGuardados(KEY) {
         try { return JSON.parse(localStorage.getItem(KEY) || '{}') || {}; }
         catch (e) { return {}; }
     }
 
-    function init() {
-        var table = document.querySelector('.stock-table');
+    function initTabla(table, KEY) {
         if (!table) return;
         if (table._colsInit) return;
         // En celular la tabla se muestra como tarjetas apiladas: no aplica.
@@ -32,7 +35,10 @@
         if (!ths.length) return;
         table._colsInit = true;
 
-        var guardados = cargarGuardados();
+        var guardados = cargarGuardados(KEY);
+        // Si la estructura de columnas cambio (se agrego o saco una), los anchos
+        // guardados ya no corresponden: se ignoran.
+        if (guardados._n && guardados._n !== ths.length) guardados = {};
 
         // Anchos iniciales: los guardados, o los que tiene ahora la tabla.
         var widths = ths.map(function (th, i) {
@@ -55,7 +61,7 @@
         aplicar();
 
         function guardar() {
-            var obj = {};
+            var obj = { _n: ths.length };
             widths.forEach(function (w, i) { obj[i] = Math.round(w); });
             try { localStorage.setItem(KEY, JSON.stringify(obj)); } catch (e) {}
         }
@@ -113,6 +119,13 @@
                     aplicar();
                 });
             });
+        });
+    }
+
+    function init() {
+        initTabla(document.querySelector('.stock-table'), KEY_STOCK);
+        Array.prototype.forEach.call(document.querySelectorAll('table[data-resize-key]'), function (t) {
+            initTabla(t, 'arcano-col-widths-' + t.getAttribute('data-resize-key'));
         });
     }
 

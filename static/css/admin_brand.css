@@ -166,7 +166,8 @@ body.app { background-color: var(--bg-0); font-weight: 400; }
 .stock-table thead .th-sort-link:hover,
 .stock-table thead .th-sorted .th-sort-link { color: var(--arcano-crema, #FFF7EC); }
 .stock-table thead .th-sortable:hover { background-color: #4a3b3e; }
-.stock-table thead .col-resizer:hover::after { background: rgba(233, 209, 175, .5); }
+.stock-table thead .col-resizer:hover::after,
+.tk-table thead .col-resizer:hover::after { background: rgba(233, 209, 175, .5); }
 
 /* ---------- 8. Reservas: colores ORIGINALES (solo tamano del icono) ---------- */
 .entrega-ico svg { width: 18px; height: 18px; }

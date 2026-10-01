@@ -568,7 +568,9 @@ body.col-resizing * { cursor: col-resize !important; user-select: none !importan
 /* Con columnas de ancho fijo, las celdas recortan el contenido que no entra
    (asi se puede ACHICAR una columna por debajo del ancho de su contenido). */
 .stock-table.cols-resizable th,
-.stock-table.cols-resizable td {
+.stock-table.cols-resizable td,
+.tk-table.cols-resizable th,
+.tk-table.cols-resizable td {
     overflow: hidden;
     text-overflow: ellipsis;
 }
