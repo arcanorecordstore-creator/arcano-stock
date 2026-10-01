@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.69"
+APP_VERSION = "5.70"
 import metrics
 import auth
 import mailer
@@ -9470,7 +9470,8 @@ def register_routes(app: Flask) -> None:
                 "estado_key": "curso" if t.estado == "En curso" else ("hecha" if t.hecha else "nueva"),
                 "dias_n": n, "dias_u": u,
                 "avance": t.avance_pct, "progreso": t.progreso, "meta": t.meta,
-                "hecha": t.hecha, "cat_rgb": _tk_tag_rgb(t.categoria)}
+                "hecha": t.hecha, "cat_rgb": _tk_tag_rgb(t.categoria),
+                "duracion_txt": t.duracion_txt}
 
     @app.route("/admin/tareas")
     @auth.admin_required
@@ -9563,6 +9564,12 @@ def register_routes(app: Flask) -> None:
                 t.fecha_limite = datetime.strptime(txt, "%Y-%m-%d").date() if txt else None
             except ValueError:
                 return jsonify({"ok": False, "error": "Fecha inválida."}), 400
+        elif campo == "duracion":
+            from models import parsear_duracion
+            try:
+                t.duracion_min = parsear_duracion(txt)
+            except ValueError as e:
+                return jsonify({"ok": False, "error": str(e)}), 400
         elif campo in ("progreso", "meta"):
             n = _entero(txt)
             if campo == "meta":

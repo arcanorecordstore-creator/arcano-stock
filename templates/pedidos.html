@@ -151,7 +151,7 @@
         {% if p.discos %}
         <details class="ped-discos">
             <summary class="ped-discos-toggle">Ver los {{ p.discos_asignados }} disco(s) de este pedido</summary>
-            <table class="ped-discos-table">
+            <table data-resize-key="pedido-discos" class="ped-discos-table">
                 <thead>
                     <tr>
                         <th>Disco</th>

@@ -18,7 +18,7 @@
 {%- endmacro %}
 
 <div class="tk-table-wrap">
-<table class="tk-table{% if compacto %} tk-table-compacta{% endif %}" id="tk-table" data-base="/admin/tareas/"{% if not compacto %} data-resize-key="tareas"{% endif %}>
+<table class="tk-table{% if compacto %} tk-table-compacta{% endif %}" id="tk-table" data-base="/admin/tareas/" data-resize-key="{{ 'tareas-home' if compacto else 'tareas' }}">
     <thead>
         <tr>
             {{ th_orden('nombre', 'Tarea', 'tk-c-nombre') }}
@@ -28,6 +28,7 @@
             {{ th_orden('prioridad', 'Prioridad', 'tk-c-prio') }}
             {{ th_orden('dias', 'Días restantes', 'tk-c-dias') }}
             <th class="tk-c-fecha">Deadline</th>
+            <th class="tk-c-dur" title="Duración estimada: cuánto tiempo estimás que lleva">Duración</th>
             <th class="tk-c-num">Progreso</th>
             <th class="tk-c-num">Meta</th>
             <th class="tk-c-avance">Avance</th>
@@ -74,6 +75,10 @@
                 <input type="date" class="tk-in tk-in-fecha{% if not t.fecha_limite %} is-empty{% endif %}" data-campo="fecha_limite"
                        value="{{ t.fecha_limite.strftime('%Y-%m-%d') if t.fecha_limite else '' }}" aria-label="Deadline">
             </td>
+            <td class="tk-c-dur">
+                <input type="text" class="tk-in tk-in-dur{% if not t.duracion_min %} is-empty{% endif %}" data-campo="duracion" maxlength="20"
+                       value="{{ t.duracion_txt }}" placeholder="&mdash;" aria-label="Duración estimada" title="Ej: 45 min, 2 h, 1 h 30">
+            </td>
             <td class="tk-c-num"><input type="number" class="tk-in tk-in-num" data-campo="progreso" min="0" step="1" value="{{ t.progreso if t.progreso is not none else '' }}" placeholder="&mdash;" aria-label="Progreso"></td>
             <td class="tk-c-num"><input type="number" class="tk-in tk-in-num" data-campo="meta" min="0" step="1" value="{{ t.meta or '' }}" placeholder="&mdash;" aria-label="Meta"></td>
             <td class="tk-c-avance">
@@ -91,14 +96,14 @@
             </td>{% endif %}
         </tr>
         <tr class="tk-nota-row" data-for="{{ t.id }}" hidden>
-            <td colspan="11">
+            <td colspan="12">
                 <textarea class="tk-nota" data-campo="detalle" data-id="{{ t.id }}" rows="3" placeholder="Nota: links, pasos, a quién escribirle…">{{ t.detalle or '' }}</textarea>
             </td>
         </tr>
         {% endfor %}
         {% if not compacto %}
         <tr class="tk-new-row">
-            <td colspan="11">
+            <td colspan="12">
                 <form method="post" action="{{ url_for('tarea_nueva') }}" class="tk-new">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     {{ volver() }}

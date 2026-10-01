@@ -284,7 +284,7 @@
     <p class="conta-block-sub">Los que se repiten cada mes (ej: hosting). Cargalos una vez y despues generalos con un boton.</p>
 
     {% if recurrentes %}
-    <table class="conta-table">
+    <table data-resize-key="contab-gastos-fijos" class="conta-table">
         <thead>
             <tr>
                 <th>Categoría</th>
@@ -507,7 +507,7 @@
         <h2 class="conta-block-title" id="c-pedidos">Pedidos (inversion en stock)</h2>
         <a href="{{ url_for('pedidos') }}" class="btn btn-ghost">Gestionar pedidos</a>
     </div>
-    <table class="conta-table">
+    <table data-resize-key="contab-pedidos" class="conta-table">
         <thead>
             <tr>
                 <th>Pedido</th>
@@ -623,7 +623,7 @@
         <h2 class="resumen-card-title">Top 5 sellos por inversion</h2>
         <p class="resumen-card-sub">Donde tenes mas plata invertida en stock disponible.</p>
         {% if top_sellos_inversion %}
-        <table class="rank-table">
+        <table data-resize-key="contab-sellos-inversion" class="rank-table">
             <thead><tr><th class="rank-num">#</th><th>Sello</th><th class="rank-num-cell">Titulos</th><th class="rank-num-cell">Unidades</th><th class="rank-num-cell">Inversion UYU</th></tr></thead>
             <tbody>
                 {% for s in top_sellos_inversion %}
@@ -646,7 +646,7 @@
         <h2 class="resumen-card-title">Top 5 sellos por rotacion</h2>
         <p class="resumen-card-sub">Sellos con mas titulos vendidos historicamente.</p>
         {% if top_sellos_rotacion %}
-        <table class="rank-table">
+        <table data-resize-key="contab-sellos-rotacion" class="rank-table">
             <thead><tr><th class="rank-num">#</th><th>Sello</th><th class="rank-num-cell">Titulos</th><th class="rank-num-cell">Unidades</th><th class="rank-num-cell">Facturado UYU</th></tr></thead>
             <tbody>
                 {% for s in top_sellos_rotacion %}
@@ -678,7 +678,7 @@
         {% endif %}
     </p>
     {% if stock_frenado.filas %}
-    <table class="rank-table">
+    <table data-resize-key="contab-stock-quieto" class="rank-table">
         <thead><tr><th class="rank-num">Días</th><th>Disco</th><th>Sello</th><th class="rank-num-cell">Costo (quieto)</th><th class="rank-num-cell">Precio</th><th>Ingreso</th></tr></thead>
         <tbody>
             {% for f in stock_frenado.filas[:20] %}
@@ -710,7 +710,7 @@
     <h2 class="resumen-card-title">Top 5 discos mas rentables (vendidos)</h2>
     <p class="resumen-card-sub">Ranking de discos vendidos ordenados por margen porcentual.</p>
     {% if top_discos_rentables %}
-    <table class="rank-table">
+    <table data-resize-key="contab-discos-rentables" class="rank-table">
         <thead><tr><th class="rank-num">#</th><th>Disco</th><th>Sello</th><th class="rank-num-cell">Precio UYU</th><th class="rank-num-cell">Ganancia UYU</th><th class="rank-num-cell">Margen</th><th>Fecha venta</th></tr></thead>
         <tbody>
             {% for d in top_discos_rentables %}

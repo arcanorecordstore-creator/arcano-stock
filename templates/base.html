@@ -156,6 +156,8 @@
     })();
     </script>
     {% block scripts %}{% endblock %}
+    {# Columnas redimensionables en todas las tablas del admin #}
+    <script src="{{ url_for('static', filename='js/tablas_resize.js') }}"></script>
     <script>
         // Fallback de portada: si un cover no carga, en vez del icono roto del
         // navegador mostramos un placeholder de vinilo (neutro, sirve claro y oscuro).

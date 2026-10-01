@@ -47,6 +47,13 @@
         if (prog && document.activeElement !== prog) prog.value = (d.progreso === null || d.progreso === undefined) ? '' : d.progreso;
         var fecha = fila.querySelector('[data-campo="fecha_limite"]');
         if (fecha) fecha.classList.toggle('is-empty', !fecha.value);
+        // Duracion: el servidor la devuelve normalizada ('90' -> '1 h 30')
+        var dur = fila.querySelector('[data-campo="duracion"]');
+        if (dur && d.duracion_txt !== undefined) {
+            dur.value = d.duracion_txt || '';
+            dur.dataset.ultimo = dur.value;
+            dur.classList.toggle('is-empty', !dur.value);
+        }
         var av = fila.querySelector('.tk-av');
         if (av) {
             av.classList.toggle('is-off', !d.meta);

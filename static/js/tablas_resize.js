@@ -1,21 +1,26 @@
-/* Columnas redimensionables del dashboard (v3.67).
+/* Columnas redimensionables en TODAS las tablas del admin (v3.67 en Stock,
+   v5.69 Tareas, v5.70 todo el admin).
    Al pasar el mouse por el borde derecho de un encabezado aparece el cursor de
    redimension; arrastrando se hace la columna mas o menos ancha (agrandar Y
-   achicar). El ancho de cada columna se recuerda en localStorage.
+   achicar). Doble click en ese borde: vuelve todas las columnas al ancho automatico.
+
+   Cada tabla guarda sus anchos aparte en localStorage: el Stock en
+   'arcano-col-widths-v2' (la clave de siempre, no se pierden los anchos guardados)
+   y el resto en 'arcano-col-widths-<data-resize-key>' (si la tabla no tiene
+   data-resize-key, se usa la pagina + el numero de tabla).
 
    Usa table-layout:fixed para que los anchos se respeten EXACTO (asi se puede
    achicar por debajo del ancho del contenido, que con el layout automatico no se
-   podia). El quick-edit usa <input>/<select> nativos dentro de la celda, asi que
-   el overflow:hidden de las celdas no rompe nada (el desplegable nativo del
-   <select> se dibuja por encima, no lo recorta).
+   podia). Las celdas recortan con "..." lo que no entra. Los <select> e <input>
+   nativos de las celdas no se ven afectados (su desplegable se dibuja por encima).
 
-   v5.69: sirve para cualquier tabla. Ademas del Stock (.stock-table), toda tabla
-   con data-resize-key="x" se vuelve redimensionable y guarda sus anchos aparte
-   (localStorage 'arcano-col-widths-x'). Lo usan las tablas de Tareas/Ideas/Constancia. */
+   No aplica en celular (<= 900px): ahi varias tablas se muestran como tarjetas.
+   Las tablas que arrancan ocultas (ej: la lista de discos desplegable de cada
+   pedido) se preparan recien cuando se ven, para medir bien sus anchos. */
 (function () {
     'use strict';
 
-    var KEY_STOCK = 'arcano-col-widths-v2';   // la del Stock no cambia (no se pierden los anchos guardados)
+    var KEY_STOCK = 'arcano-col-widths-v2';
     var MIN = 32; // px minimo por columna
 
     function cargarGuardados(KEY) {
@@ -23,16 +28,20 @@
         catch (e) { return {}; }
     }
 
+    function esCelular() {
+        return !!(window.matchMedia && window.matchMedia('(max-width: 900px)').matches);
+    }
+
     function initTabla(table, KEY) {
-        if (!table) return;
-        if (table._colsInit) return;
-        // En celular la tabla se muestra como tarjetas apiladas: no aplica.
-        if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) return;
+        if (!table || table._colsInit) return;
+        if (esCelular()) return;
 
         var headRow = table.querySelector('thead tr');
         if (!headRow) return;
         var ths = Array.prototype.slice.call(headRow.children);
         if (!ths.length) return;
+        // Oculta (display:none o dentro de algo cerrado): se prepara cuando se vea.
+        if (!table.getBoundingClientRect().width) return;
         table._colsInit = true;
 
         var guardados = cargarGuardados(KEY);
@@ -53,6 +62,12 @@
             var t = total();
             table.style.width = t + 'px';
             table.style.minWidth = t + 'px';
+            // Si la tabla queda mas ancha que su caja, la caja pasa a tener scroll
+            // horizontal (asi nunca se desborda la pagina).
+            var p = table.parentElement;
+            if (p && t > p.clientWidth + 1 && getComputedStyle(p).overflowX === 'visible') {
+                p.style.overflowX = 'auto';
+            }
         }
 
         // Fijar el layout ANTES de aplicar (asi los anchos mandan exacto).
@@ -68,10 +83,11 @@
 
         ths.forEach(function (th, i) {
             if (th.querySelector('.col-resizer')) return;
-            th.style.position = 'relative';
+            if (getComputedStyle(th).position === 'static') th.style.position = 'relative';
             var handle = document.createElement('div');
             handle.className = 'col-resizer';
             handle.setAttribute('aria-hidden', 'true');
+            handle.title = 'Arrastrá para cambiar el ancho · doble clic para volver al automático';
             th.appendChild(handle);
 
             var startX = 0, startW = 0;
@@ -102,7 +118,7 @@
             handle.addEventListener('mousedown', onDown);
             handle.addEventListener('touchstart', onDown, { passive: false });
             handle.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); });
-            // Doble click: resetea TODAS las columnas al ancho automatico.
+            // Doble click: resetea TODAS las columnas de esta tabla al ancho automatico.
             handle.addEventListener('dblclick', function (e) {
                 e.preventDefault(); e.stopPropagation();
                 table.classList.remove('cols-resizable');
@@ -122,11 +138,33 @@
         });
     }
 
+    function claveDe(table, idx) {
+        if (table.classList.contains('stock-table')) return KEY_STOCK;
+        var k = table.getAttribute('data-resize-key');
+        return 'arcano-col-widths-' + (k || (location.pathname + '#' + idx));
+    }
+
     function init() {
-        initTabla(document.querySelector('.stock-table'), KEY_STOCK);
-        Array.prototype.forEach.call(document.querySelectorAll('table[data-resize-key]'), function (t) {
-            initTabla(t, 'arcano-col-widths-' + t.getAttribute('data-resize-key'));
+        var tablas = Array.prototype.slice.call(document.querySelectorAll('.app table'));
+        var pendientes = [];
+        tablas.forEach(function (t, idx) {
+            if (t.closest('table') !== t) return;   // tablas dentro de tablas: no
+            if (!t.querySelector('thead tr')) return;
+            initTabla(t, claveDe(t, idx));
+            if (!t._colsInit) pendientes.push([t, idx]);
         });
+        // Las que estaban ocultas se preparan apenas tienen tamaño.
+        if (pendientes.length && window.ResizeObserver) {
+            var ro = new ResizeObserver(function (entries) {
+                entries.forEach(function (en) {
+                    var t = en.target;
+                    if (t._colsInit || !en.contentRect.width) return;
+                    initTabla(t, claveDe(t, t._resizeIdx));
+                    if (t._colsInit) ro.unobserve(t);
+                });
+            });
+            pendientes.forEach(function (p) { p[0]._resizeIdx = p[1]; ro.observe(p[0]); });
+        }
     }
 
     if (document.readyState === 'loading') {

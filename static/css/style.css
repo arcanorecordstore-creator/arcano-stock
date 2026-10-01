@@ -567,10 +567,8 @@ body.col-resizing,
 body.col-resizing * { cursor: col-resize !important; user-select: none !important; }
 /* Con columnas de ancho fijo, las celdas recortan el contenido que no entra
    (asi se puede ACHICAR una columna por debajo del ancho de su contenido). */
-.stock-table.cols-resizable th,
-.stock-table.cols-resizable td,
-.tk-table.cols-resizable th,
-.tk-table.cols-resizable td {
+table.cols-resizable th,
+table.cols-resizable td {
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -11628,6 +11626,10 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 .tk-in-cat:focus { text-transform: none; letter-spacing: 0; font-size: 12px; }
 .tk-in-num { text-align: right; font-variant-numeric: tabular-nums; }
 .tk-in-fecha { font-variant-numeric: tabular-nums; color: var(--text-3); }
+/* Duracion estimada (v5.70): texto libre que el servidor normaliza ('90' -> '1 h 30') */
+.tk-c-dur { width: 96px; }
+.tk-in-dur { font-variant-numeric: tabular-nums; color: var(--text-2); }
+.tk-in-dur.is-empty::placeholder { color: var(--text-5); }
 .tk-in-fecha.is-empty:not(:focus) { color: var(--text-5); }
 
 .tk-nombre { display: flex; align-items: center; gap: 2px; }
@@ -12076,6 +12078,9 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
     .tk-table .tk-c-dias { margin-left: auto; }
     .tk-dias-n { font-size: 17px; }
     .tk-table .tk-c-fecha { flex: 0 0 auto; }
+    .tk-table .tk-c-dur { flex: 0 0 auto; }
+    .tk-in-dur { width: 78px; font-size: 12.5px; padding: 3px 4px; }
+    .tk-in-dur.is-empty:not(:focus) { display: none; }
     .tk-in-fecha { width: auto; font-size: 12.5px; padding: 3px 4px; }
     .tk-in-fecha.is-empty:not(:focus) { display: none; }
     .tk-in-cat { font-size: 10px !important; }

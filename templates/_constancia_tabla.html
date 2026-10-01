@@ -1,6 +1,6 @@
 {#- Tabla de Constancia. compacto=True (dashboard): solo marcar hoy / semana. -#}
 <div class="tk-table-wrap">
-<table class="tk-table tk-table-constancia" id="tk-constancia" data-base="/admin/constancia/"{% if not compacto %} data-resize-key="constancia"{% endif %}>
+<table class="tk-table tk-table-constancia" id="tk-constancia" data-base="/admin/constancia/" data-resize-key="{{ 'constancia-home' if compacto else 'constancia' }}">
     <thead>
         <tr>
             <th class="tk-c-nombre">Qu&eacute; public&aacute;s</th>

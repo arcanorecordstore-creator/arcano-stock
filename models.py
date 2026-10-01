@@ -1583,6 +1583,39 @@ PRIORIDADES_TAREA = {0: "Sin prioridad", 1: "Baja", 2: "Media", 3: "Alta", 4: "U
 CATEGORIAS_TAREA = ["Compras", "Contenido", "Instagram", "Web", "Envíos", "Clientes", "Admin"]
 
 
+def formato_duracion(minutos) -> str:
+    """Minutos -> texto corto: 45 -> '45 min', 120 -> '2 h', 90 -> '1 h 30'."""
+    if not minutos:
+        return ""
+    h, m = divmod(int(minutos), 60)
+    if not h:
+        return f"{m} min"
+    return f"{h} h" + (f" {m:02d}" if m else "")
+
+
+def parsear_duracion(texto):
+    """Texto de duracion -> minutos (int), None si esta vacio, o ValueError si no
+    se entiende. Acepta: '45', '45 min', '45m', '2h', '2 hs', '2 horas', '1.5 h',
+    '1,5h', '1h30', '1 h 30 min', '1:30'. Un numero solo se toma como minutos."""
+    import re as _re
+    s = (texto or "").strip().lower().replace(",", ".")
+    if not s:
+        return None
+    m = _re.fullmatch(r"(\d+):(\d{1,2})", s)
+    if m:
+        total = int(m.group(1)) * 60 + int(m.group(2))
+    else:
+        m = _re.fullmatch(
+            r"(?:(\d+(?:\.\d+)?)\s*(?:h|hs|hr|hrs|hora|horas)\.?)?\s*(?:y\s*)?"
+            r"(?:(\d+)\s*(?:m|min|mins|minuto|minutos)?\.?)?", s)
+        if not m or (m.group(1) is None and m.group(2) is None):
+            raise ValueError("No entendí la duración. Escribila como 45 min, 2 h o 1 h 30.")
+        total = round(float(m.group(1) or 0) * 60) + int(m.group(2) or 0)
+    if total > 1000 * 60:
+        raise ValueError("La duración es demasiado larga.")
+    return total or None
+
+
 class Tarea(db.Model):
     """Una tarea pendiente para Arcano. Tabla nueva (create_all), no toca nada mas."""
     __tablename__ = "tareas"
@@ -1599,6 +1632,7 @@ class Tarea(db.Model):
     meta = db.Column(db.Integer, nullable=True)       # ej: 5
     creada = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     hecha_en = db.Column(db.DateTime, nullable=True)
+    duracion_min = db.Column(db.Integer, nullable=True)   # duracion estimada en minutos (v5.70)
 
     subtareas = db.relationship("Subtarea", backref="tarea", cascade="all, delete-orphan",
                                 order_by="Subtarea.orden, Subtarea.id", lazy="select")
@@ -1620,6 +1654,11 @@ class Tarea(db.Model):
         if not self.fecha_limite:
             return None
         return (self.fecha_limite - hoy).days
+
+    @property
+    def duracion_txt(self) -> str:
+        """Duracion estimada legible: '45 min', '2 h', '1 h 30'."""
+        return formato_duracion(self.duracion_min)
 
     @property
     def avance_pct(self):
@@ -1761,6 +1800,14 @@ def _migrate_schema(app):
     
     with app.app_context():
         inspector = inspect(db.engine)
+
+        # Duracion estimada de las tareas (v5.70)
+        if inspector.has_table("tareas"):
+            _tcols = [c["name"] for c in inspector.get_columns("tareas")]
+            if "duracion_min" not in _tcols:
+                with db.engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE tareas ADD COLUMN duracion_min INTEGER"))
+                print("Migracion: columna duracion_min agregada a tareas")
 
         # Puntaje (1-5 estrellas) de las ideas (v5.68)
         if inspector.has_table("ideas_contenido"):

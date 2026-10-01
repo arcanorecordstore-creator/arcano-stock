@@ -135,7 +135,7 @@
         <h2 class="resumen-card-title">Top 5 sellos por inversion</h2>
         <p class="resumen-card-sub">Donde tenes mas plata invertida en stock disponible.</p>
         {% if top_sellos_inversion %}
-        <table class="rank-table">
+        <table data-resize-key="resumen-sellos-inversion" class="rank-table">
             <thead>
                 <tr>
                     <th class="rank-num">#</th>
@@ -166,7 +166,7 @@
         <h2 class="resumen-card-title">Top 5 sellos por rotacion</h2>
         <p class="resumen-card-sub">Sellos con mas titulos vendidos historicamente.</p>
         {% if top_sellos_rotacion %}
-        <table class="rank-table">
+        <table data-resize-key="resumen-sellos-rotacion" class="rank-table">
             <thead>
                 <tr>
                     <th class="rank-num">#</th>
@@ -202,7 +202,7 @@
     <h2 class="resumen-card-title">Top 5 discos mas rentables (vendidos)</h2>
     <p class="resumen-card-sub">Ranking de discos vendidos ordenados por margen porcentual.</p>
     {% if top_discos_rentables %}
-    <table class="rank-table">
+    <table data-resize-key="resumen-discos-rentables" class="rank-table">
         <thead>
             <tr>
                 <th class="rank-num">#</th>
