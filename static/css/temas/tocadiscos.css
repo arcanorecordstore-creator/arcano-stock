@@ -154,7 +154,10 @@ body.tema-tocadiscos .card-play-btn {
 body.tema-tocadiscos .card-play-btn:active { opacity: .7 !important; }
 body.tema-tocadiscos .card-play-btn::after { content: ""; position: absolute; width: 5px; height: 5px; border-radius: 50%; background: var(--td-deep); bottom: 18%; left: 50%; translate: -50% 0; opacity: .5; }
 body.tema-tocadiscos .fav-btn-card { background: rgba(42,33,36,.85) !important; color: var(--td-crema) !important; border: 0 !important; top: 8% !important; right: 8% !important; z-index: 4 !important; }
-body.tema-tocadiscos .public-card-badges { left: 50% !important; right: auto !important; top: auto !important; bottom: 12% !important; translate: -50% 0; z-index: 4 !important; justify-content: center; }
+/* Carteles arriba a la izquierda, como en el diseno original (pedido de Facundo). Con Staff Pick
+   (arriba al centro en H) bajan un poco para no pisarse. */
+body.tema-tocadiscos .public-card-badges { left: 8px !important; right: auto !important; top: 8px !important; bottom: auto !important; translate: none; z-index: 4 !important; align-items: flex-start !important; justify-content: flex-start; }
+body.tema-tocadiscos .public-card-badges.has-ribbon { top: 38px !important; }
 body.tema-tocadiscos .public-card-badge { background: var(--td-deep) !important; color: var(--td-beige) !important; border-radius: 999px !important; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; font-size: 9.5px; }
 body.tema-tocadiscos .card-staff-sticker {
     left: 50% !important; top: -12px !important; width: auto !important; translate: -50% 0; transform: none !important; padding: 5px 12px !important;

@@ -177,7 +177,10 @@ body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card
     background: var(--fv-beige) !important; color: var(--fv-deep) !important; backdrop-filter: none !important; font-size: 15px !important; z-index: 3 !important;
 }
 body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .fav-btn-card { top: 4% !important; right: 4% !important; z-index: 4 !important; }
-body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-badges { left: 50% !important; right: auto !important; top: auto !important; bottom: 10% !important; translate: -50% 0; z-index: 4 !important; justify-content: center; }
+/* Carteles (Pre-order, Nuevo, Ultima copia...) arriba a la izquierda, como en el diseno original
+   (pedido de Facundo). Si hay sticker Staff Pick en esa esquina, van justo debajo. */
+body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-badges { left: 8px !important; right: auto !important; top: 8px !important; bottom: auto !important; translate: none; z-index: 4 !important; align-items: flex-start !important; justify-content: flex-start; }
+body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-badges.has-ribbon { top: 30px !important; }
 body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-agotado-overlay { border-radius: 50%; }
 body.tema-picture .public-grid > .public-card.ps-sonando { border-color: var(--border-3) !important; }
 body.tema-picture .public-grid > .public-card.ps-sonando .public-card-artist::before { content: "Sonando · "; color: var(--fv-beige); }
