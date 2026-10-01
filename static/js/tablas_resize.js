@@ -49,6 +49,17 @@
         // guardados ya no corresponden: se ignoran.
         if (guardados._n && guardados._n !== ths.length) guardados = {};
 
+        // Si la tabla ocupaba todo el ancho de su caja, lo sigue ocupando siempre:
+        // cuando las columnas suman menos, la ULTIMA se estira para llenar (asi la
+        // franja de titulos queda continua y no queda un hueco a la derecha).
+        function anchoCaja() {
+            var p = table.parentElement;
+            if (!p) return 0;
+            var cs = getComputedStyle(p);
+            return p.clientWidth - (parseFloat(cs.paddingLeft) || 0) - (parseFloat(cs.paddingRight) || 0);
+        }
+        var llenar = table.getBoundingClientRect().width >= anchoCaja() - 2;
+
         // Anchos iniciales: los guardados, o los que tiene ahora la tabla.
         var widths = ths.map(function (th, i) {
             return Math.max(MIN, Math.round(guardados[i] || th.getBoundingClientRect().width));
@@ -58,8 +69,11 @@
             return widths.reduce(function (a, b) { return a + b; }, 0);
         }
         function aplicar() {
-            ths.forEach(function (th, i) { th.style.width = widths[i] + 'px'; });
             var t = total();
+            var extra = llenar ? Math.max(0, Math.floor(anchoCaja()) - t) : 0;
+            var ult = ths.length - 1;
+            ths.forEach(function (th, i) { th.style.width = (widths[i] + (i === ult ? extra : 0)) + 'px'; });
+            t += extra;
             table.style.width = t + 'px';
             table.style.minWidth = t + 'px';
             // Si la tabla queda mas ancha que su caja, la caja pasa a tener scroll
@@ -74,6 +88,12 @@
         table.classList.add('cols-resizable');
         table.style.tableLayout = 'fixed';
         aplicar();
+        // Si cambia el tamaño de la ventana, se vuelve a llenar la caja.
+        var tRes = null;
+        window.addEventListener('resize', function () {
+            clearTimeout(tRes);
+            tRes = setTimeout(function () { if (table.classList.contains('cols-resizable')) aplicar(); }, 120);
+        });
 
         function guardar() {
             var obj = { _n: ths.length };
@@ -108,7 +128,8 @@
                 ev.preventDefault();
                 ev.stopPropagation();
                 startX = ev.touches ? ev.touches[0].clientX : ev.clientX;
-                startW = widths[i];
+                // Ancho que se VE (la ultima columna puede estar estirada para llenar)
+                startW = Math.round(th.getBoundingClientRect().width);
                 document.body.classList.add('col-resizing');
                 document.addEventListener('mousemove', onMove);
                 document.addEventListener('mouseup', onUp);

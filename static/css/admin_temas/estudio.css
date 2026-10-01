@@ -70,7 +70,7 @@ body.admin-tema-estudio .app-main .home-kpi-main .home-kpi-n:not(.gain):not(.los
 body.admin-tema-estudio .app-main :is(.home-kpi-n, .kpi-value, .summary-value) { font-weight: 500; }
 
 /* ---------- tablas ---------- */
-body.admin-tema-estudio .table-wrap { overflow: hidden; }
+body.admin-tema-estudio .table-wrap { overflow-x: auto; overflow-y: hidden; }
 body.admin-tema-estudio .stock-table thead th { background-color: var(--bg-2); color: var(--text-4); border-bottom-color: var(--border-2); }
 [data-theme="light"] body.admin-tema-estudio .stock-table thead th { color-scheme: light; }
 body.admin-tema-estudio .stock-table thead .th-sorted .th-sort-link, body.admin-tema-estudio .stock-table thead .th-sort-link:hover { color: var(--text-1); }

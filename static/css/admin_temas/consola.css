@@ -80,7 +80,7 @@ body.admin-tema-consola .app-main .home-kpis > .home-kpi:last-child { border-rig
 body.admin-tema-consola .app-main .home-kpi-main { background: var(--ink-soft) !important; }
 
 /* ---------- tablas densas ---------- */
-body.admin-tema-consola .table-wrap { overflow: hidden; }
+body.admin-tema-consola .table-wrap { overflow-x: auto; overflow-y: hidden; }
 body.admin-tema-consola .stock-table thead th {
     background-color: var(--bg-1); color: var(--text-4); border-bottom: 1px solid var(--border-3);
     font-size: 10.5px; letter-spacing: .12em;

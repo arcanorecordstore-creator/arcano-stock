@@ -65,7 +65,7 @@ body.admin-tema-funda .app-main .home-kpi-main .home-kpi-n:not(.gain):not(.loss)
 body.admin-tema-funda .app-main :is(.home-kpi-n, .kpi-value, .summary-value) { font-weight: 500; letter-spacing: .01em; }
 
 /* ---------- tablas ---------- */
-body.admin-tema-funda .table-wrap { overflow: hidden; border: 1px solid var(--border-1); }
+body.admin-tema-funda .table-wrap { overflow-x: auto; overflow-y: hidden; border: 1px solid var(--border-1); }   /* x:auto = se puede correr de costado (v5.71) */
 body.admin-tema-funda .stock-table thead th { background-color: var(--bg-2); color: var(--text-4); border-bottom-color: var(--border-2); }
 [data-theme="light"] body.admin-tema-funda .stock-table thead th { color-scheme: light; }
 body.admin-tema-funda .stock-table thead .th-sorted .th-sort-link, body.admin-tema-funda .stock-table thead .th-sort-link:hover { color: var(--text-1); }
