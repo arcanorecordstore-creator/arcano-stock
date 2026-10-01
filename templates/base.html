@@ -21,18 +21,29 @@
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_brand.css') }}">
+    {# Diseno del admin: se elige en Ajustes -> Diseno del admin. ?atema=X previsualiza sin guardar. #}
+    {# Vista previa que sigue en TODO el admin: ?atema=X la prende (cookie), ?atema=guardado la apaga. #}
+    {% set _ats = ('funda', 'consola', 'estudio') %}
+    {% set _q = request.args.get('atema') %}
+    {% set _prev = _q if _q else request.cookies.get('arcano_atema', '') %}
+    {% if _q == 'guardado' %}{% set _prev = '' %}{% endif %}
+    {% if _prev == 'actual' %}{% set _at = '' %}{% elif _prev in _ats %}{% set _at = _prev %}{% else %}{% set _at = admin_diseno or '' %}{% endif %}
+    {% set _en_prev = _prev in _ats or _prev == 'actual' %}
+    {% if _at in _ats %}<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_temas/' ~ _at ~ '.css') }}">{% endif %}
     <script>
         // Aplica el tema guardado ANTES de renderizar (evita el parpadeo oscuro)
         (function () {
             try {
-                if (localStorage.getItem('arcano-admin-theme') === 'light') {
+                // El diseno Estudio arranca en claro si todavia no se eligio con el sol/luna
+                var _g = localStorage.getItem('arcano-admin-theme');
+                if (_g === 'light' || (!_g && {{ 'true' if _at == 'estudio' else 'false' }})) {
                     document.documentElement.setAttribute('data-theme', 'light');
                 }
             } catch (e) {}
         })();
     </script>
 </head>
-<body class="app">
+<body class="app{% if _at in _ats %} admin-tema-{{ _at }}{% endif %}">
     <div class="app-shell">
         <header class="topbar">
             <div class="topbar-brand">
@@ -121,6 +132,29 @@
         </footer>
     </div>
 
+    {% if _en_prev %}
+    {% set _nombres = {'funda': 'AA · Funda', 'consola': 'AB · Consola', 'estudio': 'AC · Estudio', 'actual': 'Actual'} %}
+    <div class="atema-prev" role="status">
+        <span>Vista previa: <strong>{{ _nombres[_prev] }}</strong></span>
+        <a href="{{ url_for('settings_page') }}#diseno-admin">Elegir en Ajustes</a>
+        <a href="?atema=guardado">Salir</a>
+    </div>
+    <style>
+        .atema-prev { position: fixed; right: 14px; bottom: 14px; z-index: 9999; display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 14px; border-radius: 999px;
+            background: #1E1C1C; color: #FFF7EC; font: 400 12px/1 'Space Grotesk', sans-serif; letter-spacing: .04em; box-shadow: 0 10px 28px rgba(0,0,0,.35); }
+        .atema-prev strong { font-weight: 500; color: #E9D1AF; }
+        .atema-prev a { color: #1E1C1C; background: #E9D1AF; text-decoration: none; padding: 6px 10px; border-radius: 999px; font-weight: 500; }
+        .atema-prev a:active { opacity: .7; }
+    </style>
+    {% endif %}
+    <script>
+    (function () {
+        var q = new URLSearchParams(location.search).get('atema');
+        if (!q) return;
+        if (q === 'guardado') document.cookie = 'arcano_atema=; path=/admin; max-age=0';
+        else document.cookie = 'arcano_atema=' + encodeURIComponent(q) + '; path=/admin; max-age=2592000';
+    })();
+    </script>
     {% block scripts %}{% endblock %}
     <script>
         // Fallback de portada: si un cover no carga, en vez del icono roto del

@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.64"
+APP_VERSION = "5.65"
 import metrics
 import auth
 import mailer
@@ -590,13 +590,15 @@ self.addEventListener('notificationclick', function(e){
             _diseno = _SD.get("public_diseno", "") or ""
             _carr_modo = _SD.get("public_carrusel_modo", "compacto") or "compacto"
             _modo_def = _SD.get("public_modo_defecto", "oscuro") or "oscuro"
+            _admin_diseno = _SD.get("admin_diseno", "") or ""
         except Exception:
-            _diseno, _carr_modo, _modo_def = "", "compacto", "oscuro"
+            _diseno, _carr_modo, _modo_def, _admin_diseno = "", "compacto", "oscuro", ""
 
         return {
             "diseno_tienda": _diseno,
             "carrusel_modo": _carr_modo,
             "modo_defecto": _modo_def,
+            "admin_diseno": _admin_diseno,
             "reservas_sin_ver_count": reservas_sin_ver_count,
             "reservas_pendientes_count": reservas_pendientes_count,
             "now": now_uy(),
@@ -6352,6 +6354,7 @@ def register_routes(app: Flask) -> None:
             public_diseno=Setting.get("public_diseno", ""),
             public_carrusel_modo=Setting.get("public_carrusel_modo", "compacto"),
             public_modo_defecto=Setting.get("public_modo_defecto", "oscuro"),
+            admin_diseno_actual=Setting.get("admin_diseno", ""),
             tip_label=Setting.get("tip_label", "Staff Picks"),
             carrusel_preorder=Setting.get("carrusel_preorder", "1") == "1",
             carrusel_tips=Setting.get("carrusel_tips", "1") == "1",
@@ -8940,6 +8943,18 @@ def register_routes(app: Flask) -> None:
         Setting.set("public_modo_defecto", modo if modo in ("oscuro", "claro") else "oscuro")
         flash("Diseño de la tienda actualizado.", "success")
         return redirect(url_for("settings_page") + "#diseno-tienda")
+
+    @app.route("/admin/settings/diseno-admin", methods=["POST"])
+    @auth.admin_required
+    def settings_update_diseno_admin():
+        """Elige el diseno del PANEL DE ADMIN (Actual / Funda / Consola / Estudio).
+        Ruta propia para no pisar el form grande de Ajustes."""
+        d = (request.form.get("admin_diseno") or "").strip()
+        Setting.set("admin_diseno", d if d in ("", "funda", "consola", "estudio") else "")
+        flash("Diseño del admin actualizado.", "success")
+        resp = redirect(url_for("settings_page") + "#diseno-admin")
+        resp.delete_cookie("arcano_atema", path="/admin")   # sale de la vista previa
+        return resp
 
     @app.route("/admin/fire-sale/avisar", methods=["POST"])
     @auth.admin_required

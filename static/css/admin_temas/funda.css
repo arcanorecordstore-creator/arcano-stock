@@ -1,0 +1,89 @@
+/* =====================================================================
+   ADMIN · OPCION AA · FUNDA  (la estetica de M · Funda viva, en el panel)
+   - Oscuro: marron tono sobre tono (marron + marron oscuro), acento beige.
+   - Claro: crema y beige, acento marron.
+   - Barra de arriba como ISLA flotante redondeada; menu en pastillas.
+   - Tarjetas muy redondeadas con DOBLE BORDE (un contorno fino por fuera).
+   Solo estetica: no cambia pantallas ni botones. NO toca los colores de
+   dato (etiquetas de estado, graficos, montos verde/rojo: --gain/--loss/--status-*).
+   Se carga despues de admin_brand.css cuando Ajustes -> Diseno del admin = Funda.
+   ===================================================================== */
+
+/* ---------- colores ---------- */
+body.app.admin-tema-funda {
+    --bg-0: #3D3033; --bg-1: #33282b; --bg-2: #2A2124; --bg-3: #463a3d; --bg-hover: #463a3d;
+    --border-1: rgba(233,209,175,.10); --border-2: rgba(233,209,175,.16); --border-3: rgba(233,209,175,.28);
+    --text-1: #FFF7EC; --text-2: #f1e6d6; --text-3: #d8c8b4; --text-4: #c9b8a3; --text-5: #ad9c8a;
+    --ink: #E9D1AF; --ink-contrast: #2A2124; --ink-soft: rgba(233,209,175,.12); --ink-line: rgba(233,209,175,.34);
+    --af-isla: rgba(42,33,36,.86); --af-borde-doble: rgba(233,209,175,.08); --af-luz: rgba(255,247,236,.05);
+}
+[data-theme="light"] body.app.admin-tema-funda {
+    --bg-0: #FFF7EC; --bg-1: #F6E8D3; --bg-2: #EFDDC3; --bg-3: #E9D1AF; --bg-hover: #EFDDC3;
+    --border-1: rgba(61,48,51,.10); --border-2: rgba(61,48,51,.16); --border-3: rgba(61,48,51,.28);
+    --text-1: #1E1C1C; --text-2: #3D3033; --text-3: #5f524d; --text-4: #75675f; --text-5: #8c7d73;
+    --ink: #3D3033; --ink-contrast: #FFF7EC; --ink-soft: rgba(61,48,51,.08); --ink-line: rgba(61,48,51,.3);
+    --af-isla: rgba(255,247,236,.88); --af-borde-doble: rgba(61,48,51,.10); --af-luz: rgba(255,255,255,.35);
+}
+body.app.admin-tema-funda { background-color: var(--bg-0); }
+
+/* ---------- barra de arriba: isla flotante ---------- */
+@media (min-width: 769px) {
+    body.admin-tema-funda .topbar {
+        margin: 12px max(16px, calc((100% - 1600px) / 2 + 16px)) 0;
+        padding: 10px 14px 10px 22px; top: 12px;
+        background: var(--af-isla); backdrop-filter: blur(14px);
+        border: 1px solid var(--border-2); border-radius: 999px;
+        box-shadow: 0 18px 40px -24px rgba(0,0,0,.55), inset 0 1px 0 var(--af-luz);
+    }
+    body.admin-tema-funda .nav-link { border-radius: 999px; padding: 8px 14px; }
+    body.admin-tema-funda .nav-link.active { background: var(--ink); color: var(--ink-contrast); box-shadow: none; }
+    body.admin-tema-funda .nav-link:hover:not(.active) { color: var(--text-1); background: var(--ink-soft); }
+    body.admin-tema-funda .nav-group-menu { border-radius: 18px; padding: 8px; background: var(--bg-1); border-color: var(--border-2); top: calc(100% + 8px); }
+    body.admin-tema-funda .nav-group-menu .nav-link.active { box-shadow: none; }
+    body.admin-tema-funda .tc-strip { background: var(--bg-2); border: 1px solid var(--border-1); border-radius: 999px; padding: 6px 14px; }
+    body.admin-tema-funda .admin-theme-toggle { border-radius: 999px; }
+}
+body.admin-tema-funda .tc-val { font-weight: 500; }
+
+/* ---------- titulos ---------- */
+body.admin-tema-funda .page-title { font-size: 30px; letter-spacing: .04em; }
+body.admin-tema-funda .page-head { margin-top: 10px; }
+
+/* ---------- tarjetas: muy redondeadas + doble borde ---------- */
+body.admin-tema-funda .app-main :is(.kpi-card, .settings-card, .settings-section, .resumen-card, .detail-card, .summary-card, .upload-card,
+  .ped-compare-card, .conta-block, .cli-panel, .home-kpi, .quick-action, .radar-section, .pv-kpi, .videorev-card, .home-block, .table-wrap) {
+    border-radius: 22px !important; border-color: var(--border-1) !important;
+    box-shadow: inset 0 1px 0 var(--af-luz) !important;
+}
+body.admin-tema-funda .app-main :is(.kpi-card, .home-kpi, .quick-action, .summary-card, .resumen-card, .pv-kpi) {
+    outline: 1px solid var(--af-borde-doble); outline-offset: 4px;
+}
+body.admin-tema-funda .app-main .home-kpis { gap: 18px; }
+body.admin-tema-funda .app-main .home-kpi-main { background: var(--ink) !important; }
+body.admin-tema-funda .app-main .home-kpi-main :is(.home-kpi-l, .home-kpi-s) { color: var(--ink-contrast) !important; opacity: .75; }
+body.admin-tema-funda .app-main .home-kpi-main .home-kpi-n:not(.gain):not(.loss) { color: var(--ink-contrast) !important; }
+body.admin-tema-funda .app-main :is(.home-kpi-n, .kpi-value, .summary-value) { font-weight: 500; letter-spacing: .01em; }
+
+/* ---------- tablas ---------- */
+body.admin-tema-funda .table-wrap { overflow: hidden; border: 1px solid var(--border-1); }
+body.admin-tema-funda .stock-table thead th { background-color: var(--bg-2); color: var(--text-4); border-bottom-color: var(--border-2); }
+[data-theme="light"] body.admin-tema-funda .stock-table thead th { color-scheme: light; }
+body.admin-tema-funda .stock-table thead .th-sorted .th-sort-link, body.admin-tema-funda .stock-table thead .th-sort-link:hover { color: var(--text-1); }
+body.admin-tema-funda .stock-table thead .th-sortable:hover { background-color: var(--bg-3); }
+body.admin-tema-funda .app-main table tbody tr:hover { background-color: var(--ink-soft); }
+
+/* ---------- botones y campos ---------- */
+body.admin-tema-funda .btn { border-radius: 999px; }
+body.admin-tema-funda .app-main :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea):not(.tk-in):not(.tk-sel):not(.tk-new-input) {
+    border-radius: 12px; background-color: var(--bg-2); border-color: var(--border-2);
+}
+body.admin-tema-funda .flash { border-radius: 18px; }
+
+/* ---------- pie ---------- */
+body.admin-tema-funda .app-footer { border-top: 0; color: var(--text-5); }
+
+/* El submenu (Gestion / Agregar) se abre con solo pasar el mouse: un puente invisible
+   tapa el hueco entre el boton y el menu, asi no se cierra al bajar el mouse. */
+@media (min-width: 769px) {
+    body.admin-tema-funda .nav-group-menu::before { content: ""; position: absolute; left: 0; right: 0; top: -14px; height: 14px; }
+}

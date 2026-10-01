@@ -1,0 +1,100 @@
+/* =====================================================================
+   ADMIN · OPCION AB · CONSOLA  (como una mesa de mezcla)
+   - Negro + blanco (par del manual). Oscuro: negro profundo; claro: blanco.
+   - El MENU pasa a una COLUMNA FIJA A LA IZQUIERDA (en compu desde 1100px):
+     logo arriba, secciones con sus submenus siempre abiertos, y abajo los
+     tipos de cambio, el sol/luna y el usuario. En pantallas chicas queda la
+     barra de siempre.
+   - Lineas finas, tablas densas y numeros grandes en Light (como un display).
+   Solo estetica. NO toca colores de dato (etiquetas, graficos, verde/rojo).
+   ===================================================================== */
+
+body.app.admin-tema-consola {
+    --bg-0: #141212; --bg-1: #1E1C1C; --bg-2: #181616; --bg-3: #262323; --bg-hover: #2a2626;
+    --border-1: rgba(255,255,255,.07); --border-2: rgba(255,255,255,.11); --border-3: rgba(255,255,255,.2);
+    --text-1: #FFFFFF; --text-2: #e6e3e3; --text-3: #b5b0b0; --text-4: #9a9494; --text-5: #847e7e;
+    --ink: #FFFFFF; --ink-contrast: #1E1C1C; --ink-soft: rgba(255,255,255,.07); --ink-line: rgba(255,255,255,.3);
+    --ac-ancho: 236px;
+}
+[data-theme="light"] body.app.admin-tema-consola {
+    --bg-0: #FFFFFF; --bg-1: #FFFFFF; --bg-2: #FAF9F8; --bg-3: #F1EFED; --bg-hover: #F4F2F0;
+    --border-1: rgba(30,28,28,.08); --border-2: rgba(30,28,28,.12); --border-3: rgba(30,28,28,.24);
+    --text-1: #1E1C1C; --text-2: #2f2b2b; --text-3: #4f4a4a; --text-4: #6f6a6a; --text-5: #8f8a8a;
+    --ink: #1E1C1C; --ink-contrast: #FFFFFF; --ink-soft: rgba(30,28,28,.06); --ink-line: rgba(30,28,28,.3);
+}
+body.app.admin-tema-consola { background-color: var(--bg-0); }
+
+/* ---------- columna izquierda (compu) ---------- */
+@media (min-width: 1100px) {
+    body.admin-tema-consola .app-shell { padding-left: var(--ac-ancho); }
+    body.admin-tema-consola .topbar {
+        position: fixed; left: 0; top: 0; bottom: 0; width: var(--ac-ancho); box-sizing: border-box;
+        flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 26px;
+        padding: 24px 14px 18px; border-bottom: 0; border-right: 1px solid var(--border-2);
+        background: var(--bg-1); overflow-y: auto; scrollbar-width: thin;
+    }
+    body.admin-tema-consola .topbar-brand { padding: 0 8px; }
+    body.admin-tema-consola .brand-img { height: 38px; }
+    body.admin-tema-consola .topbar-nav { flex-direction: column; gap: 1px; flex: 1; }
+    body.admin-tema-consola .nav-link {
+        display: flex; align-items: center; justify-content: space-between; width: 100%; box-sizing: border-box;
+        padding: 9px 12px; border-radius: 10px; font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-3);
+    }
+    body.admin-tema-consola .nav-link.active { background: var(--ink); color: var(--ink-contrast); box-shadow: none; }
+    body.admin-tema-consola .nav-link:hover:not(.active) { background: var(--ink-soft); color: var(--text-1); }
+    /* los submenus (Gestion / Agregar) quedan abiertos, con sangria */
+    body.admin-tema-consola .nav-group-btn { cursor: default; }
+    body.admin-tema-consola .nav-group-btn .nav-caret { display: none; }
+    body.admin-tema-consola .nav-group-menu {
+        position: static; display: flex !important; min-width: 0; padding: 2px 0 6px 12px; margin-left: 12px;
+        background: none; border: 0; border-left: 1px solid var(--border-2); border-radius: 0; box-shadow: none !important; animation: none !important;
+    }
+    body.admin-tema-consola .nav-group-menu .nav-link { text-transform: none; letter-spacing: .02em; font-size: 13px; padding: 7px 10px; }
+    body.admin-tema-consola .nav-group-menu .nav-link.active { box-shadow: none; }
+    body.admin-tema-consola .nav-badge { margin-left: auto; }
+    body.admin-tema-consola .topbar-meta { flex-direction: column; align-items: stretch; gap: 12px; padding: 14px 8px 0; border-top: 1px solid var(--border-2); }
+    body.admin-tema-consola .tc-strip { justify-content: space-between; }
+    body.admin-tema-consola .admin-theme-toggle { align-self: flex-start; }
+    body.admin-tema-consola .meta-user { display: flex; justify-content: space-between; }
+    body.admin-tema-consola .app-main { padding-top: 34px; }
+    body.admin-tema-consola .flash-stack { left: calc(var(--ac-ancho) + 16px); }
+}
+
+/* ---------- titulos y numeros tipo display ---------- */
+body.admin-tema-consola .page-title { font-size: 28px; letter-spacing: .06em; }
+body.admin-tema-consola .page-head { border-bottom: 1px solid var(--border-2); padding-bottom: 18px; margin-bottom: 24px; }
+body.admin-tema-consola .app-main :is(.home-kpi-n, .kpi-value, .summary-value) {
+    font-weight: 300 !important; font-size: clamp(22px, 1.9vw, 30px) !important; letter-spacing: -.01em; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+body.admin-tema-consola .tc-val { font-weight: 300; font-size: 18px; }
+
+/* ---------- tarjetas: planas con linea fina ---------- */
+body.admin-tema-consola .app-main :is(.kpi-card, .settings-card, .settings-section, .resumen-card, .detail-card, .summary-card, .upload-card,
+  .ped-compare-card, .conta-block, .cli-panel, .home-kpi, .quick-action, .radar-section, .pv-kpi, .videorev-card, .home-block, .table-wrap) {
+    border-radius: 14px !important; border: 1px solid var(--border-2) !important; background-color: var(--bg-1) !important; box-shadow: none !important;
+}
+/* la fila de KPIs como un display de mezcla: celdas pegadas con divisiones finas */
+body.admin-tema-consola .app-main .home-kpis { gap: 0 !important; border: 1px solid var(--border-2); border-radius: 14px; overflow: hidden; }
+body.admin-tema-consola .app-main .home-kpis > .home-kpi { border: 0 !important; border-right: 1px solid var(--border-2) !important; border-radius: 0 !important; }
+body.admin-tema-consola .app-main .home-kpis > .home-kpi:last-child { border-right: 0 !important; }
+body.admin-tema-consola .app-main .home-kpi-main { background: var(--ink-soft) !important; }
+
+/* ---------- tablas densas ---------- */
+body.admin-tema-consola .table-wrap { overflow: hidden; }
+body.admin-tema-consola .stock-table thead th {
+    background-color: var(--bg-1); color: var(--text-4); border-bottom: 1px solid var(--border-3);
+    font-size: 10.5px; letter-spacing: .12em;
+}
+[data-theme="light"] body.admin-tema-consola .stock-table thead th { color-scheme: light; }
+body.admin-tema-consola .stock-table thead .th-sorted .th-sort-link, body.admin-tema-consola .stock-table thead .th-sort-link:hover { color: var(--text-1); }
+body.admin-tema-consola .stock-table thead .th-sortable:hover { background-color: var(--bg-3); }
+body.admin-tema-consola .app-main table td { border-bottom-color: var(--border-1); }
+body.admin-tema-consola .app-main table tbody tr:hover { background-color: var(--ink-soft); }
+
+/* ---------- botones y campos ---------- */
+body.admin-tema-consola .btn { border-radius: 10px; }
+body.admin-tema-consola .btn-primary:hover { opacity: .85; background: var(--ink); color: var(--ink-contrast); }
+body.admin-tema-consola .app-main :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea):not(.tk-in):not(.tk-sel):not(.tk-new-input) {
+    border-radius: 10px; background-color: var(--bg-2); border-color: var(--border-2);
+}
+body.admin-tema-consola .app-footer { border-top-color: var(--border-2); }

@@ -291,6 +291,35 @@
         </style>
     </section>
 
+    <section class="settings-section" id="diseno-admin">
+        <header class="settings-section-head">
+            <h2 class="settings-section-title">Diseño del admin</h2>
+            <p class="settings-section-sub">Cómo se ve este panel. Solo cambia la estética: las pantallas, botones y datos son los mismos. Los colores de etiquetas, gráficos y montos (verde/rojo) se mantienen. El sol/luna de arriba sigue cambiando entre claro y oscuro.</p>
+        </header>
+        <form method="post" action="{{ url_for('settings_update_diseno_admin') }}" class="settings-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <div class="diseno-opciones">
+                {% for valor, letra, nombre, desc in [
+                    ('', '—', 'Actual', 'El admin como está hoy.'),
+                    ('funda', 'AA', 'Funda', 'La estética de M: marrón tono sobre tono, tarjetas de doble borde bien redondeadas y la barra de arriba como una isla flotante.'),
+                    ('consola', 'AB', 'Consola', 'Como una mesa de mezcla: el menú pasa a una columna fija a la izquierda, negro y blanco, tablas finas y números grandes.'),
+                    ('estudio', 'AC', 'Estudio', 'Claro y con aire: menú en una cápsula centrada, tarjetas suaves muy redondeadas, crema y beige.')
+                ] %}
+                <label class="diseno-opcion{% if (admin_diseno_actual or '') == valor %} is-on{% endif %}">
+                    <input type="radio" name="admin_diseno" value="{{ valor }}" {% if (admin_diseno_actual or '') == valor %}checked{% endif %}>
+                    <span class="diseno-opcion-letra">{{ letra }}</span>
+                    <span class="diseno-opcion-txt">
+                        <span class="diseno-opcion-nombre">{{ nombre }}{% if (admin_diseno_actual or '') == valor %} <em>· en uso</em>{% endif %}</span>
+                        <span class="diseno-opcion-desc">{{ desc }}</span>
+                        <a class="diseno-opcion-ver" href="{{ url_for('home_admin') }}?atema={{ valor or 'actual' }}" target="_blank" rel="noopener">Ver cómo queda &rarr;</a>
+                    </span>
+                </label>
+                {% endfor %}
+            </div>
+            <div class="form-actions"><button type="submit" class="btn btn-primary">Guardar diseño del admin</button></div>
+        </form>
+    </section>
+
     <section class="settings-section">
         <header class="settings-section-head">
             <h2 class="settings-section-title">Tienda publica</h2>
