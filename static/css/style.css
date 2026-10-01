@@ -11721,6 +11721,19 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 .tk-table-ideas { min-width: 680px; }
 .tk-c-formato { width: 140px; }
 .tk-c-creada { width: 100px; }
+/* Puntaje de la idea: 1 a 5 estrellas (clic en la misma estrella = sin puntaje) */
+.tk-c-puntaje { width: 132px; }
+.tk-estrellas { display: inline-flex; gap: 1px; }
+.tk-estrella { display: inline-flex; padding: 3px 2px; background: transparent; border: 0; cursor: pointer; color: var(--border-3); line-height: 0; transition: color .15s ease, opacity .15s ease; }
+.tk-estrella svg { width: 17px; height: 17px; fill: transparent; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; transition: fill .15s ease; }
+.tk-estrella.is-on { color: #d6a945; }
+.tk-estrella.is-on svg { fill: currentColor; }
+.tk-estrellas:hover .tk-estrella { color: #d6a945; }
+.tk-estrellas:hover .tk-estrella svg { fill: currentColor; }
+.tk-estrellas .tk-estrella:hover ~ .tk-estrella { color: var(--border-3); }
+.tk-estrellas .tk-estrella:hover ~ .tk-estrella svg { fill: transparent; }
+.tk-estrella:active { opacity: .6; }
+.tk-estrella:focus-visible { outline: 2px solid var(--tk-ink); outline-offset: 1px; border-radius: 4px; }
 .tk-c-atarea { width: 110px; text-align: right; }
 .tk-fecha-txt { color: var(--text-4); font-variant-numeric: tabular-nums; font-size: 12.5px; }
 .tk-sel-formato { color: var(--text-2); }
@@ -12070,6 +12083,9 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
     .tk-table tr.tk-new-row { margin-top: 2px; background: transparent; border: 1px dashed var(--border-3); border-radius: 14px; padding: 6px 10px; }
 
     /* Ideas */
+    .tk-table-ideas .tk-c-puntaje { flex: 1 1 100%; margin: -6px 0 -2px; }
+    .tk-estrella { padding: 4px 3px; }
+    .tk-estrella svg { width: 22px; height: 22px; }
     .tk-table-ideas .tk-c-creada { order: 5; margin-left: auto; }
     .tk-table-ideas .tk-c-atarea { order: 6; }
 

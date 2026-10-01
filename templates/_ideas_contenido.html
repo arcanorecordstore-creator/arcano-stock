@@ -18,6 +18,7 @@
     <thead>
         <tr>
             <th class="tk-c-nombre">Idea</th>
+            <th class="tk-c-puntaje">Puntaje</th>
             <th class="tk-c-formato">Formato</th>
             <th class="tk-c-estado">Estado</th>
             <th class="tk-c-creada">Anotada</th>
@@ -32,6 +33,13 @@
                 <div class="tk-nombre">
                     <button type="button" class="tk-open" title="Abrir para ver y editar todo"><span class="tk-open-t">{{ i.titulo }}</span><span class="tk-open-nota{% if not i.detalle %} is-empty{% endif %}" title="Tiene nota" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M4 1.5h5.5L13 5v9.5H4z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/><path d="M6 8h5M6 10.5h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></span></button>
                     <textarea class="tk-titulo-src" data-campo="titulo" hidden aria-label="Idea">{{ i.titulo }}</textarea>
+                </div>
+            </td>
+            <td class="tk-c-puntaje">
+                {% set pj = i.puntaje or 0 %}
+                <div class="tk-estrellas" data-puntaje="{{ pj }}" role="group" aria-label="Puntaje de la idea">
+                    <input type="hidden" data-campo="puntaje" value="{{ pj }}">
+                    {% for n in range(1, 6) %}<button type="button" class="tk-estrella{% if n <= pj %} is-on{% endif %}" data-n="{{ n }}" aria-label="{{ n }} estrella{{ 's' if n > 1 }}" aria-pressed="{{ 'true' if n == pj else 'false' }}" title="{{ n }} de 5{% if n == pj %} · tocá de nuevo para sacar el puntaje{% endif %}"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 1.8l2.47 5.2 5.7.68-4.2 3.92 1.1 5.63L10 14.4l-5.07 2.83 1.1-5.63-4.2-3.92 5.7-.68z"/></svg></button>{% endfor %}
                 </div>
             </td>
             <td class="tk-c-formato">
@@ -68,13 +76,13 @@
             </td>
         </tr>
         <tr class="tk-nota-row" data-for="{{ i.id }}" hidden>
-            <td colspan="6">
+            <td colspan="7">
                 <textarea class="tk-nota" data-campo="detalle" data-id="{{ i.id }}" rows="3" placeholder="Desarrollá la idea: cómo la imaginás, pasos, links…">{{ i.detalle or '' }}</textarea>
             </td>
         </tr>
         {% endfor %}
         <tr class="tk-new-row">
-            <td colspan="6">
+            <td colspan="7">
                 <form method="post" action="{{ url_for('idea_nueva') }}" class="tk-new">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="volver_ver" value="{{ ver_i }}">

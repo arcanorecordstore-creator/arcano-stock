@@ -127,6 +127,28 @@
             }
         });
 
+        // Puntaje de ideas: 1 a 5 estrellas. Tocar la estrella que ya esta marcada lo borra.
+        function pintarEstrellas(grupo, n) {
+            grupo.dataset.puntaje = n;
+            Array.prototype.forEach.call(grupo.querySelectorAll('.tk-estrella'), function (b) {
+                var k = +b.dataset.n;
+                b.classList.toggle('is-on', k <= n);
+                b.setAttribute('aria-pressed', k === n ? 'true' : 'false');
+                b.title = k + ' de 5' + (k === n ? ' · tocá de nuevo para sacar el puntaje' : '');
+            });
+        }
+        tabla.addEventListener('click', function (e) {
+            var b = e.target.closest('.tk-estrella');
+            if (!b) return;
+            var grupo = b.closest('.tk-estrellas');
+            var inp = grupo.querySelector('[data-campo="puntaje"]');
+            var n = +b.dataset.n;
+            var nuevo = (+inp.value === n) ? 0 : n;
+            inp.value = nuevo;
+            pintarEstrellas(grupo, nuevo);
+            enviar(inp).then(function (ok) { if (!ok) pintarEstrellas(grupo, +inp.value || 0); });
+        });
+
         // Nota: la flechita abre/cierra una fila debajo con el texto.
         tabla.addEventListener('click', function (e) {
             var btn = e.target.closest('.tk-nota-btn');

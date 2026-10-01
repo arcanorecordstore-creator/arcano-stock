@@ -1663,6 +1663,7 @@ class IdeaContenido(db.Model):
     creada = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
     publicada_en = db.Column(db.DateTime, nullable=True)
     tarea_id = db.Column(db.Integer, nullable=True)   # tarea creada a partir de la idea
+    puntaje = db.Column(db.Integer, nullable=True)    # 1 a 5 estrellas (que tan buena es); None = sin puntuar
 
     @property
     def estado_key(self) -> str:
@@ -1760,6 +1761,14 @@ def _migrate_schema(app):
     
     with app.app_context():
         inspector = inspect(db.engine)
+
+        # Puntaje (1-5 estrellas) de las ideas (v5.68)
+        if inspector.has_table("ideas_contenido"):
+            _icols = [c["name"] for c in inspector.get_columns("ideas_contenido")]
+            if "puntaje" not in _icols:
+                with db.engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE ideas_contenido ADD COLUMN puntaje INTEGER"))
+                print("Migracion: columna puntaje agregada a ideas_contenido")
 
         # Columnas nuevas en la tabla movimientos_caja
         if inspector.has_table("movimientos_caja"):

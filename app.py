@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.67"
+APP_VERSION = "5.68"
 import metrics
 import auth
 import mailer
@@ -9665,6 +9665,14 @@ def register_routes(app: Flask) -> None:
             i.detalle = txt or None
         elif campo == "formato":
             i.formato = txt if txt in FORMATOS_IDEA else None
+        elif campo == "puntaje":
+            try:
+                n = int(float(txt or 0))
+            except ValueError:
+                return jsonify({"ok": False, "error": "Puntaje inválido."}), 400
+            if not 0 <= n <= 5:
+                return jsonify({"ok": False, "error": "El puntaje va de 1 a 5 estrellas."}), 400
+            i.puntaje = n or None
         elif campo == "estado":
             if txt not in ESTADOS_IDEA:
                 return jsonify({"ok": False, "error": "Estado inválido."}), 400
@@ -9677,7 +9685,7 @@ def register_routes(app: Flask) -> None:
             return jsonify({"ok": False, "error": "Campo no editable."}), 400
         db.session.commit()
         return jsonify({"ok": True, "id": i.id, "estado": i.estado, "estado_key": i.estado_key,
-                        "hecha": i.estado == "Publicada"})
+                        "hecha": i.estado == "Publicada", "puntaje": i.puntaje or 0})
 
     @app.route("/admin/ideas/<int:idea_id>/a-tarea", methods=["POST"])
     @auth.admin_required
