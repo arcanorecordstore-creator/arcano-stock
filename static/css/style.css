@@ -1609,7 +1609,15 @@ img.cover-fallback { object-fit: cover; background: transparent; }
 }
 
 @media (max-width: 1100px) {
-    .detail-grid { grid-template-columns: 1fr; }
+    /* minmax(0,1fr): la columna puede achicarse por debajo de su contenido (si no,
+       un boton o un mail largo la estiraban y el celular mostraba la pagina achicada) */
+    .detail-grid { grid-template-columns: minmax(0, 1fr); }
+}
+.detail-left, .detail-right { min-width: 0; }
+.detail-card { overflow-wrap: break-word; }
+@media (max-width: 700px) {
+    /* Botones de acciones con texto largo: bajan de renglon en vez de estirar la pagina */
+    .detail-actions .action-btn, .detail-card .btn { white-space: normal; height: auto; min-height: 40px; line-height: 1.3; text-align: center; }
 }
 
 .detail-left {
@@ -2015,6 +2023,10 @@ img.cover-fallback { object-fit: cover; background: transparent; }
     box-shadow: 0 6px 18px rgba(0, 0, 0, 0.28);
 }
 .pv-trend .pv-col:hover::after { opacity: 1; }
+/* En las puntas el cartelito se abre hacia adentro (si no, sobresale de la pantalla
+   y en el celular la pagina queda mas ancha que la pantalla) */
+.pv-trend .pv-col:nth-child(-n+4)::after { left: 0; transform: translateY(-6px); }
+.pv-trend .pv-col:nth-last-child(-n+4)::after { left: auto; right: 0; transform: translateY(-6px); }
 .pv-trend-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-4); margin-top: 4px; }
 .pv-filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 16px 0 6px; }
 .pv-search { flex: 1; min-width: 180px; }
@@ -12143,4 +12155,15 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
     .home-kpi { padding: 13px 14px 12px; }
     .home-kpi-n { font-size: 21px; }
     .home-caja .home-kpi-main { grid-column: 1 / -1; }
+}
+
+/* Red de seguridad para celular (v5.72): si algun contenido (un mail o un nombre
+   largo, una tabla, un cartelito) queda mas ancho que la pantalla, se recorta
+   ADENTRO de la pagina en vez de agrandarla. Si la pagina se agranda, el celular
+   la achica entera y se ve "como en la compu". clip (no hidden) no rompe los
+   elementos sticky ni crea barras de scroll. */
+@media (max-width: 900px) {
+    .app-main, .public-main { overflow-x: clip; }
+    /* Nombres, mails, titulos y busquedas largas (links): bajan de renglon */
+    .app-main a:not(.btn):not(.action-btn), .cli-name, .cli-email, .app-main :is(h1, h2, h3) { overflow-wrap: anywhere; }
 }
