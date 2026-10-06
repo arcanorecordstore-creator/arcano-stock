@@ -135,3 +135,16 @@ body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) .pjax-bar { background
 /* 11) Sin negrita en las paginas que todavia no se redisenaron (manual: nunca Bold) */
 body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) :is(.mbox-label, .cart-summary-total, .cart-summary-total span, .checkout-pasos-title,
   .public-disc-cover-overlay span, .public-card-agotado-overlay span, b, strong) { font-weight: 500 !important; }
+
+/* v5.74: la etiqueta Staff Pick tenia "right" de una regla vieja de celular y se
+   estiraba de punta a punta (mas ancha que la tarjeta, tapando el corazon). */
+body:is(.tema-fundaviva, .tema-picture):not(.vista-lista) .public-grid > .public-card .card-staff-sticker { right: auto !important; white-space: nowrap; }
+/* Carruseles de M y S: la misma etiqueta prolija en vez de la cinta diagonal (que
+   quedaba cortada contra el borde de la tarjeta). */
+body:is(.tema-fundaviva, .tema-picture) .carrusel-card .card-staff-sticker {
+    top: 10px !important; left: 10px !important; right: auto !important; width: auto !important;
+    transform: none !important; rotate: none !important; padding: 4px 10px !important; border-radius: 999px !important;
+    font-size: 9.5px !important; letter-spacing: .12em !important; font-weight: 500 !important; white-space: nowrap;
+    box-shadow: 0 6px 14px -8px rgba(0,0,0,.6) !important; z-index: 6 !important;
+    background: var(--fv-beige) !important; color: var(--fv-deep) !important;
+}

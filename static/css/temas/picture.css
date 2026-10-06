@@ -192,3 +192,24 @@ body.tema-picture .public-grid > .public-card.ps-sonando .public-card-artist::be
 body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-cover { overflow: visible !important; }
 body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-cover img { border-radius: 50%; }
 body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .fav-btn-card { top: -6px !important; right: -6px !important; }
+
+/* ===== Celular (v5.74): Staff Pick y carteles sin cortarse ni tapar el corazon =====
+   La tarjeta es muy angosta: arriba a la izquierda no entran (quedaban "PRE-ORD...").
+   - Staff Pick: pestanita centrada sobre el borde de arriba de la tarjeta.
+   - Pre-order / Nuevo / Ultima copia: en fila, entre el vinilo y el nombre. */
+@media (max-width: 600px) {
+    body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .card-staff-sticker {
+        top: -13px !important; left: 50% !important; translate: -50% 0; padding: 4px 9px !important;
+        font-size: 8.5px !important; letter-spacing: .1em !important;
+    }
+    body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-cover:has(.public-card-badge) { margin-bottom: 30px !important; }
+    body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-badges,
+    body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-badges.has-ribbon {
+        top: calc(100% + 9px) !important; left: 50% !important; right: auto !important; bottom: auto !important; translate: -50% 0;
+        flex-direction: row !important; flex-wrap: nowrap; justify-content: center !important; align-items: center !important;
+        gap: 4px; max-width: none !important; width: max-content;
+    }
+    body.tema-picture:not(.vista-lista) .public-grid > .public-card:not(.public-card-mbox) .public-card-badge {
+        font-size: 8.5px !important; padding: 2px 6px !important; letter-spacing: .06em !important; max-width: none !important; overflow: visible !important;
+    }
+}
