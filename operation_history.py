@@ -153,34 +153,64 @@ def register_history(app):
     @app.route('/admin/historial')
     @auth.admin_required
     def admin_historial():
+        from historial_legible import describir, nombres_de_discos, AUTOMATICAS, TIPOS
+        from models import today_uy
         page = max(1, request.args.get('pagina', 1, type=int))
-        batches = db.session.query(OperationChange.batch, db.func.max(OperationChange.id).label('last_id')).group_by(OperationChange.batch).order_by(db.desc('last_id')).limit(50).offset((page-1)*50).all()
+        # ver: 'mias' (lo que hizo Facundo, sin escuchas ni sincronizaciones solas) | 'todo'
+        ver = 'todo' if request.args.get('ver') == 'todo' else 'mias'
+        que = request.args.get('que', '')   # disco | reserva | cliente | gasto | pedido | caja
+        q = db.session.query(OperationChange.batch, db.func.max(OperationChange.id).label('last_id'))
+        if ver == 'mias':
+            q = q.filter(~OperationChange.accion.in_(AUTOMATICAS))
+        tablas_que = [t for t, (k, _) in TIPOS.items() if k == que]
+        if tablas_que:
+            q = q.filter(OperationChange.batch.in_(
+                db.session.query(OperationChange.batch).filter(OperationChange.tabla.in_(tablas_que))))
+        batches = q.group_by(OperationChange.batch).order_by(db.desc('last_id')).limit(50).offset((page-1)*50).all()
+        todos = OperationChange.query.filter(OperationChange.batch.in_([b for b, _ in batches])).order_by(OperationChange.id).all()
+        por_batch = {}
+        for ch in todos:
+            por_batch.setdefault(ch.batch, []).append(ch)
+        discos = nombres_de_discos(todos)
         groups = []
         for batch, _ in batches:
-            changes = OperationChange.query.filter_by(batch=batch).order_by(OperationChange.id).all()
-            first = changes[0]
-            groups.append({'batch':batch,'fecha':first.fecha,'actor':first.actor,'accion':first.accion,
-                           'motivo':first.motivo,'changes':changes})
+            changes = por_batch.get(batch) or []
+            if not changes:
+                continue
+            info = describir(changes, discos)
+            info.update({'batch': batch, 'fecha': changes[0].fecha, 'n_cambios': len(changes)})
+            groups.append(info)
+        # Agrupar por dia (hora de Uruguay)
+        hoy = today_uy()
+        dias = []
+        for g_ in groups:
+            dia = g_['fecha_uy'].date()
+            if not dias or dias[-1]['dia'] != dia:
+                dif = (hoy - dia).days
+                nombre = 'Hoy' if dif == 0 else ('Ayer' if dif == 1 else None)
+                dias.append({'dia': dia, 'nombre': nombre, 'ops': []})
+            dias[-1]['ops'].append(g_)
         table = request.args.get('tipo', 'reservas')
         if table not in TABLE_LABELS:
             table = 'reservas'
         records = db.session.execute(db.select(db.metadata.tables[table]).order_by(db.metadata.tables[table].c.id.desc()).limit(100)).mappings().all() if table in db.metadata.tables else []
-        return render_template('admin_historial.html', groups=groups, pagina=page, records=records, tipo=table, labels=TABLE_LABELS)
+        return render_template('admin_historial.html', groups=groups, dias=dias, pagina=page, records=records,
+                               tipo=table, labels=TABLE_LABELS, ver=ver, que=que)
 
     @app.route('/admin/historial/<batch>/recuperar', methods=['POST'])
     @auth.admin_required
     def admin_historial_recuperar(batch):
         if not request.form.get('motivo', '').strip():
-            flash('Escribí el motivo de la recuperación.', 'error')
-            return redirect(url_for('admin_historial'))
+            flash('Escribí el motivo para deshacer el cambio.', 'error')
+            return redirect(request.referrer or url_for('admin_historial'))
         try:
             restore_batch(batch)
-            flash('Operación recuperada. Quedó registrada también esta recuperación.', 'success')
+            flash('Listo: quedó como estaba antes de ese cambio. Esta recuperación también queda en el Historial.', 'success')
         except ValueError as exc:
             db.session.rollback(); flash(str(exc), 'error')
         except Exception:
             db.session.rollback(); flash('No se pudo recuperar: hay datos relacionados que requieren revisión. No se aplicó la recuperación.', 'error')
-        return redirect(url_for('admin_historial'))
+        return redirect(request.referrer or url_for('admin_historial'))
 
     # Endpoints (vistas GET) que hacen escrituras "de sincronizacion" solas al
     # abrirse (ej. la caja se sincroniza). No son acciones deliberadas, asi que

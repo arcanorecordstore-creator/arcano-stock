@@ -1,30 +1,156 @@
 {% extends 'base.html' %}
-{% block title %}Historial y recuperación · Arcano{% endblock %}
+{% from "_icons.html" import icon %}
+{% block title %}Historial · Arcano{% endblock %}
 {% block content %}
-<div class="page-head"><div><h1 class="page-title">Historial y recuperación</h1><p class="page-sub">Cambios registrados desde v4.97. Anular revierte una operación; archivar solo la oculta.</p></div></div>
-<section class="settings-card">
-<h2>Archivar o volver a mostrar</h2>
-<p>Archivar no cambia importes, stock ni disponibilidad en la tienda pública. Se oculta solamente de las listas del admin.</p>
-<form method="get"><label for="history-type">Apartado</label><select id="history-type" name="tipo">{% for key,label in labels.items() %}<option value="{{ key }}" {% if key == tipo %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><button class="btn btn-ghost">Ver</button></form>
-<form method="post" action="{{ url_for('admin_historial_archivar') }}">
-<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="tipo" value="{{ tipo }}">
-<label for="history-record">Registro (últimos 100)</label><select id="history-record" name="registro_id" required>{% for r in records %}<option value="{{ r.id }}">#{{ r.id }} · {{ r.nombre or r.titulo or r.descripcion or r.concepto or r.numero or 'Registro' }}{% if is_archived(tipo,r.id) %} · archivado{% endif %}</option>{% endfor %}</select>
-<button name="accion" value="archivar" class="btn btn-ghost">Archivar</button><button name="accion" value="mostrar" class="btn btn-ghost">Volver a mostrar</button>
-</form></section>
-<h2>Cambios recientes</h2>
-<p>Recuperar deshace todos los cambios de esa operación juntos. Si algún registro cambió después, se bloquea para no pisar información nueva. No envía mails ni deshace pagos bancarios. Las bajas conservan sus datos en este historial; los registros anteriores a esta versión no pueden reconstruirse.</p>
-{% for group in groups %}
-<section class="settings-card" style="margin-bottom:12px">
-<h3>{{ group.fecha|hora_uy }} · {{ group.actor }}</h3>
-<p>{{ group.accion }}{% if group.motivo %} · {{ group.motivo }}{% endif %}</p>
-<details><summary>{{ group.changes|length }} cambio(s): ver registros y campos</summary><ul>
-{% for change in group.changes %}<li>{{ labels.get(change.tabla, change.tabla) }} #{{ change.registro_id }}: {{ 'alta' if not change.antes else ('baja recuperable' if not change.despues else 'modificación') }}</li>{% endfor %}
-</ul></details>
-<form method="post" action="{{ url_for('admin_historial_recuperar', batch=group.batch) }}" data-confirm="¿Recuperar el estado anterior a esta operación? No se deshacen pagos externos.">
-<input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-<label>Motivo de la recuperación <input name="motivo" required maxlength="400" placeholder="Ej.: anulación cargada por error"></label>
-<button class="btn btn-ghost">Recuperar estado anterior</button>
-</form></section>
-{% else %}<p>Todavía no hay cambios registrados.</p>{% endfor %}
-<div class="page-actions">{% if pagina > 1 %}<a class="btn btn-ghost" href="{{ url_for('admin_historial',pagina=pagina-1,tipo=tipo) }}">Anterior</a>{% endif %}{% if groups|length == 50 %}<a class="btn btn-ghost" href="{{ url_for('admin_historial',pagina=pagina+1,tipo=tipo) }}">Siguiente</a>{% endif %}</div>
+{% set ICONOS = {'disco': 'disc', 'reserva': 'clip', 'cliente': 'user', 'gasto': 'coins', 'pedido': 'box', 'caja': 'scale', 'sistema': 'gear'} %}
+{% set ACCIONES = {'alta': 'Nuevo', 'baja': 'Borrado', 'cambio': 'Modificado'} %}
+{% set MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'] %}
+{% set DIAS = ['lunes','martes','miércoles','jueves','viernes','sábado','domingo'] %}
+
+<div class="page-head">
+    <div>
+        <h1 class="page-title">Historial</h1>
+        <p class="page-sub">Todo lo que cambió en el admin, con qué era antes y qué quedó. Si algo salió mal, lo deshacés desde acá.</p>
+    </div>
+</div>
+
+<div class="hx-filtros">
+    <nav class="hx-seg" aria-label="Qué mostrar">
+        <a href="{{ url_for('admin_historial', ver='mias', que=que or None) }}" class="{% if ver == 'mias' %}is-on{% endif %}">Lo que hiciste</a>
+        <a href="{{ url_for('admin_historial', ver='todo', que=que or None) }}" class="{% if ver == 'todo' %}is-on{% endif %}">Todo <span>(incluye escuchas y sincronizaciones automáticas)</span></a>
+    </nav>
+    <nav class="hx-chips" aria-label="Filtrar por tipo">
+        {% for k, n in [('', 'Todos'), ('disco', 'Discos'), ('reserva', 'Reservas'), ('cliente', 'Clientes'), ('gasto', 'Gastos'), ('pedido', 'Pedidos'), ('caja', 'Caja')] %}
+        <a href="{{ url_for('admin_historial', ver=ver, que=k or None) }}" class="hx-chip{% if que == k %} is-on{% endif %}">{% if k %}{{ icon(ICONOS[k], 14) }}{% endif %}{{ n }}</a>
+        {% endfor %}
+    </nav>
+</div>
+
+{% for d in dias %}
+<section class="hx-dia">
+    <h2 class="hx-dia-t">{{ d.nombre or '' }}{% if d.nombre %} · {% endif %}{{ DIAS[d.dia.weekday()] }} {{ d.dia.day }} de {{ MESES[d.dia.month - 1] }}</h2>
+    <ol class="hx-lista">
+    {% for op in d.ops %}
+        <li class="hx-op hx-{{ op.accion }}{% if op.automatica %} is-auto{% endif %}">
+            <span class="hx-ico hx-ico-{{ op.tipo }}" aria-hidden="true">{{ icon(ICONOS.get(op.tipo, 'gear'), 18) }}</span>
+            <div class="hx-body">
+                <div class="hx-top">
+                    <span class="hx-badge hx-badge-{{ op.accion }}">{{ ACCIONES[op.accion] }}</span>
+                    <span class="hx-meta">{{ op.fecha_uy.strftime('%H:%M') }} · {{ op.origen }}{% if op.actor %} · {{ op.actor }}{% endif %}</span>
+                </div>
+                <p class="hx-titulo">{{ op.titulo }}</p>
+                {% if op.motivo %}<p class="hx-motivo">Motivo: {{ op.motivo }}</p>{% endif %}
+
+                {% for it in op['items'] %}
+                    {% if not loop.first %}
+                    <p class="hx-sub"><span class="hx-badge hx-badge-{{ it.accion }} is-mini">{{ ACCIONES[it.accion] }}</span> {{ it.tipo_label }}: {{ it.nombre }}</p>
+                    {% endif %}
+                    {% if it.campos %}
+                    <dl class="hx-campos">
+                        {% for nombre, antes, despues in it.campos[:8] %}
+                        <div class="hx-campo">
+                            <dt>{{ nombre }}</dt>
+                            <dd>{% if antes != 'cambió' %}<s class="hx-antes">{{ antes }}</s> <span class="hx-flecha" aria-label="pasó a">&rarr;</span> {% endif %}<b class="hx-despues">{{ despues }}</b></dd>
+                        </div>
+                        {% endfor %}
+                        {% if it.campos|length > 8 %}<p class="hx-mas">y {{ it.campos|length - 8 }} campo(s) más</p>{% endif %}
+                    </dl>
+                    {% endif %}
+                {% endfor %}
+                {% if op.secundarios %}<p class="hx-mas">+ {{ op.secundarios }} ajuste(s) interno(s) del sistema</p>{% endif %}
+
+                <details class="hx-deshacer">
+                    <summary>Deshacer este cambio</summary>
+                    <form method="post" action="{{ url_for('admin_historial_recuperar', batch=op.batch) }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                        <p>Vuelve todo lo de arriba a como estaba <b>antes</b> de este cambio{% if op.accion == 'alta' %} (lo que se creó se borra){% elif op.accion == 'baja' %} (lo que se borró vuelve){% endif %}. No deshace pagos de Mercado Pago ni mails enviados. Si después hubo otro cambio sobre lo mismo, no se toca nada.</p>
+                        <label>¿Por qué lo deshacés? <input name="motivo" required maxlength="400" placeholder="Ej.: lo cargué por error"></label>
+                        <button class="btn btn-primary">Deshacer</button>
+                    </form>
+                </details>
+            </div>
+        </li>
+    {% endfor %}
+    </ol>
+</section>
+{% else %}
+<p class="hx-vacio">{% if que or ver == 'mias' %}No hay cambios para mostrar con este filtro.{% else %}Todavía no hay cambios registrados.{% endif %}</p>
+{% endfor %}
+
+<div class="page-actions">
+    {% if pagina > 1 %}<a class="btn btn-ghost" href="{{ url_for('admin_historial', pagina=pagina-1, ver=ver, que=que or None) }}">&larr; Más nuevos</a>{% endif %}
+    {% if groups|length == 50 %}<a class="btn btn-ghost" href="{{ url_for('admin_historial', pagina=pagina+1, ver=ver, que=que or None) }}">Más viejos &rarr;</a>{% endif %}
+</div>
+
+<details class="settings-card hx-archivar">
+    <summary>Ocultar registros de las listas del admin (avanzado)</summary>
+    <p>Archivar no cambia importes, stock ni lo que se ve en la tienda: solo oculta el registro de las listas del admin.</p>
+    <form method="get" class="hx-arch-form"><label for="history-type">Apartado</label><select id="history-type" name="tipo">{% for key,label in labels.items() %}<option value="{{ key }}" {% if key == tipo %}selected{% endif %}>{{ label }}</option>{% endfor %}</select><input type="hidden" name="ver" value="{{ ver }}"><button class="btn btn-ghost">Ver</button></form>
+    <form method="post" action="{{ url_for('admin_historial_archivar') }}" class="hx-arch-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="tipo" value="{{ tipo }}">
+        <label for="history-record">Registro (últimos 100)</label><select id="history-record" name="registro_id" required>{% for r in records %}<option value="{{ r.id }}">#{{ r.id }} · {{ r.nombre or r.titulo or r.descripcion or r.concepto or r.numero or 'Registro' }}{% if is_archived(tipo,r.id) %} · archivado{% endif %}</option>{% endfor %}</select>
+        <button name="accion" value="archivar" class="btn btn-ghost">Archivar</button><button name="accion" value="mostrar" class="btn btn-ghost">Volver a mostrar</button>
+    </form>
+</details>
+
+<style>
+.hx-filtros { display: flex; flex-direction: column; gap: 12px; margin-bottom: 22px; }
+.hx-seg { display: flex; flex-wrap: wrap; gap: 0; border-bottom: 1px solid var(--border-2); }
+.hx-seg a { padding: 10px 16px 11px 0; margin-right: 16px; margin-bottom: -1px; text-decoration: none; color: var(--text-4); font-size: 13px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; border-bottom: 1px solid transparent; }
+.hx-seg a span { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 12px; color: var(--text-5); }
+.hx-seg a.is-on { color: var(--text-1); border-bottom-color: var(--text-1); }
+.hx-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hx-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border: 1px solid var(--border-2); border-radius: 999px; font-size: 13px; color: var(--text-3); text-decoration: none; transition: border-color .15s ease, color .15s ease; }
+.hx-chip:hover { color: var(--text-1); border-color: var(--border-3); }
+.hx-chip.is-on { color: var(--bg-0); background: var(--text-1); border-color: var(--text-1); }
+
+.hx-dia { margin-bottom: 26px; }
+.hx-dia-t { font-size: 12px; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--text-3); margin: 0 0 10px; }
+.hx-lista { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.hx-op { display: flex; gap: 14px; padding: 14px 16px; background: var(--bg-1); border: 1px solid var(--border-1); border-left: 3px solid var(--border-3); border-radius: 12px; min-width: 0; }
+.hx-op.hx-alta { border-left-color: #10b981; }
+.hx-op.hx-baja { border-left-color: #ef4444; }
+.hx-op.hx-cambio { border-left-color: #d6a945; }
+.hx-op.is-auto { opacity: .72; }
+.hx-ico { flex: 0 0 36px; height: 36px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; background: var(--bg-2); color: var(--text-2); }
+.hx-body { flex: 1 1 auto; min-width: 0; }
+.hx-top { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.hx-badge { font-size: 10.5px; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; white-space: nowrap; }
+.hx-badge-alta { background: rgba(16,185,129,.16); color: #10b981; }
+.hx-badge-baja { background: rgba(239,68,68,.16); color: #ef4444; }
+.hx-badge-cambio { background: rgba(214,169,69,.18); color: #b8892a; }
+html:not([data-theme="light"]) .hx-badge-cambio { color: #d6a945; }
+.hx-badge.is-mini { font-size: 9.5px; padding: 2px 6px; }
+.hx-meta { font-size: 12.5px; color: var(--text-4); }
+.hx-titulo { margin: 6px 0 0; font-size: 15px; font-weight: 500; color: var(--text-1); line-height: 1.4; overflow-wrap: anywhere; }
+.hx-motivo { margin: 4px 0 0; font-size: 13px; color: var(--text-3); font-style: italic; }
+.hx-sub { margin: 10px 0 0; font-size: 13.5px; color: var(--text-2); overflow-wrap: anywhere; }
+.hx-campos { margin: 8px 0 0; display: flex; flex-direction: column; gap: 4px; }
+.hx-campo { display: grid; grid-template-columns: minmax(110px, 180px) minmax(0, 1fr); gap: 10px; font-size: 13.5px; align-items: baseline; }
+.hx-campo dt { color: var(--text-4); }
+.hx-campo dd { margin: 0; color: var(--text-1); overflow-wrap: anywhere; }
+.hx-antes { color: var(--text-4); text-decoration-color: currentColor; }
+.hx-flecha { color: var(--text-5); margin: 0 2px; }
+.hx-despues { font-weight: 500; }
+.hx-mas { margin: 6px 0 0; font-size: 12.5px; color: var(--text-4); }
+.hx-deshacer { margin-top: 12px; }
+.hx-deshacer summary { display: inline-block; cursor: pointer; font-size: 12.5px; color: var(--text-3); text-decoration: underline; text-underline-offset: 3px; list-style: none; }
+.hx-deshacer summary::-webkit-details-marker { display: none; }
+.hx-deshacer summary:hover { color: var(--text-1); }
+.hx-deshacer form { margin-top: 10px; padding: 12px; border: 1px dashed var(--border-3); border-radius: 10px; display: flex; flex-direction: column; gap: 10px; }
+.hx-deshacer form p { margin: 0; font-size: 13px; color: var(--text-3); line-height: 1.45; }
+.hx-deshacer label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--text-3); }
+.hx-deshacer button { align-self: flex-start; }
+.hx-vacio { color: var(--text-4); }
+.hx-archivar { margin-top: 28px; }
+.hx-archivar summary { cursor: pointer; font-size: 13px; color: var(--text-3); }
+.hx-arch-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.hx-arch-form select { max-width: 100%; }
+@media (max-width: 700px) {
+    .hx-op { padding: 12px; gap: 10px; }
+    .hx-ico { flex-basis: 30px; height: 30px; }
+    .hx-campo { grid-template-columns: minmax(0, 1fr); gap: 0; margin-bottom: 4px; }
+    .hx-seg a span { display: none; }
+}
+</style>
 {% endblock %}
