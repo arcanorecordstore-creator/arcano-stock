@@ -26,10 +26,10 @@
         <span class="quick-action-label">Desde factura</span>
         <span class="quick-action-sub">Escanear PDF/imagen</span>
     </a>
-    <a href="{{ url_for('disc_new_from_url') }}" class="quick-action">
+    <a href="{{ url_for('disc_new_combo') }}" class="quick-action">
         <span class="quick-action-icon">{{ icon('link', 20) }}</span>
-        <span class="quick-action-label">Desde URL</span>
-        <span class="quick-action-sub">Deejay.de</span>
+        <span class="quick-action-label">URL &middot; Foto &middot; Video</span>
+        <span class="quick-action-sub">Deejay.de + videos</span>
     </a>
     <a href="{{ url_for('admin_reservas') }}" class="quick-action {% if reservas_pendientes_count > 0 %}quick-action-alert{% endif %}">
         <span class="quick-action-icon">{{ icon('flag', 20) }}</span>

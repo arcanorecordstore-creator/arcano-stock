@@ -39,19 +39,47 @@
         if (typeof prevYtCb === 'function') { try { prevYtCb(); } catch (e) {} }
         ytPending.splice(0).forEach(function (fn) { try { fn(); } catch (e) {} });
     };
-    function whenYt(fn) { if (ytReady) fn(); else ytPending.push(fn); }
+    // Las librerias de YouTube y SoundCloud se cargan recien la PRIMERA vez que se
+    // reproduce algo de esa fuente (antes se cargaban en todas las paginas aunque nadie
+    // tocara play, y frenaban la carga en el celular).
+    var cargas = {};
+    function cargarScript(src, cb) {
+        var est = cargas[src];
+        if (est === true) { if (cb) cb(); return; }
+        if (est) { if (cb) est.push(cb); return; }
+        cargas[src] = cb ? [cb] : [];
+        var s = document.createElement('script');
+        s.src = src; s.async = true;
+        s.onload = function () {
+            var lista = cargas[src]; cargas[src] = true;
+            (lista || []).forEach(function (f) { try { f(); } catch (e) {} });
+        };
+        s.onerror = function () { cargas[src] = undefined; };
+        document.head.appendChild(s);
+    }
+    function whenYt(fn) {
+        if (ytReady) { fn(); return; }
+        ytPending.push(fn);
+        cargarScript('https://www.youtube.com/iframe_api');
+    }
     function scReady() { return !!(window.SC && window.SC.Widget); }
+    function whenSc(fn) {
+        if (scReady()) { fn(); return; }
+        cargarScript('https://w.soundcloud.com/player/api.js', function () { if (scReady()) fn(); });
+    }
 
     // ---- UI ----
     function setPlayingUI(p) {
         isPlaying = p;
         var pl = fpPlay.querySelector('.fp-ico-play'), pa = fpPlay.querySelector('.fp-ico-pause');
-        if (pl) pl.hidden = p; if (pa) pa.hidden = !p;
+        // Los iconos son <svg>: en SVG "el.hidden = x" no cambia nada (no existe esa
+        // propiedad), por eso el boton quedaba siempre en play. Se usa el atributo.
+        if (pl) pl.toggleAttribute('hidden', p); if (pa) pa.toggleAttribute('hidden', !p);
         document.querySelectorAll('[data-play]').forEach(function (b) {
             var act = (b === activeBtn);
             b.classList.toggle('is-playing', act);
             var pi = b.querySelector('.play-icon'), pz = b.querySelector('.pause-icon');
-            if (pi) pi.hidden = act; if (pz) pz.hidden = !act;
+            if (pi) pi.hidden = act && p; if (pz) pz.hidden = !(act && p);
         });
     }
     function setProgress(cur, dur) {
@@ -110,7 +138,7 @@
         fpSlot.appendChild(iframe);
         setFallback(t.soundcloudUrl, 'SoundCloud');
         var dur = 0, w = null;
-        if (scReady()) {
+        whenSc(function () {
             w = SC.Widget(iframe);
             w.bind(SC.Widget.Events.READY, function () {
                 try { w.setVolume(volumen * 100); } catch (e) {}
@@ -125,7 +153,7 @@
             });
             w.bind(SC.Widget.Events.FINISH, onEnded);
             try { w.bind(SC.Widget.Events.ERROR, onEnded); } catch (e) {}  // track roto -> saltar
-        }
+        });
         return {
             toggle: function () { if (w) w.toggle(); },
             seekPct: function (p) { if (w && dur) w.seekTo(p * dur * 1000); },
@@ -212,8 +240,8 @@
         if (fpVolBtn) {
             var mut = fpVolBtn.querySelector('.fp-ico-mute'), snd = fpVolBtn.querySelector('.fp-ico-vol');
             var silenciado = volumen <= 0;
-            if (mut) mut.hidden = !silenciado;
-            if (snd) snd.hidden = silenciado;
+            if (mut) mut.toggleAttribute('hidden', !silenciado);
+            if (snd) snd.toggleAttribute('hidden', silenciado);
             fpVolBtn.setAttribute('aria-label', silenciado ? 'Activar sonido' : 'Silenciar');
         }
     }

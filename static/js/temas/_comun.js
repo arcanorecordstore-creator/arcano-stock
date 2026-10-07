@@ -82,7 +82,7 @@
         if (!w) return;
         var b = w.querySelector('.public-disc-cover-play');
         var pausa = document.querySelector('#fp-playpause .fp-ico-pause');
-        w.classList.toggle('cm-sonando', !!(b && b.classList.contains('is-playing') && pausa && !pausa.hidden));
+        w.classList.toggle('cm-sonando', !!(b && b.classList.contains('is-playing') && pausa && !pausa.hasAttribute('hidden')));
     }, 500);
 
     // ---------- Carruseles en carrete ----------

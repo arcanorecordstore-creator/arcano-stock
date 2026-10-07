@@ -16,6 +16,29 @@
 
     var ORIGEN = location.origin;
     var cargando = false;
+    // Pagina desde la que se llego a la actual (para "Volver al catalogo").
+    var anterior = null;
+
+    // Volver atras te deja donde estabas: el scroll de cada pagina se guarda en su
+    // entrada del historial y se repone al volver (antes siempre subia arriba de todo).
+    // La pagina, el orden y los filtros ya viajan en la URL.
+    try { history.scrollRestoration = 'manual'; } catch (e) {}
+    function guardarScroll() {
+        try {
+            var st = history.state || {};
+            history.replaceState({ pjax: true, y: window.scrollY || window.pageYOffset || 0,
+                                   prev: st.prev || null }, '', location.href);
+        } catch (e) {}
+    }
+    function reponerScroll(y) {
+        window.scrollTo(0, y);
+        // Las tapas cargan de a poco: si la pagina todavia no es tan alta, reintentar.
+        var intentos = 0;
+        (function otra() {
+            if (intentos++ > 10 || Math.abs((window.scrollY || 0) - y) < 2) return;
+            setTimeout(function () { window.scrollTo(0, y); otra(); }, 80);
+        })();
+    }
 
     // --- Barra de progreso arriba ---
     var barra = document.createElement('div');
@@ -73,7 +96,7 @@
         document.body.style.overflow = '';
     }
 
-    function swap(html, url, push) {
+    function swap(html, url, push, y) {
         var doc;
         try { doc = new DOMParser().parseFromString(html, 'text/html'); } catch (e) { location.href = url; return; }
         var nuevoMain = doc.querySelector('.public-main');
@@ -93,13 +116,20 @@
         var canActual = document.querySelector('link[rel="canonical"]');
         if (canNuevo && canActual) canActual.setAttribute('href', canNuevo.getAttribute('href'));
 
-        if (push) history.pushState({ pjax: true }, '', url);
+        if (push) {
+            anterior = location.href;
+            history.pushState({ pjax: true, y: 0, prev: anterior }, '', url);
+        } else {
+            anterior = (history.state && history.state.prev) || null;
+        }
 
-        // Scroll: si la URL trae #ancla, bajar a esa seccion; si no, arriba de todo.
+        // Scroll: al volver atras/adelante, donde estabas; si la URL trae #ancla, esa
+        // seccion; si no, arriba de todo.
         var hash = '';
         try { hash = new URL(url, location.href).hash; } catch (e) {}
         var anchor = hash && hash.length > 1 ? document.getElementById(hash.slice(1)) : null;
-        if (anchor) anchor.scrollIntoView(); else window.scrollTo(0, 0);
+        if (typeof y === 'number') reponerScroll(y);
+        else if (anchor) anchor.scrollIntoView(); else window.scrollTo(0, 0);
 
         // El checkout ("finalizar compra") en adelante no lleva reproductor
         if (nuevoMain.querySelector('[data-no-player]') || nuevoMain.hasAttribute('data-no-player')) {
@@ -112,9 +142,10 @@
         if (window.gtag) { try { gtag('event', 'page_view', { page_location: url, page_title: document.title }); } catch (e) {} }
     }
 
-    function navegar(url, push) {
+    function navegar(url, push, y) {
         if (cargando) return;
         cargando = true;
+        if (push) guardarScroll();
         mostrarBarra();
         fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
             .then(function (r) {
@@ -126,7 +157,7 @@
                 }
                 return r.text();
             })
-            .then(function (html) { if (html != null) swap(html, url, push); })
+            .then(function (html) { if (html != null) swap(html, url, push, y); })
             .catch(function () { location.href = url; })
             .then(function () { cargando = false; ocultarBarra(); });
     }
@@ -135,6 +166,17 @@
     document.addEventListener('click', function (e) {
         if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
         var a = e.target.closest('a');
+        // "Volver al catalogo" desde una ficha a la que llegaste desde el catalogo:
+        // es un "atras" (misma pagina, filtros y altura), no ir al inicio de cero.
+        if (a && a.classList.contains('public-back') && anterior) {
+            var prev;
+            try { prev = new URL(anterior); } catch (err) { prev = null; }
+            if (prev && prev.origin === ORIGEN && prev.pathname === '/') {
+                e.preventDefault();
+                history.back();
+                return;
+            }
+        }
         if (!esNavegable(a)) return;
         e.preventDefault();
         navegar(new URL(a.href, location.href).href, true);
@@ -154,7 +196,21 @@
     });
 
     // Atras / adelante del navegador
-    window.addEventListener('popstate', function () { navegar(location.href, false); });
+    window.addEventListener('popstate', function (e) {
+        var y = (e.state && typeof e.state.y === 'number') ? e.state.y : 0;
+        navegar(location.href, false, y);
+    });
 
-    history.replaceState({ pjax: true }, '', location.href);
+    // Salidas sin pjax (recarga, checkout, otra web): guardar la altura igual.
+    window.addEventListener('pagehide', guardarScroll);
+
+    var _st0 = history.state || {};
+    var _nav = '';
+    try { _nav = (performance.getEntriesByType('navigation')[0] || {}).type || ''; } catch (e) {}
+    anterior = _st0.prev || null;
+    if ((_nav === 'back_forward' || _nav === 'reload') && typeof _st0.y === 'number' && _st0.y > 0) {
+        reponerScroll(_st0.y);
+    }
+    history.replaceState({ pjax: true, y: (typeof _st0.y === 'number' ? _st0.y : 0), prev: anterior },
+                         '', location.href);
 })();

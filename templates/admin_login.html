@@ -22,7 +22,7 @@
             {% if messages %}
                 <div class="flashes">
                     {% for cat, msg in messages %}
-                        <div class="flash flash-{{ cat }}">{{ msg }}</div>
+                        <div class="flash flash-{{ cat }}">{{ msg|texto }}</div>
                     {% endfor %}
                 </div>
             {% endif %}

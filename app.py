@@ -32,6 +32,7 @@ from models import (
     ReservaItem,
     Track,
     parse_tracklist_text,
+    sello_base,
     ESTADOS_DISCO,
     AUDIO_ESTADOS,
     ESTADOS_RESERVA,
@@ -49,7 +50,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.78"
+APP_VERSION = "5.79"
 import metrics
 import auth
 import mailer
@@ -139,6 +140,17 @@ def _base_publica():
         from flask import request as _rq
         base = _rq.url_root
     return base.rstrip("/")
+
+
+def _norm_busqueda(texto):
+    """Texto para comparar en el buscador: minusculas, sin tildes ni signos raros
+    (Verniß -> verniss, Garçon -> garcon, Ø -> o). Asi "vernis" encuentra "Verniß"."""
+    import unicodedata as _ud
+    t = str(texto or "").lower()
+    t = (t.replace("ß", "ss").replace("ø", "o").replace("æ", "ae").replace("œ", "oe")
+          .replace("đ", "d").replace("ł", "l"))
+    t = _ud.normalize("NFKD", t)
+    return "".join(ch for ch in t if not _ud.combining(ch))
 
 
 _recuperar_hist = {}   # clave (ip o email) -> timestamps de pedidos de "olvide mi contrasena"
@@ -696,6 +708,16 @@ self.addEventListener('notificationclick', function(e){
             "app_version": APP_VERSION,
         }
 
+    @app.template_filter("texto")
+    def _texto_legible(valor):
+        """Para avisos (flash) y mensajes: convierte los codigos HTML de las tildes
+        (&iacute;, &ntilde;...) en letras normales y despues escapa el texto. Antes se
+        veia literal "Eleg&iacute;" o "per&iacute;odo"; y escapar despues mantiene a
+        salvo los avisos que incluyen datos que escribio un cliente (nombre, email)."""
+        import html as _html
+        from markupsafe import escape as _esc
+        return _esc(_html.unescape(str(valor or "")))
+
     @app.template_filter("hora_uy")
     def _hora_uy(dt, fmt="%d/%m/%Y %H:%M"):
         """Muestra un datetime (guardado en UTC por default=datetime.utcnow) en hora
@@ -1189,6 +1211,12 @@ def register_status_change(disc: Disc, nuevo_estado: str, nota: str | None = Non
         disc.venta_grupo = None
         if (disc.stock or 0) <= 0 and nuevo_estado in ("Disponible", "Reservado", "Pre-order", "Encargo"):
             disc.stock = 1
+    # Un pre-order tomado por un pedido web lleva venta_grupo "r<id>". Si deja de ser
+    # pre-order sin venderse (llego y lo pasaste a Disponible, Reservado, etc.), se
+    # suelta de ese pedido: si no, una venta futura quedaria atada al pedido viejo.
+    if (estado_anterior in ("Pre-order", "Encargo") and nuevo_estado != "Vendido"
+            and nuevo_estado not in ("Pre-order", "Encargo")):
+        disc.venta_grupo = None
 
     if nuevo_estado == "Reservado" and not disc.fecha_reserva:
         disc.fecha_reserva = ahora
@@ -3156,7 +3184,7 @@ def register_routes(app: Flask) -> None:
                     cambios += 1
                 db.session.commit()
                 etiquetas = {
-                    "destacado": "Destacado", "en_nuevos": "Nuevos ingresos", "es_tip": "Tip",
+                    "destacado": "Destacado", "en_nuevos": "Nuevos ingresos", "es_tip": "Staff Pick",
                     "cartel_ultima": "Ultima copia", "mostrar_agotado": "Agotado visible",
                     "es_preorder": "Carrusel Pre-order", "en_fire_sale": "Fire Sale",
                 }
@@ -4194,6 +4222,17 @@ def register_routes(app: Flask) -> None:
         shares[0] += round(box_total - base * n)   # el remanente al primero
         return dict(zip(asignados, shares))
 
+    def _apartar_para_pedido(reserva, discos, motivo):
+        """Aparta los discos de un pedido web que todavia no se pago (transferencia con
+        comprobante o "reservar y coordinar"): los Disponibles pasan a Reservado (nota
+        "Reserva #id", asi cancelar/borrar el pedido los libera) y los Pre-order quedan
+        tomados por el pedido (venta_grupo "r<id>"), asi nadie mas los compra."""
+        for d in discos:
+            if d.estado == "Disponible":
+                register_status_change(d, "Reservado", nota=f"Reserva #{reserva.id} - {motivo}")
+            elif d.estado in ("Pre-order", "Encargo") and not d.venta_grupo:
+                d.venta_grupo = f"r{reserva.id}"
+
     def _disco_es_de_reserva(d, reserva):
         """True si el estado actual del disco (Vendido / Reservado) se lo puso ESTA
         reserva. Sirve para que borrar una reserva (o eliminar una venta) solo deshaga
@@ -4224,6 +4263,8 @@ def register_routes(app: Flask) -> None:
         if d.estado == "Reservado":
             h = _ultimo("Reservado")
             return bool(h and h.nota and _patron.search(h.nota))
+        if d.estado in ("Pre-order", "Encargo"):
+            return d.venta_grupo == f"r{reserva.id}"
         return False
 
     @app.route("/admin/ventas/eliminar", methods=["POST"])
@@ -6884,6 +6925,18 @@ def register_routes(app: Flask) -> None:
             return False
         return any(getattr(d, "en_fire_sale_activo", False) for d in discs)
 
+    def _checkout_fs(ids_raw):
+        """Aviso del checkout: hay discos en Fire Sale y el visitante no inicio sesion.
+        Le ofrece crear la cuenta en el mismo paso o iniciar sesion y volver aca."""
+        if auth.cliente_actual_id():
+            return {"fs_aviso": False}
+        ids = [int(x) for x in (ids_raw or "").split(",") if x.strip().isdigit()][:100]
+        hay = bool(ids) and any(getattr(d, "en_fire_sale_activo", False)
+                                for d in Disc.query.filter(Disc.id.in_(ids)).all())
+        return {"fs_aviso": hay,
+                "fs_login_url": url_for("cliente_login_page",
+                                        next=url_for("public_checkout", ids=ids_raw))}
+
     def _guardar_comprobante(reserva, file):
         """Guarda el comprobante de transferencia (imagen o PDF), si vino uno."""
         if not file or not file.filename:
@@ -7022,7 +7075,10 @@ def register_routes(app: Flask) -> None:
             # Antes solo contaba "Vendido": un disco Reservado por Instagram o un Encargo
             # con sena de otro cliente se vendia igual al que pagaba por MP.
             _de_otro = False
-            if d.estado in ("Reservado", "Encargo") or (d.estado == "Pre-order" and d.cliente_id):
+            if d.estado in ("Pre-order", "Encargo") and d.venta_grupo:
+                # Pre-order tomado por un pedido web: es de ESE pedido y de nadie mas.
+                _de_otro = d.venta_grupo != f"r{reserva.id}"
+            elif d.estado in ("Reservado", "Encargo") or (d.estado == "Pre-order" and d.cliente_id):
                 _mismo = bool(_cli_pagador) and d.cliente_id == _cli_pagador
                 if not (_mismo or (d.estado == "Reservado" and _disco_es_de_reserva(d, reserva))):
                     _de_otro = True
@@ -7287,17 +7343,29 @@ def register_routes(app: Flask) -> None:
             return None
 
         if q:
-            q_lower = q.lower()
-            discs = [
-                d for d in discs
-                if q_lower in (d.artista or "").lower()
-                or q_lower in (d.titulo or "").lower()
-                or q_lower in (d.sello or "").lower()
-                or q_lower in (d.genero or "").lower()
-            ]
+            # Busca tambien en los TRACKS (titulo y artista: la gente busca el tema que
+            # escucho en el reel) y sin importar tildes. Antes "Orbiting Voices" (un
+            # track) o "vernis" (Verniß) daban 0, y esos 0 falsos ensuciaban el Radar.
+            _q = _norm_busqueda(q)
+            _q_alt = _q.replace("ss", "s")   # "vernis" vs "verniss"
+
+            def _coincide(d):
+                campos = [d.artista, d.titulo, d.sello, d.genero]
+                for t in (d.tracks or []):
+                    campos.append(t.titulo)
+                    campos.append(t.artista)
+                for cmp in campos:
+                    if not cmp:
+                        continue
+                    n = _norm_busqueda(cmp)
+                    if _q in n or _q_alt in n.replace("ss", "s"):
+                        return True
+                return False
+            discs = [d for d in discs if _coincide(d)]
         if sellos_sel:
-            sl = {s.lower() for s in sellos_sel}
-            discs = [d for d in discs if (d.sello or "").lower() in sl]
+            # Agrupado sin el numero de catalogo ("Fresh Tunez TUNEZ005" = "Fresh Tunez")
+            sl = {sello_base(s).lower() for s in sellos_sel}
+            discs = [d for d in discs if sello_base(d.sello).lower() in sl]
         if genero_sel:
             gl = {g.lower() for g in genero_sel}
             discs = [d for d in discs
@@ -7340,6 +7408,13 @@ def register_routes(app: Flask) -> None:
             # Por defecto: el orden manual que el admin arma arrastrando en el
             # dashboard (mayor = primero). Los discos nuevos entran arriba.
             discs.sort(key=lambda d: (d.orden if d.orden is not None else 0), reverse=True)
+
+        # Los agotados (que se muestran igual porque los marcaste "mostrar agotado") van
+        # SIEMPRE al final, con cualquier orden: antes se mezclaban y habia paginas con
+        # 10 agotados de 16. sort es estable: dentro de cada grupo se respeta el orden.
+        discs.sort(key=lambda d: 1 if (d.esta_agotado and not d.mostrar_preorder) else 0)
+        # Para el contador: solo los que se pueden comprar (sin agotados ni la box).
+        total_comprables = sum(1 for d in discs if not (d.esta_agotado and not d.mostrar_preorder))
 
         # Mystery Box fijada primera: solo en la vista de navegacion (sin busqueda ni
         # filtros). Si hay un filtro/genero activo, la box no aplica y no se muestra.
@@ -7390,6 +7465,7 @@ def register_routes(app: Flask) -> None:
         # Facetas con contadores (a partir de TODO el catalogo disponible)
         from collections import Counter
         sellos_count = Counter()
+        sellos_display = {}          # clave minuscula sin catalogo -> nombre a mostrar
         generos_count = Counter()   # clave = genero en minuscula (agrupa May/min)
         generos_display = {}         # clave minuscula -> texto lindo para mostrar
         tags_count = Counter()
@@ -7404,7 +7480,9 @@ def register_routes(app: Flask) -> None:
             if _tc:
                 condiciones_count[_tc] += 1
             if d.sello:
-                sellos_count[d.sello] += 1
+                _sb = sello_base(d.sello)
+                _nombre = sellos_display.setdefault(_sb.lower(), _sb)
+                sellos_count[_nombre] += 1
             for g in _norm_generos(d.genero):
                 key = g.lower()
                 generos_count[key] += 1
@@ -7423,7 +7501,7 @@ def register_routes(app: Flask) -> None:
             if d.precio_uyu and d.precio_uyu > 0:
                 precios.append(d.precio_uyu)
 
-        sellos = sorted(sellos_count.keys())
+        sellos = sorted(sellos_count.keys(), key=lambda x: x.lower())
         sellos_destacados = sellos_count.most_common(8)
         generos = sorted(
             ((generos_display[k], cnt) for k, cnt in generos_count.items()),
@@ -7573,6 +7651,7 @@ def register_routes(app: Flask) -> None:
             condiciones=[("nuevo", "Nuevo", condiciones_count.get("nuevo", 0)),
                          ("usado", "Usado", condiciones_count.get("usado", 0))],
             filtro_condiciones=condicion_sel,
+            total_comprables=total_comprables,
             filtros_activos=filtros_activos,
             **_public_context(),
         )
@@ -7841,6 +7920,18 @@ def register_routes(app: Flask) -> None:
     # ese email y se activa recien cuando el dueno lo toca. Antes cualquiera que supiera
     # el email de un cliente se registraba con el y veia su historial, sus datos y su
     # lealtad. El link lleva la contrasena ya HASHEADA (nunca en texto) y vence en 48 h.
+    def _mail_en_segundo_plano(asunto, texto, html, destino):
+        """Manda el mail sin hacer esperar la respuesta: asi "recuperar" y "registro"
+        tardan lo mismo exista o no la cuenta (antes se podia averiguar por el tiempo)."""
+        import threading
+
+        def _enviar():
+            try:
+                mailer.send_email(asunto, texto, html, to=destino)
+            except Exception:
+                pass
+        threading.Thread(target=_enviar, daemon=True).start()
+
     def _activar_serializer():
         from itsdangerous import URLSafeTimedSerializer
         return URLSafeTimedSerializer(app.config.get("SECRET_KEY") or "dev-key",
@@ -7948,11 +8039,8 @@ def register_routes(app: Flask) -> None:
                 errores.append("La contrasena debe tener al menos 6 caracteres.")
             if password != password2:
                 errores.append("Las contrasenas no coinciden.")
-            _existente = Cliente.query.filter_by(email=email).first() if email else None
-            # Solo bloquea si ya hay una cuenta REAL (con contrasena). Si la ficha existe
-            # pero sin contrasena (se creo sola por una compra sin cuenta), se adopta abajo.
-            if _existente and _existente.password_hash:
-                errores.append("Ya existe una cuenta con ese email. Inicia sesion.")
+            _existente = (Cliente.query.filter(db.func.lower(Cliente.email) == email).first()
+                          if email else None)
 
             if errores:
                 for e in errores:
@@ -7963,14 +8051,39 @@ def register_routes(app: Flask) -> None:
                     **_public_context(),
                 )
 
+            # El email ya tiene CUENTA: no se dice en pantalla (asi nadie puede averiguar
+            # que emails son clientes). Se le manda al dueno un mail con el link para
+            # cambiar la contrasena, y en pantalla sale el mismo mensaje que en otros casos.
+            if _existente and _existente.password_hash:
+                if mailer.can_send():
+                    _tk = _reset_serializer().dumps({"c": _existente.id, "v": _existente.password_hash[-16:]})
+                    _url = _base_publica() + url_for("cliente_reset", token=_tk)
+                    _nom = _existente.nombre or ""
+                    _mail_en_segundo_plano(
+                        "Ya tenes cuenta en Arcano Record Store",
+                        ("Hola %s,\n\nAlguien (seguramente vos) intento crear una cuenta con este "
+                         "email, pero ya tenes una. Inicia sesion en la web, o si no te acordas la "
+                         "contrasena, cambiala aca (vence en 1 hora):\n%s\n\nSi no fuiste vos, "
+                         "ignora este mail." % (_nom, _url)),
+                        ("<p>Hola %s,</p><p>Alguien (seguramente vos) intent&oacute; crear una cuenta "
+                         "con este email, pero <strong>ya ten&eacute;s una</strong>. Inici&aacute; "
+                         "sesi&oacute;n en la web, o si no te acord&aacute;s la contrase&ntilde;a, "
+                         "cambiala ac&aacute; (vence en 1 hora):</p><p><a href='%s'>Cambiar mi "
+                         "contrase&ntilde;a</a></p><p style='color:#888;font-size:13px'>Si no fuiste "
+                         "vos, ignor&aacute; este mail.</p>" % (_nom, _url)),
+                        _existente.email)
+                from markupsafe import escape as _esc
+                flash("Te mandamos un mail a "
+                      f"{_esc(email)} para seguir: revis&aacute; tu correo (y la carpeta de spam).", "info")
+                return redirect(url_for("cliente_login_page"))
+
             # El email ya tiene compras (ficha sin contrasena o pedidos sin cuenta): la
             # cuenta se activa recien cuando el dueno del email toca el link del mail.
             if _email_tiene_compras(email):
                 if _mandar_activacion(email, password, nombre, whatsapp):
                     from markupsafe import escape as _esc
-                    flash("Ya ten&eacute;s compras con ese email. Te mandamos un mail a "
-                          f"{_esc(email)} para confirmar que es tuyo: toc&aacute; el link y tu cuenta "
-                          "queda lista (revis&aacute; tambi&eacute;n la carpeta de spam).", "info")
+                    flash("Te mandamos un mail a "
+                          f"{_esc(email)} para seguir: revis&aacute; tu correo (y la carpeta de spam).", "info")
                 else:
                     flash("No pudimos mandarte el mail de confirmaci&oacute;n. Escribinos por "
                           "Instagram y te activamos la cuenta.", "error")
@@ -8037,8 +8150,8 @@ def register_routes(app: Flask) -> None:
                             "text-decoration:none;font-weight:600'>Cambiar mi contrase&ntilde;a</a></p>"
                             "<p style='color:#888;font-size:13px'>Si no fuiste vos, ignor&aacute; "
                             "este mail; tu contrase&ntilde;a queda igual.</p>" % (_nombre, reset_url))
-                    mailer.send_email("Cambiar tu contrasena - Arcano Record Store",
-                                      cuerpo, html, to=cli.email)
+                    _mail_en_segundo_plano("Cambiar tu contrasena - Arcano Record Store",
+                                           cuerpo, html, cli.email)
                 except Exception:
                     pass
             flash("Si ese email tiene una cuenta, te mandamos un link para cambiar la "
@@ -8343,8 +8456,25 @@ def register_routes(app: Flask) -> None:
 
             # Fire Sale: los discos con descuento son exclusivos para clientes con
             # cuenta. Si el visitante no inicio sesion, no puede comprarlos.
+            # Si dejo una contrasena para crear la cuenta (lo que el checkout le ofrece
+            # para "desbloquear descuentos"), la cuenta se crea ANTES de cobrar y el
+            # Fire Sale queda habilitado en el mismo paso (antes rebotaba con error).
+            _fs_cuenta_nueva = False
             if _fire_sale_bloquea(disponibles):
-                errores.append("Hay discos en Fire Sale en tu carrito: son exclusivos para clientes con cuenta. Inicia sesion o crea tu cuenta para comprarlos.")
+                _email_n = (email or "").strip().lower()
+                if (crear_cuenta and len(password_cuenta) >= 6 and _email_n and _email_valido(email)
+                        and not Cliente.query.filter(db.func.lower(Cliente.email) == _email_n,
+                                                     Cliente.password_hash.isnot(None)).first()
+                        and not _email_tiene_compras(_email_n)):
+                    _fs_cuenta_nueva = True
+                elif crear_cuenta:
+                    errores.append("Los discos en Fire Sale son exclusivos para clientes con cuenta y "
+                                   "no pudimos crearla con ese email. Si ya ten&eacute;s cuenta, "
+                                   "inici&aacute; sesi&oacute;n (link arriba) y volv&eacute;s ac&aacute; con tu carrito.")
+                else:
+                    errores.append("Hay discos en Fire Sale en tu carrito: son exclusivos para clientes "
+                                   "con cuenta. Pon&eacute; una contrase&ntilde;a en \"Cre&aacute; tu cuenta\" "
+                                   "y se crea en este mismo paso, o inici&aacute; sesi&oacute;n (link arriba).")
 
             # --- Entrega / envio: SOLO aplica en COMPRA (transferencia o Mercado Pago).
             # Si el cliente "reserva y coordina", el envio no se toca (se arregla por WhatsApp).
@@ -8387,8 +8517,24 @@ def register_routes(app: Flask) -> None:
                           "entrega": entrega_tipo, "envio_direccion": envio_direccion,
                           "envio_agencia": envio_agencia,
                           "box_cantidad": box_cantidad, "box_texto": box_texto},
+                    **_checkout_fs(ids_raw),
                     **_public_context(),
                 )
+
+            # Fire Sale + cuenta nueva: se crea y se inicia sesion antes de armar el pedido.
+            if _fs_cuenta_nueva:
+                try:
+                    _nc = Cliente(nombre=nombre, email=_email_n, whatsapp=whatsapp or None)
+                    _nc.set_password(password_cuenta)
+                    db.session.add(_nc)
+                    db.session.commit()
+                    auth.cliente_login(_nc.id, (_nc.password_hash or "")[-16:])
+                    crear_cuenta = False   # ya esta creada: el bloque de abajo no la repite
+                    flash(f"Te creamos una cuenta, {_nc.nombre}: ya ten&eacute;s el precio de Fire Sale.", "success")
+                except Exception:
+                    db.session.rollback()
+                    flash("No pudimos crear tu cuenta. Prob&aacute; de nuevo o inici&aacute; sesi&oacute;n.", "error")
+                    return redirect(url_for("public_checkout", ids=ids_raw))
 
             # Aviso si algun disco se agoto entre "agregar" y "confirmar"
             n_descartados = sum(1 for i in ids if i in by_id and by_id[i].esta_agotado)
@@ -8515,11 +8661,7 @@ def register_routes(app: Flask) -> None:
                 # Vendido ni entran a la caja hasta que Facundo confirme que la
                 # plata llego (marca la reserva Pagada). El comprobante es una
                 # foto del cliente, no una confirmacion real del banco.
-                for d in disponibles:
-                    if d.estado == "Disponible":
-                        register_status_change(
-                            d, "Reservado",
-                            nota=f"Reserva #{reserva.id} - transferencia (comprobante subido)")
+                _apartar_para_pedido(reserva, disponibles, "transferencia (comprobante subido)")
                 db.session.commit()
             elif metodo == "mercadopago" and mp.activo():
                 reserva.metodo_pago = "mercadopago"
@@ -8533,10 +8675,16 @@ def register_routes(app: Flask) -> None:
                 # mercadopago y el aviso al admin y el push decian MP).
                 reserva.metodo_pago = "coordinar"
                 reserva.mp_status = None
+                _apartar_para_pedido(reserva, disponibles, "a coordinar")
                 db.session.commit()
                 flash("No pudimos iniciar el pago online. Te dejamos la reserva para coordinar por mensaje.", "error")
             else:
+                # "Reservar y coordinar": la pantalla y el mail dicen "queda apartado para
+                # vos", asi que el disco se aparta de verdad (antes seguia Disponible y otro
+                # cliente lo podia pagar por MP). Si no se concreta, cancelas la reserva y
+                # vuelve a Disponible solo.
                 reserva.metodo_pago = "coordinar"
+                _apartar_para_pedido(reserva, disponibles, "a coordinar")
                 db.session.commit()
 
             # Email al admin (best-effort, no rompe si falla) — con el comprobante adjunto si lo hay.
@@ -8590,6 +8738,7 @@ def register_routes(app: Flask) -> None:
             "public/checkout.html",
             ids=ids_raw,
             form={},
+            **_checkout_fs(ids_raw),
             **_public_context(),
         )
 
@@ -8822,6 +8971,10 @@ def register_routes(app: Flask) -> None:
                     if d.estado in ("Pre-order", "Encargo") and estado != "Pagada":
                         if d.estado == "Encargo" and cli and not d.cliente_id:
                             d.cliente_id = cli.id
+                        # Pendiente: el pre-order queda tomado por esta reserva (deja de
+                        # venderse en la web). Cancelada: no se toma.
+                        if estado == "Pendiente" and not d.venta_grupo:
+                            d.venta_grupo = grupo
                         continue
                     if d.estado != estado_disco and d.estado != "Vendido":
                         register_status_change(d, estado_disco,
@@ -8936,6 +9089,12 @@ def register_routes(app: Flask) -> None:
                                 if (disco.estado == "Encargo" and reserva.cliente_id
                                         and not disco.cliente_id):
                                     disco.cliente_id = reserva.cliente_id
+                                if estado_disco == "Disponible":
+                                    # Cancelada: el pre-order se suelta y vuelve a la venta.
+                                    if disco.venta_grupo == f"r{reserva.id}":
+                                        disco.venta_grupo = None
+                                elif not disco.venta_grupo:
+                                    disco.venta_grupo = f"r{reserva.id}"
                                 continue
                             if disco.estado != estado_disco:
                                 register_status_change(
@@ -9139,6 +9298,11 @@ def register_routes(app: Flask) -> None:
                 revertidos, intactos = [], []
                 for item in reserva.items_efectivos:
                     disco = item.disco
+                    # Pre-order que habia tomado este pedido: vuelve a ofrecerse.
+                    if (disco and disco.estado in ("Pre-order", "Encargo")
+                            and disco.venta_grupo == f"r{reserva.id}"):
+                        disco.venta_grupo = None
+                        continue
                     if not disco or disco.estado not in ("Reservado", "Vendido"):
                         continue
                     if _disco_es_de_reserva(disco, reserva):
@@ -9169,6 +9333,11 @@ def register_routes(app: Flask) -> None:
             _grp = f"r{reserva.id}"
             for item in reserva.items_efectivos:
                 disco = item.disco
+                if (disco and disco.estado in ("Pre-order", "Encargo") and disco.venta_grupo
+                        and disco.venta_grupo != _grp):
+                    # Pre-order (una sola copia) que ya tomo OTRO pedido.
+                    conflictos.append(item)
+                    continue
                 if disco and disco.estado == "Vendido" and (disco.venta_grupo or "") != _grp:
                     # Si ya lo compro ESTE mismo cliente (una compra vieja cargada como
                     # registro), no es una doble venta.

@@ -39,7 +39,7 @@
             {% if mode == 'edit' %}Editar disco{% else %}Agregar disco{% endif %}
         </h1>
         <p class="page-sub">
-            {% if mode == 'edit' %}#{{ disc.id }} &middot; ingresado {{ disc.fecha_ingreso.strftime('%d/%m/%Y') if disc.fecha_ingreso else '' }}{% else %}Carga manual. Para ingreso mas rapido usar &quot;Desde URL&quot; o &quot;Desde screenshot&quot;.{% endif %}
+            {% if mode == 'edit' %}#{{ disc.id }} &middot; ingresado {{ disc.fecha_ingreso.strftime('%d/%m/%Y') if disc.fecha_ingreso else '' }}{% else %}Carga manual. Para ingresar m&aacute;s r&aacute;pido us&aacute; &laquo;URL &middot; Foto &middot; Video&raquo; o &laquo;Desde factura&raquo; (men&uacute; Agregar).{% endif %}
         </p>
     </div>
     <div class="page-actions">

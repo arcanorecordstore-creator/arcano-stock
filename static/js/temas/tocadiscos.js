@@ -95,7 +95,7 @@
         var activo = document.querySelector('.public-grid .card-play-btn.is-playing');
         var fp = document.getElementById('floating-player');
         var pausa = document.querySelector('#fp-playpause .fp-ico-pause');
-        var suena = !!(activo && fp && !fp.hidden && pausa && !pausa.hidden);
+        var suena = !!(activo && fp && !fp.hidden && pausa && !pausa.hasAttribute('hidden'));
         document.querySelectorAll('.public-card.td-sonando').forEach(function (c) { if (!suena || !c.contains(activo)) c.classList.remove('td-sonando'); });
         if (suena) {
             var card = activo.closest('.public-card');

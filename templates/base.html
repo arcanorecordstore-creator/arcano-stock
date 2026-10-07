@@ -47,7 +47,7 @@
     <div class="app-shell">
         <header class="topbar">
             <div class="topbar-brand">
-                <a href="{{ url_for('dashboard') }}" class="brand-link" aria-label="Arcano Record Store">
+                <a href="{{ url_for('home_admin') }}" class="brand-link" aria-label="Arcano Record Store - Home">
                     <img class="brand-img brand-neg" src="{{ url_for('static', filename='brand/logo-primary-negro.png') }}" alt="Arcano Record Store" width="616" height="240">
                     <img class="brand-img brand-bla" src="{{ url_for('static', filename='brand/logo-primary-blanco.png') }}" alt="Arcano Record Store" width="616" height="240">
                 </a>
@@ -115,7 +115,7 @@
             <div class="flash-stack">
                 {% for category, msg in messages %}
                     <div class="flash flash-{{ category }}">
-                        <span>{{ msg }}</span>
+                        <span>{{ msg|texto }}</span>
                     </div>
                 {% endfor %}
             </div>

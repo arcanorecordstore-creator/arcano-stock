@@ -218,7 +218,7 @@
     {% if messages %}
     <div class="flash-stack public-flashes">
         {% for category, msg in messages %}
-            <div class="flash flash-{{ category }}">{{ msg }}</div>
+            <div class="flash flash-{{ category }}">{{ msg|texto }}</div>
         {% endfor %}
     </div>
     {% endif %}
@@ -232,7 +232,7 @@
     <div class="cookie-banner-inner">
         <p class="cookie-banner-text">
             Guardamos tu carrito y tus favoritos en este navegador.<span class="cookie-banner-extra">
-            No usamos cookies de rastreo.</span> <a href="{{ url_for('public_legal') }}#cookies">Mas info</a>.
+            {% if analytics_snippet or meta_pixel_id %}Tambi&eacute;n usamos cookies para medir las visitas{% if meta_pixel_id %} y los anuncios{% endif %}.{% else %}No usamos cookies de rastreo.{% endif %}</span> <a href="{{ url_for('public_legal') }}#cookies">M&aacute;s info</a>.
         </p>
         <button type="button" class="btn btn-primary btn-sm" id="cookie-accept">Entendido</button>
     </div>
@@ -336,8 +336,7 @@
 
 <!-- APIs de YouTube y SoundCloud: el reproductor las usa para manejar play/pausa
      y el avance con una sola interfaz propia (el reproductor de cada uno va oculto). -->
-<script src="https://w.soundcloud.com/player/api.js"></script>
-<script src="https://www.youtube.com/iframe_api"></script>
+{# YouTube / SoundCloud: los carga player.js recien al primer play de esa fuente. #}
 <script>
 // Mystery Box: datos que necesita el JS estatico (precios del server, portada y ficha).
 window.ARCANO_MBOX = {

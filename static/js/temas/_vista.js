@@ -95,7 +95,7 @@
         var activo = document.querySelector('.public-grid .card-play-btn.is-playing');
         var pausa = document.querySelector('#fp-playpause .fp-ico-pause');
         var fp = document.getElementById('floating-player');
-        var suena = !!(activo && fp && !fp.hidden && pausa && !pausa.hidden);
+        var suena = !!(activo && fp && !fp.hidden && pausa && !pausa.hasAttribute('hidden'));
         document.querySelectorAll('.public-grid > .public-card').forEach(function (c) { c.classList.toggle('vl-sonando', suena && c.contains(activo)); });
     }, 500);
 

@@ -20,10 +20,15 @@
         {% if legal_terminos %}
         <div class="public-legal-body">{{ legal_terminos|replace('\n\n', '</p><p>')|replace('\n', '<br>')|safe }}</div>
         {% else %}
-        <p>Al reservar o comprar en Arcano Record Store aceptas coordinar el pago y la entrega
-        por los canales indicados (WhatsApp / Instagram). Los precios estan expresados en pesos
-        uruguayos e incluyen el valor del disco. El envio se coordina aparte. Nos reservamos el
-        derecho de cancelar una reserva si el disco ya no esta disponible, avisandote de inmediato.</p>
+        <p>Al comprar o reservar en Arcano Record Store aceptás estas condiciones. Los precios
+        están en pesos uruguayos y son por el disco; el envío, si lo pedís, se suma aparte.</p>
+        <p>Podés pagar de tres formas: con <strong>Mercado Pago</strong> (tiene un recargo, que
+        ves antes de pagar), por <strong>transferencia bancaria</strong> (subís el comprobante y
+        el disco queda apartado hasta que confirmamos que llegó la plata) o eligiendo
+        <strong>Reservar y coordinar</strong> (el disco queda apartado y coordinamos el pago por
+        WhatsApp o Instagram; si no se concreta, la reserva se cancela y el disco vuelve a la venta).</p>
+        <p>Cada disco es una copia única. Si por algún motivo uno ya no estuviera disponible, te
+        avisamos enseguida.</p>
         {% endif %}
     </article>
 
@@ -31,13 +36,13 @@
         <h2>Envios y devoluciones</h2>
         {% if legal_envios %}
         <div class="public-legal-body">{{ legal_envios|replace('\n\n', '</p><p>')|replace('\n', '<br>')|safe }}</div>
-        {% elif envios %}
-        <div class="public-legal-body">{{ envios|replace('\n\n', '</p><p>')|replace('\n', '<br>')|safe }}</div>
         {% else %}
-        <p>Hacemos envios a todo Uruguay y coordinamos retiro en Montevideo. El costo y el tiempo
-        de envio se coordinan por mensaje directo segun tu ubicacion. Los vinilos se revisan y
-        embalan con cuidado antes de despachar. Si un disco llega danado por el transporte,
-        escribinos y lo resolvemos.</p>
+        <p><strong>Retiro en Pocitos:</strong> sin costo, coordinamos día y horario por WhatsApp.</p>
+        <p><strong>Envío en Montevideo:</strong> $50 llevando 1 o 2 discos, gratis desde 3.</p>
+        <p><strong>Envío al interior:</strong> por agencia (DAC, Agencia Central, etc.); el envío
+        lo pagás al recibir.</p>
+        <p>Los vinilos se revisan y embalan con cuidado antes de despachar. Si un disco llega
+        dañado por el transporte, escribinos y lo resolvemos.</p>
         {% endif %}
     </article>
 
@@ -46,10 +51,16 @@
         {% if legal_privacidad %}
         <div class="public-legal-body">{{ legal_privacidad|replace('\n\n', '</p><p>')|replace('\n', '<br>')|safe }}</div>
         {% else %}
-        <p>Los datos que nos dejas al reservar (nombre, WhatsApp y opcionalmente email) se usan
-        unicamente para coordinar tu compra. No los compartimos con terceros ni los usamos para
-        otra cosa. Podes pedirnos que borremos tus datos cuando quieras escribiendonos por los
-        canales de contacto.</p>
+        <p>Los datos que nos dejás al comprar o reservar (nombre, WhatsApp, email y, si pedís
+        envío, la dirección) se usan para procesar y coordinar tu pedido. Si creás una cuenta,
+        también para mostrarte tus compras y avisarte por mail de beneficios para clientes.</p>
+        <p>Si pagás con Mercado Pago, el pago lo procesa Mercado Pago con sus propias
+        condiciones: nosotros no vemos ni guardamos los datos de tu tarjeta.{% if analytics_snippet or meta_pixel_id %}
+        Para medir las visitas{% if meta_pixel_id %} y los anuncios{% endif %} usamos
+        {% if analytics_snippet %}Google Analytics{% endif %}{% if analytics_snippet and meta_pixel_id %} y {% endif %}{% if meta_pixel_id %}el Pixel de Meta{% endif %}
+        (más abajo, en Cookies).{% endif %}</p>
+        <p>No vendemos tus datos. Podés pedirnos que los borremos cuando quieras, escribiéndonos
+        por Instagram o WhatsApp.</p>
         {% endif %}
     </article>
 
@@ -58,10 +69,18 @@
         {% if legal_cookies %}
         <div class="public-legal-body">{{ legal_cookies|replace('\n\n', '</p><p>')|replace('\n', '<br>')|safe }}</div>
         {% else %}
-        <p>Esta tienda usa almacenamiento local del navegador para recordar tus favoritos, tu
-        carrito y tu preferencia de tema (claro / oscuro). No usamos cookies de rastreo ni
-        publicidad. La informacion queda en tu dispositivo y podes borrarla limpiando los datos
-        del navegador.</p>
+        <p>Guardamos en tu navegador el carrito, tus favoritos y tu preferencia de tema (claro /
+        oscuro). Esa información queda en tu dispositivo.</p>
+        {% if analytics_snippet or meta_pixel_id %}
+        <p>Además usamos {% if analytics_snippet %}<strong>Google Analytics</strong>, para saber
+        cuánta gente visita la tienda y qué páginas mira{% endif %}{% if analytics_snippet and meta_pixel_id %},
+        y {% endif %}{% if meta_pixel_id %}el <strong>Pixel de Meta</strong>, para medir los anuncios de
+        Instagram y Facebook{% endif %}. Estas herramientas guardan sus propias cookies.</p>
+        {% else %}
+        <p>No usamos cookies de rastreo ni de publicidad.</p>
+        {% endif %}
+        <p>Podés borrar o bloquear las cookies desde la configuración de tu navegador; la tienda
+        sigue funcionando igual.</p>
         {% endif %}
     </article>
 </section>

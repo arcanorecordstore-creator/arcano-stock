@@ -90,8 +90,21 @@ def kpis_principales() -> dict:
     # coleccion personal no le costaron al negocio (aporte), asi que cuentan 0.
     # Mismo criterio por origen que la Ganancia real (antes sumaba tambien los
     # personales y daba una "inversion" distinta al stock no vendido de la misma pagina).
+    # Mismo conjunto que el "costo de stock no vendido" de la Ganancia real y la
+    # "Mercaderia" de la Caja (v5.79): todo lo que se pago y no se vendio todavia
+    # (Disponible + Reservado + Apartado + pre-orders/encargos ya pedidos). Antes
+    # contaba solo los Disponibles y la misma pagina mostraba dos "stocks" distintos.
+    _sin_vender = (
+        Disc.query
+        .filter(
+            Disc.estado.in_(["Disponible", "Reservado", "Apartado para mi"])
+            | ((Disc.estado.in_(["Pre-order", "Encargo"])) & (Disc.pedido_id.isnot(None)))
+        )
+        .filter(Disc.es_mystery_box.isnot(True))
+        .all()
+    )
     inversion_uyu = sum(
-        _costo_negocio(d) * (d.stock or 1) for d in disponibles
+        _costo_negocio(d) * (d.stock or 1) for d in _sin_vender
     )
     valor_venta_uyu = sum(
         (d.precio_uyu or 0) * (d.stock or 1) for d in disponibles

@@ -301,7 +301,8 @@
 {% if discs %}
 <div class="public-results-head">
     <p class="public-results-count">
-        {{ total_resultados }} disco{{ 's' if total_resultados != 1 else '' }} disponible{{ 's' if total_resultados != 1 else '' }}
+        {% set _tc = total_comprables if total_comprables is defined else total_resultados %}
+        {{ _tc }} disco{{ 's' if _tc != 1 else '' }} disponible{{ 's' if _tc != 1 else '' }}
         {% if total_paginas > 1 %}<span class="public-results-page">&middot; pagina {{ pagina }} de {{ total_paginas }}</span>{% endif %}
     </p>
     <button type="button" id="listen-all-btn" class="listen-all-btn" hidden>

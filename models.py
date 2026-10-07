@@ -1,4 +1,5 @@
 """Modelos de base de datos para Arcano Stock."""
+import re
 from datetime import datetime, timedelta
 from flask_sqlalchemy import SQLAlchemy
 
@@ -40,6 +41,22 @@ ESTADOS_DISCO = [
 
 # Estados "por llegar": se ven en la tienda y se reservan sin stock fisico.
 ESTADOS_PREVENTA = ("Pre-order", "Encargo")
+
+_CATNO_RE = re.compile(r"^(?=[A-Z0-9.\-]*[A-Z])(?=[A-Z0-9.\-]*\d)[A-Z0-9.\-]{3,}$")
+
+
+def sello_base(sello):
+    """Nombre del sello sin el numero de catalogo pegado (como viene de Deejay.de):
+    "Fresh Tunez TUNEZ005" -> "Fresh Tunez", "QRK015 Quirk" -> "Quirk". Solo se usa
+    para AGRUPAR en el filtro de la tienda; lo guardado no se toca. Un "numero de
+    catalogo" es una palabra en mayusculas con letras Y numeros (no "24 Seven")."""
+    s = " ".join((sello or "").split())
+    partes = s.split(" ")
+    if len(partes) >= 2 and _CATNO_RE.match(partes[-1]):
+        partes = partes[:-1]
+    elif len(partes) >= 2 and _CATNO_RE.match(partes[0]):
+        partes = partes[1:]
+    return " ".join(partes)
 
 # Estado del audio/digitalizacion de cada disco (columna manual del dashboard).
 AUDIO_ESTADOS = ["En digital", "Grabado", "Para grabar", "F"]
@@ -246,14 +263,23 @@ class Disc(db.Model):
 
     @property
     def mostrar_preorder(self) -> bool:
-        """True si el disco esta en Pre-order o Encargo (muestra cartel y se reserva)."""
-        return self.estado in ESTADOS_PREVENTA
+        """True si el disco esta en Pre-order o Encargo (muestra cartel y se reserva).
+        Un pre-order que ya tomo un pedido web (preorder_tomado) deja de ofrecerse."""
+        return self.estado in ESTADOS_PREVENTA and not self.preorder_tomado
+
+    @property
+    def preorder_tomado(self) -> bool:
+        """Pre-order / Encargo que ya pidio alguien desde la web (transferencia o
+        "reservar y coordinar"): queda atado a ese pedido con venta_grupo = "r<id>".
+        Una fila = una copia, asi que ya no se le puede vender a otra persona."""
+        return self.estado in ESTADOS_PREVENTA and bool(getattr(self, "venta_grupo", None))
 
     @property
     def en_carrusel_preorder(self) -> bool:
         """True si debe salir en el carrusel Pre-order del inicio:
         tiene que estar en estado Pre-order Y con el toggle prendido."""
-        return self.estado in ESTADOS_PREVENTA and bool(getattr(self, "es_preorder", False))
+        return (self.estado in ESTADOS_PREVENTA and bool(getattr(self, "es_preorder", False))
+                and not self.preorder_tomado)
 
     @property
     def en_oferta(self) -> bool:
@@ -328,7 +354,7 @@ class Disc(db.Model):
         """True si el disco no esta disponible para comprar.
         Los pre-orders y encargos NO se consideran agotados (se pueden reservar)."""
         if self.estado in ESTADOS_PREVENTA:
-            return False
+            return self.preorder_tomado
         return self.estado != "Disponible" or (self.stock or 0) <= 0
 
     @property
@@ -1817,6 +1843,24 @@ def _migrate_schema(app):
     with app.app_context():
         inspector = inspect(db.engine)
 
+        # Indices en las columnas que mas se filtran (v5.79). Idempotente
+        # (IF NOT EXISTS) y no toca datos: solo acelera las consultas cuando crezca
+        # el catalogo (estado del disco, fecha de venta, pedido, comprador...).
+        _indices = {
+            "discs": ["estado", "fecha_venta", "pedido_id", "cliente_id", "venta_grupo"],
+            "reservas": ["estado", "cliente_id"],
+            "movimientos_caja": ["origen", "fecha"],
+        }
+        for _tabla, _cols in _indices.items():
+            if not inspector.has_table(_tabla):
+                continue
+            _existentes = {c["name"] for c in inspector.get_columns(_tabla)}
+            for _col in _cols:
+                if _col in _existentes:
+                    with db.engine.begin() as conn:
+                        conn.execute(text(
+                            f'CREATE INDEX IF NOT EXISTS ix_{_tabla}_{_col} ON "{_tabla}" ("{_col}")'))
+
         # Duracion estimada de las tareas (v5.70)
         if inspector.has_table("tareas"):
             _tcols = [c["name"] for c in inspector.get_columns("tareas")]
@@ -2434,6 +2478,17 @@ def _migrate_reservas_a_items(app):
             print(f"Migracion: {migradas} reserva(s) viejas convertidas a items")
 
 
+_COMO_FUNCIONA_VIEJO = ("Reserva online tu disco. Coordinamos pago y entrega por mensaje. "
+                        "Hacemos envios a todo Uruguay.")
+_COMO_FUNCIONA_NUEVO = ("Elegís tus discos y pagás online con Mercado Pago o por transferencia, "
+                        "o los reservás y coordinamos el pago por mensaje.\n\n"
+                        "Retiro en Pocitos sin costo, envío en Montevideo ($50, gratis desde 3 "
+                        "discos) o al interior por agencia.")
+_ENVIOS_VIEJO = "Coordinamos envio o retiro por mensaje directo. Hacemos envios a todo Uruguay."
+_ENVIOS_NUEVO = ("Retiro en Pocitos sin costo. Envío en Montevideo $50 (gratis desde 3 discos). "
+                 "Al interior por agencia, lo pagás al recibir.")
+
+
 def init_db(app) -> None:
     """Crea tablas si no existen y siembra settings por defecto."""
     db.init_app(app)
@@ -2453,14 +2508,8 @@ def init_db(app) -> None:
                 "fue elegido cuidadosamente. Operamos desde Montevideo, Uruguay."
             ),
             "public_about_curaduria": "",
-            "public_about_como_funciona": (
-                "Reserva online tu disco. Coordinamos pago y entrega por mensaje. "
-                "Hacemos envios a todo Uruguay."
-            ),
-            "public_envios": (
-                "Coordinamos envio o retiro por mensaje directo. "
-                "Hacemos envios a todo Uruguay."
-            ),
+            "public_about_como_funciona": _COMO_FUNCIONA_NUEVO,
+            "public_envios": _ENVIOS_NUEVO,
             "public_instagram": "arcanorecordstore",
             "public_whatsapp": "",  # con codigo de pais, sin +, ej: 59899123456
             "api_cost_total_usd": "0",
@@ -2471,6 +2520,14 @@ def init_db(app) -> None:
         for k, v in defaults_publicos.items():
             if Setting.get(k) is None:
                 Setting.set(k, v)
+        # Textos por defecto viejos (de cuando todo se coordinaba por mensaje): si siguen
+        # EXACTAMENTE como venian de fabrica, se actualizan a como funciona hoy (MP,
+        # transferencia, envio $50). Si los editaste en Ajustes, no se tocan.
+        for k, viejo, nuevo in (
+                ("public_about_como_funciona", _COMO_FUNCIONA_VIEJO, _COMO_FUNCIONA_NUEVO),
+                ("public_envios", _ENVIOS_VIEJO, _ENVIOS_NUEVO)):
+            if (Setting.get(k) or "").strip() == viejo:
+                Setting.set(k, nuevo)
 
     # Migrar tracklists en texto a la tabla Track (fuera del with anterior porque necesita commit propio)
     _migrate_tracklists_to_tracks(app)

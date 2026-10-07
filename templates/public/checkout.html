@@ -18,6 +18,9 @@
         <input type="hidden" name="box_texto" id="box-texto" value="{{ form.box_texto or '' }}">
 
         <div class="ck-datos">
+            {% if fs_aviso %}
+            <p class="checkout-logged-note checkout-fs-aviso">&#128293; Ten&eacute;s discos en <strong>Fire Sale</strong>: son exclusivos para clientes con cuenta. Pon&eacute; una contrase&ntilde;a en &laquo;Cre&aacute; tu cuenta&raquo; (m&aacute;s abajo) y se crea en este mismo paso, o <a href="{{ fs_login_url }}">inici&aacute; sesi&oacute;n</a> si ya ten&eacute;s cuenta: volv&eacute;s ac&aacute; con tu carrito.</p>
+            {% endif %}
             {% if cliente_actual %}
             <p class="checkout-logged-note">&#10003; Completamos tus datos porque iniciaste sesi&oacute;n como <strong>{{ cliente_actual.nombre }}</strong>. Revisalos y confirm&aacute;.</p>
             {% endif %}
@@ -27,22 +30,22 @@
             <div class="checkout-row">
                 <div class="form-field">
                     <label for="nombre">Nombre</label>
-                    <input type="text" id="nombre" name="nombre" required minlength="2" value="{{ form.nombre or _cnp[0] }}" {% if not cliente_actual %}autofocus{% endif %} placeholder="Tu nombre">
+                    <input type="text" id="nombre" name="nombre" autocomplete="given-name" required minlength="2" value="{{ form.nombre or _cnp[0] }}" {% if not cliente_actual %}autofocus{% endif %} placeholder="Tu nombre">
                 </div>
                 <div class="form-field">
                     <label for="apellido">Apellido</label>
-                    <input type="text" id="apellido" name="apellido" required minlength="2" value="{{ form.apellido or (_cnp[1] if _cnp|length > 1 else '') }}" placeholder="Tu apellido">
+                    <input type="text" id="apellido" name="apellido" autocomplete="family-name" required minlength="2" value="{{ form.apellido or (_cnp[1] if _cnp|length > 1 else '') }}" placeholder="Tu apellido">
                 </div>
             </div>
 
             <div class="form-field">
                 <label for="whatsapp">Celular</label>
-                <input type="tel" id="whatsapp" name="whatsapp" required value="{{ form.whatsapp or (cliente_actual.whatsapp if cliente_actual else '') }}" placeholder="+598 99 123 456">
+                <input type="tel" id="whatsapp" name="whatsapp" autocomplete="tel" inputmode="tel" required value="{{ form.whatsapp or (cliente_actual.whatsapp if cliente_actual else '') }}" placeholder="+598 99 123 456">
             </div>
 
             <div class="form-field">
                 <label for="email">Email</label>
-                <input type="email" id="email" name="email" required value="{{ form.email or (cliente_actual.email if cliente_actual else '') }}" placeholder="tu@email.com">
+                <input type="email" id="email" name="email" autocomplete="email" inputmode="email" required value="{{ form.email or (cliente_actual.email if cliente_actual else '') }}" placeholder="tu@email.com">
             </div>
 
             <div class="form-field">
@@ -131,7 +134,7 @@
                 <div class="entrega-direccion" id="entrega-direccion" hidden>
                     <div class="form-field">
                         <label for="envio_direccion" id="envio-direccion-label">Direcci&oacute;n de entrega</label>
-                        <input type="text" id="envio_direccion" name="envio_direccion" value="{{ form.envio_direccion or '' }}" placeholder="Calle, n&uacute;mero, apto, esquina">
+                        <input type="text" id="envio_direccion" name="envio_direccion" autocomplete="street-address" value="{{ form.envio_direccion or '' }}" placeholder="Calle, n&uacute;mero, apto, esquina">
                     </div>
                     <div class="form-field" id="entrega-agencia-field" hidden>
                         <label for="envio_agencia">Agencia</label>
