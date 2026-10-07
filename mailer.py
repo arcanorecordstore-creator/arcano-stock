@@ -473,6 +473,102 @@ def mail_simple_html(etiqueta, titulo, parrafos_html, boton=None, nota=None):
     return marco_cliente(etiqueta, titulo, filas, boton=boton, despues_html=nota_html)
 
 
+_DIAS = ["lunes", "martes", "mi&eacute;rcoles", "jueves", "viernes", "s&aacute;bado", "domingo"]
+_MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+          "setiembre", "octubre", "noviembre", "diciembre"]
+
+
+def texto_fin_fire_sale(fin, ahora=None):
+    """'Termina hoy a las 23:59' / 'manana' / 'el domingo 12 de octubre a las 23:59'.
+    `fin` es la hora de Uruguay que se carga en Ajustes. None si no hay reloj."""
+    if not fin:
+        return None
+    from datetime import timedelta
+    hora = fin.strftime("%H:%M")
+    hoy = (ahora or fin).date()
+    if fin.date() == hoy:
+        return f"Termina hoy a las {hora}"
+    if fin.date() == hoy + timedelta(days=1):
+        return f"Termina ma&ntilde;ana a las {hora}"
+    return f"Termina el {_DIAS[fin.weekday()]} {fin.day} de {_MESES[fin.month - 1]} a las {hora}"
+
+
+def mail_fire_sale_html(pct, fin_txt, alcance, discos, mensaje=None, url_tienda=None):
+    """Aviso de Fire Sale (opcion "Marca"): banda negra con el % gigante en beige,
+    reloj si lo hay, hasta 4 discos con precio tachado y precio con descuento.
+    El % y la fecha salen de lo que esta activo en Ajustes."""
+    url_tienda = url_tienda or SITE_URL
+    donde = "en toda la tienda" if alcance == "todo" else "en discos seleccionados"
+    chip = (f'<span style="display:inline-block;background:{_NEGRO};color:{_BEIGE};font-family:{_FF};'
+            f'font-size:10px;font-weight:500;letter-spacing:2px;padding:4px 8px;border-radius:3px;">-{pct}%</span>')
+
+    def tarjeta(d):
+        base = float(getattr(d, "precio_mostrar", None) or getattr(d, "precio_uyu", 0) or 0)
+        nuevo = round(base * (1 - pct / 100.0))
+        cover = _cover_url_abs(d)
+        href = f"{SITE_URL}/disco/{d.id}"
+        img = (f'<a href="{href}"><img src="{_e(cover)}" width="268" alt="" style="display:block;width:100%;'
+               f'height:auto;border-radius:4px;border:0;"></a>' if cover else
+               f'<div style="padding-top:100%;background:{_BEIGE};border-radius:4px;"></div>')
+        return f"""<td width="50%" style="vertical-align:top;padding:0 8px 22px;">
+  {img}
+  <div style="margin-top:10px;">{chip}</div>
+  <div style="font-family:{_FF};font-size:11px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:{_NEGRO};margin-top:10px;">{_e(d.artista or "")}</div>
+  <div style="font-family:{_FF};font-size:15px;font-weight:300;color:{_NEGRO};margin-top:2px;"><a href="{href}" style="color:{_NEGRO};text-decoration:none;">{_e(d.titulo or "")}</a></div>
+  <div style="font-family:{_FF};margin-top:8px;"><span style="font-size:13px;font-weight:300;color:{_MARRON};text-decoration:line-through;">$ {_money(base)}</span>
+  &nbsp;<span style="font-size:18px;font-weight:500;color:{_NEGRO};">$ {_money(nuevo)}</span></div>
+</td>"""
+
+    discos = list(discos or [])[:4]
+    filas = "".join(
+        "<tr>" + tarjeta(discos[i]) + (tarjeta(discos[i + 1]) if i + 1 < len(discos) else "<td></td>") + "</tr>"
+        for i in range(0, len(discos), 2))
+    bloque_discos = (f"""<tr><td style="padding-top:30px;">{_etiqueta('Algunos de la tienda' if alcance == 'todo' else 'Discos en Fire Sale')}</td></tr>
+    <tr><td style="padding-top:14px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">{filas}</table></td></tr>"""
+                     if discos else "")
+    reloj = (f"""<tr><td style="padding:26px 0 0;">
+      <table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border:1px solid {_BLANCO};border-radius:4px;padding:11px 16px;font-family:{_FF};font-size:13px;font-weight:400;letter-spacing:1px;color:{_BLANCO};">&#9201;&nbsp; {fin_txt}</td></tr></table>
+    </td></tr>""" if fin_txt else "")
+    extra = (f'<p style="margin:14px 0 0;font-family:{_FF};font-size:16px;line-height:1.55;font-weight:300;'
+             f'color:{_NEGRO};">{_e(mensaje).replace(chr(10), "<br>")}</p>' if mensaje else "")
+    logo = f"{SITE_URL}/static/brand/logo-primary-blanco.png"
+    vinilo = f"{SITE_URL}/static/brand/logo-vinilo-blanco.png"
+    return f"""<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+</head><body style="margin:0;padding:0;background:{_CREMA};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{_CREMA};">
+<tr><td align="center" style="background:{_NEGRO};padding:0 16px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;">
+    <tr><td style="padding:30px 0 0;"><a href="{SITE_URL}"><img src="{logo}" width="130" alt="Arcano Record Store" style="display:block;width:130px;height:auto;border:0;"></a></td></tr>
+    <tr><td style="padding:44px 0 8px;">{_etiqueta('Fire Sale &middot; Solo para clientes', _BLANCO)}</td></tr>
+    <tr><td style="font-family:{_FF};font-size:128px;line-height:0.95;font-weight:500;letter-spacing:-3px;color:{_BEIGE};">{pct}%</td></tr>
+    <tr><td style="font-family:{_FF};font-size:30px;line-height:1.1;font-weight:500;letter-spacing:6px;text-transform:uppercase;color:{_BEIGE};padding-top:6px;">Off {donde}</td></tr>
+    {reloj}
+    <tr><td style="padding-bottom:40px;"></td></tr>
+  </table>
+</td></tr>
+<tr><td align="center" style="padding:0 16px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;">
+    <tr><td style="padding-top:36px;font-family:{_FF};font-size:16px;line-height:1.55;font-weight:300;color:{_NEGRO};">Hola. Como ten&eacute;s cuenta en Arcano, ten&eacute;s {pct}% de descuento {donde}. Inici&aacute; sesi&oacute;n en la tienda y los precios ya aparecen con el descuento.{extra}</td></tr>
+    {bloque_discos}
+    <tr><td style="padding:8px 0 44px;">
+      <a href="{_e(url_tienda)}" style="display:block;text-align:center;background:{_NEGRO};color:{_BLANCO};font-family:{_FF};font-size:13px;font-weight:500;letter-spacing:4px;text-transform:uppercase;text-decoration:none;padding:18px 26px;border-radius:4px;">Ver el Fire Sale</a>
+      <div style="font-family:{_FF};font-size:13px;font-weight:300;color:{_MARRON};text-align:center;margin-top:12px;">Los precios con descuento se ven al iniciar sesi&oacute;n.</div>
+    </td></tr>
+  </table>
+</td></tr>
+<tr><td align="center" style="background:{_NEGRO};padding:34px 16px;">
+  <a href="{SITE_URL}"><img src="{vinilo}" width="48" alt="Arcano Record Store" style="display:block;width:48px;height:auto;border:0;margin:0 auto;"></a>
+  <div style="font-family:{_FF};font-size:13px;font-weight:300;color:{_BEIGE};margin-top:18px;">
+    <a href="{SITE_URL}" style="color:{_BEIGE};text-decoration:none;">arcanorecordstore.com</a> &nbsp;&middot;&nbsp;
+    <a href="https://instagram.com/arcanorecordstore" style="color:{_BEIGE};text-decoration:none;">@arcanorecordstore</a>
+  </div>
+  <div style="font-family:{_FF};font-size:11px;font-weight:300;color:{_BEIGE};margin-top:10px;">Arcano Record Store &middot; Montevideo, Uruguay</div>
+</td></tr>
+</table></body></html>"""
+
+
 def _items_cliente(reserva, discs):
     """[(artista, titulo, disco|None, precio)] con los precios REALES (snapshots)."""
     items = list(getattr(reserva, "items_efectivos", []) or [])

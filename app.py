@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.83"
+APP_VERSION = "5.84"
 import metrics
 import auth
 import mailer
@@ -9560,20 +9560,27 @@ def register_routes(app: Flask) -> None:
         import html as _html
         mensaje = (Setting.get("fire_sale_mensaje", "") or "").strip()
         url_tienda = url_for("home", _external=True)
-        asunto = f"Fire Sale en Arcano: {pct}% de descuento para clientes"
+        alcance = cfg.get("alcance") or "todo"
+        fin_txt = mailer.texto_fin_fire_sale(cfg.get("fin"), now_uy())
+        asunto = f"{pct}% OFF para clientes · Fire Sale en Arcano"
         texto = (
-            f"Activamos un Fire Sale con {pct}% de descuento, exclusivo para clientes con cuenta.\n\n"
+            f"Activamos un Fire Sale con {pct}% de descuento, exclusivo para clientes con cuenta.\n"
+            + (_html.unescape(fin_txt) + ".\n" if fin_txt else "") + "\n"
             + (mensaje + "\n\n" if mensaje else "")
             + "Entra a la tienda e inicia sesion para ver los precios con descuento:\n"
             + url_tienda + "\n\nArcano Record Store"
         )
-        parrafos = [f"Activamos un Fire Sale con {pct}% de descuento, exclusivo para clientes con "
-                    "cuenta. Inici&aacute; sesi&oacute;n en la tienda para ver los precios con el "
-                    "descuento aplicado."]
-        if mensaje:
-            parrafos.append(_html.escape(mensaje).replace("\n", "<br>"))
-        html = mailer.mail_simple_html("Fire Sale", f"{pct}% para clientes.", parrafos,
-                                       boton=("Ver el Fire Sale", url_tienda))
+        # Discos para mostrar en el mail (hasta 4, con portada): los marcados para el Fire
+        # Sale si es "solo algunos"; si es toda la tienda, primero los Staff Picks y despues
+        # los mas nuevos.
+        _q = (Disc.query.filter(Disc.estado == "Disponible", Disc.stock > 0, Disc.precio_uyu > 0)
+              .filter(Disc.es_mystery_box.isnot(True)))
+        if alcance != "todo":
+            _q = _q.filter(Disc.en_fire_sale.is_(True))
+        _cands = _q.order_by(Disc.es_tip.desc(), Disc.fecha_ingreso.desc(), Disc.id.desc()).limit(40).all()
+        discos_mail = [d for d in _cands if (d.cover_local or d.cover_url)][:4]
+        html = mailer.mail_fire_sale_html(pct, fin_txt, alcance, discos_mail, mensaje=mensaje,
+                                          url_tienda=url_tienda)
         enviados, fallidos = mailer.send_bulk(emails, asunto, texto, html)
         if enviados:
             extra = f" ({fallidos} no salieron)" if fallidos else ""
