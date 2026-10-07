@@ -172,7 +172,8 @@ def kpis_mes_actual() -> dict:
     ganancia = facturado - costo
 
     return {
-        "mes_label": hoy.strftime("%B %Y"),
+        "mes_label": "%s %d" % (["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto",
+                                 "Setiembre", "Octubre", "Noviembre", "Diciembre"][hoy.month - 1], hoy.year),
         "mes_inicio": inicio.strftime("%d/%m/%Y"),
         "ventas_count": contar_ventas(vendidos_mes),
         "unidades": unidades,

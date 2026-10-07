@@ -1923,6 +1923,15 @@ def _migrate_schema(app):
                         conn.execute(text(
                             f'CREATE INDEX IF NOT EXISTS ix_{_tabla}_{_col} ON "{_tabla}" ("{_col}")'))
 
+        # Discos vendidos con stock > 0 (v5.86): una fila = una copia, vendida no
+        # queda stock. Algunos caminos viejos de "vender" no lo bajaban y el pie de
+        # Stock los sumaba. Al des-vender, el stock vuelve a 1 solo (register_status_change).
+        if inspector.has_table("discs"):
+            with db.engine.begin() as conn:
+                _r = conn.execute(text("UPDATE discs SET stock = 0 WHERE estado = 'Vendido' AND stock > 0"))
+                if _r.rowcount:
+                    print(f"Migracion: {_r.rowcount} disco(s) vendido(s) quedaron con stock 0")
+
         # Duracion estimada de las tareas (v5.70)
         if inspector.has_table("tareas"):
             _tcols = [c["name"] for c in inspector.get_columns("tareas")]

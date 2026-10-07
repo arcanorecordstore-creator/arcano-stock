@@ -6,7 +6,7 @@
 <section class="public-cuenta mp-retorno">
     {% if estado_mp == 'approved' or (reserva and reserva.pagado) %}
         <h1 class="public-cuenta-title">&#127881; &iexcl;Pago confirmado!</h1>
-        <p class="mp-retorno-text">Gracias por tu compra. Te lleg&oacute; un mail con el detalle. En breve coordinamos el env&iacute;o por mensaje.</p>
+        <p class="mp-retorno-text">Gracias por tu compra. Te lleg&oacute; un mail con el detalle. En breve te escribimos por WhatsApp para coordinar la entrega.</p>
     {% elif estado_mp == 'pending' or estado_mp == 'in_process' %}
         <h1 class="public-cuenta-title">Pago en proceso</h1>
         <p class="mp-retorno-text">Tu pago est&aacute; pendiente de acreditaci&oacute;n. Cuando se confirme te avisamos por mail; no hace falta que hagas nada m&aacute;s.</p>

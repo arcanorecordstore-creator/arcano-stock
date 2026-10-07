@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.85"
+APP_VERSION = "5.86"
 import metrics
 import auth
 import mailer
@@ -538,7 +538,8 @@ self.addEventListener('notificationclick', function(e){
 
     def _enviar_push(titulo, cuerpo, url="/admin/"):
         """Manda un aviso a todos los dispositivos suscritos. Silencioso: nunca
-        rompe el flujo que lo dispara (una venta/reserva)."""
+        rompe el flujo que lo dispara (una venta/reserva). Queda colgada de la app
+        (app.enviar_push) para que la usen las rutas de register_routes."""
         from models import PushSubscription
         try:
             from pywebpush import webpush, WebPushException
@@ -614,6 +615,7 @@ self.addEventListener('notificationclick', function(e){
 
     init_db(app)
     _backfill_ventas_sin_cliente(app)
+    app.enviar_push = _enviar_push
     register_routes(app)
     from security import init_security
     init_security(app)
@@ -874,7 +876,8 @@ def compute_totals(discs):
         # (la ganancia ya usa el precio de oferta).
         suma_precio_uyu += (d.precio_mostrar or d.precio_uyu or 0) * cant
         suma_ganancia_uyu += gan * cant
-        stock_total += d.stock or 0
+        if d.estado != "Vendido":
+            stock_total += d.stock or 0
         if d.estado == "Disponible":
             ganancia_potencial_uyu += gan * cant
         elif d.estado == "Vendido":
@@ -1232,6 +1235,10 @@ def register_status_change(disc: Disc, nuevo_estado: str, nota: str | None = Non
     if nuevo_estado == "Reservado" and not disc.fecha_reserva:
         disc.fecha_reserva = ahora
     if nuevo_estado == "Vendido":
+        # Una fila = una copia: vendida, no queda stock (MP y la Mystery Box ya lo
+        # hacian; el cambio de estado a mano dejaba stock 1 y el pie de Stock lo sumaba).
+        if estado_anterior != "Vendido":
+            disc.stock = 0
         if not disc.fecha_venta:
             disc.fecha_venta = ahora
         # Si no se registraron copias vendidas, asumir al menos 1
@@ -1590,6 +1597,14 @@ def _purgar_archivos_huerfanos(covers_dir, samples_dir, static_folder, covers, s
 # ---------------------------------------------------------------------------
 
 def register_routes(app: Flask) -> None:
+
+    def _enviar_push(titulo, cuerpo, url="/admin/"):
+        """Aviso push al celu del admin (venta MP / reserva web). La implementacion
+        esta en create_app; antes se la llamaba directo desde aca y daba NameError
+        (silenciado), asi que los avisos nunca salian."""
+        f = getattr(app, "enviar_push", None)
+        if f:
+            f(titulo, cuerpo, url)
 
     @app.errorhandler(404)
     def page_not_found(e):
@@ -6943,13 +6958,17 @@ def register_routes(app: Flask) -> None:
         """Aviso del checkout: hay discos en Fire Sale y el visitante no inicio sesion.
         Le ofrece crear la cuenta en el mismo paso o iniciar sesion y volver aca."""
         if auth.cliente_actual_id():
-            return {"fs_aviso": False}
+            return {"fs_aviso": False, "fs_login_url": None}
         ids = [int(x) for x in (ids_raw or "").split(",") if x.strip().isdigit()][:100]
         hay = bool(ids) and any(getattr(d, "en_fire_sale_activo", False)
                                 for d in Disc.query.filter(Disc.id.in_(ids)).all())
+        # El carrito normalmente llega SIN ids en la URL (los carga el JS desde el
+        # navegador): el aviso se renderiza oculto y el JS lo muestra si algun disco
+        # del carrito esta en Fire Sale.
         return {"fs_aviso": hay,
                 "fs_login_url": url_for("cliente_login_page",
-                                        next=url_for("public_checkout", ids=ids_raw))}
+                                        next=url_for("public_checkout", ids=ids_raw) if ids_raw
+                                        else url_for("public_checkout"))}
 
     def _guardar_comprobante(reserva, file):
         """Guarda el comprobante de transferencia (imagen o PDF), si vino uno."""

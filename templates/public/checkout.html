@@ -18,8 +18,8 @@
         <input type="hidden" name="box_texto" id="box-texto" value="{{ form.box_texto or '' }}">
 
         <div class="ck-datos">
-            {% if fs_aviso %}
-            <p class="checkout-logged-note checkout-fs-aviso">&#128293; Ten&eacute;s discos en <strong>Fire Sale</strong>: son exclusivos para clientes con cuenta. Pon&eacute; una contrase&ntilde;a en &laquo;Cre&aacute; tu cuenta&raquo; (m&aacute;s abajo) y se crea en este mismo paso, o <a href="{{ fs_login_url }}">inici&aacute; sesi&oacute;n</a> si ya ten&eacute;s cuenta: volv&eacute;s ac&aacute; con tu carrito.</p>
+            {% if fs_login_url %}
+            <p class="checkout-logged-note checkout-fs-aviso" id="checkout-fs-aviso"{% if not fs_aviso %} hidden{% endif %}>&#128293; Ten&eacute;s discos en <strong>Fire Sale</strong>: son exclusivos para clientes con cuenta. Pon&eacute; una contrase&ntilde;a en &laquo;Cre&aacute; tu cuenta&raquo; (m&aacute;s abajo) y se crea en este mismo paso, o <a href="{{ fs_login_url }}">inici&aacute; sesi&oacute;n</a> si ya ten&eacute;s cuenta: volv&eacute;s ac&aacute; con tu carrito.</p>
             {% endif %}
             {% if cliente_actual %}
             <p class="checkout-logged-note">&#10003; Completamos tus datos porque iniciaste sesi&oacute;n como <strong>{{ cliente_actual.nombre }}</strong>. Revisalos y confirm&aacute;.</p>
@@ -328,6 +328,9 @@
             resumenEl.innerHTML = html;
             subtotalActual = total + boxPrecio;  // la box suma al total (y al recargo MP)
             nDiscos = discos.length;             // pero NO cuenta para el envio gratis
+            // Fire Sale sin sesion: mostrar el aviso (crear cuenta aca o iniciar sesion)
+            var fsAviso = document.getElementById('checkout-fs-aviso');
+            if (fsAviso && discos.some(function (d) { return d.en_fire_sale; })) fsAviso.hidden = false;
             actualizarEntrega();  // recalcular con el subtotal y la cantidad ya cargados
             if (window.arcanoGA) window.arcanoGA('begin_checkout', {
                 currency: 'UYU', value: subtotalActual,
