@@ -623,14 +623,14 @@ Montevideo, Uruguay
 """
     wa = _e(reserva.whatsapp or "")
     cuerpo = (
-        _seccion(_p(f"Hola {_nombre_pila(reserva)}, recibimos tu reserva. El disco queda apartado para vos "
+        _seccion(_p(f"Hola {_nombre_pila(reserva)}, recibimos tu reserva. El disco queda reservado para vos "
                     "mientras coordinamos.", "margin-top:0;"), arriba=16)
         + _lista_cliente([(disc.artista, disc.titulo, disc, precio_uyu)], "Tu reserva")
         + _pasos_cliente([f"Te escribimos por WhatsApp al {wa}.",
                           "Coordinamos el pago y la entrega o el retiro.",
                           "Tu disco llega revisado y bien embalado."])
     )
-    body_html = marco_cliente("Reserva recibida", "Tu disco est&aacute; apartado.", cuerpo,
+    body_html = marco_cliente("Reserva recibida", "Tu disco est&aacute; reservado.", cuerpo,
                               boton=_boton_pedido(reserva), ref=f"Reserva #{reserva.id}")
     return send_email(subject, body_text, body_html, to=reserva.email)
 
@@ -661,7 +661,7 @@ Montevideo, Uruguay
 """
     wa = _e(reserva.whatsapp or "")
     cuerpo = (
-        _seccion(_p(f"Hola {_nombre_pila(reserva)}, recibimos tu reserva. Los discos quedan apartados para vos "
+        _seccion(_p(f"Hola {_nombre_pila(reserva)}, recibimos tu reserva. Los discos quedan reservados para vos "
                     "mientras coordinamos.", "margin-top:0;"), arriba=16)
         + _lista_cliente(_items_cliente(reserva, discs), "Tu reserva")
         + _totales_cliente(reserva, total)
@@ -670,7 +670,7 @@ Montevideo, Uruguay
                           "Coordinamos el pago y la entrega o el retiro.",
                           "Tus discos llegan revisados y bien embalados."])
     )
-    body_html = marco_cliente("Reserva recibida", "Tus discos est&aacute;n apartados.", cuerpo,
+    body_html = marco_cliente("Reserva recibida", "Tus discos est&aacute;n reservados.", cuerpo,
                               boton=_boton_pedido(reserva), ref=f"Reserva #{reserva.id}")
     return send_email(subject, body_text, body_html, to=reserva.email)
 
@@ -733,7 +733,7 @@ Montevideo, Uruguay
 # Titulo + texto por defecto de cada estado (editable desde el admin al enviar)
 RESERVA_ESTADO_MENSAJES = {
     "Pendiente": ("Recibimos tu pedido",
-                  "Recibimos tu pedido y te lo apartamos. Coordinamos el pago y la entrega por WhatsApp."),
+                  "Recibimos tu pedido y te lo reservamos. Coordinamos el pago y la entrega por WhatsApp."),
     "Pagada": ("Confirmamos tu pago",
                "Confirmamos tu pago. ¡Gracias por comprar en Arcano! Coordinamos la entrega por WhatsApp."),
     "Cancelada": ("Tu pedido fue cancelado",

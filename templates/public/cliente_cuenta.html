@@ -57,7 +57,7 @@
                 <span class="badge badge-{{ 'reservado' if r.estado == 'Pendiente' else 'vendido' if r.estado == 'Pagada' else 'descartado' }}">{{ r.estado }}</span>
             </div>
             <div class="cuenta-reserva-estado-hint">
-                {% if r.estado == 'Pendiente' %}Te apartamos el pedido. Coordinamos el pago por WhatsApp.
+                {% if r.estado == 'Pendiente' %}Te reservamos el pedido. Coordinamos el pago por WhatsApp.
                 {% elif r.estado == 'Pagada' %}Pago confirmado &mdash; coordinamos la entrega. &iexcl;Gracias!
                 {% elif r.estado == 'Cancelada' %}Cancelado.
                 {% endif %}
