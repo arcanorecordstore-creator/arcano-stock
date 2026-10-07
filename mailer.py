@@ -393,8 +393,210 @@ Email: {_e(reserva.email or '—')}</p>
     return send_email(subject, body_text, body_html, attachments=attachments)
 
 
+# ---------------------------------------------------------------------------
+# Mails al CLIENTE con la identidad de marca (manual set. 2026), opcion "Papel":
+# fondo crema, logo negro, lineas beige, pie negro con el logo vinilo. Solo Space
+# Grotesk (Gmail la cambia por Helvetica/Arial), titulos Medium en mayuscula, sin
+# negritas y solo los 5 colores de la paleta. El mail al admin queda aparte.
+# ---------------------------------------------------------------------------
+_CREMA, _BEIGE, _BLANCO, _MARRON, _NEGRO = "#FFF7EC", "#E9D1AF", "#FFFFFF", "#3D3033", "#1E1C1C"
+_FF = "'Space Grotesk', Helvetica, Arial, sans-serif"
+
+
+def _etiqueta(txt, color=_MARRON):
+    return (f'<div style="font-family:{_FF};font-size:11px;font-weight:500;letter-spacing:4px;'
+            f'text-transform:uppercase;color:{color};">{txt}</div>')
+
+
+def _p(html_txt, extra=""):
+    return (f'<p style="margin:16px 0 0;font-family:{_FF};font-size:16px;line-height:1.55;'
+            f'font-weight:300;color:{_NEGRO};{extra}">{html_txt}</p>')
+
+
+def _seccion(html_txt, arriba=32):
+    return f'<tr><td style="padding-top:{arriba}px;">{html_txt}</td></tr>'
+
+
+def _boton(texto, url):
+    return (f'<a href="{_e(url)}" style="display:inline-block;background:{_NEGRO};color:{_BLANCO};'
+            f'font-family:{_FF};font-size:12px;font-weight:500;letter-spacing:3px;text-transform:uppercase;'
+            f'text-decoration:none;padding:15px 26px;border-radius:4px;">{texto}</a>')
+
+
+def marco_cliente(etiqueta, titulo, cuerpo_html, boton=None, ref=None, despues_html=""):
+    """HTML completo de un mail al cliente. `cuerpo_html` = filas <tr> (usar _seccion).
+    `boton` = (texto, url). `ref` = texto chico arriba a la derecha (ej. "Pedido #12")."""
+    logo = f"{SITE_URL}/static/brand/logo-primary-negro.png"
+    vinilo = f"{SITE_URL}/static/brand/logo-vinilo-blanco.png"
+    ref_html = _etiqueta(ref) if ref else ""
+    boton_html = (f'<tr><td style="padding:34px 0 0;">{_boton(*boton)}</td></tr>' if boton else "")
+    return f"""<!doctype html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500&display=swap" rel="stylesheet">
+</head><body style="margin:0;padding:0;background:{_CREMA};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{_CREMA};"><tr><td align="center" style="padding:0 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;">
+  <tr><td style="padding:36px 0 28px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td><a href="{SITE_URL}"><img src="{logo}" width="150" alt="Arcano Record Store" style="display:block;width:150px;height:auto;border:0;"></a></td>
+      <td style="text-align:right;vertical-align:middle;">{ref_html}</td>
+    </tr></table>
+  </td></tr>
+  <tr><td style="border-top:1px solid {_BEIGE};padding-top:36px;">
+    {_etiqueta(etiqueta)}
+    <h1 style="margin:14px 0 0;font-family:{_FF};font-size:28px;line-height:1.15;font-weight:500;letter-spacing:1px;text-transform:uppercase;color:{_NEGRO};">{titulo}</h1>
+  </td></tr>
+  {cuerpo_html}
+  {boton_html}
+  {despues_html}
+  <tr><td style="padding-bottom:40px;"></td></tr>
+</table>
+</td></tr>
+<tr><td align="center" style="background:{_NEGRO};padding:34px 16px;">
+  <a href="{SITE_URL}"><img src="{vinilo}" width="48" alt="Arcano Record Store" style="display:block;width:48px;height:auto;border:0;margin:0 auto;"></a>
+  <div style="font-family:{_FF};font-size:13px;font-weight:300;color:{_BEIGE};margin-top:18px;">
+    <a href="{SITE_URL}" style="color:{_BEIGE};text-decoration:none;">arcanorecordstore.com</a> &nbsp;&middot;&nbsp;
+    <a href="https://instagram.com/arcanorecordstore" style="color:{_BEIGE};text-decoration:none;">@arcanorecordstore</a>
+  </div>
+  <div style="font-family:{_FF};font-size:11px;font-weight:300;color:{_BEIGE};margin-top:10px;">Arcano Record Store &middot; Montevideo, Uruguay</div>
+</td></tr>
+</table></body></html>"""
+
+
+def mail_simple_html(etiqueta, titulo, parrafos_html, boton=None, nota=None):
+    """Mail al cliente de solo texto (activar cuenta, cambiar contrasena, Fire Sale...)
+    con el mismo diseno. `parrafos_html` = lista de parrafos ya escapados."""
+    cuerpo = "".join(_p(x) for x in parrafos_html)
+    filas = f'<tr><td style="padding-top:2px;">{cuerpo}</td></tr>'
+    nota_html = (f'<tr><td style="padding-top:22px;font-family:{_FF};font-size:13px;line-height:1.5;'
+                 f'font-weight:300;color:{_MARRON};">{nota}</td></tr>') if nota else ""
+    return marco_cliente(etiqueta, titulo, filas, boton=boton, despues_html=nota_html)
+
+
+def _items_cliente(reserva, discs):
+    """[(artista, titulo, disco|None, precio)] con los precios REALES (snapshots)."""
+    items = list(getattr(reserva, "items_efectivos", []) or [])
+    if items:
+        return [(it.artista_snap, it.titulo_snap, getattr(it, "disco", None), it.precio_uyu_snap) for it in items]
+    return [(d.artista, d.titulo, d, d.precio_mostrar) for d in discs]
+
+
+def _fila_cliente(artista, titulo, disc=None, precio=None):
+    disc_id = getattr(disc, "id", None) if disc is not None else None
+    href = f"{SITE_URL}/disco/{disc_id}" if disc_id else None
+    cover = _cover_url_abs(disc)
+    if cover:
+        img = (f'<img src="{_e(cover)}" width="76" height="76" alt="" style="display:block;width:76px;'
+               f'height:76px;object-fit:cover;border-radius:4px;border:0;">')
+    else:
+        img = (f'<div style="width:76px;height:76px;border-radius:4px;background:{_BEIGE};"></div>')
+    if href:
+        img = f'<a href="{href}" style="text-decoration:none;">{img}</a>'
+    detalle = " &middot; ".join(_e(str(x)) for x in (getattr(disc, "sello", None), getattr(disc, "anio", None)) if x)
+    tit = _e(titulo or "")
+    if href:
+        tit = f'<a href="{href}" style="color:{_NEGRO};text-decoration:none;">{tit}</a>'
+    precio_td = (f'<td width="90" style="vertical-align:top;text-align:right;font-family:{_FF};font-size:15px;'
+                 f'font-weight:400;color:{_NEGRO};white-space:nowrap;">$ {_money(precio)}</td>'
+                 if precio is not None else "")
+    return f"""<tr><td style="padding:16px 0;border-bottom:1px solid {_BEIGE};">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td width="76" style="vertical-align:top;">{img}</td>
+    <td style="vertical-align:top;padding-left:16px;font-family:{_FF};">
+      <div style="font-size:12px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;color:{_NEGRO};">{_e(artista or "")}</div>
+      <div style="font-size:16px;font-weight:300;color:{_NEGRO};margin-top:3px;">{tit}</div>
+      {f'<div style="font-size:12px;font-weight:300;color:{_MARRON};margin-top:6px;">{detalle}</div>' if detalle else ''}
+    </td>
+    {precio_td}
+  </tr></table>
+</td></tr>"""
+
+
+def _lista_cliente(filas, etiqueta="Tu pedido"):
+    return _seccion(f"""{_etiqueta(etiqueta)}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:8px;border-top:1px solid {_BEIGE};">
+{''.join(_fila_cliente(*f) for f in filas)}
+</table>""", arriba=36)
+
+
+def _totales_cliente(reserva, subtotal):
+    envio = float(getattr(reserva, "envio_costo_uyu", 0) or 0)
+    recargo = float(getattr(reserva, "recargo_mp", 0) or 0)
+    total = float(getattr(reserva, "total_final", 0) or 0) or (float(subtotal or 0) + envio)
+    et = getattr(reserva, "entrega_tipo", None)
+
+    def linea(k, v, grande=False):
+        st = ("font-size:18px;font-weight:500;padding-top:12px;" if grande
+              else "font-size:14px;font-weight:300;padding:3px 0;")
+        borde = f"border-top:1px solid {_NEGRO};" if grande else ""
+        return (f'<tr><td style="font-family:{_FF};{st}{borde}color:{_NEGRO};">{k}</td>'
+                f'<td style="font-family:{_FF};{st}{borde}color:{_NEGRO};text-align:right;white-space:nowrap;">{v}</td></tr>')
+
+    filas = []
+    if et == "montevideo":
+        filas.append(linea("Env&iacute;o", f"$ {_money(envio)}" if envio > 0 else "Gratis (3 discos o m&aacute;s)"))
+    elif et == "interior":
+        filas.append(linea("Env&iacute;o", "Lo cobra la agencia"))
+    elif envio > 0:
+        filas.append(linea("Env&iacute;o", f"$ {_money(envio)}"))
+    if recargo > 0:
+        filas.append(linea("Recargo Mercado Pago", f"$ {_money(recargo)}"))
+    if filas:   # con envio o recargo se muestra el detalle; si no, solo el total
+        filas.insert(0, linea("Discos", f"$ {_money(subtotal)}"))
+    filas.append(linea("Total", f"$ {_money(total)} UYU", grande=True))
+    return (f'<tr><td><table role="presentation" cellpadding="0" cellspacing="0" align="right" '
+            f'style="width:340px;max-width:100%;margin-top:18px;">{"".join(filas)}</table></td></tr>')
+
+
+def _entrega_cliente(reserva):
+    et = getattr(reserva, "entrega_tipo", None)
+    if not et:
+        return ""
+    titulo = {"retiro": "Retiro en Pocitos", "montevideo": "Env&iacute;o en Montevideo",
+              "interior": "Env&iacute;o al interior"}.get(et, _e(reserva.entrega_label or ""))
+    dire = (getattr(reserva, "envio_direccion", "") or "").strip()
+    agencia = (getattr(reserva, "envio_agencia", "") or "").strip()
+    linea2 = _e(dire) if dire else ""
+    if agencia:
+        linea2 = (linea2 + " &middot; " if linea2 else "") + "Agencia: " + _e(agencia)
+    if et == "retiro" and not linea2:
+        linea2 = "Coordinamos d&iacute;a y horario por WhatsApp."
+    return _seccion(f"""<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:{_BEIGE};border-radius:4px;"><tr><td style="padding:20px 22px;">
+  {_etiqueta('Entrega', _NEGRO)}
+  <div style="font-family:{_FF};font-size:15px;font-weight:400;color:{_NEGRO};margin-top:10px;">{titulo}</div>
+  {f'<div style="font-family:{_FF};font-size:14px;font-weight:300;color:{_NEGRO};margin-top:4px;">{linea2}</div>' if linea2 else ''}
+</td></tr></table>""")
+
+
+def _pasos_cliente(pasos):
+    filas = "".join(
+        f'<tr><td width="36" style="font-family:{_FF};font-size:13px;font-weight:500;color:{_MARRON};'
+        f'padding:6px 0;vertical-align:top;">{i:02d}</td><td style="font-family:{_FF};font-size:15px;'
+        f'font-weight:300;color:{_NEGRO};padding:6px 0;line-height:1.45;">{t}</td></tr>'
+        for i, t in enumerate(pasos, 1))
+    return _seccion(f"""{_etiqueta('Qu&eacute; sigue')}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;">{filas}</table>""")
+
+
+def _boton_pedido(reserva):
+    """Con cuenta: a su pedido. Sin cuenta: a la tienda."""
+    if getattr(reserva, "cliente_id", None):
+        return ("Ver mi pedido", f"{SITE_URL}/cuenta")
+    return ("Ir a la tienda", SITE_URL)
+
+
+def _nombre_pila(reserva):
+    return _e(((getattr(reserva, "nombre", "") or "").strip().split(" ") or [""])[0])
+
+
+def _paso_entrega(reserva):
+    if getattr(reserva, "entrega_tipo", None) == "retiro":
+        return "Coordinamos d&iacute;a y horario para que los retires en Pocitos."
+    return "Coordinamos d&iacute;a y horario de entrega."
+
+
 def send_reserva_confirmacion_cliente(reserva, disc) -> tuple[bool, str]:
-    """Envia un email de confirmacion al CLIENTE que reservo."""
+    """Envia un email de confirmacion al CLIENTE que reservo (un disco)."""
     if not reserva.email:
         return False, "El cliente no dejo email"
 
@@ -419,35 +621,27 @@ Gracias por elegir Arcano.
 Arcano Record Store
 Montevideo, Uruguay
 """
-
-    body_html = f"""<html><body style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; background: #0a0a0a; color: #fff;">
-<h1 style="letter-spacing: 4px; font-weight: 300;">ARCANO</h1>
-<h2 style="color: #10b981; font-size: 16px;">Confirmamos tu reserva</h2>
-
-<p>Hola <strong>{_e(reserva.nombre or '')}</strong>, recibimos tu reserva. Estos son los detalles:</p>
-
-<h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 2px;">Disco</h3>
-{_fila_html(disc.artista, disc.titulo, disc=disc, precio=precio_uyu)}
-<p style="color: #888; margin:4px 0 0;">{_e(disc.sello or '—')}</p>
-
-<p>Nos vamos a contactar con vos por WhatsApp (<strong>{_e(reserva.whatsapp or '')}</strong>) para coordinar el pago y la entrega o retiro.</p>
-
-<p style="margin-top: 24px;">Gracias por elegir Arcano.</p>
-
-<hr style="border: none; border-top: 1px solid #333; margin: 30px 0;">
-<p style="font-size: 11px; color: #666;">Arcano Record Store &middot; Montevideo, Uruguay<br>Reserva #{reserva.id}</p>
-</body></html>"""
-
+    wa = _e(reserva.whatsapp or "")
+    cuerpo = (
+        _seccion(_p(f"Hola {_nombre_pila(reserva)}, recibimos tu reserva. El disco queda apartado para vos "
+                    "mientras coordinamos.", "margin-top:0;"), arriba=16)
+        + _lista_cliente([(disc.artista, disc.titulo, disc, precio_uyu)], "Tu reserva")
+        + _pasos_cliente([f"Te escribimos por WhatsApp al {wa}.",
+                          "Coordinamos el pago y la entrega o el retiro.",
+                          "Tu disco llega revisado y bien embalado."])
+    )
+    body_html = marco_cliente("Reserva recibida", "Tu disco est&aacute; apartado.", cuerpo,
+                              boton=_boton_pedido(reserva), ref=f"Reserva #{reserva.id}")
     return send_email(subject, body_text, body_html, to=reserva.email)
 
 
 def send_reserva_confirmacion_cliente_multi(reserva, discs) -> tuple[bool, str]:
-    """Confirmacion al cliente para una reserva con varios discos (carrito)."""
+    """Confirmacion al cliente para una reserva a coordinar con varios discos (carrito)."""
     if not reserva.email:
         return False, "El cliente no dejo email"
 
-    total, lineas, filas_html = _lineas_pedido(reserva, discs)
-    cobro_txt, cobro_html = _bloque_cobro(reserva, total)
+    total, lineas, _filas_viejas = _lineas_pedido(reserva, discs)
+    cobro_txt, _cobro_viejo = _bloque_cobro(reserva, total)
     subject = f"Confirmamos tu reserva - {reserva.cantidad_discos or len(discs)} item(s)"
     body_text = f"""Hola {reserva.nombre},
 
@@ -465,19 +659,19 @@ Gracias por elegir Arcano.
 Arcano Record Store
 Montevideo, Uruguay
 """
-
-    body_html = f"""<html><body style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; background: #0a0a0a; color: #fff;">
-<h1 style="letter-spacing: 4px; font-weight: 300;">ARCANO</h1>
-<h2 style="color: #10b981; font-size: 16px;">Confirmamos tu reserva</h2>
-<p>Hola <strong>{_e(reserva.nombre or '')}</strong>, recibimos tu reserva de estos discos:</p>
-{filas_html}
-{cobro_html}
-<p>Nos vamos a contactar con vos por WhatsApp (<strong>{_e(reserva.whatsapp or '')}</strong>) para coordinar el pago y la entrega o retiro.</p>
-<p style="margin-top: 24px;">Gracias por elegir Arcano.</p>
-<hr style="border: none; border-top: 1px solid #333; margin: 30px 0;">
-<p style="font-size: 11px; color: #666;">Arcano Record Store &middot; Montevideo, Uruguay<br>Reserva #{reserva.id}</p>
-</body></html>"""
-
+    wa = _e(reserva.whatsapp or "")
+    cuerpo = (
+        _seccion(_p(f"Hola {_nombre_pila(reserva)}, recibimos tu reserva. Los discos quedan apartados para vos "
+                    "mientras coordinamos.", "margin-top:0;"), arriba=16)
+        + _lista_cliente(_items_cliente(reserva, discs), "Tu reserva")
+        + _totales_cliente(reserva, total)
+        + _entrega_cliente(reserva)
+        + _pasos_cliente([f"Te escribimos por WhatsApp al {wa}.",
+                          "Coordinamos el pago y la entrega o el retiro.",
+                          "Tus discos llegan revisados y bien embalados."])
+    )
+    body_html = marco_cliente("Reserva recibida", "Tus discos est&aacute;n apartados.", cuerpo,
+                              boton=_boton_pedido(reserva), ref=f"Reserva #{reserva.id}")
     return send_email(subject, body_text, body_html, to=reserva.email)
 
 
@@ -488,15 +682,24 @@ def send_compra_confirmacion_cliente(reserva, discs, metodo="mercadopago") -> tu
     if not reserva.email:
         return False, "El cliente no dejo email"
 
-    total, lineas, filas_html = _lineas_pedido(reserva, discs)
+    total, lineas, _filas_viejas = _lineas_pedido(reserva, discs)
+    wa = _e(reserva.whatsapp or "")
     if metodo == "transferencia":
         pago_txt = "Recibimos tu comprobante de transferencia. En cuanto lo verifiquemos, coordinamos la entrega."
-        pago_html = "Recibimos tu <strong>comprobante de transferencia</strong>. En cuanto lo verifiquemos, coordinamos la entrega."
+        etiqueta = "Comprobante recibido"
+        intro = ("Recibimos tu comprobante de transferencia. En cuanto verifiquemos el pago, "
+                 "coordinamos la entrega por WhatsApp.")
+        pasos = ["Verificamos que la transferencia haya llegado.",
+                 f"Te escribimos por WhatsApp al {wa}.", _paso_entrega(reserva)]
     else:
         pago_txt = "Tu pago quedo confirmado. Ahora coordinamos la entrega."
-        pago_html = "Tu <strong>pago quedo confirmado</strong>. Ahora coordinamos la entrega."
+        etiqueta = "Compra confirmada"
+        medio = "con Mercado Pago " if metodo == "mercadopago" else ""
+        intro = f"Tu pago {medio}qued&oacute; confirmado. Ahora coordinamos la entrega por WhatsApp."
+        pasos = [f"Te escribimos por WhatsApp al {wa}.", _paso_entrega(reserva),
+                 "Tus discos llegan revisados y bien embalados."]
 
-    cobro_txt, cobro_html = _bloque_cobro(reserva, total)
+    cobro_txt, _cobro_viejo = _bloque_cobro(reserva, total)
     subject = f"Gracias por tu compra en Arcano - {reserva.cantidad_discos or len(discs)} item(s)"
     body_text = f"""Hola {reserva.nombre},
 
@@ -515,20 +718,15 @@ Gracias por elegir Arcano.
 Arcano Record Store
 Montevideo, Uruguay
 """
-
-    body_html = f"""<html><body style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; background: #0a0a0a; color: #fff;">
-<h1 style="letter-spacing: 4px; font-weight: 300;">ARCANO</h1>
-<h2 style="color: #10b981; font-size: 16px;">&iexcl;Gracias por tu compra!</h2>
-<p>Hola <strong>{_e(reserva.nombre or '')}</strong>, gracias por comprar en Arcano Record Store. Esto es lo que llevaste:</p>
-{filas_html}
-{cobro_html}
-<p>{pago_html}</p>
-<p>Nos contactamos por WhatsApp (<strong>{_e(reserva.whatsapp or '')}</strong>) para coordinar la entrega o el retiro (env&iacute;o a todo Uruguay o pick up en Pocitos).</p>
-<p style="margin-top: 24px;">Gracias por elegir Arcano.</p>
-<hr style="border: none; border-top: 1px solid #333; margin: 30px 0;">
-<p style="font-size: 11px; color: #666;">Arcano Record Store &middot; Montevideo, Uruguay<br>Compra #{reserva.id}</p>
-</body></html>"""
-
+    cuerpo = (
+        _seccion(_p(intro, "margin-top:0;"), arriba=16)
+        + _lista_cliente(_items_cliente(reserva, discs))
+        + _totales_cliente(reserva, total)
+        + _entrega_cliente(reserva)
+        + _pasos_cliente(pasos)
+    )
+    body_html = marco_cliente(etiqueta, f"Gracias por tu compra, {_nombre_pila(reserva)}.", cuerpo,
+                              boton=_boton_pedido(reserva), ref=f"Pedido #{reserva.id}")
     return send_email(subject, body_text, body_html, to=reserva.email)
 
 
@@ -537,9 +735,9 @@ RESERVA_ESTADO_MENSAJES = {
     "Pendiente": ("Recibimos tu pedido",
                   "Recibimos tu pedido y te lo apartamos. Coordinamos el pago y la entrega por WhatsApp."),
     "Pagada": ("Confirmamos tu pago",
-               "Confirmamos tu pago. Gracias por comprar en Arcano! Coordinamos la entrega por WhatsApp."),
+               "Confirmamos tu pago. ¡Gracias por comprar en Arcano! Coordinamos la entrega por WhatsApp."),
     "Cancelada": ("Tu pedido fue cancelado",
-                  "Tu pedido fue cancelado. Si fue un error o queres retomarlo, escribinos por WhatsApp."),
+                  "Tu pedido fue cancelado. Si fue un error o querés retomarlo, escribinos por WhatsApp."),
 }
 
 
@@ -574,18 +772,13 @@ Pedido #{reserva.id}:
 Arcano Record Store
 Montevideo, Uruguay
 """
-
-    filas_html = "".join(
-        _fila_html(d.artista, d.titulo, disc=d)
-        for d in discs
+    texto_html = _e(texto).replace("\n", "<br>")
+    cuerpo = (
+        _seccion(_p(f"Hola {_nombre_pila(reserva)}.", "margin-top:0;") + _p(texto_html, "margin-top:8px;"), arriba=16)
+        + (_lista_cliente([(d.artista, d.titulo, d, None) for d in discs]) if discs else "")
     )
-    body_html = f"""<html><body style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; background: #0a0a0a; color: #fff;">
-<h1 style="letter-spacing: 4px; font-weight: 300;">ARCANO</h1>
-<h2 style="color: #10b981; font-size: 16px;">{titulo}</h2>
-<p>Hola <strong>{_e(reserva.nombre or '')}</strong>, {texto}</p>
-{filas_html}
-<hr style="border: none; border-top: 1px solid #333; margin: 30px 0;">
-<p style="font-size: 11px; color: #666;">Arcano Record Store &middot; Montevideo, Uruguay<br>Pedido #{reserva.id}</p>
-</body></html>"""
-
+    etiqueta = {"Pendiente": "Pedido recibido", "Pagada": "Pago confirmado",
+                "Cancelada": "Pedido cancelado"}.get(nuevo_estado, "Tu pedido")
+    boton = None if nuevo_estado == "Cancelada" else _boton_pedido(reserva)
+    body_html = marco_cliente(etiqueta, _e(titulo) + ".", cuerpo, boton=boton, ref=f"Pedido #{reserva.id}")
     return send_email(subject, body_text, body_html, to=reserva.email)

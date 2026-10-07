@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.81"
+APP_VERSION = "5.82"
 import metrics
 import auth
 import mailer
@@ -7971,12 +7971,13 @@ def register_routes(app: Flask) -> None:
         cuerpo = ("Hola %s,\n\nPara activar tu cuenta en Arcano Record Store y ver tus "
                   "compras, entra a este link (vence en 48 horas):\n%s\n\nSi no fuiste "
                   "vos, ignora este mail: no se crea nada." % (_nom, url))
-        html = ("<p>Hola %s,</p><p>Para activar tu cuenta en <strong>Arcano Record Store</strong> "
-                "y ver tus compras, toc&aacute; el bot&oacute;n (vence en 48 horas):</p>"
-                "<p><a href='%s' style='display:inline-block;background:#3D3033;color:#FFF7EC;"
-                "padding:11px 20px;border-radius:999px;text-decoration:none;font-weight:500'>"
-                "Activar mi cuenta</a></p><p style='color:#888;font-size:13px'>Si no fuiste vos, "
-                "ignor&aacute; este mail: no se crea nada.</p>" % (_nom, url))
+        from markupsafe import escape as _esc
+        html = mailer.mail_simple_html(
+            "Tu cuenta", "Activ&aacute; tu cuenta.",
+            [f"Hola {_esc(_nom.split(' ')[0])}, para activar tu cuenta en Arcano Record Store y ver tus "
+             "compras, toc&aacute; el bot&oacute;n. El link vence en 48 horas."],
+            boton=("Activar mi cuenta", url),
+            nota="Si no fuiste vos, ignor&aacute; este mail: no se crea nada.")
         try:
             ok, _msg = mailer.send_email("Activa tu cuenta - Arcano Record Store",
                                          cuerpo, html, to=email)
@@ -8066,18 +8067,21 @@ def register_routes(app: Flask) -> None:
                     _tk = _reset_serializer().dumps({"c": _existente.id, "v": _existente.password_hash[-16:]})
                     _url = _base_publica() + url_for("cliente_reset", token=_tk)
                     _nom = _existente.nombre or ""
+                    from markupsafe import escape as _esc_n
                     _mail_en_segundo_plano(
                         "Ya tenes cuenta en Arcano Record Store",
                         ("Hola %s,\n\nAlguien (seguramente vos) intento crear una cuenta con este "
                          "email, pero ya tenes una. Inicia sesion en la web, o si no te acordas la "
                          "contrasena, cambiala aca (vence en 1 hora):\n%s\n\nSi no fuiste vos, "
                          "ignora este mail." % (_nom, _url)),
-                        ("<p>Hola %s,</p><p>Alguien (seguramente vos) intent&oacute; crear una cuenta "
-                         "con este email, pero <strong>ya ten&eacute;s una</strong>. Inici&aacute; "
-                         "sesi&oacute;n en la web, o si no te acord&aacute;s la contrase&ntilde;a, "
-                         "cambiala ac&aacute; (vence en 1 hora):</p><p><a href='%s'>Cambiar mi "
-                         "contrase&ntilde;a</a></p><p style='color:#888;font-size:13px'>Si no fuiste "
-                         "vos, ignor&aacute; este mail.</p>" % (_nom, _url)),
+                        mailer.mail_simple_html(
+                            "Tu cuenta", "Ya ten&eacute;s cuenta.",
+                            [f"Hola {_esc_n(_nom.split(' ')[0])}, alguien (seguramente vos) intent&oacute; crear una "
+                             "cuenta con este email, pero ya ten&eacute;s una. Inici&aacute; sesi&oacute;n "
+                             "en la web o, si no te acord&aacute;s la contrase&ntilde;a, cambiala con el "
+                             "bot&oacute;n. El link vence en 1 hora."],
+                            boton=("Cambiar mi contrase&ntilde;a", _url),
+                            nota="Si no fuiste vos, ignor&aacute; este mail."),
                         _existente.email)
                 from markupsafe import escape as _esc
                 flash("Te mandamos un mail a "
@@ -8150,13 +8154,13 @@ def register_routes(app: Flask) -> None:
                     cuerpo = ("Hola %s,\n\nPediste cambiar tu contrasena en Arcano. Entra a "
                               "este link (vence en 1 hora):\n%s\n\nSi no fuiste vos, ignora "
                               "este mail." % (_nombre, reset_url))
-                    html = ("<p>Hola %s,</p><p>Pediste cambiar tu contrase&ntilde;a en "
-                            "<strong>Arcano Record Store</strong>. Toc&aacute; el bot&oacute;n "
-                            "(vence en 1 hora):</p><p><a href='%s' style='display:inline-block;"
-                            "background:#6366f1;color:#fff;padding:11px 20px;border-radius:8px;"
-                            "text-decoration:none;font-weight:600'>Cambiar mi contrase&ntilde;a</a></p>"
-                            "<p style='color:#888;font-size:13px'>Si no fuiste vos, ignor&aacute; "
-                            "este mail; tu contrase&ntilde;a queda igual.</p>" % (_nombre, reset_url))
+                    from markupsafe import escape as _esc
+                    html = mailer.mail_simple_html(
+                        "Tu cuenta", "Cambiar tu contrase&ntilde;a.",
+                        [f"Hola {_esc(_nombre.split(' ')[0])}, pediste cambiar tu contrase&ntilde;a en Arcano "
+                         "Record Store. Toc&aacute; el bot&oacute;n; el link vence en 1 hora."],
+                        boton=("Cambiar mi contrase&ntilde;a", reset_url),
+                        nota="Si no fuiste vos, ignor&aacute; este mail: tu contrase&ntilde;a queda igual.")
                     _mail_en_segundo_plano("Cambiar tu contrasena - Arcano Record Store",
                                            cuerpo, html, cli.email)
                 except Exception:
@@ -9563,21 +9567,13 @@ def register_routes(app: Flask) -> None:
             + "Entra a la tienda e inicia sesion para ver los precios con descuento:\n"
             + url_tienda + "\n\nArcano Record Store"
         )
-        msg_html = ("<p>" + _html.escape(mensaje).replace("\n", "<br>") + "</p>") if mensaje else ""
-        html = (
-            '<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;'
-            'background:#0A0A0A;color:#EDEDED;padding:28px 24px;border-radius:12px;">'
-            '<h1 style="font-size:22px;letter-spacing:2px;margin:0 0 4px;">ARCANO &middot; FIRE SALE</h1>'
-            f'<p style="font-size:34px;font-weight:800;color:#ff5a3c;margin:8px 0 16px;">{pct}% OFF</p>'
-            '<p style="font-size:15px;line-height:1.5;margin:0 0 12px;">Descuento <b>exclusivo para clientes con cuenta</b>. '
-            'Inicia sesion en la tienda para ver los precios con el descuento aplicado.</p>'
-            + msg_html +
-            f'<p style="margin:22px 0;"><a href="{url_tienda}" '
-            'style="background:#ff5a3c;color:#fff;text-decoration:none;padding:12px 22px;'
-            'border-radius:8px;font-weight:700;display:inline-block;">Ver el Fire Sale &rarr;</a></p>'
-            '<p style="font-size:12px;color:#888;margin-top:20px;">Arcano Record Store &middot; Montevideo</p>'
-            '</div>'
-        )
+        parrafos = [f"Activamos un Fire Sale con {pct}% de descuento, exclusivo para clientes con "
+                    "cuenta. Inici&aacute; sesi&oacute;n en la tienda para ver los precios con el "
+                    "descuento aplicado."]
+        if mensaje:
+            parrafos.append(_html.escape(mensaje).replace("\n", "<br>"))
+        html = mailer.mail_simple_html("Fire Sale", f"{pct}% para clientes.", parrafos,
+                                       boton=("Ver el Fire Sale", url_tienda))
         enviados, fallidos = mailer.send_bulk(emails, asunto, texto, html)
         if enviados:
             extra = f" ({fallidos} no salieron)" if fallidos else ""
