@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.80"
+APP_VERSION = "5.81"
 import metrics
 import auth
 import mailer
@@ -845,6 +845,7 @@ def compute_totals(discs):
     suma_costo_eur = 0.0
     suma_envio_eur = 0.0
     suma_costo_final_uyu = 0.0
+    suma_ajuste_tc_uyu = 0.0
     suma_precio_uyu = 0.0
     ganancia_potencial_uyu = 0.0
     ganancia_realizada_uyu = 0.0
@@ -865,6 +866,7 @@ def compute_totals(discs):
         suma_costo_eur += (d.costo_eur or 0) * cant
         suma_envio_eur += (d.envio_eur or 0) * cant
         suma_costo_final_uyu += d.costo_real_uyu * cant
+        suma_ajuste_tc_uyu += d.ajuste_tc_uyu * cant
         # precio_mostrar (con oferta) para que el pie cuadre: precio - costo = ganancia
         # (la ganancia ya usa el precio de oferta).
         suma_precio_uyu += (d.precio_mostrar or d.precio_uyu or 0) * cant
@@ -881,6 +883,7 @@ def compute_totals(discs):
         "suma_costo_eur": round(suma_costo_eur, 2),
         "suma_envio_eur": round(suma_envio_eur, 2),
         "suma_costo_final_uyu": round(suma_costo_final_uyu, 2),
+        "suma_ajuste_tc_uyu": round(suma_ajuste_tc_uyu, 2),
         "suma_precio_uyu": round(suma_precio_uyu, 2),
         "suma_ganancia_uyu": round(suma_ganancia_uyu, 2),
         "ganancia_potencial_uyu": round(ganancia_potencial_uyu, 2),
@@ -3715,6 +3718,7 @@ def register_routes(app: Flask) -> None:
                 "campo": campo,
                 "valor": nuevo,
                 "costo_final_uyu": round(disc.costo_real_uyu),
+                "ajuste_tc_uyu": round(disc.ajuste_tc_uyu),
                 "ganancia_uyu": round(disc.ganancia_uyu or 0),
                 "margen_pct": round(disc.margen_pct or 0, 1),
             })
@@ -3784,6 +3788,7 @@ def register_routes(app: Flask) -> None:
                 "campo": campo,
                 "tc_usado": disc.tc_usado,
                 "costo_final_uyu": round(disc.costo_real_uyu),
+                "ajuste_tc_uyu": round(disc.ajuste_tc_uyu),
                 "ganancia_uyu": round(disc.ganancia_uyu or 0),
                 "margen_pct": round(disc.margen_pct or 0, 1),
             })

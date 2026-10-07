@@ -92,6 +92,11 @@
                         if ((campo === 'costo_eur' || campo === 'envio_eur') && res.data.costo_final_uyu !== undefined) {
                             var celCF = fila.querySelector('.col-costofinal .col-costofinal-val') || fila.querySelector('.col-costofinal');
                             if (celCF) celCF.textContent = fmtMiles(res.data.costo_final_uyu);
+                            var celTC = fila.querySelector('.col-dif-tc');
+                            if (celTC && res.data.ajuste_tc_uyu !== undefined) {
+                                var aj = res.data.ajuste_tc_uyu;
+                                celTC.textContent = aj ? ((aj > 0 ? '+' : '') + fmtMiles(aj)) : '—';
+                            }
                         }
                     } else {
                         td.textContent = textoOriginal;

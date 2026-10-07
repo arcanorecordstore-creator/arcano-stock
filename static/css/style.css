@@ -7065,6 +7065,7 @@ td.num,
 
 /* v3.34 - Boton para recalcular el costo de un disco con el TC actual */
 .col-costofinal { white-space: nowrap; }
+.col-dif-tc { white-space: nowrap; }
 .tc-recalc-btn {
     background: none;
     border: none;
@@ -8297,6 +8298,7 @@ td.num,
        fechas y formato. En el celu se gestiona: precio, ganancia, estado, stock. */
     .stock-table td.col-fmt,
     .stock-table td.col-num.col-costofinal,
+    .stock-table td.col-dif-tc,
     .stock-table td.col-margen,
     .stock-table td.col-origen,
     .stock-table td.col-pedido,

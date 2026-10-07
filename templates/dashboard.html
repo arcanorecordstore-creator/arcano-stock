@@ -188,7 +188,8 @@
                 {{ th_sort('sello', 'Sello', 'col-label') }}
                 {{ th_sort('audio_estado', 'Audio', 'col-audio') }}
                 {{ th_sort('costo_eur', 'Costo &euro;', 'col-num') }}
-                {{ th_sort('envio_eur', 'Envio &euro;', 'col-num') }}
+                {{ th_sort('envio_eur', 'Env&iacute;o &euro;', 'col-num') }}
+                <th class="col-num col-dif-tc" title="Parte de la diferencia entre lo que pagaste por el pedido y lo que suman sus discos (euros x tipo de cambio), repartida en partes iguales">Dif. tipo de cambio UYU</th>
                 {{ th_sort('costo_final_uyu', 'Costo final UYU', 'col-num') }}
                 {{ th_sort('precio_uyu', 'Precio UYU', 'col-num') }}
                 {{ th_sort('ganancia_uyu', 'Ganancia UYU', 'col-num') }}
@@ -249,8 +250,9 @@
                 </td>
                 <td class="col-num col-editable" data-label="Costo EUR" data-edit="costo_eur" data-disc-id="{{ d.id }}" data-raw="{{ '%.2f'|format(d.costo_eur or 0) }}" title="Click para editar el costo">{{ '%.2f'|format(d.costo_eur or 0) }}</td>
                 <td class="col-num col-editable" data-label="Envio EUR" data-edit="envio_eur" data-disc-id="{{ d.id }}" data-raw="{{ '%.2f'|format(d.envio_eur or 0) }}" title="Click para editar el envio">{{ '%.2f'|format(d.envio_eur or 0) }}</td>
+                <td class="col-num col-dif-tc">{% if d.ajuste_tc_uyu %}{{ '+' if d.ajuste_tc_uyu > 0 else '' }}{{ '{:,.0f}'.format(d.ajuste_tc_uyu).replace(',', '.') }}{% else %}&mdash;{% endif %}</td>
                 <td class="col-num col-costofinal">
-                    <span class="col-costofinal-val"{% if d.ajuste_tc_uyu %} title="Cargado {{ '{:,.0f}'.format(d.costo_final_uyu or 0).replace(',', '.') }} {{ '+' if d.ajuste_tc_uyu > 0 else '' }}{{ '{:,.0f}'.format(d.ajuste_tc_uyu).replace(',', '.') }} de diferencia de cambio del pedido"{% endif %}>{{ '{:,.0f}'.format(d.costo_real_uyu).replace(',', '.') }}</span>
+                    <span class="col-costofinal-val" title="(Costo + envío) x tipo de cambio = {{ '{:,.0f}'.format(d.costo_final_uyu or 0).replace(',', '.') }}{% if d.ajuste_tc_uyu %}, {{ '+' if d.ajuste_tc_uyu > 0 else '' }}{{ '{:,.0f}'.format(d.ajuste_tc_uyu).replace(',', '.') }} de diferencia de cambio{% endif %}">{{ '{:,.0f}'.format(d.costo_real_uyu).replace(',', '.') }}</span>
                     <button type="button" class="tc-recalc-btn" data-disc-id="{{ d.id }}"
                             title="Actualizar al tipo de cambio actual (1 EUR = {{ tc }} UYU) y recalcular el costo en pesos. Este disco esta calculado con TC {{ '%.2f'|format(d.tc_usado or 0) }}.">&#8635;</button>
                 </td>
@@ -341,6 +343,7 @@
                 <td colspan="6" class="totals-label">Totales</td>
                 <td class="col-num">{{ '%.2f'|format(totals.suma_costo_eur) }}</td>
                 <td class="col-num">{{ '%.2f'|format(totals.suma_envio_eur) }}</td>
+                <td class="col-num col-dif-tc">{{ '+' if totals.suma_ajuste_tc_uyu > 0 else '' }}{{ '{:,.0f}'.format(totals.suma_ajuste_tc_uyu).replace(',', '.') }}</td>
                 <td class="col-num">{{ '{:,.0f}'.format(totals.suma_costo_final_uyu).replace(',', '.') }}</td>
                 <td class="col-num">{{ '{:,.0f}'.format(totals.suma_precio_uyu).replace(',', '.') }}</td>
                 <td class="col-num {% if totals.suma_ganancia_uyu >= 0 %}gain{% else %}loss{% endif %}">{{ '{:,.0f}'.format(totals.suma_ganancia_uyu).replace(',', '.') }}</td>
@@ -398,7 +401,7 @@
     <div class="summary-card">
         <span class="summary-label">Costo final UYU</span>
         <span class="summary-value">{{ '{:,.0f}'.format(totals.suma_costo_final_uyu).replace(',', '.') }}</span>
-        <span class="summary-foot">Inversion en UYU</span>
+        <span class="summary-foot">Inversion real (con dif. de tipo de cambio)</span>
     </div>
     <div class="summary-card">
         <span class="summary-label">Precio total UYU</span>
