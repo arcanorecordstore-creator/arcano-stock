@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.84"
+APP_VERSION = "5.85"
 import metrics
 import auth
 import mailer
@@ -821,10 +821,13 @@ def query_discs(args):
     direction = (args.get("dir") or "desc").strip()
 
     # Campos calculados (propiedades, no columnas): se ordenan en Python
-    if order_by in ("ganancia_uyu", "margen_pct"):
+    if order_by in ("ganancia_uyu", "margen_pct", "costo_final_uyu"):
         discs = q.all()
         reverse = direction != "asc"
-        if order_by == "ganancia_uyu":
+        if order_by == "costo_final_uyu":
+            # La columna muestra el costo REAL (con la diferencia de cambio del pedido)
+            discs.sort(key=lambda d: d.costo_real_uyu, reverse=reverse)
+        elif order_by == "ganancia_uyu":
             discs.sort(key=lambda d: d.ganancia_uyu or 0, reverse=reverse)
         else:
             discs.sort(key=lambda d: d.margen_pct or 0, reverse=reverse)
@@ -1221,6 +1224,10 @@ def register_status_change(disc: Disc, nuevo_estado: str, nota: str | None = Non
     if (estado_anterior in ("Pre-order", "Encargo") and nuevo_estado != "Vendido"
             and nuevo_estado not in ("Pre-order", "Encargo")):
         disc.venta_grupo = None
+    # Reservado -> Disponible = la reserva se cayo: el disco ya no es de ese cliente.
+    # Si no, la proxima venta (por MP o reserva) le quedaba a nombre del anterior.
+    if estado_anterior == "Reservado" and nuevo_estado == "Disponible":
+        disc.cliente_id = None
 
     if nuevo_estado == "Reservado" and not disc.fecha_reserva:
         disc.fecha_reserva = ahora
@@ -6774,7 +6781,7 @@ def register_routes(app: Flask) -> None:
                 f"{d.costo_eur or 0:.2f}",
                 f"{d.envio_eur or 0:.2f}",
                 f"{d.tc_usado or 0:.2f}",
-                f"{d.costo_final_uyu or 0:.2f}",
+                f"{d.costo_real_uyu:.2f}",
                 f"{d.precio_uyu or 0:.2f}",
                 f"{d.ganancia_uyu or 0:.2f}",
                 f"{d.margen_pct or 0:.2f}",
@@ -7461,8 +7468,12 @@ def register_routes(app: Flask) -> None:
                 _hq = [t for t in _busq_ip_hist.get(_ip_q, []) if _ahora_q - t < 600]
                 if len(_hq) < 30:
                     _hq.append(_ahora_q)
-                    db.session.add(SearchQuery(termino=q[:120], resultados=total_resultados))
-                    db.session.commit()
+                    # Insert por una conexion aparte: un commit de la sesion aca "vencia"
+                    # todos los discos ya cargados y la pagina los volvia a leer de a uno
+                    # (una busqueda hacia ~265 consultas en vez de ~50).
+                    with db.engine.begin() as _cx:
+                        _cx.execute(SearchQuery.__table__.insert().values(
+                            termino=q[:120], resultados=total_resultados, fecha=datetime.utcnow()))
                 _busq_ip_hist[_ip_q] = _hq
                 if len(_busq_ip_hist) > 5000:
                     _busq_ip_hist.clear()
@@ -7758,10 +7769,9 @@ def register_routes(app: Flask) -> None:
     def public_reservar(disc_id: int):
         """Form de reserva."""
         disc = Disc.query.get_or_404(disc_id)
-        # Los pre-orders y encargos se pueden reservar aunque no tengan stock todavia.
-        if disc.estado in ("Pre-order", "Encargo"):
-            pass  # permitido
-        elif disc.estado != "Disponible" or (disc.stock or 0) <= 0:
+        # Los pre-orders y encargos se pueden reservar aunque no tengan stock todavia,
+        # salvo que ya los haya pedido otra persona (esta_agotado lo contempla).
+        if disc.esta_agotado:
             return render_template(
                 "public/not_available.html",
                 disc=disc,
@@ -7829,6 +7839,10 @@ def register_routes(app: Flask) -> None:
                 precio_uyu_snap=_precio_a_cobrar(disc),
             )
             db.session.add(item)
+            # Igual que "Reservar y coordinar" del carrito: el disco queda reservado de
+            # verdad (el mail le dice al cliente que esta reservado para el).
+            reserva.metodo_pago = "coordinar"
+            _apartar_para_pedido(reserva, [disc], "a coordinar")
             db.session.commit()
             _reserva_registrar(ip_reserva)
 
@@ -9550,7 +9564,17 @@ def register_routes(app: Flask) -> None:
             flash("El correo no esta configurado: no se pudo enviar el aviso.", "error")
             return redirect(url_for("settings_page"))
         cfg = fire_sale_config()
+        if not cfg.get("vigente"):
+            flash("El Fire Sale no est&aacute; activo (o ya venci&oacute; el reloj): activalo y "
+                  "guardalo antes de avisar. No se mand&oacute; ning&uacute;n mail.", "error")
+            return redirect(url_for("settings_page"))
         pct = cfg.get("pct") or int(float(Setting.get("fire_sale_pct", "10") or 10))
+        if (cfg.get("alcance") or "todo") != "todo" and not (
+                Disc.query.filter(Disc.en_fire_sale.is_(True), Disc.estado == "Disponible",
+                                  Disc.stock > 0).first()):
+            flash("El Fire Sale es solo para discos marcados, pero no hay ninguno disponible "
+                  "marcado. No se mand&oacute; ning&uacute;n mail.", "error")
+            return redirect(url_for("settings_page"))
         emails = [c.email for c in Cliente.query
                   .filter(Cliente.email.isnot(None), Cliente.email != "").all()]
         if not emails:
@@ -9559,7 +9583,7 @@ def register_routes(app: Flask) -> None:
 
         import html as _html
         mensaje = (Setting.get("fire_sale_mensaje", "") or "").strip()
-        url_tienda = url_for("home", _external=True)
+        url_tienda = mailer.SITE_URL
         alcance = cfg.get("alcance") or "todo"
         fin_txt = mailer.texto_fin_fire_sale(cfg.get("fin"), now_uy())
         asunto = f"{pct}% OFF para clientes · Fire Sale en Arcano"

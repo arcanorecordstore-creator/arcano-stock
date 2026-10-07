@@ -183,30 +183,19 @@ def kpis_mes_actual() -> dict:
 
 def top_sellos_inversion(limit: int = 5) -> list[dict]:
     """Top sellos por inversion inmovilizada (stock disponible)."""
-    rows = (
-        db.session.query(
-            Disc.sello,
-            func.count(Disc.id).label("titulos"),
-            func.sum(Disc.stock).label("unidades"),
-            func.sum(Disc.costo_final_uyu * Disc.stock).label("inversion"),
-        )
-        .filter(Disc.estado == "Disponible")
-        .filter(Disc.sello.isnot(None))
-        .filter(Disc.sello != "")
-        .group_by(Disc.sello)
-        .order_by(func.sum(Disc.costo_final_uyu * Disc.stock).desc())
-        .limit(limit)
-        .all()
-    )
-    return [
-        {
-            "sello": r.sello,
-            "titulos": r.titulos,
-            "unidades": int(r.unidades or 0),
-            "inversion_uyu": round(float(r.inversion or 0), 2),
-        }
-        for r in rows
-    ]
+    # Con el costo REAL (incluye la diferencia de cambio del pedido), igual que el
+    # resto de la contabilidad.
+    acum = {}
+    for d in (Disc.query.filter(Disc.estado == "Disponible")
+              .filter(Disc.sello.isnot(None)).filter(Disc.sello != "").all()):
+        a = acum.setdefault(d.sello, {"sello": d.sello, "titulos": 0, "unidades": 0, "inversion_uyu": 0.0})
+        a["titulos"] += 1
+        a["unidades"] += int(d.stock or 0)
+        a["inversion_uyu"] += d.costo_real_uyu * (d.stock or 0)
+    filas = sorted(acum.values(), key=lambda x: x["inversion_uyu"], reverse=True)[:limit]
+    for f in filas:
+        f["inversion_uyu"] = round(f["inversion_uyu"], 2)
+    return filas
 
 
 def top_sellos_rotacion(limit: int = 5) -> list[dict]:
