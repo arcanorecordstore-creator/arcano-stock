@@ -33,6 +33,7 @@ from models import (
     Track,
     parse_tracklist_text,
     sello_base,
+    invalidar_ajuste_tc,
     ESTADOS_DISCO,
     AUDIO_ESTADOS,
     ESTADOS_RESERVA,
@@ -50,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.79"
+APP_VERSION = "5.80"
 import metrics
 import auth
 import mailer
@@ -859,11 +860,11 @@ def compute_totals(discs):
         # negocio (aporte), asi que su costo cuenta 0. Mismo criterio que Contabilidad
         # (metrics._costo_negocio); antes se usaba d.ganancia_uyu, que restaba el costo
         # tambien a los personales y daba una "Ganancia realizada" distinta a Contabilidad.
-        costo_neg = 0.0 if (d.origen or "arcano") == "personal" else (d.costo_final_uyu or 0)
+        costo_neg = 0.0 if (d.origen or "arcano") == "personal" else d.costo_real_uyu
         gan = ((d.precio_mostrar or d.precio_uyu or 0) - costo_neg)
         suma_costo_eur += (d.costo_eur or 0) * cant
         suma_envio_eur += (d.envio_eur or 0) * cant
-        suma_costo_final_uyu += (d.costo_final_uyu or 0) * cant
+        suma_costo_final_uyu += d.costo_real_uyu * cant
         # precio_mostrar (con oferta) para que el pie cuadre: precio - costo = ganancia
         # (la ganancia ya usa el precio de oferta).
         suma_precio_uyu += (d.precio_mostrar or d.precio_uyu or 0) * cant
@@ -3708,11 +3709,12 @@ def register_routes(app: Flask) -> None:
             setattr(disc, campo, nuevo)
             disc.recalcular_costo_final()
             db.session.commit()
+            invalidar_ajuste_tc()
             return jsonify({
                 "ok": True,
                 "campo": campo,
                 "valor": nuevo,
-                "costo_final_uyu": round(disc.costo_final_uyu or 0),
+                "costo_final_uyu": round(disc.costo_real_uyu),
                 "ganancia_uyu": round(disc.ganancia_uyu or 0),
                 "margen_pct": round(disc.margen_pct or 0, 1),
             })
@@ -3781,7 +3783,7 @@ def register_routes(app: Flask) -> None:
                 "ok": True,
                 "campo": campo,
                 "tc_usado": disc.tc_usado,
-                "costo_final_uyu": round(disc.costo_final_uyu or 0),
+                "costo_final_uyu": round(disc.costo_real_uyu),
                 "ganancia_uyu": round(disc.ganancia_uyu or 0),
                 "margen_pct": round(disc.margen_pct or 0, 1),
             })
@@ -5061,7 +5063,7 @@ def register_routes(app: Flask) -> None:
             .filter(Disc.es_mystery_box.isnot(True))   # la box no es mercaderia real
             .all()
         )
-        mercaderia_uyu = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in mercaderia_discos)
+        mercaderia_uyu = sum(d.costo_real_uyu * (d.stock or 1) for d in mercaderia_discos)
         mercaderia_count = len(mercaderia_discos)
 
         # Saldo corriente sobre los movimientos de plata (los adelantos SALDADOS ya
@@ -5954,7 +5956,7 @@ def register_routes(app: Flask) -> None:
                 ws2.cell(row=row, column=4, value=d.sello or "")
                 ws2.cell(row=row, column=5, value=d.formato or "")
                 ws2.cell(row=row, column=6, value=round(d.precio_mostrar or d.precio_uyu or 0))
-                ws2.cell(row=row, column=7, value=round(d.costo_final_uyu or 0))
+                ws2.cell(row=row, column=7, value=round(d.costo_real_uyu))
                 ws2.cell(row=row, column=8, value=d.estado)
                 ws2.cell(row=row, column=9, value=d.copias_facturadas)
                 row += 1

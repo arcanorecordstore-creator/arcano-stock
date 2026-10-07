@@ -136,7 +136,7 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None,
             .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
             .all()
         )
-        merc = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in stock)
+        merc = sum(d.costo_real_uyu * (d.stock or 1) for d in stock)
 
     chequeos = _chequeos()
     hay_problemas = any(n > 0 and "sin descuento" not in nombre for nombre, n in chequeos)

@@ -15,7 +15,7 @@ def _costo_negocio(d) -> float:
     MISMO criterio que usa Contabilidad; se usa en TODAS las ganancias/margenes para
     que los numeros coincidan entre paneles (antes varias restaban el costo del
     personal y no cuadraban con el hero de Contabilidad)."""
-    return 0 if (getattr(d, "origen", "arcano") == "personal") else (d.costo_final_uyu or 0)
+    return 0 if (getattr(d, "origen", "arcano") == "personal") else d.costo_real_uyu
 
 
 def _month_bounds(year: int, month: int) -> tuple[datetime, datetime]:
@@ -392,7 +392,7 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
     ingresos_arcano_uyu = ingresos_uyu - ingresos_personal_uyu
 
     # Costo de discos vendidos: SOLO los de arcano (los personales no costaron al negocio)
-    costo_discos_uyu = sum((d.costo_final_uyu or 0) * d.copias_facturadas for d in vendidos_arcano)
+    costo_discos_uyu = sum(d.costo_real_uyu * d.copias_facturadas for d in vendidos_arcano)
     unidades_vendidas = sum(d.copias_facturadas for d in vendidos)
     unidades_personal = sum(d.copias_facturadas for d in vendidos_personal)
 
@@ -414,7 +414,7 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
         .filter(Disc.es_mystery_box.isnot(True))   # la box no es stock real
         .all()
     )
-    costo_stock_no_vendido_uyu = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in disponibles_arcano)
+    costo_stock_no_vendido_uyu = sum(d.costo_real_uyu * (d.stock or 1) for d in disponibles_arcano)
 
     # --- EGRESOS: gastos operativos del periodo ---
     from models import CAT_RETIRO_PERSONAL
@@ -551,7 +551,7 @@ def _resumen_rango(inicio, fin):
     ingresos = sum((d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas for d in vendidos)
     # Costo SOLO de los de arcano (excluye personales), igual que costo_discos_uyu.
     costo = sum(
-        (d.costo_final_uyu or 0) * d.copias_facturadas
+        d.costo_real_uyu * d.copias_facturadas
         for d in vendidos if (d.origen or "arcano") != "personal"
     )
     egresos = (
@@ -643,7 +643,7 @@ def stock_frenado(dias_umbral: int = 45) -> dict:
         filas.append({
             "disc": d,
             "dias": dias,
-            "costo": round((d.costo_final_uyu or 0) * (d.stock or 1), 2),
+            "costo": round(d.costo_real_uyu * (d.stock or 1), 2),
             "precio": round(d.precio_mostrar or d.precio_uyu or 0, 2),
         })
     # Los mas viejos primero; los sin fecha al final

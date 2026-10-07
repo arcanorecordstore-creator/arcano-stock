@@ -129,8 +129,14 @@
                 </div>
                 <div class="detail-meta">
                     <span class="detail-meta-label">Costo final UYU</span>
-                    <span class="detail-meta-value">{{ '{:,.0f}'.format(disc.costo_final_uyu or 0).replace(',', '.') }}</span>
+                    <span class="detail-meta-value">{{ '{:,.0f}'.format(disc.costo_real_uyu).replace(',', '.') }}</span>
                 </div>
+                {% if disc.ajuste_tc_uyu %}
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Incluye dif. de cambio del pedido</span>
+                    <span class="detail-meta-value">{{ '+' if disc.ajuste_tc_uyu > 0 else '' }}{{ '{:,.0f}'.format(disc.ajuste_tc_uyu).replace(',', '.') }} <small>(cargado: {{ '{:,.0f}'.format(disc.costo_final_uyu or 0).replace(',', '.') }})</small></span>
+                </div>
+                {% endif %}
                 <div class="detail-meta">
                     <span class="detail-meta-label">Precio venta UYU</span>
                     <span class="detail-meta-value">{{ '{:,.0f}'.format(disc.precio_uyu or 0).replace(',', '.') }}</span>

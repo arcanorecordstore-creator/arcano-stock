@@ -128,7 +128,7 @@ def generar_excel(periodo="mes_actual", desde=None, hasta=None,
             .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
             .all()
         )
-        mercaderia = sum((d.costo_final_uyu or 0) * (d.stock or 1) for d in stock)
+        mercaderia = sum(d.costo_real_uyu * (d.stock or 1) for d in stock)
 
     wb = Workbook()
 
@@ -268,7 +268,7 @@ def generar_excel(periodo="mes_actual", desde=None, hasta=None,
         precio = (d.precio_mostrar or d.precio_uyu or 0)
         # Los discos personales no le costaron nada al negocio: costo 0 (igual que
         # en el Resumen, que excluye el costo de los personales de la ganancia).
-        costo = 0 if (d.origen or "arcano") == "personal" else (d.costo_final_uyu or 0)
+        costo = 0 if (d.origen or "arcano") == "personal" else d.costo_real_uyu
         gan = (precio - costo) * d.copias_facturadas
         tot_precio += precio * d.copias_facturadas
         tot_costo += costo * d.copias_facturadas

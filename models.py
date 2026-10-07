@@ -229,17 +229,36 @@ class Disc(db.Model):
     # ---- Propiedades calculadas ----
 
     @property
+    def ajuste_tc_uyu(self) -> float:
+        """Parte de la diferencia por tipo de cambio de SU pedido que le toca a este
+        disco. El costo de cada disco se calcula con un TC aproximado (euros x TC al
+        cargarlo); lo que salio de verdad de la cuenta es el costo del pedido. Esa
+        diferencia se reparte en partes iguales entre los discos del pedido
+        (decision de Facundo, 7/10/2026). 0 si el disco no esta en un pedido."""
+        pid = getattr(self, "pedido_id", None)
+        if not pid:
+            return 0.0
+        return ajustes_tc_por_pedido().get(pid, 0.0)
+
+    @property
+    def costo_real_uyu(self) -> float:
+        """Costo real del disco = costo cargado (euros x TC) + su parte de la diferencia
+        por tipo de cambio del pedido. Es el que usan la contabilidad, las ganancias y
+        los margenes. costo_final_uyu (lo cargado) no se toca."""
+        return round((self.costo_final_uyu or 0) + self.ajuste_tc_uyu, 2)
+
+    @property
     def ganancia_uyu(self) -> float:
         # Usa el precio de oferta si el disco esta en oferta (es lo que se cobra),
         # no el precio de lista, asi el margen no queda inflado.
-        return round((self.precio_mostrar or self.precio_uyu or 0) - (self.costo_final_uyu or 0), 2)
+        return round((self.precio_mostrar or self.precio_uyu or 0) - self.costo_real_uyu, 2)
 
     @property
     def ganancia_negocio_uyu(self) -> float:
         """Ganancia con el criterio del NEGOCIO: los discos de origen 'personal' no restan
         costo (esa plata no la puso el negocio). Coincide con el KPI del panel de Ventas y
         con la Contabilidad; por eso la suma de las filas cuadra con el total."""
-        costo = 0.0 if (self.origen or "arcano") == "personal" else (self.costo_final_uyu or 0)
+        costo = 0.0 if (self.origen or "arcano") == "personal" else self.costo_real_uyu
         return round(((self.precio_mostrar or self.precio_uyu or 0) - costo) * (self.copias_facturadas or 1), 2)
 
     @property
@@ -553,6 +572,49 @@ class Setting(db.Model):
         extras = [c.strip() for c in extra.split(",") if c.strip()]
         extras.append(nombre)
         cls.set("categorias_egreso_extra", ",".join(extras))
+
+
+def ajustes_tc_por_pedido() -> dict:
+    """{pedido_id: ajuste por disco en UYU}. Para cada pedido con costo real cargado
+    (costo manual = lo que salio de la cuenta), la diferencia entre ese costo (+ la
+    comision del banco) y la suma de los costos de sus discos se reparte en partes
+    iguales entre los discos del pedido. Sin costo manual solo se reparte la comision.
+    Se calcula una vez por pedido web (cache en flask.g)."""
+    from flask import g, has_request_context
+    if has_request_context():
+        cached = getattr(g, "_ajuste_tc_cache", None)
+        if cached is not None:
+            return cached
+    res = {}
+    try:
+        filas = (db.session.query(Disc.pedido_id, db.func.count(Disc.id),
+                                  db.func.sum(Disc.costo_final_uyu))
+                 .filter(Disc.pedido_id.isnot(None))
+                 .group_by(Disc.pedido_id).all())
+        por_pedido = {pid: (n or 0, float(suma or 0)) for pid, n, suma in filas}
+        if por_pedido:
+            for ped in Pedido.query.filter(Pedido.id.in_(list(por_pedido))).all():
+                n, suma = por_pedido[ped.id]
+                if n <= 0:
+                    continue
+                if ped.usa_costo_manual:
+                    dif = (ped.costo_total_uyu or 0) - suma
+                else:
+                    dif = ped.comision_uyu or 0
+                if dif:
+                    res[ped.id] = dif / n
+    except Exception:
+        res = {}
+    if has_request_context():
+        g._ajuste_tc_cache = res
+    return res
+
+
+def invalidar_ajuste_tc() -> None:
+    """Olvida el reparto calculado en este pedido web (despues de cambiar un costo)."""
+    from flask import g, has_request_context
+    if has_request_context() and hasattr(g, "_ajuste_tc_cache"):
+        del g._ajuste_tc_cache
 
 
 def fire_sale_config() -> dict:
