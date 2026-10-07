@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.75"
+APP_VERSION = "5.76"
 import metrics
 import auth
 import mailer
@@ -7045,6 +7045,9 @@ def register_routes(app: Flask) -> None:
         formato_sel = [f.strip() for f in request.args.getlist("formato") if f.strip()]
         pais_sel = [p.strip() for p in request.args.getlist("pais") if p.strip()]
         decada_sel = [d.strip() for d in request.args.getlist("decada") if d.strip()]
+        # Condicion: 'nuevo' (Nuevo / Sellado) o 'usado' (cualquier "Usado - ...")
+        condicion_sel = [c.strip().lower() for c in request.args.getlist("condicion")
+                         if c.strip().lower() in ("nuevo", "usado")]
         orden = (request.args.get("orden") or "nuevos").strip()
         con_sample = request.args.get("con_sample") == "1"
         precio_min = _parse_int(request.args.get("precio_min"), None)
@@ -7059,6 +7062,15 @@ def register_routes(app: Flask) -> None:
             if not anio:
                 return None
             return f"{(anio // 10) * 10}s"
+
+        def _tipo_condicion(d):
+            """'nuevo' / 'usado' segun la condicion cargada en el disco (None si no tiene)."""
+            c = (d.condicion or "").strip().lower()
+            if c.startswith("usado"):
+                return "usado"
+            if c.startswith("nuevo"):
+                return "nuevo"
+            return None
 
         if q:
             q_lower = q.lower()
@@ -7088,6 +7100,9 @@ def register_routes(app: Flask) -> None:
         if decada_sel:
             dl = set(decada_sel)
             discs = [d for d in discs if _decada(d.anio) in dl]
+        if condicion_sel:
+            cs = set(condicion_sel)
+            discs = [d for d in discs if _tipo_condicion(d) in cs]
         if con_sample:
             discs = [d for d in discs if d.tracks and any(t.has_sample for t in d.tracks)]
         if precio_min is not None:
@@ -7115,7 +7130,7 @@ def register_routes(app: Flask) -> None:
         # Mystery Box fijada primera: solo en la vista de navegacion (sin busqueda ni
         # filtros). Si hay un filtro/genero activo, la box no aplica y no se muestra.
         _sin_filtros = (not any([q, sellos_sel, genero_sel, tags_sel, formato_sel,
-                                 pais_sel, decada_sel, anio_sel, con_sample])
+                                 pais_sel, decada_sel, anio_sel, con_sample, condicion_sel])
                         and precio_min is None and precio_max is None)
         if mystery_box is not None and _sin_filtros:
             discs = [mystery_box] + discs
@@ -7158,8 +7173,12 @@ def register_routes(app: Flask) -> None:
         paises_count = Counter()
         decadas_count = Counter()
         anios_count = Counter()
+        condiciones_count = Counter()
         precios = []
         for d in all_disponibles:
+            _tc = _tipo_condicion(d)
+            if _tc:
+                condiciones_count[_tc] += 1
             if d.sello:
                 sellos_count[d.sello] += 1
             for g in _norm_generos(d.genero):
@@ -7200,7 +7219,7 @@ def register_routes(app: Flask) -> None:
             bool(sellos_sel), bool(genero_sel), bool(tags_sel),
             bool(formato_sel), bool(pais_sel), bool(decada_sel),
             con_sample, precio_min is not None, precio_max is not None,
-            bool(anio_sel),
+            bool(anio_sel), bool(condicion_sel),
         ])
 
         # Secciones de la home: solo en pagina 1, sin filtros ni busqueda
@@ -7327,6 +7346,9 @@ def register_routes(app: Flask) -> None:
             filtro_precio_max=precio_max,
             anios=anios,
             filtro_anios=anio_sel,
+            condiciones=[("nuevo", "Nuevo", condiciones_count.get("nuevo", 0)),
+                         ("usado", "Usado", condiciones_count.get("usado", 0))],
+            filtro_condiciones=condicion_sel,
             filtros_activos=filtros_activos,
             **_public_context(),
         )

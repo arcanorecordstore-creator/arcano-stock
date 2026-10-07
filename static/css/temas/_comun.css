@@ -148,3 +148,13 @@ body:is(.tema-fundaviva, .tema-picture) .carrusel-card .card-staff-sticker {
     box-shadow: 0 6px 14px -8px rgba(0,0,0,.6) !important; z-index: 6 !important;
     background: var(--fv-beige) !important; color: var(--fv-deep) !important;
 }
+
+/* v5.76: en celular/tablet el panel de Filtros es un cajon que se abre encima de la
+   tienda. M y S le ponian un fondo casi transparente (pensado para la compu) y el
+   texto quedaba mezclado con la tienda: en esa medida lleva el fondo de la pagina. */
+@media (max-width: 860px) {
+    body:is(.tema-fundaviva, .tema-picture) .public-sidebar {
+        background: var(--fv-bg) !important; border: 0 !important; border-right: 1px solid var(--border-1) !important;
+        border-radius: 0 !important; box-shadow: 4px 0 30px rgba(0,0,0,.35) !important;
+    }
+}

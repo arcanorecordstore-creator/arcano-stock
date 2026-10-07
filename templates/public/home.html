@@ -209,6 +209,20 @@
                 {% endif %}
             </div>
 
+            {% if condiciones|selectattr(2)|list %}
+            <div class="filter-block">
+                <div class="filter-block-title">Condición</div>
+                <div class="filter-checks">
+                    {% for valor, nombre, cnt in condiciones %}
+                    <label class="filter-check{% if not cnt %} is-disabled{% endif %}">
+                        <input type="checkbox" name="condicion" value="{{ valor }}" {% if valor in filtro_condiciones %}checked{% endif %}{% if not cnt and valor not in filtro_condiciones %} disabled{% endif %}>
+                        <span>{{ nombre }}</span><span class="filter-count">{{ cnt }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
             {% if generos %}
             <div class="filter-block">
                 <div class="filter-block-title">Género</div>
@@ -462,7 +476,7 @@
 
 {% else %}
 <div class="public-empty">
-    {% if filtro_q or filtro_sellos or filtro_generos or filtro_tags or filtro_formatos or filtro_paises or filtro_decadas or filtro_con_sample or filtro_precio_min is not none or filtro_precio_max is not none or filtro_anios %}
+    {% if filtro_q or filtro_sellos or filtro_generos or filtro_tags or filtro_formatos or filtro_paises or filtro_decadas or filtro_con_sample or filtro_precio_min is not none or filtro_precio_max is not none or filtro_anios or filtro_condiciones %}
         <p>No encontramos discos con esos filtros.</p>
         <a href="{{ url_for('home') }}" class="btn btn-ghost">Ver todo el catalogo</a>
     {% else %}

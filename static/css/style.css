@@ -12167,3 +12167,6 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
     /* Nombres, mails, titulos y busquedas largas (links): bajan de renglon */
     .app-main a:not(.btn):not(.action-btn), .cli-name, .cli-email, .app-main :is(h1, h2, h3) { overflow-wrap: anywhere; }
 }
+
+/* Filtro de la tienda sin discos (ej. Condicion "Usado" cuando no hay usados a la venta) */
+.filter-check.is-disabled { opacity: .45; cursor: default; }
