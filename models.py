@@ -1105,6 +1105,22 @@ class Reserva(db.Model):
         return (self.total_uyu or 0) + (self.envio_costo_uyu or 0)
 
     @property
+    def total_final(self) -> float:
+        """Lo que el cliente paga de verdad: si pago por Mercado Pago, el total cobrado
+        (discos + envio + recargo); si no, discos + envio."""
+        if (self.metodo_pago or "") == "mercadopago" and self.total_cobrado_uyu:
+            return round(float(self.total_cobrado_uyu), 2)
+        return round(self.total_con_envio or 0, 2)
+
+    @property
+    def recargo_mp(self) -> float:
+        """Recargo de Mercado Pago incluido en el total cobrado (0 si no aplica)."""
+        if (self.metodo_pago or "") == "mercadopago" and self.total_cobrado_uyu:
+            r = float(self.total_cobrado_uyu) - (self.total_con_envio or 0)
+            return round(r, 2) if r > 0.5 else 0.0
+        return 0.0
+
+    @property
     def entrega_label(self) -> str:
         """Texto lindo de la entrega elegida (para admin/mails)."""
         if self.entrega_tipo == "retiro":

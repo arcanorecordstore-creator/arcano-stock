@@ -84,8 +84,8 @@
                 {% endif %}
                 {% endfor %}
             </div>
-            {% if r.total_uyu > 0 %}
-            <div class="cuenta-reserva-total">Total: $ {{ '{:,.0f}'.format(r.total_uyu).replace(',', '.') }}</div>
+            {% if r.total_final > 0 %}
+            <div class="cuenta-reserva-total">Total: $ {{ '{:,.0f}'.format(r.total_final).replace(',', '.') }}</div>
             {% endif %}
         </div>
         {% endfor %}

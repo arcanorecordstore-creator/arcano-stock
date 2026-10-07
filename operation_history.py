@@ -274,6 +274,11 @@ def register_history(app):
         if actor:
             q = q.filter_by(actor=actor)
         q = q.filter(~OperationChange.accion.in_(_VISTAS_SYNC))
+        # Ctrl+Z es para "me equivoque recien": solo lo de las ultimas 3 horas. Lo mas
+        # viejo se deshace desde el Historial, viendo bien que es (antes podia
+        # proponer deshacer algo de hace dias sin que se notara).
+        from datetime import timedelta as _td
+        q = q.filter(OperationChange.fecha >= datetime.utcnow() - _td(hours=3))
         return q.order_by(OperationChange.id.desc()).first()
 
     @app.route('/admin/deshacer', methods=['GET', 'POST'])
@@ -287,13 +292,22 @@ def register_history(app):
             return redirect(request.referrer or url_for('dashboard'))
         batch = last.batch
         changes = OperationChange.query.filter_by(batch=batch).order_by(OperationChange.id).all()
-        tablas = sorted({TABLE_LABELS.get(c.tabla, c.tabla) for c in changes})
-        resumen = ' · '.join(tablas) or 'cambios'
+        # Resumen en castellano (el mismo texto del Historial) y hora de Uruguay.
+        try:
+            from historial_legible import describir, nombres_de_discos
+            info = describir(changes, nombres_de_discos(changes))
+            resumen = info['titulo']
+            if info['items'] and info['items'][0]['campos']:
+                n, a, d = info['items'][0]['campos'][0]
+                resumen += f' ({n}: {a} → {d})' if a != 'cambió' else f' ({n})'
+        except Exception:
+            resumen = ' · '.join(sorted({TABLE_LABELS.get(c.tabla, c.tabla) for c in changes})) or 'cambios'
+        from datetime import timedelta as _td
         if request.method == 'GET':
             return jsonify({
                 'hay': True,
                 'resumen': resumen,
-                'fecha': changes[0].fecha.strftime('%d/%m %H:%M'),
+                'fecha': (changes[0].fecha - _td(hours=3)).strftime('%d/%m %H:%M'),
             })
         try:
             restore_batch(batch)

@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.77"
+APP_VERSION = "5.78"
 import metrics
 import auth
 import mailer
@@ -99,6 +99,49 @@ def _webhook_supera_limite(ip, limite=120, ventana=60):
 _play_dedup: dict = {}  # (ip, track_id) -> ultimo timestamp
 
 
+def _ruta_interna_segura(destino, prefijo="/"):
+    """Devuelve `destino` solo si es una ruta de ESTE sitio que empieza con `prefijo`
+    (y sin caracteres raros); si no, None. Acepta tambien una URL completa del propio
+    host (el referer). Antes se chequeaba solo que empezara con "/": un link como
+    /cuenta/login?next=/%09/evil.com mandaba al cliente a otro sitio despues del login."""
+    from urllib.parse import urlsplit
+    if not destino or not isinstance(destino, str):
+        return None
+    if any(ord(ch) < 32 or ord(ch) == 127 for ch in destino) or "\\" in destino:
+        return None
+    try:
+        partes = urlsplit(destino)
+    except ValueError:
+        return None
+    if partes.scheme or partes.netloc:
+        try:
+            from flask import request as _rq
+            propio = _rq.host
+        except Exception:
+            propio = None
+        if partes.scheme not in ("http", "https") or not propio or partes.netloc != propio:
+            return None
+    ruta = partes.path or ""
+    if not ruta.startswith(prefijo) or ruta.startswith("//"):
+        return None
+    return ruta + (("?" + partes.query) if partes.query else "")
+
+
+def _base_publica():
+    """Direccion publica de la web para links que salen por mail o a Mercado Pago.
+    En produccion es fija (PUBLIC_BASE_URL o arcanorecordstore.com): antes se armaba con
+    el Host que mandaba quien hacia el pedido, y alguien podia hacer que el mail de
+    "cambiar contrasena" le llegara a un cliente con un link a OTRO sitio."""
+    base = (os.environ.get("PUBLIC_BASE_URL") or "").strip()
+    if not base and os.environ.get("RENDER"):
+        base = "https://arcanorecordstore.com"
+    if not base:
+        from flask import request as _rq
+        base = _rq.url_root
+    return base.rstrip("/")
+
+
+_recuperar_hist = {}   # clave (ip o email) -> timestamps de pedidos de "olvide mi contrasena"
 _play_ip_hist = {}   # ip -> timestamps de escuchas contadas (tope por IP)
 _busq_ip_hist = {}   # ip -> timestamps de busquedas registradas en el Radar (tope por IP)
 
@@ -4134,6 +4177,23 @@ def register_routes(app: Flask) -> None:
         if (d.stock or 0) <= 0:
             d.stock = 1
 
+    def _reparto_box(reserva):
+        """{disc_id: parte del precio} para los discos asignados a una Mystery Box de
+        esta reserva (items sin precio propio). El precio de la caja se reparte entre
+        ellos para que la contabilidad lo cuente UNA vez, con el costo real de cada disco."""
+        items = reserva.items_efectivos
+        box_total = sum((it.precio_uyu_snap or 0) for it in items if getattr(it, "es_mystery_box", False))
+        asignados = [it.disc_id for it in items
+                     if it.disc_id and not getattr(it, "es_mystery_box", False)
+                     and not (it.precio_uyu_snap or 0)]
+        if box_total <= 0 or not asignados:
+            return {}
+        n = len(asignados)
+        base = round(box_total / n)
+        shares = [base] * n
+        shares[0] += round(box_total - base * n)   # el remanente al primero
+        return dict(zip(asignados, shares))
+
     def _disco_es_de_reserva(d, reserva):
         """True si el estado actual del disco (Vendido / Reservado) se lo puso ESTA
         reserva. Sirve para que borrar una reserva (o eliminar una venta) solo deshaga
@@ -6884,7 +6944,7 @@ def register_routes(app: Flask) -> None:
                 "title": "Envio en Montevideo",
                 "quantity": 1, "unit_price": float(envio),
             })
-        base = request.url_root.rstrip("/")
+        base = _base_publica()
         back = f"{base}/mp/retorno?reserva={reserva.id}"
         try:
             pref = mp.crear_preferencia(
@@ -7012,7 +7072,7 @@ def register_routes(app: Flask) -> None:
         # Email de confirmacion (best-effort): pago por Mercado Pago -> "gracias por tu compra"
         if reserva.email and mailer.can_send():
             try:
-                discos = [Disc.query.get(i.disc_id) for i in reserva.items_efectivos]
+                discos = [Disc.query.get(i.disc_id) for i in reserva.items_efectivos if i.disc_id]
                 mailer.send_compra_confirmacion_cliente(
                     reserva, [d for d in discos if d], metodo="mercadopago")
             except Exception:
@@ -7021,9 +7081,9 @@ def register_routes(app: Flask) -> None:
         # redirige antes de llegar al aviso, asi que lo mandamos recien al confirmarse.
         if mailer.is_configured() and reserva.items_efectivos:
             try:
-                _disc0 = Disc.query.get(reserva.items_efectivos[0].disc_id)
-                if _disc0:
-                    mailer.send_reserva_notification(reserva, _disc0)
+                _disc0 = next((Disc.query.get(i.disc_id) for i in reserva.items_efectivos
+                               if i.disc_id), None)
+                mailer.send_reserva_notification(reserva, _disc0)
             except Exception:
                 pass
         # Aviso push al celu del admin: entro una venta cobrada por Mercado Pago.
@@ -7808,7 +7868,7 @@ def register_routes(app: Flask) -> None:
         token = _activar_serializer().dumps({
             "e": (email or "").strip().lower(), "h": generate_password_hash(password),
             "n": (nombre or "")[:120], "w": (whatsapp or "")[:40]})
-        url = url_for("cliente_activar", token=token, _external=True)
+        url = _base_publica() + url_for("cliente_activar", token=token)
         _nom = nombre or ""
         cuerpo = ("Hola %s,\n\nPara activar tu cuenta en Arcano Record Store y ver tus "
                   "compras, entra a este link (vence en 48 horas):\n%s\n\nSi no fuiste "
@@ -7941,13 +8001,30 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("cliente_cuenta"))
         if request.method == "POST":
             email = (request.form.get("email") or "").strip().lower()[:200]
+            # Tope: 5 pedidos por hora desde una misma conexion y 3 por hora para un
+            # mismo email. Sin esto se podia bombardear la casilla de un cliente y
+            # agotar el cupo diario de Gmail (y ahi dejaban de salir las confirmaciones
+            # de compra). La respuesta es la misma igual, para no revelar nada.
+            import time as _tr
+            _ahora_r = _tr.time()
+            _limitado = False
+            for _clave, _tope in ((("ip", _client_ip()), 5), (("em", email), 3)):
+                _h = [t for t in _recuperar_hist.get(_clave, []) if _ahora_r - t < 3600]
+                if len(_h) >= _tope:
+                    _limitado = True
+                _recuperar_hist[_clave] = _h
+            if not _limitado:
+                for _clave in (("ip", _client_ip()), ("em", email)):
+                    _recuperar_hist[_clave].append(_ahora_r)
+            if len(_recuperar_hist) > 5000:
+                _recuperar_hist.clear()
             cli = (Cliente.query.filter(db.func.lower(Cliente.email) == email).first()
-                   if email else None)
+                   if email and not _limitado else None)
             if cli and cli.password_hash and mailer.can_send():
                 # El token lleva un pedazo del hash actual: al cambiar la contrasena,
                 # el link deja de servir (antes se podia reusar durante 1 hora).
                 token = _reset_serializer().dumps({"c": cli.id, "v": cli.password_hash[-16:]})
-                reset_url = url_for("cliente_reset", token=token, _external=True)
+                reset_url = _base_publica() + url_for("cliente_reset", token=token)
                 try:
                     _nombre = cli.nombre or ""
                     cuerpo = ("Hola %s,\n\nPediste cambiar tu contrasena en Arcano. Entra a "
@@ -8035,11 +8112,8 @@ def register_routes(app: Flask) -> None:
             _cliente_login_attempts.pop(ip, None)
             auth.cliente_login(cliente.id, (cliente.password_hash or "")[-16:])
             flash(f"Hola de nuevo, {cliente.nombre}!", "success")
-            next_url = request.args.get("next")
-            # Solo rutas internas: evitar open redirect con "//sitio.com" o "/\sitio"
-            if (next_url and next_url.startswith("/")
-                    and not next_url.startswith("//")
-                    and "\\" not in next_url):
+            next_url = _ruta_interna_segura(request.args.get("next"), "/")
+            if next_url:
                 return redirect(next_url)
             return redirect(url_for("cliente_cuenta"))
 
@@ -8455,6 +8529,11 @@ def register_routes(app: Flask) -> None:
                 url_pago = _mp_iniciar_pago(reserva, disponibles, extras=_extras)
                 if url_pago:
                     return redirect(url_pago)
+                # MP fallo: el pedido pasa a "coordinar" (antes quedaba marcado como
+                # mercadopago y el aviso al admin y el push decian MP).
+                reserva.metodo_pago = "coordinar"
+                reserva.mp_status = None
+                db.session.commit()
                 flash("No pudimos iniciar el pago online. Te dejamos la reserva para coordinar por mensaje.", "error")
             else:
                 reserva.metodo_pago = "coordinar"
@@ -8463,18 +8542,19 @@ def register_routes(app: Flask) -> None:
             # Email al admin (best-effort, no rompe si falla) — con el comprobante adjunto si lo hay.
             # (Los mails se arman a partir de un disco; una orden de SOLO Mystery Box no
             # tiene disco, asi que ahi el aviso viaja por push y por la pantalla de gracias.)
-            if mailer.is_configured() and disponibles:
+            if mailer.is_configured() and (disponibles or reserva.items_efectivos):
                 comp_path = None
                 if reserva.comprobante_file:
                     comp_path = os.path.join(app.config["COMPROBANTES_DIR"], reserva.comprobante_file)
                 try:
-                    mailer.send_reserva_notification(reserva, disponibles[0], comprobante_path=comp_path)
+                    mailer.send_reserva_notification(reserva, (disponibles[0] if disponibles else None),
+                                                     comprobante_path=comp_path)
                 except Exception:
                     pass
 
             # Confirmacion al cliente (si dejo email). Transferencia = ya pago ->
             # "gracias por tu compra". Coordinar = reserva a coordinar el pago.
-            if reserva.email and mailer.can_send() and disponibles:
+            if reserva.email and mailer.can_send() and (disponibles or reserva.items_efectivos):
                 try:
                     if reserva.metodo_pago == "transferencia":
                         mailer.send_compra_confirmacion_cliente(reserva, disponibles, metodo="transferencia")
@@ -8757,7 +8837,10 @@ def register_routes(app: Flask) -> None:
                             d.canal_venta = canal
                         if metodo and not d.metodo_pago_venta:
                             d.metodo_pago_venta = metodo
-                        if len(discs) > 1 and not d.venta_grupo:
+                        # Siempre (aunque sea UN disco): el grupo r<id> es lo que dice
+                        # "esta venta es de esta reserva". Sin el, cancelar despues una
+                        # reserva de un solo disco lo dejaba Vendido.
+                        if not d.venta_grupo:
                             d.venta_grupo = grupo
                         if cli and not d.cliente_id:
                             d.cliente_id = cli.id
@@ -8840,10 +8923,12 @@ def register_routes(app: Flask) -> None:
                             disco = item.disco
                             if not disco:
                                 continue
-                            # No des-vender un disco que ya vendio OTRA reserva/venta:
-                            # bajarlo de Vendido borraria esa venta (fecha/precio) en silencio.
-                            if (disco.estado == "Vendido" and estado_disco != "Vendido"
-                                    and (disco.venta_grupo or "") != f"r{reserva.id}"):
+                            # No tocar un disco que vendio o aparto OTRA reserva/venta: bajarlo
+                            # de Vendido borraria esa venta en silencio, y liberar un Reservado
+                            # ajeno dejaria a la venta un disco apartado para otra persona.
+                            if (disco.estado in ("Vendido", "Reservado")
+                                    and disco.estado != estado_disco
+                                    and not _disco_es_de_reserva(disco, reserva)):
                                 continue
                             # Pre-order / Encargo: sigue en su estado hasta que se pague
                             # (no entra a la contabilidad como stock ni como por cobrar).
@@ -8862,8 +8947,11 @@ def register_routes(app: Flask) -> None:
                             if estado_disco == "Vendido":
                                 # Precio realmente cobrado = el snapshot de la reserva
                                 # (Fire Sale/oferta si aplico), no el precio de lista.
+                                # Discos de una Mystery Box: su parte del precio de la caja.
                                 if getattr(item, "precio_uyu_snap", None):
                                     disco.precio_venta_uyu = item.precio_uyu_snap
+                                elif disco.id in _reparto_box(reserva):
+                                    disco.precio_venta_uyu = _reparto_box(reserva)[disco.id]
                                 if not disco.canal_venta:
                                     disco.canal_venta = reserva.canal or "web"
                                 if not disco.metodo_pago_venta:
@@ -8992,6 +9080,27 @@ def register_routes(app: Flask) -> None:
                     else:
                         shares = [(d.precio_mostrar or d.precio_uyu or 0) for d in nuevos]
                     grupo = f"r{reserva.id}"
+                    # Caja todavia NO pagada: los discos quedan Reservados (apartados para
+                    # este cliente) y pasan a Vendidos recien al marcar la reserva Pagada.
+                    # Antes se vendian al asignarlos y la caja/contabilidad mostraban plata
+                    # que todavia no habia entrado.
+                    _pagada = (reserva.estado == "Pagada") or bool(reserva.pagado)
+                    if not _pagada:
+                        for d, share in zip(nuevos, shares):
+                            db.session.add(ReservaItem(
+                                reserva_id=reserva.id, disc_id=d.id,
+                                artista_snap=d.artista, titulo_snap=d.titulo,
+                                precio_uyu_snap=(0 if box_total > 0 else share),
+                            ))
+                            if d.estado not in ("Vendido", "Reservado"):
+                                register_status_change(
+                                    d, "Reservado", nota=f"Mystery Box reserva #{reserva.id} (apartado)")
+                            if cli and not d.cliente_id:
+                                d.cliente_id = cli.id
+                        db.session.commit()
+                        flash(f"Asignaste {n} disco(s) a la caja: quedaron Reservados. Pasan a "
+                              "Vendidos cuando marques la reserva como Pagada.", "success")
+                        return redirect(url_for("admin_reserva_detail", reserva_id=reserva.id))
                     for d, share in zip(nuevos, shares):
                         db.session.add(ReservaItem(
                             reserva_id=reserva.id, disc_id=d.id,
@@ -9328,7 +9437,11 @@ def register_routes(app: Flask) -> None:
                     "disc_id": did,
                     "artista": (d.artista if d else it.artista_snap) or "",
                     "titulo": (d.titulo if d else it.titulo_snap) or "",
-                    "precio": (it.precio_uyu_snap or (d.precio_mostrar if d else 0) or 0),
+                    # Snapshot 0 = disco asignado a una Mystery Box: el precio ya lo
+                    # lleva el item de la caja (antes caia al precio del disco y la box
+                    # contaba doble en el gasto del cliente y en la lealtad).
+                    "precio": (it.precio_uyu_snap if it.precio_uyu_snap is not None
+                               else (d.precio_mostrar if d else 0)) or 0,
                     "fecha": (d.fecha_venta if (d and d.fecha_venta) else r.fecha),
                     "canal": (d.canal_venta if d else (r.canal or "web")) or "",
                 })
@@ -9375,7 +9488,8 @@ def register_routes(app: Flask) -> None:
                 # MISMA formula de precio/fecha que _compras_de_cliente (la ficha), para
                 # que el total gastado y la lealtad coincidan entre la lista y la ficha.
                 _d = it.disco
-                _pre = (it.precio_uyu_snap or (_d.precio_mostrar if _d else 0) or 0)
+                _pre = (it.precio_uyu_snap if it.precio_uyu_snap is not None
+                        else (_d.precio_mostrar if _d else 0)) or 0
                 _fec = (_d.fecha_venta if (_d and _d.fecha_venta) else r.fecha)
                 _add(r.cliente_id, it.disc_id, _pre, _fec)
         # 2) Ventas directas (IG) atadas al disco, no contadas arriba
@@ -10363,8 +10477,8 @@ def register_routes(app: Flask) -> None:
             elif t.progreso > 0 and t.estado == "Sin empezar":
                 _tarea_set_estado(t, "En curso")
         db.session.commit()
-        destino = request.form.get("next") or ""
-        if destino.startswith("/admin"):
+        destino = _ruta_interna_segura(request.form.get("next"), "/admin")
+        if destino:
             return redirect(destino)
         return _volver_tareas(t)
 
@@ -10414,8 +10528,9 @@ def register_routes(app: Flask) -> None:
     def _volver_admin(default_endpoint="dashboard", **kw):
         """Redirige a donde vino (next del form o referer) si es una URL /admin;
         si no, al endpoint por defecto. Evita open-redirects."""
-        destino = request.form.get("next") or request.referrer or ""
-        if destino.startswith("/admin") or "/admin/" in destino:
+        destino = (_ruta_interna_segura(request.form.get("next"), "/admin")
+                   or _ruta_interna_segura(request.referrer, "/admin"))
+        if destino:
             return redirect(destino)
         return redirect(url_for(default_endpoint, **kw))
 
@@ -10747,8 +10862,9 @@ def register_routes(app: Flask) -> None:
                 _login_attempts.pop(ip, None)  # limpiar al loguear bien
                 auth.login(user)
                 flash("Bienvenido.", "success")
-                next_url = request.args.get("next") or request.form.get("next")
-                if next_url and next_url.startswith("/admin"):
+                next_url = _ruta_interna_segura(
+                    request.args.get("next") or request.form.get("next"), "/admin")
+                if next_url:
                     return redirect(next_url)
                 return redirect(url_for("home_admin"))
             else:

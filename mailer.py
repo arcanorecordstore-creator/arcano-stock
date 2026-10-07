@@ -105,6 +105,40 @@ def _lineas_pedido(reserva, discs):
     return total, lineas, filas_html
 
 
+def _bloque_cobro(reserva, subtotal):
+    """(texto, html) con el desglose REAL de lo que paga el cliente: discos, envio,
+    recargo de Mercado Pago y total. Antes el mail decia solo el total de los discos
+    (el cliente pagaba $1.441 y el mail decia $1.300)."""
+    envio = float(getattr(reserva, "envio_costo_uyu", 0) or 0)
+    recargo = float(getattr(reserva, "recargo_mp", 0) or 0)
+    total = float(getattr(reserva, "total_final", 0) or 0) or (float(subtotal or 0) + envio)
+    t, h = [], []
+    if envio > 0 or recargo > 0:
+        t.append(f"  Discos:  $ {_money(subtotal)} UYU")
+        h.append(f'<p style="margin:2px 0;color:#bbb;">Discos: $ {_money(subtotal)} UYU</p>')
+    if envio > 0:
+        t.append(f"  Envio:   $ {_money(envio)} UYU")
+        h.append(f'<p style="margin:2px 0;color:#bbb;">Env&iacute;o: $ {_money(envio)} UYU</p>')
+    if recargo > 0:
+        t.append(f"  Recargo Mercado Pago: $ {_money(recargo)} UYU")
+        h.append(f'<p style="margin:2px 0;color:#bbb;">Recargo Mercado Pago: $ {_money(recargo)} UYU</p>')
+    t.append(f"TOTAL: $ {_money(total)} UYU")
+    h.append(f'<p style="margin-top:8px;"><strong>Total: $ {_money(total)} UYU</strong></p>')
+    # Entrega elegida por el cliente (con la direccion si la cargo)
+    if getattr(reserva, "entrega_tipo", None):
+        _et = reserva.entrega_label
+        if reserva.entrega_tipo == "interior" and not envio:
+            _et += " (el envio lo cobra la agencia)"
+        _dir = (getattr(reserva, "envio_direccion", "") or "").strip()
+        if getattr(reserva, "envio_agencia", None):
+            _dir = (_dir + f" - Agencia: {reserva.envio_agencia}").strip(" -")
+        t.append("")
+        t.append("ENTREGA: " + _et + (f" - {_dir}" if _dir else ""))
+        h.append('<p style="margin-top:14px;"><strong>Entrega:</strong> ' + _e(_et)
+                 + (f'<br>&#128205; {_e(_dir)}' if _dir else '') + '</p>')
+    return "\n".join(t), "".join(h)
+
+
 def _adjuntar_archivo(msg, path):
     """Adjunta un archivo (imagen o PDF) al mensaje. Silencioso si el archivo no existe."""
     if not path or not os.path.isfile(path):
@@ -263,7 +297,14 @@ def send_reserva_notification(reserva, disc, comprobante_path=None) -> tuple[boo
         total_uyu = precio
         n = 1
 
-    subject = f"[Arcano] Nueva reserva #{reserva.id}: {disc.artista} - {disc.titulo}" + (f" (+{n - 1})" if n > 1 else "")
+    if disc is not None:
+        _primero = f"{disc.artista} - {disc.titulo}"
+    elif items:
+        _primero = f"{items[0].artista_snap or ''} - {items[0].titulo_snap or ''}".strip(" -")
+    else:
+        _primero = "pedido"
+    subject = f"[Arcano] Nueva reserva #{reserva.id}: {_primero}" + (f" (+{n - 1})" if n > 1 else "")
+    _cobro_txt, _cobro_html = _bloque_cobro(reserva, total_uyu)
 
     metodo_label = {
         "transferencia": "Transferencia bancaria",
@@ -307,7 +348,7 @@ Nueva reserva en Arcano Record Store (#{reserva.id}):
 
 DISCOS ({n})
 {discos_txt}
-  TOTAL: $ {total_uyu:,.0f} UYU
+{_cobro_txt}
 
 CLIENTE
   Nombre:   {reserva.nombre}
@@ -329,7 +370,7 @@ Gestionar en: /admin/reservas/{reserva.id}
 
 <h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 2px;">Discos ({n})</h3>
 {discos_html}
-<p style="margin-top:8px;"><strong>Total: $ {total_uyu:,.0f} UYU</strong></p>
+{_cobro_html}
 
 <h3 style="color: #888; font-size: 11px; text-transform: uppercase; letter-spacing: 2px;">Cliente</h3>
 <p><strong>{_e(reserva.nombre or '')}</strong><br>
@@ -406,14 +447,15 @@ def send_reserva_confirmacion_cliente_multi(reserva, discs) -> tuple[bool, str]:
         return False, "El cliente no dejo email"
 
     total, lineas, filas_html = _lineas_pedido(reserva, discs)
-    subject = f"Confirmamos tu reserva - {len(discs)} disco(s)"
+    cobro_txt, cobro_html = _bloque_cobro(reserva, total)
+    subject = f"Confirmamos tu reserva - {reserva.cantidad_discos or len(discs)} item(s)"
     body_text = f"""Hola {reserva.nombre},
 
 Recibimos tu reserva en Arcano Record Store. Estos son los discos:
 
 {lineas}
 
-TOTAL: $ {_money(total)} UYU
+{cobro_txt}
 
 Nos vamos a contactar con vos por WhatsApp ({reserva.whatsapp}) para
 coordinar el pago y la entrega o retiro.
@@ -429,7 +471,7 @@ Montevideo, Uruguay
 <h2 style="color: #10b981; font-size: 16px;">Confirmamos tu reserva</h2>
 <p>Hola <strong>{_e(reserva.nombre or '')}</strong>, recibimos tu reserva de estos discos:</p>
 {filas_html}
-<p style="margin-top:12px;"><strong>Total: $ {_money(total)} UYU</strong></p>
+{cobro_html}
 <p>Nos vamos a contactar con vos por WhatsApp (<strong>{_e(reserva.whatsapp or '')}</strong>) para coordinar el pago y la entrega o retiro.</p>
 <p style="margin-top: 24px;">Gracias por elegir Arcano.</p>
 <hr style="border: none; border-top: 1px solid #333; margin: 30px 0;">
@@ -454,14 +496,15 @@ def send_compra_confirmacion_cliente(reserva, discs, metodo="mercadopago") -> tu
         pago_txt = "Tu pago quedo confirmado. Ahora coordinamos la entrega."
         pago_html = "Tu <strong>pago quedo confirmado</strong>. Ahora coordinamos la entrega."
 
-    subject = f"Gracias por tu compra en Arcano - {len(discs)} disco(s)"
+    cobro_txt, cobro_html = _bloque_cobro(reserva, total)
+    subject = f"Gracias por tu compra en Arcano - {reserva.cantidad_discos or len(discs)} item(s)"
     body_text = f"""Hola {reserva.nombre},
 
 Gracias por comprar en Arcano Record Store!
 
 {lineas}
 
-TOTAL: $ {_money(total)} UYU
+{cobro_txt}
 
 {pago_txt}
 Nos contactamos por WhatsApp ({reserva.whatsapp}) para coordinar la entrega o el retiro
@@ -478,7 +521,7 @@ Montevideo, Uruguay
 <h2 style="color: #10b981; font-size: 16px;">&iexcl;Gracias por tu compra!</h2>
 <p>Hola <strong>{_e(reserva.nombre or '')}</strong>, gracias por comprar en Arcano Record Store. Esto es lo que llevaste:</p>
 {filas_html}
-<p style="margin-top:12px;"><strong>Total: $ {_money(total)} UYU</strong></p>
+{cobro_html}
 <p>{pago_html}</p>
 <p>Nos contactamos por WhatsApp (<strong>{_e(reserva.whatsapp or '')}</strong>) para coordinar la entrega o el retiro (env&iacute;o a todo Uruguay o pick up en Pocitos).</p>
 <p style="margin-top: 24px;">Gracias por elegir Arcano.</p>
