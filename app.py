@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.74"
+APP_VERSION = "5.75"
 import metrics
 import auth
 import mailer
@@ -6213,8 +6213,16 @@ def register_routes(app: Flask) -> None:
             except (TypeError, ValueError):
                 return None
 
+        # Estado elegido en el Drop Hunter. Solo estados que NO tocan la contabilidad:
+        # Vendido registraria una venta, y Reservado/Descartado no aplican a un alta.
+        # es_preorder (carrusel) no se toca: se prende a mano.
+        _estado = data.get("estado")
+        _estado = _estado.strip() if isinstance(_estado, str) else _estado
+        if _estado not in ("Disponible", "Pre-order", "Encargo", "Apartado para mi"):
+            _estado = "Disponible"
+
         disc = Disc(
-            estado="Disponible", stock=1, origen="arcano",
+            estado=_estado, stock=1, origen="arcano",
             artista=(artista or "Various")[:200], titulo=(titulo or "Sin título")[:300],
             sello=((data.get("sello") or data.get("label") or "").strip() or None),
             anio=_i("anio") or _i("year"),
