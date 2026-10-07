@@ -38,13 +38,48 @@ class ArchivedRecord(db.Model):
 TABLE_LABELS = {'discs':'Discos / ventas', 'reservas':'Reservas', 'clientes':'Clientes',
                 'egresos':'Gastos', 'pedidos':'Pedidos', 'movimientos_caja':'Caja',
                 'egresos_recurrentes':'Gastos recurrentes'}
-TRACKED = set(TABLE_LABELS) | {'reserva_items', 'tracks', 'disc_images', 'status_history', 'cliente_favoritos', 'play_events', 'archived_records'}
+# play_events NO se registra (v5.77): cada escucha publica de la tienda escribia 2 filas
+# en el historial (una tambien por el contador del track) -> crecia sin limite y un bot
+# podia llenar el disco de Render. Las escuchas son estadistica, no algo para "deshacer".
+TRACKED = set(TABLE_LABELS) | {'reserva_items', 'tracks', 'disc_images', 'status_history', 'cliente_favoritos', 'archived_records'}
+# Columnas que, si son lo UNICO que cambio en un UPDATE, no vale la pena registrar
+# (el contador de escuchas, la marca de "ultima modificacion").
+IGNORED_COLS = {'play_count', 'fecha_modificacion'}
+# Cuanto se guarda: lo automatico (escuchas, sincronizaciones al abrir pantallas) 30
+# dias; lo que hiciste vos, 1 año. Los archivos de un disco/track borrado quedan
+# protegidos (para poder recuperarlo) solo esos mismos 30 dias.
+DIAS_AUTOMATICO = 30
+DIAS_TODO = 365
+DIAS_ARCHIVOS = 30
 
 
-def retained_samples():
-    """Referencias del historial: no son huerfanos descartables."""
-    rows = db.session.execute(text("SELECT json_extract(antes, '$.sample_local'), json_extract(despues, '$.sample_local') FROM operation_changes WHERE tabla='tracks'"))
+def retained_samples(dias=DIAS_ARCHIVOS):
+    """Samples que figuran en el historial RECIENTE (ultimos `dias`): siguen siendo
+    recuperables, asi que la limpieza no los borra. Antes los protegia para siempre y
+    "Limpiar samples sin usar" nunca liberaba espacio."""
+    rows = db.session.execute(text(
+        "SELECT json_extract(antes, '$.sample_local'), json_extract(despues, '$.sample_local') "
+        "FROM operation_changes WHERE tabla='tracks' AND fecha >= datetime('now', :lim)"),
+        {'lim': f'-{int(dias)} days'})
     return {name for row in rows for name in row if name}
+
+
+def podar_historial():
+    """Borra lo que ya no sirve del historial (best-effort, se llama al arrancar):
+    escuchas viejas, lo automatico de mas de 30 dias y todo lo de mas de 1 año."""
+    from historial_legible import AUTOMATICAS
+    try:
+        autos = ','.join("'%s'" % a.replace("'", "") for a in AUTOMATICAS)
+        with db.engine.begin() as conn:
+            conn.exec_driver_sql(
+                "DELETE FROM operation_changes WHERE tabla='play_events' OR accion='api_track_play'")
+            conn.exec_driver_sql(
+                f"DELETE FROM operation_changes WHERE accion IN ({autos}) "
+                f"AND fecha < datetime('now', '-{DIAS_AUTOMATICO} days')")
+            conn.exec_driver_sql(
+                f"DELETE FROM operation_changes WHERE fecha < datetime('now', '-{DIAS_TODO} days')")
+    except Exception as e:
+        print(f"Historial: no se pudo podar ({e})")
 
 
 def _batch():
@@ -67,21 +102,33 @@ def _register_sql_functions(connection, _record):
 
 def install_triggers():
     with db.engine.begin() as conn:
+        # Indices para que el historial no se ponga lento al crecer (antes solo 'batch').
+        for col in ('fecha', 'accion', 'tabla'):
+            conn.exec_driver_sql(
+                f'CREATE INDEX IF NOT EXISTS ix_operation_changes_{col} ON operation_changes ({col})')
         for table in db.metadata.sorted_tables:
             if table.name not in TRACKED or 'id' not in table.c:
+                # Tabla que dejo de registrarse (ej. play_events): sacar sus triggers viejos.
+                for verb in ('insert', 'update', 'delete'):
+                    conn.exec_driver_sql(f'DROP TRIGGER IF EXISTS "audit_{table.name}_{verb}"')
                 continue
             def snapshot(prefix):
                 args = ','.join("'%s',%s.\"%s\"" % (c.name, prefix, c.name) for c in table.columns)
                 return 'json_object(' + args + ')'
+            # UPDATE: solo registrar si cambio algo que importa (no el contador de
+            # escuchas ni la marca de ultima modificacion).
+            relevantes = [c.name for c in table.columns if c.name not in IGNORED_COLS]
+            cambio = ' OR '.join('OLD."%s" IS NOT NEW."%s"' % (c, c) for c in relevantes) or '1'
             for verb in ('INSERT', 'UPDATE', 'DELETE'):
                 before = 'NULL' if verb == 'INSERT' else snapshot('OLD')
                 after = 'NULL' if verb == 'DELETE' else snapshot('NEW')
                 row = 'OLD' if verb == 'DELETE' else 'NEW'
                 name = f'audit_{table.name}_{verb.lower()}'
+                cond = f"audit_batch() != '' AND ({cambio})" if verb == 'UPDATE' else "audit_batch() != ''"
                 # Regenerar tras migraciones permite incluir columnas agregadas.
                 conn.exec_driver_sql(f'DROP TRIGGER IF EXISTS "{name}"')
                 conn.exec_driver_sql(f'''CREATE TRIGGER "{name}" AFTER {verb} ON "{table.name}"
-                    WHEN audit_batch() != ''
+                    WHEN {cond}
                     BEGIN INSERT INTO operation_changes
                     (batch,fecha,actor,accion,motivo,tabla,registro_id,antes,despues)
                     VALUES (audit_batch(),datetime('now'),audit_actor(),audit_action(),audit_reason(),
@@ -148,6 +195,7 @@ def restore_batch(batch):
 def register_history(app):
     with app.app_context():
         install_triggers()
+        podar_historial()
     app.jinja_env.globals['is_archived'] = lambda table, rid: rid in archived_ids(table)
 
     @app.route('/admin/historial')
@@ -215,9 +263,10 @@ def register_history(app):
     # Endpoints (vistas GET) que hacen escrituras "de sincronizacion" solas al
     # abrirse (ej. la caja se sincroniza). No son acciones deliberadas, asi que
     # Ctrl+Z las saltea para deshacer lo ultimo que hizo el usuario a proposito.
-    _VISTAS_SYNC = {'caja', 'dashboard', 'contabilidad', 'ventas_panel',
-                    'admin_reservas', 'pedidos', 'radar_demanda', 'admin_clientes',
-                    'home', 'admin_historial'}
+    # Misma lista que usa el Historial para "automaticas" (antes eran dos listas que
+    # se desincronizaron y Ctrl+Z deshacia una escucha o la sincronizacion de caja
+    # del Home en vez de tu ultimo cambio).
+    from historial_legible import AUTOMATICAS as _VISTAS_SYNC
 
     def _ultima_operacion_deshacible():
         actor = str(session.get('admin_user') or '')

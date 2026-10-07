@@ -81,6 +81,8 @@ AUTOMATICAS = {
     'caja', 'dashboard', 'contabilidad', 'ventas_panel', 'admin_reservas', 'pedidos',
     'radar_demanda', 'admin_clientes', 'home', 'home_admin', 'admin_historial',
     'sistema', 'cliente_login_page', 'admin_login',
+    # Exportes e informes: sincronizan la caja antes de armar el archivo
+    'contabilidad_exportar', 'contabilidad_informe_pdf', 'informe_ejecutivo_pdf',
 }
 
 # --- Que es cada tabla ---------------------------------------------------------

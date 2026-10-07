@@ -360,8 +360,9 @@
                 btn.removeAttribute('aria-busy');
             }
         }, 20000);
-        try { localStorage.removeItem('arcano-cart'); } catch (e) {}
-        try { localStorage.removeItem('arcano-mbox'); } catch (e) {}
+        // El carrito NO se vacia aca: se vacia recien cuando el pedido quedo registrado
+        // (pantalla de confirmacion) o MP confirmo el pago. Si MP rechaza, el cliente
+        // vuelve atras o hay un error, el carrito sigue ahi para reintentar.
     });
 })();
 </script>

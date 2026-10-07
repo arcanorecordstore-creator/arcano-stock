@@ -50,4 +50,15 @@
 })();
 </script>
 {% endif %}
+{% if estado_mp in ('approved', 'pending', 'in_process') or (reserva and reserva.pagado) %}
+<script>
+/* Pago aprobado o en proceso: recien ahora se vacia el carrito (antes se vaciaba al tocar
+   "Confirmar", aunque el pago fallara o el cliente volviera atras). */
+(function () {
+    try { localStorage.removeItem('arcano-cart'); } catch (e) {}
+    try { localStorage.removeItem('arcano-mbox'); } catch (e) {}
+    try { document.querySelectorAll('.cart-count').forEach(function (c) { c.textContent = '0'; c.hidden = true; }); } catch (e) {}
+})();
+</script>
+{% endif %}
 {% endblock %}

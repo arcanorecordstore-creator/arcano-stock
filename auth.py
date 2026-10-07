@@ -75,13 +75,20 @@ def admin_required(view_func):
 # Autenticacion de CLIENTES (tienda publica) - separada del admin
 # ---------------------------------------------------------------------------
 
-def cliente_login(cliente_id: int) -> None:
-    """Marca la sesion con el cliente logueado."""
+def cliente_login(cliente_id: int, pv: str = None) -> None:
+    """Marca la sesion con el cliente logueado. `pv` = "version" de la contrasena
+    (un pedazo del hash): si despues alguien cambia la contrasena, las sesiones
+    abiertas con la version vieja se cierran solas (ver _sesion_cliente_vigente)."""
     session["cliente_id"] = cliente_id
+    if pv:
+        session["cliente_pv"] = pv
+    else:
+        session.pop("cliente_pv", None)
 
 
 def cliente_logout() -> None:
     session.pop("cliente_id", None)
+    session.pop("cliente_pv", None)
 
 
 def cliente_actual_id():

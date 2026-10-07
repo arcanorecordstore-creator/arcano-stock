@@ -182,7 +182,7 @@
         </p>
         {% endif %}
         <ul style="margin:6px 0;padding-left:18px;line-height:1.7;color:var(--text-2);font-size:13.5px;">
-            <li>Samples (audios/videos): <strong>{{ '%.0f'|format(u.samples_mb or 0) }} MB</strong> en {{ u.samples_n or 0 }} archivo(s){% if u.huerfanos_n %} &middot; <span style="color:#d6a945;">{{ u.huerfanos_n }} sin usar ({{ '%.0f'|format(u.huerfanos_mb or 0) }} MB)</span>{% endif %}</li>
+            <li>Samples (audios/videos): <strong>{{ '%.0f'|format(u.samples_mb or 0) }} MB</strong> en {{ u.samples_n or 0 }} archivo(s){% if u.huerfanos_n %} &middot; <span style="color:#d6a945;">{{ u.huerfanos_n }} sin usar ({{ '%.0f'|format(u.huerfanos_mb or 0) }} MB)</span>{% endif %}{% if u.protegidos_n %} &middot; <span title="Son de cambios de los &uacute;ltimos 30 d&iacute;as: se guardan por si quer&eacute;s recuperar algo desde el Historial. Despu&eacute;s se borran solos.">{{ u.protegidos_n }} guardado(s) 30 d&iacute;as para poder recuperar ({{ '%.0f'|format(u.protegidos_mb or 0) }} MB)</span>{% endif %}</li>
             <li>Portadas: <strong>{{ '%.0f'|format(u.covers_mb or 0) }} MB</strong></li>
             <li>Base de datos: <strong>{{ '%.1f'|format(u.db_mb or 0) }} MB</strong></li>
         </ul>

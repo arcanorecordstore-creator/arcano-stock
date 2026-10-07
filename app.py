@@ -49,7 +49,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.76"
+APP_VERSION = "5.77"
 import metrics
 import auth
 import mailer
@@ -99,6 +99,10 @@ def _webhook_supera_limite(ip, limite=120, ventana=60):
 _play_dedup: dict = {}  # (ip, track_id) -> ultimo timestamp
 
 
+_play_ip_hist = {}   # ip -> timestamps de escuchas contadas (tope por IP)
+_busq_ip_hist = {}   # ip -> timestamps de busquedas registradas en el Radar (tope por IP)
+
+
 def _play_ya_contado(ip, track_id, ventana=20):
     """True si esta IP ya conto una escucha de este track hace < ventana segundos.
     Evita que el contador (y el chart 'lo mas escuchado') se infle con clicks
@@ -114,6 +118,18 @@ def _play_ya_contado(ip, track_id, ventana=20):
     ultimo = _play_dedup.get(clave, 0)
     if ahora - ultimo < ventana:
         return True
+    # Tope por IP (cualquier track): 40 escuchas cada 10 minutos. Una persona
+    # escuchando a mano no llega; un bot que recorre todos los tracks si, y cada
+    # escucha es una escritura en la base (con el disco de 1 GB, eso importa).
+    hist = [t for t in _play_ip_hist.get(ip, []) if ahora - t < 600]
+    if len(hist) >= 40:
+        _play_ip_hist[ip] = hist
+        return True
+    hist.append(ahora)
+    _play_ip_hist[ip] = hist
+    if len(_play_ip_hist) > 5000:
+        for k in list(_play_ip_hist.keys())[:2500]:
+            _play_ip_hist.pop(k, None)
     _play_dedup[clave] = ahora
     return False
 
@@ -270,6 +286,29 @@ def create_app() -> Flask:
                 values["v"] = int(os.stat(fpath).st_mtime)
             except OSError:
                 pass
+
+    # --- Sesion de cliente atada a su contrasena ---
+    # Cada sesion guarda una "version" de la contrasena (un pedazo del hash). Si la
+    # contrasena cambia (reset, activacion), las sesiones abiertas con la version vieja
+    # se cierran: quien hubiera entrado con un acceso viejo queda afuera.
+    @app.before_request
+    def _sesion_cliente_vigente():
+        cid = session.get("cliente_id")
+        if not cid or request.path.startswith(("/static/", "/admin")):
+            return
+        try:
+            from models import Cliente as _Cli
+            cli = _Cli.query.get(cid)
+        except Exception:
+            return
+        if cli is None or not cli.password_hash:
+            auth.cliente_logout()
+            return
+        pv = cli.password_hash[-16:]
+        if "cliente_pv" not in session:
+            session["cliente_pv"] = pv
+        elif session.get("cliente_pv") != pv:
+            auth.cliente_logout()
 
     # --- Proteccion CSRF liviana para el admin: verificar el origen de los POST ---
     # Si un POST a /admin viene desde otro sitio (Origin/Referer ajeno), se rechaza.
@@ -1091,7 +1130,22 @@ def register_status_change(disc: Disc, nuevo_estado: str, nota: str | None = Non
         raise ValueError(f"Estado invalido: {nuevo_estado}")
 
     ahora = now_uy()
+    estado_anterior = disc.estado
     disc.estado = nuevo_estado
+
+    # Salir de Vendido = la venta se deshace: limpiar TODO lo que ata el disco a esa
+    # venta (comprador, canal, metodo, grupo). Si no, la proxima venta de este disco
+    # heredaba el comprador y el metodo "mercadopago" de la anterior (caja con plata
+    # "retenida en MP" que estaba en mano, lealtad del cliente viejo inflada) y el panel
+    # de Ventas la agrupaba con la venta vieja. Una fila = una copia: si el stock habia
+    # quedado en 0 al vender, vuelve a 1 (si no, queda "Disponible" pero agotado).
+    if estado_anterior == "Vendido" and nuevo_estado != "Vendido":
+        disc.cliente_id = None
+        disc.canal_venta = None
+        disc.metodo_pago_venta = None
+        disc.venta_grupo = None
+        if (disc.stock or 0) <= 0 and nuevo_estado in ("Disponible", "Reservado", "Pre-order", "Encargo"):
+            disc.stock = 1
 
     if nuevo_estado == "Reservado" and not disc.fecha_reserva:
         disc.fecha_reserva = ahora
@@ -1206,6 +1260,16 @@ def _backfill_ventas_sin_cliente(app):
     pisa lo que ya esta atado, asi que correrlo de nuevo no cambia nada."""
     try:
         with app.app_context():
+            # v5.77: este backfill corria en CADA arranque y, como puede CREAR clientes,
+            # resucitaba los que borrabas a mano (y re-ataba reservas que desvinculaste)
+            # en cada deploy. Ya corrio en todos los arranques anteriores, asi que las
+            # ventas viejas estan atadas: se marca como hecho SIN volver a correrlo.
+            _FLAG_BF = "backfill_ventas_cliente_hecho"
+            if Setting.get(_FLAG_BF):
+                return
+            Setting.set(_FLAG_BF, "1")
+            db.session.commit()
+            return
             cambios = 0
             for r in Reserva.query.filter(Reserva.estado == "Pagada",
                                           Reserva.cliente_id.is_(None)).all():
@@ -3356,18 +3420,18 @@ def register_routes(app: Flask) -> None:
                 )
 
             if disc.estado != estado_anterior:
-                ahora = now_uy()
-                if disc.estado == "Reservado" and not disc.fecha_reserva:
-                    disc.fecha_reserva = ahora
-                elif disc.estado == "Vendido" and not disc.fecha_venta:
-                    disc.fecha_venta = ahora
-                evento = StatusHistory(
-                    disc_id=disc.id,
-                    estado=disc.estado,
-                    nota=f"Cambio desde {estado_anterior} (edicion)",
-                    fecha=ahora,
-                )
-                db.session.add(evento)
+                # Mismo camino que el resto del admin (register_status_change): al salir
+                # de Vendido limpia la venta (fecha, copias, precio cobrado, comprador,
+                # canal, metodo, grupo) y la sena si corresponde; al entrar a Vendido
+                # fija fecha/copias/precio cobrado. Antes la edicion lo hacia a mano y
+                # dejaba la venta vieja pegada.
+                _nuevo_estado = disc.estado
+                _cliente_encargo = disc.cliente_id if _nuevo_estado == "Encargo" else None
+                disc.estado = estado_anterior
+                register_status_change(disc, _nuevo_estado,
+                                       nota=f"Cambio desde {estado_anterior} (edicion)")
+                if _nuevo_estado == "Encargo" and _cliente_encargo:
+                    disc.cliente_id = _cliente_encargo
 
             db.session.commit()
             flash(f"Disco actualizado: {disc.artista} - {disc.titulo}", "success")
@@ -3431,10 +3495,24 @@ def register_routes(app: Flask) -> None:
             if col in excluir:
                 continue
             setattr(nuevo, col, getattr(orig, col))
-        # La copia arranca como Disponible y sin copias vendidas
+        # La copia es OTRA copia fisica: arranca Disponible, con stock 1 y sin NADA de la
+        # venta/reserva del original (comprador, canal, metodo, grupo, sena, precio
+        # cobrado). Antes copiaba todo: la copia de un disco vendido nacia atada al
+        # comprador anterior y con metodo MP, y una sena cobrada aparecia DOS veces en caja.
         nuevo.estado = "Disponible"
+        nuevo.stock = 1
         nuevo.copias_vendidas = 0
         nuevo.fecha_venta = None
+        nuevo.fecha_reserva = None
+        nuevo.precio_venta_uyu = None
+        nuevo.cliente_id = None
+        nuevo.canal_venta = None
+        nuevo.metodo_pago_venta = None
+        nuevo.venta_grupo = None
+        nuevo.sena_cobrada = False
+        nuevo.sena_monto_uyu = None
+        nuevo.sena_fecha = None
+        nuevo.sena_metodo = None
         nuevo.fecha_ingreso = now_uy()
         db.session.add(nuevo)
         db.session.flush()  # para tener el id del nuevo
@@ -4046,11 +4124,47 @@ def register_routes(app: Flask) -> None:
         asi que se limpian solos al des-vender."""
         if d is None:
             return
-        register_status_change(d, "Disponible", nota=nota)  # limpia fecha_venta/copias/precio_venta
+        # register_status_change limpia fecha_venta/copias/precio_venta y, al salir de
+        # Vendido, comprador/canal/metodo/grupo y repone el stock.
+        register_status_change(d, "Disponible", nota=nota)
         d.cliente_id = None
         d.canal_venta = None
         d.metodo_pago_venta = None
         d.venta_grupo = None
+        if (d.stock or 0) <= 0:
+            d.stock = 1
+
+    def _disco_es_de_reserva(d, reserva):
+        """True si el estado actual del disco (Vendido / Reservado) se lo puso ESTA
+        reserva. Sirve para que borrar una reserva (o eliminar una venta) solo deshaga
+        lo suyo: un pedido abandonado que tenia el disco NO puede des-vender una venta
+        que despues se hizo por Instagram u otra reserva.
+        - Vendido: su venta es de esta reserva si venta_grupo == r<id>. Ventas viejas sin
+          grupo: si el historial dice que la vendio esta reserva, o es el mismo cliente.
+        - Reservado: si el ultimo "Reservado" del historial lo puso esta reserva (todas
+          las notas llevan "#<id>": manual, transferencia, cambio de estado)."""
+        import re as _re
+        if d is None or reserva is None:
+            return False
+        _patron = _re.compile(r"#%d(?!\d)" % reserva.id)
+
+        def _ultimo(estado):
+            for h in (d.history or []):   # ordenado del mas nuevo al mas viejo
+                if h.estado == estado:
+                    return h
+            return None
+
+        if d.estado == "Vendido":
+            if d.venta_grupo:
+                return d.venta_grupo == f"r{reserva.id}"
+            h = _ultimo("Vendido")
+            if h and h.nota and _patron.search(h.nota):
+                return True
+            return bool(reserva.cliente_id) and d.cliente_id == reserva.cliente_id
+        if d.estado == "Reservado":
+            h = _ultimo("Reservado")
+            return bool(h and h.nota and _patron.search(h.nota))
+        return False
 
     @app.route("/admin/ventas/eliminar", methods=["POST"])
     @auth.admin_required
@@ -4067,11 +4181,17 @@ def register_routes(app: Flask) -> None:
         # disc_id directo de reservas viejas).
         reserva_ids = {it.reserva_id for it in _RI.query.filter(_RI.disc_id.in_(ids)).all()}
         reserva_ids |= {r.id for r in _Reserva.query.filter(_Reserva.disc_id.in_(ids)).all()}
-        reservas = _Reserva.query.filter(_Reserva.id.in_(reserva_ids)).all() if reserva_ids else []
-        # Al borrar un pedido, se des-venden TODOS sus discos (no dejar huerfanos vendidos).
+        candidatas = _Reserva.query.filter(_Reserva.id.in_(reserva_ids)).all() if reserva_ids else []
+        elegidos = Disc.query.filter(Disc.id.in_(ids)).all() if ids else []
+        # Solo se borra el pedido web que ES esta venta (algun disco elegido lo vendio esa
+        # reserva). Un pedido abandonado o de otra persona que tambien tenia el disco NO
+        # se toca. Antes se borraban todos y se des-vendian sus discos: eliminar la venta
+        # de Juan borraba tambien la de Pedro si compartian un pedido viejo.
+        reservas = [r for r in candidatas if any(_disco_es_de_reserva(d, r) for d in elegidos)]
+        # De esos pedidos, se des-venden solo los discos que vendio/aparto ese pedido.
         for r in reservas:
             for it in r.items_efectivos:
-                if it.disc_id:
+                if it.disc_id and _disco_es_de_reserva(it.disco, r):
                     ids.add(it.disc_id)
         discs = Disc.query.filter(Disc.id.in_(ids)).all() if ids else []
         for d in discs:
@@ -6027,8 +6147,12 @@ def register_routes(app: Flask) -> None:
                     old_name = t.sample_local
                     t.sample_local = audio_fname
                     db.session.commit()
+                    # Borrar el video original (es lo que ocupa): antes quedaba en disco y
+                    # "comprimir" en realidad SUMABA espacio. Solo si ningun otro track lo
+                    # usa (un disco duplicado comparte el mismo archivo).
                     try:
-                        None  # original conservado para recuperacion; limpieza respeta Historial
+                        if not Track.query.filter_by(sample_local=old_name).first():
+                            os.remove(src)
                     except Exception:
                         pass
                     conv += 1
@@ -6074,7 +6198,9 @@ def register_routes(app: Flask) -> None:
             if n:
                 flash(f"Listo: borre {n} sample(s) sin usar y liberaste {mb:.1f} MB.", "success")
             else:
-                flash("No habia samples sin usar para borrar.", "info")
+                flash("No habia samples para borrar ahora. Los de cambios de los ultimos 30 "
+                      "dias se guardan por si queres recuperar algo desde el Historial; despues "
+                      "se borran solos.", "info")
         except Exception as e:
             flash(f"No se pudo limpiar: {e}", "error")
         return redirect(url_for("settings_page"))
@@ -6087,6 +6213,13 @@ def register_routes(app: Flask) -> None:
                 "video_n": 0, "video_mb": 0.0,
                 "covers_mb": 0.0, "db_mb": 0.0, "libre_mb": None, "total_mb": None}
         samples_dir = app.config.get("SAMPLES_DIR")
+        info["protegidos_n"] = 0
+        info["protegidos_mb"] = 0.0
+        try:
+            from operation_history import retained_samples as _retenidos
+            protegidos = _retenidos()
+        except Exception:
+            protegidos = set()
         try:
             if samples_dir and os.path.isdir(samples_dir):
                 usados = {t.sample_local for t in
@@ -6098,7 +6231,12 @@ def register_routes(app: Flask) -> None:
                     sz = os.path.getsize(p)
                     info["samples_n"] += 1
                     info["samples_mb"] += sz / 1024 / 1024
-                    if fn not in usados:
+                    if fn not in usados and fn in protegidos:
+                        # Sin usar, pero de un cambio reciente: se puede recuperar desde el
+                        # Historial, asi que la limpieza lo guarda hasta 30 dias.
+                        info["protegidos_n"] += 1
+                        info["protegidos_mb"] += sz / 1024 / 1024
+                    elif fn not in usados:
                         info["huerfanos_n"] += 1
                         info["huerfanos_mb"] += sz / 1024 / 1024
                     elif os.path.splitext(fn)[1].lower() in VIDEO_SAMPLE_EXTS:
@@ -6809,13 +6947,28 @@ def register_routes(app: Flask) -> None:
                                               origen="web")
             if cli_res and not reserva.cliente_id:
                 reserva.cliente_id = cli_res.id
-        conflicto = []  # discos que YA estaban Vendidos por otra via (posible doble cobro)
+        conflicto = []  # discos comprometidos con OTRA venta/persona (posible doble cobro)
+        _cli_pagador = cli_res.id if cli_res else reserva.cliente_id
         for item in reserva.items_efectivos:
             d = Disc.query.get(item.disc_id) if getattr(item, "disc_id", None) else None
             if not d:
                 continue
             if d.estado == "Vendido" and (d.venta_grupo or "") != f"r{reserva.id}":
                 # Ya vendido por otra via (otro cliente por MP, o venta manual/IG)
+                conflicto.append(d)
+                continue
+            # Apartado / encargado / pre-order con dueno: es de otra persona salvo que sea
+            # el mismo cliente que esta pagando (o que lo haya apartado esta reserva).
+            # Antes solo contaba "Vendido": un disco Reservado por Instagram o un Encargo
+            # con sena de otro cliente se vendia igual al que pagaba por MP.
+            _de_otro = False
+            if d.estado in ("Reservado", "Encargo") or (d.estado == "Pre-order" and d.cliente_id):
+                _mismo = bool(_cli_pagador) and d.cliente_id == _cli_pagador
+                if not (_mismo or (d.estado == "Reservado" and _disco_es_de_reserva(d, reserva))):
+                    _de_otro = True
+            elif d.estado in ("Apartado para mi", "Descartado"):
+                _de_otro = True
+            if _de_otro:
                 conflicto.append(d)
                 continue
             if d.estado != "Vendido":
@@ -6843,7 +6996,8 @@ def register_routes(app: Flask) -> None:
             # Cobraste por MP un disco que YA se habia vendido por otra via. Dejar
             # constancia en la reserva para que la revises/reembolses.
             _nombres = ", ".join((("%s - %s" % (d.artista or "", d.titulo or "")).strip(" -")) for d in conflicto)
-            _nota = "[ATENCION: pago por MP de disco(s) ya vendido(s) por otra via: %s. Revisar/reembolsar.]" % _nombres
+            _nota = ("[ATENCION: pago por MP de disco(s) ya vendido(s), apartado(s) o encargado(s) "
+                     "para otra persona: %s. NO se marcaron vendidos. Revisar/reembolsar.]" % _nombres)
             reserva.nota = ((reserva.nota + " ") if reserva.nota else "") + _nota
         db.session.commit()
         # Si hubo conflicto (disco ya vendido): avisar al admin y NO mandar "gracias por
@@ -7158,8 +7312,18 @@ def register_routes(app: Flask) -> None:
         if q and len(q) >= 2 and pagina == 1:
             try:
                 from models import SearchQuery
-                db.session.add(SearchQuery(termino=q[:120], resultados=total_resultados))
-                db.session.commit()
+                # Tope por IP (30 busquedas registradas cada 10 min): que un bot no llene
+                # la base ni ensucie el Radar. La busqueda funciona igual, solo no se anota.
+                import time as _tq
+                _ip_q, _ahora_q = _client_ip(), _tq.time()
+                _hq = [t for t in _busq_ip_hist.get(_ip_q, []) if _ahora_q - t < 600]
+                if len(_hq) < 30:
+                    _hq.append(_ahora_q)
+                    db.session.add(SearchQuery(termino=q[:120], resultados=total_resultados))
+                    db.session.commit()
+                _busq_ip_hist[_ip_q] = _hq
+                if len(_busq_ip_hist) > 5000:
+                    _busq_ip_hist.clear()
             except Exception:
                 db.session.rollback()
 
@@ -7611,6 +7775,97 @@ def register_routes(app: Flask) -> None:
     # CUENTAS DE CLIENTE (tienda publica)
     # ----------------------------------------------------------------------
 
+    # --- Activacion de cuenta por email (v5.77) ---
+    # Si el email ya tiene compras (una ficha creada sola por una compra sin cuenta, o
+    # pedidos anonimos con ese email), la cuenta NO se crea al toque: se manda un link a
+    # ese email y se activa recien cuando el dueno lo toca. Antes cualquiera que supiera
+    # el email de un cliente se registraba con el y veia su historial, sus datos y su
+    # lealtad. El link lleva la contrasena ya HASHEADA (nunca en texto) y vence en 48 h.
+    def _activar_serializer():
+        from itsdangerous import URLSafeTimedSerializer
+        return URLSafeTimedSerializer(app.config.get("SECRET_KEY") or "dev-key",
+                                      salt="cliente-activar-v1")
+
+    def _email_tiene_compras(email, excluir_reserva_id=None):
+        """True si ese email ya tiene una ficha sin contrasena o pedidos sin cuenta."""
+        email = (email or "").strip().lower()
+        if not email:
+            return False
+        ficha = Cliente.query.filter(db.func.lower(Cliente.email) == email).first()
+        if ficha and not ficha.password_hash:
+            return True
+        q = Reserva.query.filter(Reserva.cliente_id.is_(None),
+                                 db.func.lower(Reserva.email) == email)
+        if excluir_reserva_id:
+            q = q.filter(Reserva.id != excluir_reserva_id)
+        return q.first() is not None
+
+    def _mandar_activacion(email, password, nombre=None, whatsapp=None):
+        """Manda el mail con el link para activar la cuenta. Devuelve True si salio."""
+        from werkzeug.security import generate_password_hash
+        if not mailer.can_send():
+            return False
+        token = _activar_serializer().dumps({
+            "e": (email or "").strip().lower(), "h": generate_password_hash(password),
+            "n": (nombre or "")[:120], "w": (whatsapp or "")[:40]})
+        url = url_for("cliente_activar", token=token, _external=True)
+        _nom = nombre or ""
+        cuerpo = ("Hola %s,\n\nPara activar tu cuenta en Arcano Record Store y ver tus "
+                  "compras, entra a este link (vence en 48 horas):\n%s\n\nSi no fuiste "
+                  "vos, ignora este mail: no se crea nada." % (_nom, url))
+        html = ("<p>Hola %s,</p><p>Para activar tu cuenta en <strong>Arcano Record Store</strong> "
+                "y ver tus compras, toc&aacute; el bot&oacute;n (vence en 48 horas):</p>"
+                "<p><a href='%s' style='display:inline-block;background:#3D3033;color:#FFF7EC;"
+                "padding:11px 20px;border-radius:999px;text-decoration:none;font-weight:500'>"
+                "Activar mi cuenta</a></p><p style='color:#888;font-size:13px'>Si no fuiste vos, "
+                "ignor&aacute; este mail: no se crea nada.</p>" % (_nom, url))
+        try:
+            ok, _msg = mailer.send_email("Activa tu cuenta - Arcano Record Store",
+                                         cuerpo, html, to=email)
+            return bool(ok)
+        except Exception:
+            return False
+
+    @app.route("/cuenta/activar/<token>")
+    def cliente_activar(token):
+        """Link del mail de activacion: crea/activa la cuenta y adopta las compras del email."""
+        from itsdangerous import SignatureExpired, BadSignature
+        try:
+            data = _activar_serializer().loads(token, max_age=48 * 3600)
+            email = (data.get("e") or "").strip().lower()
+            pwd_hash = data.get("h") or ""
+        except SignatureExpired:
+            flash("El link venci&oacute; (dura 48 horas). Registrate de nuevo y te mandamos otro.", "error")
+            return redirect(url_for("cliente_registro"))
+        except (BadSignature, Exception):
+            flash("El link no es v&aacute;lido.", "error")
+            return redirect(url_for("cliente_registro"))
+        if not email or not pwd_hash:
+            flash("El link no es v&aacute;lido.", "error")
+            return redirect(url_for("cliente_registro"))
+        cli = Cliente.query.filter(db.func.lower(Cliente.email) == email).first()
+        if cli and cli.password_hash:
+            flash("Tu cuenta ya estaba activada. Inici&aacute; sesi&oacute;n.", "info")
+            return redirect(url_for("cliente_login_page"))
+        if cli is None:
+            cli = Cliente(nombre=(data.get("n") or None), email=email,
+                          whatsapp=(data.get("w") or None))
+            db.session.add(cli)
+        else:
+            if not cli.nombre and data.get("n"):
+                cli.nombre = data.get("n")
+            if not cli.whatsapp and data.get("w"):
+                cli.whatsapp = data.get("w")
+        cli.password_hash = pwd_hash
+        db.session.flush()
+        for r in Reserva.query.filter(Reserva.cliente_id.is_(None),
+                                      db.func.lower(Reserva.email) == email).all():
+            r.cliente_id = cli.id
+        db.session.commit()
+        auth.cliente_login(cli.id, (cli.password_hash or "")[-16:])
+        flash(f"Listo, tu cuenta est&aacute; activada. Bienvenido{(', ' + cli.nombre) if cli.nombre else ''}!", "success")
+        return redirect(url_for("cliente_cuenta"))
+
     @app.route("/cuenta/registro", methods=["GET", "POST"])
     def cliente_registro():
         # Si ya esta logueado, mandarlo a su cuenta
@@ -7648,35 +7903,24 @@ def register_routes(app: Flask) -> None:
                     **_public_context(),
                 )
 
-            if _existente and not _existente.password_hash:
-                # Ficha creada sola por una compra sin cuenta: la ADOPTA (le pone la
-                # contrasena) en vez de rechazar. Antes quedaba trabada: no podia
-                # registrarse ("ya existe") ni iniciar sesion (no tenia contrasena).
-                cliente = _existente
-                if not cliente.nombre:
-                    cliente.nombre = nombre
-                if whatsapp and not cliente.whatsapp:
-                    cliente.whatsapp = whatsapp
-                cliente.set_password(password)
-            else:
-                cliente = Cliente(nombre=nombre, email=email, whatsapp=whatsapp)
-                cliente.set_password(password)
-                db.session.add(cliente)
-            db.session.flush()
+            # El email ya tiene compras (ficha sin contrasena o pedidos sin cuenta): la
+            # cuenta se activa recien cuando el dueno del email toca el link del mail.
+            if _email_tiene_compras(email):
+                if _mandar_activacion(email, password, nombre, whatsapp):
+                    from markupsafe import escape as _esc
+                    flash("Ya ten&eacute;s compras con ese email. Te mandamos un mail a "
+                          f"{_esc(email)} para confirmar que es tuyo: toc&aacute; el link y tu cuenta "
+                          "queda lista (revis&aacute; tambi&eacute;n la carpeta de spam).", "info")
+                else:
+                    flash("No pudimos mandarte el mail de confirmaci&oacute;n. Escribinos por "
+                          "Instagram y te activamos la cuenta.", "error")
+                return redirect(url_for("cliente_login_page"))
 
-            # Adoptar reservas anonimas previas hechas con el MISMO EMAIL de esta cuenta.
-            # Antes se adoptaban por WhatsApp: como el numero se puede conocer sin ser el
-            # dueno (una historia, un contacto), permitia registrarse con el celu ajeno y
-            # ver las reservas de esa persona. El email es la identidad de la cuenta.
-            previas = Reserva.query.filter(
-                Reserva.cliente_id.is_(None),
-                Reserva.email == email,
-            ).all()
-            for r in previas:
-                r.cliente_id = cliente.id
-
+            cliente = Cliente(nombre=nombre, email=email, whatsapp=whatsapp)
+            cliente.set_password(password)
+            db.session.add(cliente)
             db.session.commit()
-            auth.cliente_login(cliente.id)
+            auth.cliente_login(cliente.id, (cliente.password_hash or "")[-16:])
             flash(f"Cuenta creada. Bienvenido, {cliente.nombre}!", "success")
             return redirect(url_for("cliente_cuenta"))
 
@@ -7700,7 +7944,9 @@ def register_routes(app: Flask) -> None:
             cli = (Cliente.query.filter(db.func.lower(Cliente.email) == email).first()
                    if email else None)
             if cli and cli.password_hash and mailer.can_send():
-                token = _reset_serializer().dumps(cli.id)
+                # El token lleva un pedazo del hash actual: al cambiar la contrasena,
+                # el link deja de servir (antes se podia reusar durante 1 hora).
+                token = _reset_serializer().dumps({"c": cli.id, "v": cli.password_hash[-16:]})
                 reset_url = url_for("cliente_reset", token=token, _external=True)
                 try:
                     _nombre = cli.nombre or ""
@@ -7728,7 +7974,10 @@ def register_routes(app: Flask) -> None:
         """Paso 2: valida el token del mail y deja poner una contrasena nueva."""
         from itsdangerous import SignatureExpired, BadSignature
         try:
-            cid = _reset_serializer().loads(token, max_age=3600)
+            _tk = _reset_serializer().loads(token, max_age=3600)
+            if not isinstance(_tk, dict):
+                raise BadSignature("formato viejo")
+            cid = _tk.get("c")
         except SignatureExpired:
             flash("El link venci&oacute; (dura 1 hora). Ped&iacute; uno nuevo.", "error")
             return redirect(url_for("cliente_recuperar"))
@@ -7738,6 +7987,10 @@ def register_routes(app: Flask) -> None:
         cli = Cliente.query.get(cid)
         if not cli or not cli.password_hash:
             flash("No encontramos esa cuenta.", "error")
+            return redirect(url_for("cliente_recuperar"))
+        if cli.password_hash[-16:] != _tk.get("v"):
+            flash("Ese link ya se us&oacute;. Si necesit&aacute;s cambiar la contrase&ntilde;a, "
+                  "ped&iacute; uno nuevo.", "error")
             return redirect(url_for("cliente_recuperar"))
         if request.method == "POST":
             p1 = request.form.get("password") or ""
@@ -7749,7 +8002,7 @@ def register_routes(app: Flask) -> None:
             else:
                 cli.set_password(p1)
                 db.session.commit()
-                auth.cliente_login(cli.id)
+                auth.cliente_login(cli.id, (cli.password_hash or "")[-16:])
                 flash("Listo, cambiaste tu contrase&ntilde;a. Ya est&aacute;s adentro.", "success")
                 return redirect(url_for("cliente_cuenta"))
         return render_template("public/cliente_reset.html", token=token, **_public_context())
@@ -7780,7 +8033,7 @@ def register_routes(app: Flask) -> None:
                 return render_template("public/cliente_login.html", form={"email": email}, **_public_context())
 
             _cliente_login_attempts.pop(ip, None)
-            auth.cliente_login(cliente.id)
+            auth.cliente_login(cliente.id, (cliente.password_hash or "")[-16:])
             flash(f"Hola de nuevo, {cliente.nombre}!", "success")
             next_url = request.args.get("next")
             # Solo rutas internas: evitar open redirect con "//sitio.com" o "/\sitio"
@@ -8149,21 +8402,17 @@ def register_routes(app: Flask) -> None:
                 existente = Cliente.query.filter_by(email=email_norm).first()
                 if existente and existente.password_hash:
                     flash("Ya tenias una cuenta con ese email. Inicia sesion para ver tus pedidos.", "info")
+                elif _email_tiene_compras(email_norm, excluir_reserva_id=reserva.id):
+                    # Ese email ya tiene compras anteriores: la cuenta se activa desde el
+                    # link del mail (que solo le llega al dueno del email).
+                    if _mandar_activacion(email_norm, password_cuenta, nombre, whatsapp):
+                        flash("Te mandamos un mail para activar tu cuenta y ver todas tus "
+                              "compras.", "info")
                 else:
                     try:
-                        if existente and not existente.password_hash:
-                            # Adoptar la ficha creada sola por una compra previa sin cuenta
-                            # (antes quedaba trabada: no podia registrarse ni loguear).
-                            nuevo_cliente = existente
-                            if not nuevo_cliente.nombre:
-                                nuevo_cliente.nombre = nombre
-                            if whatsapp and not nuevo_cliente.whatsapp:
-                                nuevo_cliente.whatsapp = whatsapp
-                            nuevo_cliente.set_password(password_cuenta)
-                        else:
-                            nuevo_cliente = Cliente(nombre=nombre, email=email_norm, whatsapp=whatsapp or None)
-                            nuevo_cliente.set_password(password_cuenta)
-                            db.session.add(nuevo_cliente)
+                        nuevo_cliente = Cliente(nombre=nombre, email=email_norm, whatsapp=whatsapp or None)
+                        nuevo_cliente.set_password(password_cuenta)
+                        db.session.add(nuevo_cliente)
                         db.session.flush()
                         # Adoptar esta reserva + otras anonimas con el MISMO EMAIL de la
                         # cuenta (no por WhatsApp: el numero se puede conocer sin ser el
@@ -8177,7 +8426,7 @@ def register_routes(app: Flask) -> None:
                         for r in previas:
                             r.cliente_id = nuevo_cliente.id
                         db.session.commit()
-                        auth.cliente_login(nuevo_cliente.id)
+                        auth.cliente_login(nuevo_cliente.id, (nuevo_cliente.password_hash or "")[-16:])
                         flash(f"Te creamos una cuenta, {nuevo_cliente.nombre}. Vas a poder seguir tus pedidos.", "success")
                     except Exception:
                         db.session.rollback()
@@ -8774,13 +9023,30 @@ def register_routes(app: Flask) -> None:
                 # Revertir los discos de la reserva: los Reservados Y los Vendidos vuelven
                 # a Disponible y se les limpian los datos de venta. Sin esto, borrar una
                 # reserva pagada dejaba el disco 'Vendido' sumando plata y lealtad fantasma.
+                # Solo se revierten los discos cuyo estado lo puso ESTA reserva. Si el disco
+                # despues se vendio por otra via (Instagram, otra reserva) o lo apartaste
+                # para otra persona, no se toca: antes borrar un pedido abandonado borraba
+                # esa venta real de caja, contabilidad y lealtad.
+                revertidos, intactos = [], []
                 for item in reserva.items_efectivos:
                     disco = item.disco
-                    if disco and disco.estado in ("Reservado", "Vendido"):
+                    if not disco or disco.estado not in ("Reservado", "Vendido"):
+                        continue
+                    if _disco_es_de_reserva(disco, reserva):
                         _desvender_disco(disco, nota=f"Reserva #{reserva.id} eliminada")
+                        revertidos.append(disco)
+                    else:
+                        intactos.append(disco)
                 db.session.delete(reserva)
                 db.session.commit()
-                flash("Reserva eliminada. Sus discos volvieron a Disponible.", "success")
+                msg = "Reserva eliminada."
+                if revertidos:
+                    msg += f" {len(revertidos)} disco(s) volvieron a Disponible."
+                if intactos:
+                    msg += (f" {len(intactos)} disco(s) no se tocaron porque estan vendidos o "
+                            "apartados por otra venta: " + ", ".join(
+                                f"{d.artista} - {d.titulo}" for d in intactos[:4]) + ".")
+                flash(msg, "success")
                 return redirect(url_for("admin_reservas"))
 
             return redirect(url_for("admin_reserva_detail", reserva_id=reserva.id))

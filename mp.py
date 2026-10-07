@@ -48,6 +48,29 @@ def calcular_recargo(subtotal: float) -> float:
     return float(int(subtotal * recargo_pct() / 100.0 + 0.5))
 
 
+PAGO_VENCE_MIN = 120        # el link de pago (tarjeta) vence a las 2 horas
+TICKET_VENCE_HORAS = 48     # cupon de Abitab / RedPagos: 48 horas para pagarlo
+
+
+def _vencimientos(ahora=None) -> dict:
+    """Vencimiento de la preferencia. Sin esto el link de pago servia para siempre:
+    un pedido abandonado (o un cupon de Abitab) podia pagarse dias despues, cuando el
+    disco ya estaba vendido o apartado para otra persona. Formato que pide MP:
+    ISO 8601 con milisegundos y zona horaria (Uruguay, -03:00)."""
+    from datetime import datetime, timedelta
+    ahora = ahora or (datetime.utcnow() - timedelta(hours=3))   # hora de Uruguay
+
+    def _iso(dt):
+        return dt.strftime("%Y-%m-%dT%H:%M:%S.000-03:00")
+
+    return {
+        "expires": True,
+        "expiration_date_from": _iso(ahora - timedelta(minutes=1)),
+        "expiration_date_to": _iso(ahora + timedelta(minutes=PAGO_VENCE_MIN)),
+        "date_of_expiration": _iso(ahora + timedelta(hours=TICKET_VENCE_HORAS)),
+    }
+
+
 def crear_preferencia(items, back_urls, notification_url, external_reference,
                       payer_email=None) -> dict:
     """Crea una preferencia de pago en Mercado Pago (Checkout Pro).
@@ -78,6 +101,7 @@ def crear_preferencia(items, back_urls, notification_url, external_reference,
     }
     if payer_email:
         body["payer"] = {"email": payer_email}
+    body.update(_vencimientos())
 
     resp = requests.post(
         f"{MP_API}/checkout/preferences",
@@ -88,6 +112,20 @@ def crear_preferencia(items, back_urls, notification_url, external_reference,
         },
         timeout=20,
     )
+    if resp.status_code == 400:
+        # Red de seguridad: si MP rechazara los campos de vencimiento, crear el link
+        # igual sin ellos (mejor un link sin vencimiento que un cliente sin poder pagar).
+        for k in ("expires", "expiration_date_from", "expiration_date_to", "date_of_expiration"):
+            body.pop(k, None)
+        resp = requests.post(
+            f"{MP_API}/checkout/preferences",
+            json=body,
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Content-Type": "application/json",
+            },
+            timeout=20,
+        )
     resp.raise_for_status()
     return resp.json()
 
@@ -96,6 +134,11 @@ def obtener_pago(payment_id) -> dict | None:
     """Consulta el estado de un pago en MP. Devuelve el dict del pago o None."""
     token = access_token()
     if not token:
+        return None
+    # Un id de pago de MP es siempre numerico. Sin este control, un id armado
+    # (ej. "../../users/me") hacia que el server consultara otra ruta de la API de MP
+    # con el token productivo.
+    if not str(payment_id or "").isdigit():
         return None
     try:
         resp = requests.get(
