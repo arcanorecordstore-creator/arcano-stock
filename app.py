@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.98"
+APP_VERSION = "5.99"
 import metrics
 import auth
 import mailer
@@ -5408,6 +5408,22 @@ def register_routes(app: Flask) -> None:
         es_aporte = bool(request.form.get("es_aporte")) and tipo == "ingreso"
         if monto <= 0:
             flash("El monto debe ser mayor a 0.", "error")
+            return redirect(url_for("caja"))
+        # Retiro de capital (plata que Facundo saca para el): se guarda como "Retiro
+        # personal", lo mismo que desde Contabilidad. NO es un gasto (no baja la ganancia):
+        # baja el capital aportado y sale de la caja (la caja lo trae sola al sincronizar).
+        if tipo == "egreso" and request.form.get("es_retiro"):
+            from models import Egreso, CAT_RETIRO_PERSONAL
+            db.session.add(Egreso(
+                fecha=fecha, categoria=CAT_RETIRO_PERSONAL,
+                descripcion=(concepto or "Retiro de capital")[:300],
+                monto=round(monto, 2), moneda="UYU", tc_usado=1, monto_uyu=round(monto, 2),
+            ))
+            db.session.commit()
+            _sincronizar_caja()
+            db.session.commit()
+            flash(f"Retiro de capital registrado: - ${monto:,.0f} UYU. Baja tu capital aportado "
+                  "y la caja; no cuenta como gasto.", "success")
             return redirect(url_for("caja"))
         concepto_final = concepto or ("Aporte de capital" if es_aporte else ("Aporte" if tipo == "ingreso" else "Retiro"))
         origen_categoria = (request.form.get("origen_categoria") or "").strip()[:60] or None

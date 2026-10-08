@@ -230,6 +230,10 @@
                     <input type="checkbox" name="es_aporte" value="1">
                     Es un aporte de capital tuyo (plata propia que ponés en Arcano)
                 </label>
+                <label class="caja-campo-retiro caja-check-label">
+                    <input type="checkbox" name="es_retiro" value="1">
+                    Es un retiro de capital tuyo (plata que sacás de Arcano para vos). Baja tu capital aportado; no cuenta como gasto.
+                </label>
             </div>
             <button type="submit" class="btn btn-primary">Agregar movimiento</button>
         </form>
@@ -451,8 +455,13 @@
         var met = form.querySelector('.caja-campo-metodo');
         var cat = form.querySelector('.caja-campo-categoria');
         var apo = form.querySelector('.caja-campo-aporte');
+        var ret = form.querySelector('.caja-campo-retiro');
         function sync() {
             var esIngreso = tipo.value === 'ingreso';
+            if (ret) {
+                ret.style.display = esIngreso ? 'none' : '';
+                if (esIngreso) { var cr = ret.querySelector('input'); if (cr) cr.checked = false; }
+            }
             if (met) met.style.display = esIngreso ? '' : 'none';
             if (cat) cat.style.display = esIngreso ? 'none' : '';
             if (apo) {
