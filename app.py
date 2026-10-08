@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.93"
+APP_VERSION = "5.94"
 import metrics
 import auth
 import mailer
@@ -7466,10 +7466,10 @@ def register_routes(app: Flask) -> None:
             discs = [mystery_box] + discs
 
         # Paginacion (sobre la lista ya filtrada y ordenada)
-        # Grilla FIJA (decision de Facundo, 8/10/2026): 5 discos por fila x 6 filas = 30
+        # Grilla FIJA (decision de Facundo, 8/10/2026): 5 discos por fila x 5 filas = 25
         # por pagina, contando la Mystery Box como una card. Sin selectores para el cliente.
         # (En pantallas medianas el CSS baja las columnas; en celular, 1-2 por fila.)
-        POR_PAGINA = 30
+        POR_PAGINA = 25
         COLS = 5
         total_resultados = len(discs)
         total_paginas = max(1, (total_resultados + POR_PAGINA - 1) // POR_PAGINA)
