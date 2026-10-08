@@ -311,19 +311,31 @@
         <span class="listen-all-stop" hidden>&#9724; Detener</span>
     </button>
     {% if filtro_sale %}
-    <a href="{{ url_sin_sale }}" class="sale-filter-btn is-on" title="Volver a ver todos los discos">SALE &middot; quitar &times;</a>
+    <a href="{{ url_sin_sale }}" class="sale-filter-btn is-on" data-mantener-posicion title="Volver a ver todos los discos">Discos en SALE! <span class="sale-filter-x" aria-hidden="true">&times;</span><span class="visually-hidden"> (quitar)</span></a>
     {% elif n_sale %}
-    <a href="{{ url_sale }}" class="sale-filter-btn" title="Ver solo los discos en oferta">SALE &middot; {{ n_sale }} disco{{ 's' if n_sale != 1 else '' }}</a>
+    <a href="{{ url_sale }}" class="sale-filter-btn" data-mantener-posicion title="Ver solo los discos en oferta">Discos en SALE!</a>
     {% endif %}
     {% if opciones_por %}
-    <nav class="por-pagina" aria-label="Discos por página">
-        <span class="por-pagina-label">Ver</span>
-        {% for n, u in opciones_por %}<a href="{{ u }}" class="por-pagina-op{% if n == por_pagina %} is-on{% endif %}"{% if n == por_pagina %} aria-current="true"{% endif %}>{{ n }}</a>{% endfor %}
-    </nav>
+    <label class="por-pagina">
+        <span class="por-pagina-label">Mostrar</span>
+        <select name="por" class="por-pagina-select" aria-label="Discos por página"
+                onchange="window.__arcanoMantener = true; if (this.form.requestSubmit) { this.form.requestSubmit(); } else { this.form.submit(); }">
+            {% for n, u in opciones_por %}<option value="{{ n }}"{% if n == por_pagina %} selected{% endif %}>{{ n }} discos</option>{% endfor %}
+        </select>
+    </label>
+    {% endif %}
+    {% if cols %}
+    <label class="por-pagina por-fila">
+        <span class="por-pagina-label">Por fila</span>
+        <select name="cols" class="por-pagina-select" aria-label="Discos por fila"
+                onchange="window.__arcanoMantener = true; if (this.form.requestSubmit) { this.form.requestSubmit(); } else { this.form.submit(); }">
+            {% for n in (4, 5, 6) %}<option value="{{ n }}"{% if n == cols %} selected{% endif %}>{{ n }}</option>{% endfor %}
+        </select>
+    </label>
     {% endif %}
 </div>
 
-<div class="public-grid public-grid-{{ card_tamano or 'mediano' }}" data-mobile-cols="{{ grid_mobile or '1' }}"{% if grid_columnas and grid_columnas != 'auto' %} style="grid-template-columns: repeat({{ grid_columnas }}, 1fr);"{% endif %}>
+<div class="public-grid public-grid-{{ card_tamano or 'mediano' }}" data-mobile-cols="{{ grid_mobile or '1' }}"{% if cols %} data-cols="{{ cols }}"{% endif %}{% if grid_columnas and grid_columnas != 'auto' %} style="grid-template-columns: repeat({{ grid_columnas }}, 1fr);"{% endif %}>
     {% for d in discs %}
     {% if d.es_mystery_box %}
     {# Card especial de la Mystery Box: rango de precio + CTA a la ficha (donde se

@@ -30,6 +30,23 @@
                                    prev: st.prev || null }, '', location.href);
         } catch (e) {}
     }
+    // Botones del renglon del catalogo (SALE, cantidad por pagina): al navegar, el
+    // renglon queda a la MISMA altura de la pantalla en la que estaba (no salta arriba).
+    function altoRenglon() {
+        var h = document.querySelector('.public-results-head');
+        return h ? h.getBoundingClientRect().top : null;
+    }
+    function mantenerPosicion(offset) {
+        var intentos = 0;
+        (function poner() {
+            var h = document.querySelector('.public-results-head');
+            if (!h) { window.scrollTo(0, 0); return; }
+            var y = h.getBoundingClientRect().top + (window.scrollY || 0) - offset;
+            window.scrollTo(0, Math.max(0, y));
+            // las imagenes de arriba pueden cambiar el alto: reacomodar un par de veces
+            if (intentos++ < 6) setTimeout(poner, 90);
+        })();
+    }
     function reponerScroll(y) {
         window.scrollTo(0, y);
         // Las tapas cargan de a poco: si la pagina todavia no es tan alta, reintentar.
@@ -96,7 +113,7 @@
         document.body.style.overflow = '';
     }
 
-    function swap(html, url, push, y) {
+    function swap(html, url, push, y, mantener) {
         var doc;
         try { doc = new DOMParser().parseFromString(html, 'text/html'); } catch (e) { location.href = url; return; }
         var nuevoMain = doc.querySelector('.public-main');
@@ -129,6 +146,7 @@
         try { hash = new URL(url, location.href).hash; } catch (e) {}
         var anchor = hash && hash.length > 1 ? document.getElementById(hash.slice(1)) : null;
         if (typeof y === 'number') reponerScroll(y);
+        else if (typeof mantener === 'number') mantenerPosicion(mantener);
         else if (anchor) anchor.scrollIntoView(); else window.scrollTo(0, 0);
 
         // El checkout ("finalizar compra") en adelante no lleva reproductor
@@ -142,7 +160,7 @@
         if (window.gtag) { try { gtag('event', 'page_view', { page_location: url, page_title: document.title }); } catch (e) {} }
     }
 
-    function navegar(url, push, y) {
+    function navegar(url, push, y, mantener) {
         if (cargando) return;
         cargando = true;
         if (push) guardarScroll();
@@ -157,7 +175,7 @@
                 }
                 return r.text();
             })
-            .then(function (html) { if (html != null) swap(html, url, push, y); })
+            .then(function (html) { if (html != null) swap(html, url, push, y, mantener); })
             .catch(function () { location.href = url; })
             .then(function () { cargando = false; ocultarBarra(); });
     }
@@ -179,7 +197,8 @@
         }
         if (!esNavegable(a)) return;
         e.preventDefault();
-        navegar(new URL(a.href, location.href).href, true);
+        var _m = a.hasAttribute('data-mantener-posicion') ? altoRenglon() : null;
+        navegar(new URL(a.href, location.href).href, true, undefined, (typeof _m === 'number') ? _m : undefined);
     });
 
     // Forms GET (busqueda / filtros). Los POST navegan normal.
@@ -191,8 +210,16 @@
         try { url = new URL(form.getAttribute('action') || location.pathname, location.href); } catch (err) { return; }
         if (url.origin !== ORIGEN || url.pathname.indexOf('/admin') === 0) return;
         e.preventDefault();
-        url.search = new URLSearchParams(new FormData(form)).toString();
-        navegar(url.href, true);
+        var _params = new URLSearchParams();
+        new FormData(form).forEach(function (v, k) {
+            if (typeof v === 'string' && v.trim() === '') return;   // campos vacios fuera
+            _params.append(k, v);
+        });
+        url.search = _params.toString();
+        // Cambio de "Mostrar N discos": quedarse a la misma altura
+        var _mf = window.__arcanoMantener ? altoRenglon() : null;
+        window.__arcanoMantener = false;
+        navegar(url.href, true, undefined, (typeof _mf === 'number') ? _mf : undefined);
     });
 
     // Atras / adelante del navegador

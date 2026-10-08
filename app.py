@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.89"
+APP_VERSION = "5.90"
 import metrics
 import auth
 import mailer
@@ -7481,6 +7481,15 @@ def register_routes(app: Flask) -> None:
             POR_PAGINA = _por_arg
         elif session.get("por_pagina") in _OPC_POR:
             POR_PAGINA = session["por_pagina"]
+        # Discos por fila en compu (4/5/6), elegido por el cliente y recordado en su
+        # sesion. Sin eleccion: el de Ajustes si es 4-6, si no 4. (En celular no aplica.)
+        _OPC_COLS = (4, 5, 6)
+        _cols_arg = _parse_int(request.args.get("cols"), 0) or 0
+        if _cols_arg in _OPC_COLS:
+            session["cols"] = _cols_arg
+        _cols_set = _parse_int(Setting.get("public_grid_columnas", "auto"), 0) or 0
+        COLS = (session.get("cols") if session.get("cols") in _OPC_COLS
+                else (_cols_set if _cols_set in _OPC_COLS else 4))
         total_resultados = len(discs)
         total_paginas = max(1, (total_resultados + POR_PAGINA - 1) // POR_PAGINA)
         pagina = _parse_int(request.args.get("pagina"), 1) or 1
@@ -7707,6 +7716,7 @@ def register_routes(app: Flask) -> None:
             filtro_condiciones=condicion_sel,
             filtro_sale=sale_sel,
             por_pagina=POR_PAGINA,
+            cols=COLS,
             opciones_por=[(n, url_for("home", **{**{k: v for k, v in request.args.to_dict(flat=False).items()
                                                     if k not in ("por", "pagina")}, "por": str(n)}))
                           for n in (12, 24, 36, 48)],

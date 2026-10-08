@@ -159,31 +159,28 @@ body:is(.tema-fundaviva, .tema-picture) .carrusel-card .card-staff-sticker {
     }
 }
 
-/* Boton SALE (junto a "Escuchar todo") en los disenos con banda marron: el relleno
-   marron se perdia contra el fondo; va en contorno beige (Escuchar todo es beige lleno). */
-body.tema-tocadiscos .sale-filter-btn,
-body.tema-fundaviva .sale-filter-btn,
-body.tema-picture .sale-filter-btn {
-    background: transparent;
+/* "Mostrar N discos" en los disenos con banda marron: beige sobre marron, bien legible.
+   (El boton SALE va igual en todos los disenos: rojo lleno, ver style.css.) */
+body.tema-tocadiscos .por-pagina-label, body.tema-fundaviva .por-pagina-label, body.tema-picture .por-pagina-label {
     color: var(--arcano-beige, #E9D1AF);
-    border-color: var(--arcano-beige, #E9D1AF);
 }
-body.tema-tocadiscos .sale-filter-btn.is-on,
-body.tema-fundaviva .sale-filter-btn.is-on,
-body.tema-picture .sale-filter-btn.is-on {
-    background: var(--arcano-crema, #FFF7EC);
-    color: var(--arcano-marron, #3D3033);
-    border-color: var(--arcano-crema, #FFF7EC);
+body.tema-tocadiscos .por-pagina-select, body.tema-fundaviva .por-pagina-select, body.tema-picture .por-pagina-select {
+    color: var(--arcano-crema, #FFF7EC);
+    background-color: rgba(0, 0, 0, 0.18);
+    border-color: var(--arcano-beige, #E9D1AF);
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23E9D1AF' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+body.tema-tocadiscos .por-pagina-select option, body.tema-fundaviva .por-pagina-select option, body.tema-picture .por-pagina-select option {
+    color: #1E1C1C; background: #FFF7EC;
 }
 
-body.tema-tocadiscos .por-pagina, body.tema-fundaviva .por-pagina, body.tema-picture .por-pagina {
-    border-color: rgba(233, 209, 175, 0.45);
+/* Cartel "Agotado" en los disenos con vinilo (H/M/S): el boton de play va en el centro
+   del disco y lo tapaba. El cartel baja a la parte de abajo del disco. */
+body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture):not(.vista-lista) .public-card-agotado-overlay {
+    align-items: flex-end;
+    padding-bottom: 13%;
 }
-body.tema-tocadiscos .por-pagina-label, body.tema-fundaviva .por-pagina-label, body.tema-picture .por-pagina-label,
-body.tema-tocadiscos .por-pagina-op, body.tema-fundaviva .por-pagina-op, body.tema-picture .por-pagina-op {
-    color: var(--arcano-beige, #E9D1AF);
-}
-body.tema-tocadiscos .por-pagina-op.is-on, body.tema-fundaviva .por-pagina-op.is-on, body.tema-picture .por-pagina-op.is-on {
-    background: var(--arcano-beige, #E9D1AF);
-    color: var(--arcano-marron, #3D3033);
+body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture):not(.vista-lista) .public-card-agotado-overlay span {
+    font-size: 11px;
+    padding: 4px 12px;
 }
