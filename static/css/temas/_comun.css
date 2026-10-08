@@ -192,3 +192,14 @@ body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) .sale-volver-btn {
     color: var(--arcano-marron, #3D3033);
     border-color: var(--arcano-beige, #E9D1AF);
 }
+
+/* Celular/tablet: el renglon del catalogo (contador, Escuchar todo, SALE / Volver,
+   Grilla-Lista) quedaba pegado al boton "Filtros" de arriba cuando no hay carruseles
+   (con un filtro o la busqueda), y sus botones pegados entre si al pasar de linea. */
+@media (max-width: 899px) {
+    html body .public-catalog .public-results-head {
+        margin-top: 18px;
+        row-gap: 12px;
+        column-gap: 10px;
+    }
+}

@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.94"
+APP_VERSION = "5.95"
 import metrics
 import auth
 import mailer
@@ -7469,8 +7469,16 @@ def register_routes(app: Flask) -> None:
         # Grilla FIJA (decision de Facundo, 8/10/2026): 5 discos por fila x 5 filas = 25
         # por pagina, contando la Mystery Box como una card. Sin selectores para el cliente.
         # (En pantallas medianas el CSS baja las columnas; en celular, 1-2 por fila.)
-        POR_PAGINA = 25
         COLS = 5
+        # Filas SIEMPRE completas: los discos por pagina dependen de cuantos entran por
+        # fila en la pantalla del cliente (la tienda lo mide y lo manda en la cookie
+        # arcano_cols). Compu 5 -> 25 (5x5); tablet 3 -> 27 (3x9); celular 2 -> 26 (2x13).
+        # Sin cookie (primera visita) se adivina por el navegador: celular 2, si no 5.
+        _cols_vis = _parse_int(request.cookies.get("arcano_cols"), 0) or 0
+        if not (1 <= _cols_vis <= 6):
+            _ua = (request.headers.get("User-Agent") or "").lower()
+            _cols_vis = 2 if ("mobi" in _ua or "iphone" in _ua or "android" in _ua) else 5
+        POR_PAGINA = _cols_vis * -(-25 // _cols_vis)
         total_resultados = len(discs)
         total_paginas = max(1, (total_resultados + POR_PAGINA - 1) // POR_PAGINA)
         pagina = _parse_int(request.args.get("pagina"), 1) or 1

@@ -823,3 +823,46 @@ window.arcanoGA = function (name, params) {
         if (history.replaceState) { try { history.replaceState(null, '', '#catalogo'); } catch (x) {} }
     });
 })();
+
+/* Grilla siempre con filas COMPLETAS (pedido de Facundo): la cantidad de discos por
+   pagina depende de cuantos entran por fila en esta pantalla (compu 5x5, tablet 3x9,
+   celular 2x13). La pagina mide las columnas reales y se las pasa al servidor en una
+   cookie; si la pagina que llego no cierra justo (primera visita desde el celular), se
+   recarga UNA vez con el numero correcto. */
+(function () {
+    'use strict';
+    function columnasReales() {
+        var g = document.querySelector('.public-grid[data-per-page]');
+        if (!g) return null;
+        var cols = (getComputedStyle(g).gridTemplateColumns || '').split(' ').filter(function (x) {
+            return x && x !== 'none';
+        }).length;
+        return cols > 0 ? { grid: g, cols: cols } : null;
+    }
+    function guardar(cols) {
+        try { document.cookie = 'arcano_cols=' + cols + '; path=/; max-age=31536000; samesite=lax'; } catch (e) {}
+    }
+    function revisar() {
+        var m = columnasReales();
+        if (!m) return;
+        guardar(m.cols);
+        var pp = parseInt(m.grid.dataset.perPage || '0', 10);
+        var cards = m.grid.children.length;
+        // Solo si la pagina vino llena y no cierra con estas columnas: recargar una vez.
+        if (pp && cards === pp && pp % m.cols !== 0) {
+            var ya = false;
+            try { ya = sessionStorage.getItem('arcano_cols_fix') === String(m.cols); } catch (e) {}
+            if (!ya) {
+                try { sessionStorage.setItem('arcano_cols_fix', String(m.cols)); } catch (e) {}
+                location.replace(location.href);
+            }
+        }
+    }
+    window.Arcano.onContent(revisar);
+    // Girar el celu o achicar la ventana: actualizar la cookie (vale desde la proxima pagina).
+    var t = null;
+    window.addEventListener('resize', function () {
+        clearTimeout(t);
+        t = setTimeout(function () { var m = columnasReales(); if (m) guardar(m.cols); }, 300);
+    });
+})();

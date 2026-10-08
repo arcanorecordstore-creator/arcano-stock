@@ -317,7 +317,7 @@
     {% endif %}
 </div>
 
-<div class="public-grid public-grid-{{ card_tamano or 'mediano' }}" data-mobile-cols="{{ grid_mobile or '1' }}"{% if cols %} data-cols="{{ cols }}"{% endif %}>
+<div class="public-grid public-grid-{{ card_tamano or 'mediano' }}" data-mobile-cols="{{ grid_mobile or '1' }}"{% if cols %} data-cols="{{ cols }}"{% endif %} data-per-page="{{ por_pagina }}">
     {% for d in discs %}
     {% if d.es_mystery_box %}
     {# Card especial de la Mystery Box: rango de precio + CTA a la ficha (donde se
