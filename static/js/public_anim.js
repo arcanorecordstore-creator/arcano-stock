@@ -826,7 +826,7 @@ window.arcanoGA = function (name, params) {
 
 /* Grilla siempre con filas COMPLETAS (pedido de Facundo): la cantidad de discos por
    pagina depende de cuantos entran por fila en esta pantalla (compu 5x5, tablet 3x9,
-   celular 2x13). La pagina mide las columnas reales y se las pasa al servidor en una
+   celular 2x10). La pagina mide las columnas reales y se las pasa al servidor en una
    cookie; si la pagina que llego no cierra justo (primera visita desde el celular), se
    recarga UNA vez con el numero correcto. */
 (function () {
