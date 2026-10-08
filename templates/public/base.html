@@ -92,7 +92,7 @@
             <img class="public-brand-img brand-bla" src="{{ url_for('static', filename='brand/logo-primary-blanco.png') }}" alt="Arcano Record Store" width="616" height="240">
         </a>
         <nav class="public-nav public-nav-desktop">
-            <a href="{{ url_for('home') }}" class="public-nav-link {% if request.endpoint == 'home' %}active{% endif %}">Catálogo</a>
+            <a href="{{ url_for('home') }}#catalogo" class="public-nav-link ir-catalogo {% if request.endpoint == 'home' %}active{% endif %}">Catálogo</a>
             <a href="{{ url_for('public_sobre') }}" class="public-nav-link {% if request.endpoint == 'public_sobre' %}active{% endif %}">Sobre Arcano</a>
             <a href="{{ url_for('public_favoritos') }}" class="public-nav-link public-nav-fav {% if request.endpoint == 'public_favoritos' %}active{% endif %}">
                 Favoritos<span class="fav-count" id="fav-count" hidden>0</span>
@@ -136,7 +136,7 @@
 
 <!-- Barra de navegacion inferior (solo mobile) -->
 <nav class="public-bottom-nav" aria-label="Navegacion principal movil">
-    <a href="{{ url_for('home') }}" class="bottom-nav-item {% if request.endpoint == 'home' %}active{% endif %}">
+    <a href="{{ url_for('home') }}#catalogo" class="bottom-nav-item ir-catalogo {% if request.endpoint == 'home' %}active{% endif %}">
         <svg class="bottom-nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>
         <span class="bottom-nav-label">Catálogo</span>
     </a>
@@ -174,7 +174,7 @@
         <button type="button" class="public-drawer-close" id="public-drawer-close" aria-label="Cerrar menu">&times;</button>
     </div>
     <nav class="public-drawer-nav">
-        <a href="{{ url_for('home') }}" class="public-drawer-link {% if request.endpoint == 'home' %}active{% endif %}">Catálogo</a>
+        <a href="{{ url_for('home') }}#catalogo" class="public-drawer-link ir-catalogo {% if request.endpoint == 'home' %}active{% endif %}">Catálogo</a>
         <a href="{{ url_for('public_sobre') }}" class="public-drawer-link {% if request.endpoint == 'public_sobre' %}active{% endif %}">Sobre Arcano</a>
         <a href="{{ url_for('public_favoritos') }}" class="public-drawer-link {% if request.endpoint == 'public_favoritos' %}active{% endif %}">Favoritos</a>
         <a href="{{ url_for('public_carrito') }}" class="public-drawer-link {% if request.endpoint in ['public_carrito', 'public_checkout'] %}active{% endif %}">Carrito</a>

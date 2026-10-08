@@ -863,11 +863,22 @@ window.arcanoGA = function (name, params) {
     'use strict';
     document.addEventListener('click', function (e) {
         if (!e.target || !e.target.closest) return;
-        var trigger = e.target.closest('.public-anuncio-bar, .public-hero');
+        var trigger = e.target.closest('.public-anuncio-bar, .public-hero, .ir-catalogo');
         if (!trigger) return;
         var target = document.getElementById('catalogo');
         if (!target) return;  // otra pagina: que el link navegue a /#catalogo
+        // "Catalogo" del menu con un filtro o busqueda puesta: ir al catalogo COMPLETO
+        // (navega a /#catalogo y sin filtros); sin filtros, solo bajar suave como el banner.
+        if (trigger.classList.contains('ir-catalogo') && location.search) return;
         e.preventDefault();
+        // Si se toco desde el menu lateral del celular, cerrarlo antes de bajar
+        var drawer = document.getElementById('public-drawer');
+        if (drawer && drawer.classList.contains('open') && trigger.closest('#public-drawer')) {
+            drawer.classList.remove('open'); drawer.setAttribute('aria-hidden', 'true');
+            var ov = document.getElementById('public-drawer-overlay');
+            if (ov) { ov.classList.remove('visible'); ov.hidden = true; }
+            document.body.style.overflow = '';
+        }
         target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         if (history.replaceState) { try { history.replaceState(null, '', '#catalogo'); } catch (x) {} }
     });

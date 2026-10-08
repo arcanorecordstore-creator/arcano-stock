@@ -147,6 +147,10 @@
         var anchor = hash && hash.length > 1 ? document.getElementById(hash.slice(1)) : null;
         if (typeof y === 'number') reponerScroll(y);
         else if (typeof mantener === 'number') mantenerPosicion(mantener);
+        else if (anchor && anchor.id === 'catalogo') {
+            window.scrollTo(0, 0);
+            setTimeout(function () { anchor.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+        }
         else if (anchor) anchor.scrollIntoView(); else window.scrollTo(0, 0);
 
         // El checkout ("finalizar compra") en adelante no lleva reproductor
