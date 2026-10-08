@@ -473,11 +473,60 @@ window.arcanoGA = function (name, params) {
         // Un "paso" de flecha = casi todo el ancho visible (una tanda de tapas)
         function paso() { return Math.max(viewport.clientWidth * 0.9, 200); }
 
+        // La barra de abajo es una barra de desplazamiento: el tramo claro mide lo que
+        // se ve del carrusel y se mueve con el scroll. Se arrastra (mouse o dedo) y
+        // tocando la linea salta a ese punto.
+        var track = progressBar ? progressBar.parentElement : null;
+        function medidas() {
+            var total = viewport.scrollWidth, visible = viewport.clientWidth;
+            var frac = total > 0 ? Math.min(1, visible / total) : 1;
+            return { max: Math.max(0, total - visible), frac: Math.max(frac, 0.08) };
+        }
         function actualizarProgreso() {
             if (!progressBar) return;
-            var max = viewport.scrollWidth - viewport.clientWidth;
-            var pct = max <= 1 ? 100 : Math.min(100, (viewport.scrollLeft / max) * 100);
-            progressBar.style.width = Math.max(pct, 8) + '%';
+            var m = medidas();
+            var pos = m.max <= 1 ? 0 : Math.min(1, viewport.scrollLeft / m.max);
+            progressBar.style.width = (m.frac * 100) + '%';
+            progressBar.style.marginLeft = (pos * (1 - m.frac) * 100) + '%';
+            if (track) track.classList.toggle('sin-scroll', m.max <= 1);
+        }
+        if (track) {
+            var arrastrando = false, inicioX = 0, inicioScroll = 0;
+            track.addEventListener('pointerdown', function (e) {
+                var m = medidas();
+                if (m.max <= 1) return;
+                var r = track.getBoundingClientRect();
+                var br = progressBar.getBoundingClientRect();
+                if (e.clientX < br.left || e.clientX > br.right) {
+                    // Toco fuera del tramo: centrarlo donde toco y seguir arrastrando desde ahi
+                    var util = r.width * (1 - m.frac);
+                    var x = e.clientX - r.left - (r.width * m.frac) / 2;
+                    viewport.scrollLeft = util > 0 ? Math.max(0, Math.min(1, x / util)) * m.max : 0;
+                }
+                arrastrando = true;
+                inicioX = e.clientX;
+                inicioScroll = viewport.scrollLeft;
+                track.classList.add('arrastrando');
+                viewport.classList.add('sin-snap');
+                try { track.setPointerCapture(e.pointerId); } catch (err) {}
+                e.preventDefault();
+            });
+            track.addEventListener('pointermove', function (e) {
+                if (!arrastrando) return;
+                var m = medidas();
+                var util = track.getBoundingClientRect().width * (1 - m.frac);
+                if (util <= 0) return;
+                viewport.scrollLeft = inicioScroll + (e.clientX - inicioX) * (m.max / util);
+            });
+            function soltar() {
+                if (!arrastrando) return;
+                arrastrando = false;
+                track.classList.remove('arrastrando');
+                viewport.classList.remove('sin-snap');
+            }
+            track.addEventListener('pointerup', soltar);
+            track.addEventListener('pointercancel', soltar);
+            window.addEventListener('resize', actualizarProgreso);
         }
 
         if (next) next.addEventListener('click', function () {

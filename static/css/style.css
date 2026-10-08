@@ -7815,19 +7815,35 @@ td.num,
 }
 /* Barra de progreso */
 .public-carrusel-progress {
+    position: relative;
     margin-top: 16px;
     height: 4px;
     background: var(--border-1);
     border-radius: 2px;
-    overflow: hidden;
+    cursor: grab;
+    touch-action: none;
+    transition: height 0.15s ease;
 }
+/* zona de toque mas alta que la linea (se agarra facil con el dedo) */
+.public-carrusel-progress::before {
+    content: "";
+    position: absolute;
+    left: 0; right: 0;
+    top: -12px; bottom: -12px;
+}
+.public-carrusel-progress:hover,
+.public-carrusel-progress.arrastrando { height: 6px; }
+.public-carrusel-progress.arrastrando { cursor: grabbing; }
+.public-carrusel-progress.sin-scroll { cursor: default; }
 .public-carrusel-progress-bar {
     height: 100%;
     width: 50%;
     background: var(--accent);
     border-radius: 2px;
-    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
 }
+/* mientras se arrastra, sin el "iman" a cada tapa (que no salte) */
+.public-carrusel-viewport.sin-snap { scroll-snap-type: none !important; scroll-behavior: auto !important; }
 
 /* Tamaños de card configurables desde el admin (doble clase = mas especifico) */
 /* Modo automatico: el tamaño controla cuantas columnas entran */
@@ -9515,21 +9531,13 @@ body.vista-lista .por-fila { display: none; }
 @media (min-width: 1200px) and (max-width: 1439px) { .public-grid[data-cols="6"] { --cols: 5; } }
 @media (min-width: 900px) and (max-width: 1199px) { .public-grid[data-cols] { --cols: 3 !important; } }
 
-/* Cards mas compactas cuando entran 5 o 6 por fila: textos y boton un poco mas chicos,
-   sin cortar nada (nombres largos con "..."). */
+/* Con 5 por fila: nombres largos con "..." (el tamano del texto es el de cada diseno). */
 @media (min-width: 900px) {
-    .public-grid:is([data-cols="5"], [data-cols="6"]) .public-card-artist { font-size: 11px !important; letter-spacing: .06em; }
-    .public-grid:is([data-cols="5"], [data-cols="6"]) .public-card-title { font-size: 13px !important; }
-    .public-grid:is([data-cols="5"], [data-cols="6"]) .public-card-label { font-size: 11px !important; }
-    .public-grid:is([data-cols="5"], [data-cols="6"]) .public-card-price { font-size: 14px !important; }
-    .public-grid:is([data-cols="5"], [data-cols="6"]) .public-card-resena { font-size: 12px !important; }
-    .public-grid:is([data-cols="5"], [data-cols="6"]) .public-card-buy,
-    .public-grid:is([data-cols="5"], [data-cols="6"]) .public-card-buy * { font-size: 10px !important; letter-spacing: .04em; }
-    .public-grid:is([data-cols="5"], [data-cols="6"]) .public-card-info { padding: 10px 12px !important; }
     .public-grid:is([data-cols="5"], [data-cols="6"]) :is(.public-card-artist, .public-card-title, .public-card-label) {
         overflow: hidden; text-overflow: ellipsis;
     }
 }
+
 .sale-filter-btn.is-on { background: transparent; color: var(--text-1); border-color: var(--text-1); }
 .listen-all-btn.activo {
     background: var(--accent, #10b981);
