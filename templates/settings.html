@@ -349,6 +349,11 @@
 
             <div class="form-row">
                 <div class="form-field">
+                    <label>Grilla en computadora</label>
+                    <p class="form-field-hint" style="margin-top: 6px;">Fija: <strong>5 discos por fila y 6 filas</strong> (30 por página, contando la Mystery Box). En pantallas más chicas se acomoda sola.</p>
+                </div>
+                {% if false %}
+                <div class="form-field">
                     <label for="public_grid_columnas">Columnas (discos por fila)</label>
                     <select id="public_grid_columnas" name="public_grid_columnas">
                         <option value="auto" {% if public_grid_columnas == 'auto' %}selected{% endif %}>Automatico (segun pantalla)</option>
@@ -360,6 +365,7 @@
                     </select>
                     <p class="form-field-hint" style="margin-top: 6px;">En computadora. En celular se ajusta aparte (abajo).</p>
                 </div>
+                {% endif %}
                 <div class="form-field">
                     <label for="public_grid_mobile">Columnas en celular</label>
                     <select id="public_grid_mobile" name="public_grid_mobile">
@@ -375,10 +381,7 @@
                         <option value="grande" {% if public_card_tamano == 'grande' %}selected{% endif %}>Grande</option>
                     </select>
                 </div>
-                <div class="form-field">
-                    <label for="public_discos_por_pagina">Discos por pagina <span class="form-field-hint">(maximo 48)</span></label>
-                    <input type="number" id="public_discos_por_pagina" name="public_discos_por_pagina" value="{{ public_discos_por_pagina or '24' }}" min="4" max="48" step="4">
-                </div>
+
             </div>
 
             <div class="form-row">

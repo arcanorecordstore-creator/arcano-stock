@@ -315,27 +315,9 @@
     {% elif n_sale %}
     <a href="{{ url_sale }}" class="sale-filter-btn" data-mantener-posicion title="Ver solo los discos en oferta">Discos en SALE!</a>
     {% endif %}
-    {% if opciones_por %}
-    <label class="por-pagina">
-        <span class="por-pagina-label">Mostrar</span>
-        <select name="por" class="por-pagina-select" aria-label="Discos por página"
-                onchange="window.__arcanoMantener = true; if (this.form.requestSubmit) { this.form.requestSubmit(); } else { this.form.submit(); }">
-            {% for n, u in opciones_por %}<option value="{{ n }}"{% if n == por_pagina %} selected{% endif %}>{{ n }} discos</option>{% endfor %}
-        </select>
-    </label>
-    {% endif %}
-    {% if cols %}
-    <label class="por-pagina por-fila">
-        <span class="por-pagina-label">Por fila</span>
-        <select name="cols" class="por-pagina-select" aria-label="Discos por fila"
-                onchange="window.__arcanoMantener = true; if (this.form.requestSubmit) { this.form.requestSubmit(); } else { this.form.submit(); }">
-            {% for n in (4, 5, 6) %}<option value="{{ n }}"{% if n == cols %} selected{% endif %}>{{ n }}</option>{% endfor %}
-        </select>
-    </label>
-    {% endif %}
 </div>
 
-<div class="public-grid public-grid-{{ card_tamano or 'mediano' }}" data-mobile-cols="{{ grid_mobile or '1' }}"{% if cols %} data-cols="{{ cols }}"{% endif %}{% if grid_columnas and grid_columnas != 'auto' %} style="grid-template-columns: repeat({{ grid_columnas }}, 1fr);"{% endif %}>
+<div class="public-grid public-grid-{{ card_tamano or 'mediano' }}" data-mobile-cols="{{ grid_mobile or '1' }}"{% if cols %} data-cols="{{ cols }}"{% endif %}>
     {% for d in discs %}
     {% if d.es_mystery_box %}
     {# Card especial de la Mystery Box: rango de precio + CTA a la ficha (donde se

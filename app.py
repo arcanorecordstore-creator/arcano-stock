@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.91"
+APP_VERSION = "5.92"
 import metrics
 import auth
 import mailer
@@ -7466,30 +7466,11 @@ def register_routes(app: Flask) -> None:
             discs = [mystery_box] + discs
 
         # Paginacion (sobre la lista ya filtrada y ordenada)
-        # Configurable desde Ajustes (public_discos_por_pagina), con tope de 48.
-        try:
-            POR_PAGINA = int(Setting.get("public_discos_por_pagina", "24") or 24)
-        except (ValueError, TypeError):
-            POR_PAGINA = 24
-        POR_PAGINA = max(4, min(POR_PAGINA, 48))
-        # El cliente puede elegir cuantos ver por pagina (12/24/36/48, la Mystery Box
-        # cuenta como una card mas). Se recuerda en su sesion mientras navega.
-        _OPC_POR = (12, 24, 36, 48)
-        _por_arg = _parse_int(request.args.get("por"), 0) or 0
-        if _por_arg in _OPC_POR:
-            session["por_pagina"] = _por_arg
-            POR_PAGINA = _por_arg
-        elif session.get("por_pagina") in _OPC_POR:
-            POR_PAGINA = session["por_pagina"]
-        # Discos por fila en compu (4/5/6), elegido por el cliente y recordado en su
-        # sesion. Sin eleccion: el de Ajustes si es 4-6, si no 4. (En celular no aplica.)
-        _OPC_COLS = (4, 5, 6)
-        _cols_arg = _parse_int(request.args.get("cols"), 0) or 0
-        if _cols_arg in _OPC_COLS:
-            session["cols"] = _cols_arg
-        _cols_set = _parse_int(Setting.get("public_grid_columnas", "auto"), 0) or 0
-        COLS = (session.get("cols") if session.get("cols") in _OPC_COLS
-                else (_cols_set if _cols_set in _OPC_COLS else 4))
+        # Grilla FIJA (decision de Facundo, 8/10/2026): 5 discos por fila x 6 filas = 30
+        # por pagina, contando la Mystery Box como una card. Sin selectores para el cliente.
+        # (En pantallas medianas el CSS baja las columnas; en celular, 1-2 por fila.)
+        POR_PAGINA = 30
+        COLS = 5
         total_resultados = len(discs)
         total_paginas = max(1, (total_resultados + POR_PAGINA - 1) // POR_PAGINA)
         pagina = _parse_int(request.args.get("pagina"), 1) or 1
@@ -7717,9 +7698,6 @@ def register_routes(app: Flask) -> None:
             filtro_sale=sale_sel,
             por_pagina=POR_PAGINA,
             cols=COLS,
-            opciones_por=[(n, url_for("home", **{**{k: v for k, v in request.args.to_dict(flat=False).items()
-                                                    if k not in ("por", "pagina")}, "por": str(n)}))
-                          for n in (12, 24, 36, 48)],
             n_sale=sum(1 for d in all_disponibles if d.en_oferta and not d.esta_agotado),
             url_sale=url_for("home", **{**{k: v for k, v in request.args.to_dict(flat=False).items()
                                             if k not in ("sale", "pagina")}, "sale": "1"}),
