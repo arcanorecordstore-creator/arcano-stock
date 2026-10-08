@@ -255,6 +255,8 @@
                 <td class="col-num col-costofinal">
                     <span class="col-costofinal-val" title="(Costo + envío) x tipo de cambio = {{ '{:,.0f}'.format(d.costo_final_uyu or 0).replace(',', '.') }}{% if d.ajuste_tc_uyu %}, {{ '+' if d.ajuste_tc_uyu > 0 else '' }}{{ '{:,.0f}'.format(d.ajuste_tc_uyu).replace(',', '.') }} de diferencia de cambio{% endif %}">{{ '{:,.0f}'.format(d.costo_real_uyu).replace(',', '.') }}</span>
                     <button type="button" class="tc-recalc-btn" data-disc-id="{{ d.id }}"
+                            data-tc-usado="{{ '%.2f'|format(d.tc_usado or 0) }}" data-tc-actual="{{ '%.2f'|format(tc or 0) }}"
+                            data-eur="{{ '%.2f'|format((d.costo_eur or 0) + (d.envio_eur or 0)) }}" data-en-pedido="{{ '1' if d.pedido_id else '0' }}"
                             title="Actualizar al tipo de cambio actual (1 EUR = {{ tc }} UYU) y recalcular el costo en pesos. Este disco esta calculado con TC {{ '%.2f'|format(d.tc_usado or 0) }}.">&#8635;</button>
                 </td>
                 <td class="col-num col-editable" data-label="Precio UYU" data-edit="precio_uyu" data-disc-id="{{ d.id }}" data-raw="{{ d.precio_uyu or 0 }}" title="Click para editar el precio">{{ '{:,.0f}'.format(d.precio_uyu or 0).replace(',', '.') }}</td>

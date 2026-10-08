@@ -322,6 +322,23 @@
         btn.addEventListener('click', function (e) {
             e.stopPropagation();
             var discId = btn.dataset.discId;
+            // Confirmar antes de cambiar el TC: un click sin querer cambiaba el costo de
+            // un disco comprado hace tiempo (se rige por el TC de cuando lo compraste).
+            var tcU = parseFloat(btn.dataset.tcUsado || '0'), tcA = parseFloat(btn.dataset.tcActual || '0');
+            var eur = parseFloat(btn.dataset.eur || '0');
+            if (tcU && tcA && Math.abs(tcU - tcA) < 0.005) {
+                alert('Este disco ya está calculado con el tipo de cambio de hoy (' + tcA.toFixed(2) + '). No hay nada para actualizar.');
+                return;
+            }
+            var msg = 'Este disco está calculado con el tipo de cambio ' + tcU.toFixed(2) +
+                ' (el de cuando lo cargaste).' + String.fromCharCode(10, 10) +
+                '¿Pasarlo al de hoy (' + tcA.toFixed(2) + ')?' + String.fromCharCode(10) +
+                'Su costo pasaría de $' + fmtMiles(eur * tcU) + ' a $' + fmtMiles(eur * tcA) + '.';
+            if (btn.dataset.enPedido === '1') {
+                msg += String.fromCharCode(10, 10) + 'Ojo: está en un pedido, así que su costo real ya sale de lo ' +
+                    'que pagaste por el pedido. Normalmente NO hace falta.';
+            }
+            if (!window.confirm(msg)) return;
             var td = btn.closest('.col-costofinal');
             var val = td ? td.querySelector('.col-costofinal-val') : null;
             btn.disabled = true;
