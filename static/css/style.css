@@ -10792,6 +10792,8 @@ img.img-loaded { opacity: 1; transition: opacity 0.35s ease; }
 .caja-origen-tag.origen-venta { background: rgba(16,185,129,0.16); color: #34d399; }
 .caja-origen-tag.origen-pedido { background: rgba(59,130,246,0.16); color: #60a5fa; }
 .caja-origen-tag.origen-gasto { background: rgba(239,68,68,0.16); color: #f87171; }
+/* Retiro de capital: mismo naranja que "Retiros personales" en Contabilidad */
+.caja-origen-tag.origen-retiro { background: rgba(224,117,47,0.16); color: #e0752f; }
 /* Categoria de origen propia (manual con categoria puesta): tono distinto */
 .caja-origen-tag.origen-custom { background: rgba(20,184,166,0.16); color: #2dd4bf; }
 .caja-td-origen { cursor: pointer; }

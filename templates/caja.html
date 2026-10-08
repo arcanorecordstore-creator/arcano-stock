@@ -3,8 +3,9 @@
 
 {% block title %}Caja / Banco &middot; Arcano{% endblock %}
 
+{# fmt_uyu: centavos sueltos (ej. -0,3) se muestran como 0, no como "-0" #}
 {% macro fmt_uyu(n) -%}
-{{ '{:,.0f}'.format(n or 0).replace(',', '.') }}
+{{ '{:,.0f}'.format(0 if ((n or 0)|abs) < 0.5 else n).replace(',', '.') }}
 {%- endmacro %}
 
 {% block content %}
@@ -338,8 +339,14 @@
                         {% set _ck = m.origen_categoria if (m.es_manual and m.origen_categoria) else (m.origen or 'manual') %}
                         {% set _est = origen_estilos.get(_ck) %}
                         {% set _lbl = m.origen_categoria if (m.es_manual and m.origen_categoria) else (labels_map.get(m.origen) or m.origen_label) %}
+                        {% if m.origen == 'gasto' and m.categoria == 'Retiro personal' %}
+                        {# Retiro de capital: no es un gasto (no baja la ganancia, baja el capital) #}
+                        <span class="caja-origen-tag origen-retiro" title="Plata que sacaste para vos: baja tu capital, no es un gasto">Retiro</span>
+                        <span class="caja-origen-tag caja-tag-capital">Capital</span>
+                        {% else %}
                         <span class="caja-origen-tag origen-{{ m.origen }}{% if m.es_manual and m.origen_categoria and not (_est and _est.bg) %} origen-custom{% endif %}"{% if _est and _est.bg %} style="background: {{ _est.bg }}; color: {{ _est.fg }};"{% endif %}>{{ _lbl }}</span>
                         {% if m.es_aporte %}<span class="caja-origen-tag caja-tag-capital">Capital</span>{% endif %}
+                        {% endif %}
                     </td>
                     <td class="caja-td-disco">
                         {% if fila.disc_origen == 'personal' %}<span class="badge badge-personal">Personal</span>
@@ -357,7 +364,7 @@
                         data-mov="{{ m.id }}" data-campo="monto" data-editor="monto" data-raw="{{ '%.0f'|format(m.monto_uyu or 0) }}">
                         {{ '+' if m.tipo == 'ingreso' else '−' }} $ {{ fmt_uyu(m.monto_uyu) }}
                     </td>
-                    <td class="col-num caja-saldo-col {% if fila.saldo < 0 %}neg{% endif %}" data-label="Saldo">$ {{ fmt_uyu(fila.saldo) }}</td>
+                    <td class="col-num caja-saldo-col {% if fila.saldo < -0.5 %}neg{% endif %}" data-label="Saldo">$ {{ fmt_uyu(fila.saldo) }}</td>
                     <td class="caja-td-acciones">
                         <details class="caja-editar">
                             <summary class="caja-editar-toggle" title="Editar">&#9998;</summary>
