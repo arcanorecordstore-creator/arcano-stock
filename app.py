@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.86"
+APP_VERSION = "5.87"
 import metrics
 import auth
 import mailer
@@ -3201,7 +3201,7 @@ def register_routes(app: Flask) -> None:
             # Cambio masivo de un parametro booleano o el cartel Nuevo
             campo = (request.form.get("campo") or "").strip()
             valor = (request.form.get("valor") or "").strip()
-            campos_bool = ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado", "es_preorder", "es_tip", "en_fire_sale")
+            campos_bool = ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado", "es_preorder", "es_tip", "en_fire_sale", "oculto_web")
             cambios = 0
             if campo in campos_bool:
                 nuevo_val = valor in ("1", "true", "on", "si")
@@ -3213,6 +3213,7 @@ def register_routes(app: Flask) -> None:
                     "destacado": "Destacado", "en_nuevos": "Nuevos ingresos", "es_tip": "Staff Pick",
                     "cartel_ultima": "Ultima copia", "mostrar_agotado": "Agotado visible",
                     "es_preorder": "Carrusel Pre-order", "en_fire_sale": "Fire Sale",
+                    "oculto_web": "NO mostrar en la web",
                 }
                 estado_txt = "activado" if nuevo_val else "desactivado"
                 flash(f"{cambios} disco(s): {etiquetas.get(campo, campo)} {estado_txt}.", "success")
@@ -3768,7 +3769,7 @@ def register_routes(app: Flask) -> None:
             db.session.commit()
             return jsonify({"ok": True, "campo": campo, "valor": disc.pedido_id or ""})
 
-        elif campo in ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado", "es_preorder", "es_tip", "en_fire_sale"):
+        elif campo in ("destacado", "en_nuevos", "cartel_ultima", "mostrar_agotado", "es_preorder", "es_tip", "en_fire_sale", "oculto_web"):
             # valor viene como "1"/"0" o true/false
             nuevo = str(valor) in ("1", "true", "True", "on")
             setattr(disc, campo, nuevo)
@@ -7274,7 +7275,8 @@ def register_routes(app: Flask) -> None:
         if len(q) < 2:
             return jsonify([])
         like = f"%{q}%"
-        disponibles = Disc.query.filter(Disc.estado == "Disponible", Disc.stock > 0)
+        disponibles = Disc.query.filter(Disc.estado == "Disponible", Disc.stock > 0,
+                                        Disc.oculto_web.isnot(True))
         # Recolectar coincidencias unicas de artista, sello y titulo
         sugerencias = []
         vistos = set()
@@ -7330,6 +7332,8 @@ def register_routes(app: Flask) -> None:
                     Disc.estado.in_(["Pre-order", "Encargo"]),
                 )
             )
+            # "NO mostrar" (ej: la 2da copia de un disco repetido) no sale en la web
+            .filter(Disc.oculto_web.isnot(True))
             .all()
         )
         # La Mystery Box no es un disco normal: se saca del listado (no entra en
@@ -7645,7 +7649,7 @@ def register_routes(app: Flask) -> None:
                     and (not d.esta_agotado or d.mostrar_preorder)
                 ]
                 con_plays.sort(key=lambda x: x[1], reverse=True)
-                mas_escuchados = [d for d, n in con_plays[:6]]
+                mas_escuchados = [d for d, n in con_plays if not d.oculto_web][:6]
 
         return render_template(
             "public/home.html",
@@ -7718,8 +7722,9 @@ def register_routes(app: Flask) -> None:
         """Ficha publica de un disco."""
         disc = Disc.query.get_or_404(disc_id)
         # No mostrar discos que no esten disponibles publicamente
-        # (excepcion: los pre-orders se ven siempre)
-        if disc.estado not in ("Disponible", "Pre-order", "Encargo", "Reservado", "Vendido"):
+        # (excepcion: los pre-orders se ven siempre). "NO mostrar" = como si no existiera.
+        if (disc.estado not in ("Disponible", "Pre-order", "Encargo", "Reservado", "Vendido")
+                or disc.oculto_web):
             return render_template("public/not_found.html", **_public_context()), 404
 
         # Mystery Box: ficha propia (selector de cantidad + texto), sin "similares".
@@ -7752,6 +7757,7 @@ def register_routes(app: Flask) -> None:
             .filter(Disc.id != disc.id)
             .filter(Disc.estado == "Disponible")
             .filter(Disc.stock > 0)
+            .filter(Disc.oculto_web.isnot(True))
             # La Mystery Box no va en "Similares" (ni en ningun carrusel)
             .filter(or_(Disc.es_mystery_box == False, Disc.es_mystery_box == None))  # noqa: E711,E712
         )
@@ -7790,7 +7796,7 @@ def register_routes(app: Flask) -> None:
         disc = Disc.query.get_or_404(disc_id)
         # Los pre-orders y encargos se pueden reservar aunque no tengan stock todavia,
         # salvo que ya los haya pedido otra persona (esta_agotado lo contempla).
-        if disc.esta_agotado:
+        if disc.esta_agotado or disc.oculto_web:
             return render_template(
                 "public/not_available.html",
                 disc=disc,
@@ -8294,7 +8300,7 @@ def register_routes(app: Flask) -> None:
             .order_by(ClienteFavorito.fecha.desc()).all()
         ]
         fav_by_id = {d.id: d for d in Disc.query.filter(Disc.id.in_(fav_ids)).all()} if fav_ids else {}
-        favoritos = [fav_by_id[i] for i in fav_ids if i in fav_by_id]
+        favoritos = [fav_by_id[i] for i in fav_ids if i in fav_by_id and not fav_by_id[i].oculto_web]
         # Programa de lealtad: barra de progreso hacia los premios
         _total = sum(e["precio"] for e in _compras_de_cliente(cliente))
         lealtad = _lealtad_estado(cliente, _total)
@@ -8383,6 +8389,9 @@ def register_routes(app: Flask) -> None:
                 # La Mystery Box viaja aparte (localStorage arcano-mbox), no como
                 # un id normal del carrito: si aparece aca, la ignoramos.
                 if getattr(d, "es_mystery_box", False):
+                    continue
+                # "NO mostrar": no existe para la tienda (sale del carrito y favoritos)
+                if getattr(d, "oculto_web", False):
                     continue
                 cover = None
                 if d.cover_local:
@@ -8493,7 +8502,7 @@ def register_routes(app: Flask) -> None:
             discs = Disc.query.filter(Disc.id.in_(ids)).all() if ids else []
             by_id = {d.id: d for d in discs}
             disponibles = [by_id[i] for i in ids if i in by_id
-                           and not by_id[i].esta_agotado]
+                           and not by_id[i].esta_agotado and not by_id[i].oculto_web]
 
             if ids and not disponibles and not hay_box:
                 errores.append("Ninguno de los discos del carrito esta disponible.")
@@ -8581,7 +8590,8 @@ def register_routes(app: Flask) -> None:
                     return redirect(url_for("public_checkout", ids=ids_raw))
 
             # Aviso si algun disco se agoto entre "agregar" y "confirmar"
-            n_descartados = sum(1 for i in ids if i in by_id and by_id[i].esta_agotado)
+            n_descartados = sum(1 for i in ids if i in by_id
+                                and (by_id[i].esta_agotado or by_id[i].oculto_web))
             if n_descartados:
                 flash(f"{n_descartados} disco(s) del carrito ya no estaban disponibles y se quitaron del pedido.", "info")
 
@@ -8796,7 +8806,8 @@ def register_routes(app: Flask) -> None:
         urls.append((url_for("home", _external=True), "1.0", None))
         urls.append((url_for("public_sobre", _external=True), "0.6", None))
         # Discos disponibles y reservados (siguen siendo paginas validas)
-        discs = Disc.query.filter(Disc.estado.in_(["Disponible", "Reservado"])).all()
+        discs = Disc.query.filter(Disc.estado.in_(["Disponible", "Reservado"]),
+                                  Disc.oculto_web.isnot(True)).all()
         for d in discs:
             lastmod = (d.fecha_modificacion or d.fecha_ingreso or _dt.utcnow()).strftime("%Y-%m-%d")
             urls.append((url_for("public_disc", disc_id=d.id, _external=True), "0.8", lastmod))
@@ -9617,7 +9628,7 @@ def register_routes(app: Flask) -> None:
         # Sale si es "solo algunos"; si es toda la tienda, primero los Staff Picks y despues
         # los mas nuevos.
         _q = (Disc.query.filter(Disc.estado == "Disponible", Disc.stock > 0, Disc.precio_uyu > 0)
-              .filter(Disc.es_mystery_box.isnot(True)))
+              .filter(Disc.es_mystery_box.isnot(True)).filter(Disc.oculto_web.isnot(True)))
         if alcance != "todo":
             _q = _q.filter(Disc.en_fire_sale.is_(True))
         _cands = _q.order_by(Disc.es_tip.desc(), Disc.fecha_ingreso.desc(), Disc.id.desc()).limit(40).all()

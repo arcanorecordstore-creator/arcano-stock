@@ -152,6 +152,10 @@ class Disc(db.Model):
     # Fire Sale: marca manual para incluir este disco cuando el alcance del
     # Fire Sale es "seleccion" (si el alcance es "todo", este flag se ignora).
     en_fire_sale = db.Column(db.Boolean, nullable=False, default=False)
+    # "NO mostrar" en la tienda (v5.87): la fila existe para el admin y la contabilidad
+    # (ej: la 2da copia de un disco repetido) pero no aparece en la web ni se puede
+    # comprar. Cuando se vende la copia visible, se apaga y aparece esta.
+    oculto_web = db.Column(db.Boolean, nullable=False, default=False)
     # Precio REALMENTE cobrado al venderse (se fija al pasar a Vendido). Para las
     # ventas web con Fire Sale/oferta, guarda lo que pago el cliente (el snapshot
     # de la reserva), asi la caja y la contabilidad cuentan la plata que entro de
@@ -2058,6 +2062,11 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN mostrar_agotado BOOLEAN DEFAULT 0"))
                     conn.commit()
                 print("Migracion: columna mostrar_agotado agregada a discs")
+            if "oculto_web" not in cols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN oculto_web BOOLEAN NOT NULL DEFAULT 0"))
+                    conn.commit()
+                print("Migracion: columna oculto_web agregada a discs")
             if "en_fire_sale" not in cols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN en_fire_sale BOOLEAN DEFAULT 0"))

@@ -230,6 +230,7 @@
                         <span class="audio-ind audio-notracks" title="Este disco no tiene tracks cargados">sin tracks</span>
                         {% endif %}
                     </div>
+                    <span class="main-oculto" data-oculto-chip="{{ d.id }}" title="No aparece en la tienda (botón NO)"{% if not d.oculto_web %} hidden{% endif %}>No se muestra en la web</span>
                     <div class="main-bottom">
                         <a href="{{ url_for('disc_detail', disc_id=d.id) }}" class="main-ver-ficha" title="Abrir ficha completa">ver ficha &rarr;</a>
                         <button type="button" class="row-menu-btn" title="Acciones"
@@ -321,6 +322,10 @@
                     <label class="home-check" title="Mostrar en carrusel Pre-order (requiere estado Pre-order)">
                         <input type="checkbox" class="mark-home" data-campo="es_preorder" data-disc-id="{{ d.id }}" {% if d.es_preorder %}checked{% endif %}>
                         <span class="home-check-icon">P</span>
+                    </label>
+                    <label class="home-check home-check-oculto" title="NO mostrar en la web (sigue en Stock y en la contabilidad, pero no aparece en la tienda ni se puede comprar)">
+                        <input type="checkbox" class="mark-home" data-campo="oculto_web" data-disc-id="{{ d.id }}" {% if d.oculto_web %}checked{% endif %}>
+                        <span class="home-check-icon">NO</span>
                     </label>
                     {% if d.en_oferta %}<span class="home-sale-flag" title="En oferta (-{{ d.descuento_pct }}%)">SALE</span>{% endif %}
                     <select class="cartel-nuevo-select" data-disc-id="{{ d.id }}" title="Cartel Nuevo">
@@ -450,6 +455,7 @@
                     <option value="es_preorder">Pre-order (carrusel)</option>
                     <option value="cartel_ultima">Última copia</option>
                     <option value="mostrar_agotado">Agotado visible</option>
+                    <option value="oculto_web">NO mostrar en la web</option>
                     <option value="cartel_nuevo">Cartel Nuevo</option>
                 </optgroup>
                 <optgroup label="Oferta">

@@ -371,6 +371,11 @@
                 body: JSON.stringify({ campo: campo, valor: valor })
             }).then(function (r) { return r.json(); }).then(function (d) {
                 if (!d.ok) { chk.checked = !chk.checked; }
+                // "NO mostrar en la web": cartelito debajo del titulo
+                if (campo === 'oculto_web') {
+                    var chip = document.querySelector('[data-oculto-chip="' + discId + '"]');
+                    if (chip) chip.hidden = !chk.checked;
+                }
             }).catch(function () { chk.checked = !chk.checked; });
         });
     });

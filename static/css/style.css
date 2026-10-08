@@ -7714,6 +7714,25 @@ td.num,
 /* Toggle "Staff Picks" (SP): dorado cuando esta prendido, para que combine con
    el sticker de la card. Usa el gradiente (no var(--accent)) asi se ve en ambos temas. */
 .home-check-staff .home-check-icon { font-size: 10px; letter-spacing: 0.5px; }
+/* "NO mostrar en la web": prendido = invertido (texto del tema sobre fondo del tema),
+   se lee en claro y en oscuro sin depender de --accent. */
+.home-check-oculto .home-check-icon { font-size: 10px; letter-spacing: 0.5px; }
+.home-check-oculto input:checked + .home-check-icon {
+    background: var(--text-1);
+    color: var(--bg-1);
+    border-color: var(--text-1);
+}
+.main-oculto {
+    display: inline-block;
+    margin-top: 4px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px dashed var(--border-3);
+    color: var(--text-3);
+    font-size: 11px;
+    white-space: nowrap;
+}
+.main-oculto[hidden] { display: none; }
 .home-check-staff input:checked + .home-check-icon {
     background: linear-gradient(135deg, #b8860b, #daa520);
     color: #0a0a0a;

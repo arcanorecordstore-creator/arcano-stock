@@ -112,7 +112,7 @@ CAMPOS = {
     'origen': 'Origen', 'notas': 'Notas', 'descripcion_publica': 'Descripción pública', 'tags': 'Tags',
     'destacado': 'Destacado', 'en_nuevos': 'En "Nuevos ingresos"', 'cartel_nuevo': 'Cartel "Nuevo"',
     'cartel_ultima': 'Cartel "Última copia"', 'precio_oferta': 'Precio de oferta',
-    'en_fire_sale': 'En Fire Sale', 'precio_venta_uyu': 'Precio de venta', 'mostrar_agotado': 'Mostrar agotado',
+    'en_fire_sale': 'En Fire Sale', 'precio_venta_uyu': 'Precio de venta', 'mostrar_agotado': 'Mostrar agotado', 'oculto_web': 'NO mostrar en la web',
     'es_tip': 'Staff Pick', 'es_mystery_box': 'Mystery Box', 'resena_corta': 'Reseña corta',
     'audio_estado': 'Estado del audio', 'es_preorder': 'Pre-order', 'copias_vendidas': 'Copias vendidas',
     'pedido_id': 'Pedido', 'cliente_id': 'Cliente', 'canal_venta': 'Canal de venta',
@@ -151,7 +151,7 @@ PLATA = {'precio_uyu', 'costo_final_uyu', 'precio_oferta', 'precio_venta_uyu', '
          'total_cobrado_uyu', 'envio_costo_uyu', 'disc_precio_uyu_snap', 'precio_uyu_snap', 'monto_uyu',
          'costo_uyu_manual', 'comision_banco_uyu', 'lealtad_base'}
 LARGOS = {'tracklist', 'descripcion_publica', 'notas', 'nota', 'mbox_texto'}
-BOOLS = {'destacado', 'en_nuevos', 'cartel_nuevo', 'cartel_ultima', 'en_fire_sale', 'mostrar_agotado',
+BOOLS = {'destacado', 'en_nuevos', 'cartel_nuevo', 'cartel_ultima', 'en_fire_sale', 'mostrar_agotado', 'oculto_web',
          'es_tip', 'es_mystery_box', 'es_preorder', 'sena_cobrada', 'pagado', 'entregado',
          'premio1_cobrado', 'acepta_avisos', 'activo', 'es_aporte', 'manual_override', 'fecha_es_utc'}
 
