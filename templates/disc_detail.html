@@ -161,21 +161,21 @@
                 <h2 class="detail-card-title">Escuchar</h2>
                 {% if _con_audio %}<button type="button" class="btn btn-ghost btn-sm ad-esc-todo">&#9654; Escuchar todo</button>{% endif %}
             </div>
-            <div class="ad-esc-player" hidden>
-                <p class="ad-esc-ahora"><span class="ad-esc-label">Sonando</span> <b class="ad-esc-tit"></b></p>
-                <audio class="ad-esc-audio" controls preload="none"></audio>
-                <div class="ad-esc-embed"></div>
-            </div>
             <ol class="ad-tracks">
                 {% for t in _tracks %}
-                <li class="ad-track{% if not t.has_sample %} is-sin{% endif %}"
-                    data-kind="{{ t.sample_kind }}"
-                    data-titulo="{{ t.titulo }}{% if t.artista and t.artista != disc.artista %} — {{ t.artista }}{% endif %}"
-                    {% if t.sample_kind == 'local' %}data-src="{{ url_for('serve_sample', filename=t.sample_local) }}"{% endif %}
-                    {% if t.sample_kind == 'youtube' and t.youtube_video_id %}data-yt="{{ t.youtube_video_id }}" data-start="{{ t.youtube_start or 0 }}"{% endif %}
-                    {% if t.sample_kind == 'soundcloud' %}data-sc="{{ t.youtube_url }}"{% endif %}>
-                    {% if t.has_sample %}
-                    <button type="button" class="ad-track-play" aria-label="Escuchar {{ t.titulo }}"><span class="ad-i-play">&#9654;</span><span class="ad-i-pause">&#10074;&#10074;</span></button>
+                {% set _yt_ok = (t.sample_kind != 'youtube') or t.youtube_video_id %}
+                <li class="ad-track{% if not t.has_sample or not _yt_ok %} is-sin{% else %} public-track-row{% endif %}">
+                    {% if t.has_sample and _yt_ok %}
+                    {# Mismo boton que la ficha de la tienda: abre el reproductor flotante de abajo
+                       (player.js). data-disponible=0 = sin "Agregar al carrito" en el admin. #}
+                    <button type="button" class="ad-track-play public-track-play-btn" data-play="{{ t.sample_kind }}"
+                            data-track-id="{{ t.id }}" data-disc-id="{{ disc.id }}" data-disponible="0"
+                            {% if t.sample_kind == 'local' %}data-audio-url="{{ url_for('serve_sample', filename=t.sample_local) }}"{% endif %}
+                            {% if t.sample_kind == 'youtube' %}data-youtube-id="{{ t.youtube_video_id }}" data-youtube-start="{{ t.youtube_start or 0 }}"{% endif %}
+                            {% if t.sample_kind == 'soundcloud' %}data-soundcloud-url="{{ t.youtube_url }}"{% endif %}
+                            data-cover-url="{% if disc.cover_local %}{{ url_for('serve_cover', filename=disc.cover_local) }}{% elif disc.cover_url %}{{ disc.cover_url }}{% endif %}"
+                            data-track-title="{{ t.titulo }}" data-track-artist="{{ t.artista or disc.artista }}"
+                            aria-label="Escuchar {{ t.titulo }}"><span class="play-icon">&#9654;</span><span class="pause-icon" hidden>&#10074;&#10074;</span></button>
                     {% else %}
                     <span class="ad-track-play is-off" title="Este track no tiene audio cargado">&#9834;</span>
                     {% endif %}
@@ -269,25 +269,21 @@
 
 <style>
 .ad-esc-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.ad-esc-player { margin: 10px 0 12px; padding: 12px; border: 1px solid var(--border-2); border-radius: 12px; background: var(--bg-2); display: flex; flex-direction: column; gap: 8px; }
-.ad-esc-player[hidden] { display: none; }
-.ad-esc-ahora { margin: 0; font-size: 13.5px; color: var(--text-1); overflow-wrap: anywhere; }
-.ad-esc-label { font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-4); margin-right: 4px; }
-.ad-esc-audio { width: 100%; }
-.ad-esc-audio[hidden], .ad-esc-embed:empty { display: none; }
-.ad-esc-embed iframe { width: 100%; border: 0; border-radius: 10px; display: block; }
 .ad-tracks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .ad-track { display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--border-1); font-size: 14px; min-width: 0; }
 .ad-track:last-child { border-bottom: 0; }
 .ad-track.is-sin { color: var(--text-4); }
-.ad-track.is-on { background: var(--bg-2); border-radius: 8px; }
+.ad-track:has(.ad-track-play.is-playing) { background: var(--bg-2); border-radius: 8px; }
+.public-track-row { cursor: pointer; }
 .ad-track-play { flex: 0 0 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-3); background: transparent; color: var(--text-1); display: inline-flex; align-items: center; justify-content: center; font-size: 11px; cursor: pointer; transition: opacity .15s ease, background-color .15s ease; }
 .ad-track-play:hover { background: var(--bg-3); }
 .ad-track-play:active { opacity: .6; }
 .ad-track-play.is-off { cursor: default; border-style: dashed; color: var(--text-5); }
-.ad-track-play .ad-i-pause, .ad-track.is-playing .ad-i-play { display: none; }
-.ad-track.is-playing .ad-i-pause { display: inline; font-size: 9px; letter-spacing: -1px; }
-.ad-track.is-playing .ad-track-play { background: var(--text-1); color: var(--bg-0); border-color: var(--text-1); }
+.ad-track-play .pause-icon { font-size: 9px; letter-spacing: -1px; }
+.ad-track-play [hidden] { display: none; }
+.ad-track-play.is-playing { background: var(--text-1); color: var(--bg-0); border-color: var(--text-1); }
+/* Que el reproductor flotante de abajo no tape el final de la ficha */
+body:has(#floating-player:not([hidden])) .app-main { padding-bottom: 110px; }
 .ad-track-lado { flex: 0 0 28px; color: var(--text-4); font-variant-numeric: tabular-nums; font-size: 12.5px; }
 .ad-track-tit { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .ad-track-tit small { color: var(--text-4); font-size: 12.5px; }
@@ -296,81 +292,18 @@
 .ad-esc-nota { margin: 10px 0 0; font-size: 13px; color: var(--text-4); }
 @media (max-width: 700px) { .ad-track-fuente { display: none; } }
 </style>
+{% include '_floating_player.html' %}
 <script>
-/* Escuchar el disco desde el admin. Reproductor propio (no usa el de la tienda,
-   asi estas escuchas NO suman al chart de "Lo mas escuchado"). MP3 en un <audio>
-   que pasa solo al siguiente; YouTube/SoundCloud en un reproductor embebido. */
+/* "Escuchar todo" de la ficha admin: arranca desde el primer track con audio; el
+   reproductor flotante (el mismo de la tienda) sigue solo con el resto del disco. */
 (function () {
-    var card = document.getElementById('ad-escuchar');
-    if (!card) return;
-    var player = card.querySelector('.ad-esc-player');
-    var audio = card.querySelector('.ad-esc-audio');
-    var embed = card.querySelector('.ad-esc-embed');
-    var tit = card.querySelector('.ad-esc-tit');
-    var filas = Array.prototype.slice.call(card.querySelectorAll('.ad-track:not(.is-sin)'));
-    var actual = null;
-    var todo = false;
-
-    function marcar(li, sonando) {
-        filas.forEach(function (f) { f.classList.remove('is-on', 'is-playing'); });
-        if (li) { li.classList.add('is-on'); if (sonando) li.classList.add('is-playing'); }
-    }
-    function tocar(li) {
-        actual = li;
-        player.hidden = false;
-        tit.textContent = li.dataset.titulo;
-        embed.innerHTML = '';
-        var k = li.dataset.kind;
-        if (k === 'local') {
-            audio.hidden = false;
-            audio.src = li.dataset.src;
-            audio.play().catch(function () {});
-            marcar(li, true);
-        } else {
-            audio.pause(); audio.hidden = true;
-            var f = document.createElement('iframe');
-            f.allow = 'autoplay; encrypted-media';
-            f.title = 'Reproductor';
-            if (k === 'youtube') {
-                f.src = 'https://www.youtube-nocookie.com/embed/' + encodeURIComponent(li.dataset.yt) +
-                        '?autoplay=1&start=' + (parseInt(li.dataset.start, 10) || 0);
-                f.style.aspectRatio = '16 / 9';
-            } else {
-                f.src = 'https://w.soundcloud.com/player/?url=' + encodeURIComponent(li.dataset.sc) +
-                        '&auto_play=true&visual=false&show_comments=false';
-                f.height = 120;
-            }
-            embed.appendChild(f);
-            marcar(li, false);
-        }
-    }
-    function siguiente() {
-        var i = filas.indexOf(actual);
-        for (var j = i + 1; j < filas.length; j++) {
-            if (filas[j].dataset.kind === 'local' || todo) { tocar(filas[j]); return; }
-        }
-        todo = false;
-        marcar(actual, false);
-    }
-    card.addEventListener('click', function (e) {
-        var b = e.target.closest('.ad-track-play:not(.is-off)');
-        if (b) {
-            var li = b.closest('.ad-track');
-            todo = false;
-            if (li === actual && li.dataset.kind === 'local') {
-                if (audio.paused) { audio.play().catch(function () {}); } else { audio.pause(); }
-                return;
-            }
-            tocar(li);
-            return;
-        }
-        if (e.target.closest('.ad-esc-todo') && filas.length) { todo = true; tocar(filas[0]); }
+    var todo = document.querySelector('#ad-escuchar .ad-esc-todo');
+    if (!todo) return;
+    todo.addEventListener('click', function () {
+        var b = document.querySelector('#ad-escuchar .public-track-play-btn');
+        if (b) b.click();
     });
-    audio.addEventListener('play', function () { if (actual) actual.classList.add('is-playing'); });
-    audio.addEventListener('pause', function () { if (actual) actual.classList.remove('is-playing'); });
-    // MP3: al terminar pasa al siguiente track con audio.
-    // (YouTube/SoundCloud no avisan cuando terminan: ahi se pasa a mano.)
-    audio.addEventListener('ended', siguiente);
 })();
 </script>
+<script src="{{ url_for('static', filename='js/player.js') }}"></script>
 {% endblock %}

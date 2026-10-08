@@ -278,3 +278,7 @@ body.app .tk-in:focus, body.app .tk-sel:focus, body.app .tk-new-input:focus { bo
 .egreso-edit-form .egf-cat select option,
 .egreso-edit-form .egf-moneda select option { color: var(--text-1); background: var(--bg-1); }
 .egreso-edit-form .egf-cat, .egreso-edit-form .egf-moneda { align-self: end; }
+
+/* Reproductor flotante en la ficha del admin (v5.91): en modo claro, crema como el
+   resto del admin (sin blanco). */
+[data-theme="light"] .floating-player { background: var(--bg-1) !important; }

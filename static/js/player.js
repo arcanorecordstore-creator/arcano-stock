@@ -28,7 +28,12 @@
 
     function fmt(s) { s = Math.max(0, Math.floor(s || 0)); var m = Math.floor(s / 60); var ss = s % 60; return m + ':' + (ss < 10 ? '0' : '') + ss; }
     function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-    function registrarPlay(id) { if (!id) return; try { fetch('/api/track/' + id + '/play', { method: 'POST', keepalive: true }); } catch (e) {} }
+    function registrarPlay(id) {
+        if (!id) return;
+        // Escuchar desde el admin (ficha del disco) no suma al chart de "Lo mas escuchado"
+        if (location.pathname.indexOf('/admin') === 0) return;
+        try { fetch('/api/track/' + id + '/play', { method: 'POST', keepalive: true }); } catch (e) {}
+    }
 
     // ---- Disponibilidad de las APIs externas ----
     var ytReady = !!(window.YT && window.YT.Player);
