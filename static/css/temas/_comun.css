@@ -158,3 +158,32 @@ body:is(.tema-fundaviva, .tema-picture) .carrusel-card .card-staff-sticker {
         border-radius: 0 !important; box-shadow: 4px 0 30px rgba(0,0,0,.35) !important;
     }
 }
+
+/* Boton SALE (junto a "Escuchar todo") en los disenos con banda marron: el relleno
+   marron se perdia contra el fondo; va en contorno beige (Escuchar todo es beige lleno). */
+body.tema-tocadiscos .sale-filter-btn,
+body.tema-fundaviva .sale-filter-btn,
+body.tema-picture .sale-filter-btn {
+    background: transparent;
+    color: var(--arcano-beige, #E9D1AF);
+    border-color: var(--arcano-beige, #E9D1AF);
+}
+body.tema-tocadiscos .sale-filter-btn.is-on,
+body.tema-fundaviva .sale-filter-btn.is-on,
+body.tema-picture .sale-filter-btn.is-on {
+    background: var(--arcano-crema, #FFF7EC);
+    color: var(--arcano-marron, #3D3033);
+    border-color: var(--arcano-crema, #FFF7EC);
+}
+
+body.tema-tocadiscos .por-pagina, body.tema-fundaviva .por-pagina, body.tema-picture .por-pagina {
+    border-color: rgba(233, 209, 175, 0.45);
+}
+body.tema-tocadiscos .por-pagina-label, body.tema-fundaviva .por-pagina-label, body.tema-picture .por-pagina-label,
+body.tema-tocadiscos .por-pagina-op, body.tema-fundaviva .por-pagina-op, body.tema-picture .por-pagina-op {
+    color: var(--arcano-beige, #E9D1AF);
+}
+body.tema-tocadiscos .por-pagina-op.is-on, body.tema-fundaviva .por-pagina-op.is-on, body.tema-picture .por-pagina-op.is-on {
+    background: var(--arcano-beige, #E9D1AF);
+    color: var(--arcano-marron, #3D3033);
+}

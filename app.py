@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "5.88"
+APP_VERSION = "5.89"
 import metrics
 import auth
 import mailer
@@ -7353,6 +7353,8 @@ def register_routes(app: Flask) -> None:
         pais_sel = [p.strip() for p in request.args.getlist("pais") if p.strip()]
         decada_sel = [d.strip() for d in request.args.getlist("decada") if d.strip()]
         # Condicion: 'nuevo' (Nuevo / Sellado) o 'usado' (cualquier "Usado - ...")
+        # Solo los discos en SALE (precio de oferta), desde el boton junto a "Escuchar todo"
+        sale_sel = request.args.get("sale") == "1"
         condicion_sel = [c.strip().lower() for c in request.args.getlist("condicion")
                          if c.strip().lower() in ("nuevo", "usado")]
         orden = (request.args.get("orden") or "nuevos").strip()
@@ -7422,6 +7424,8 @@ def register_routes(app: Flask) -> None:
         if condicion_sel:
             cs = set(condicion_sel)
             discs = [d for d in discs if _tipo_condicion(d) in cs]
+        if sale_sel:
+            discs = [d for d in discs if d.en_oferta and not d.esta_agotado]
         if con_sample:
             discs = [d for d in discs if d.tracks and any(t.has_sample for t in d.tracks)]
         if precio_min is not None:
@@ -7456,7 +7460,7 @@ def register_routes(app: Flask) -> None:
         # Mystery Box fijada primera: solo en la vista de navegacion (sin busqueda ni
         # filtros). Si hay un filtro/genero activo, la box no aplica y no se muestra.
         _sin_filtros = (not any([q, sellos_sel, genero_sel, tags_sel, formato_sel,
-                                 pais_sel, decada_sel, anio_sel, con_sample, condicion_sel])
+                                 pais_sel, decada_sel, anio_sel, con_sample, condicion_sel, sale_sel])
                         and precio_min is None and precio_max is None)
         if mystery_box is not None and _sin_filtros:
             discs = [mystery_box] + discs
@@ -7468,6 +7472,15 @@ def register_routes(app: Flask) -> None:
         except (ValueError, TypeError):
             POR_PAGINA = 24
         POR_PAGINA = max(4, min(POR_PAGINA, 48))
+        # El cliente puede elegir cuantos ver por pagina (12/24/36/48, la Mystery Box
+        # cuenta como una card mas). Se recuerda en su sesion mientras navega.
+        _OPC_POR = (12, 24, 36, 48)
+        _por_arg = _parse_int(request.args.get("por"), 0) or 0
+        if _por_arg in _OPC_POR:
+            session["por_pagina"] = _por_arg
+            POR_PAGINA = _por_arg
+        elif session.get("por_pagina") in _OPC_POR:
+            POR_PAGINA = session["por_pagina"]
         total_resultados = len(discs)
         total_paginas = max(1, (total_resultados + POR_PAGINA - 1) // POR_PAGINA)
         pagina = _parse_int(request.args.get("pagina"), 1) or 1
@@ -7562,7 +7575,7 @@ def register_routes(app: Flask) -> None:
             bool(sellos_sel), bool(genero_sel), bool(tags_sel),
             bool(formato_sel), bool(pais_sel), bool(decada_sel),
             con_sample, precio_min is not None, precio_max is not None,
-            bool(anio_sel), bool(condicion_sel),
+            bool(anio_sel), bool(condicion_sel), sale_sel,
         ])
 
         # Secciones de la home: solo en pagina 1, sin filtros ni busqueda
@@ -7692,6 +7705,16 @@ def register_routes(app: Flask) -> None:
             condiciones=[("nuevo", "Nuevo", condiciones_count.get("nuevo", 0)),
                          ("usado", "Usado", condiciones_count.get("usado", 0))],
             filtro_condiciones=condicion_sel,
+            filtro_sale=sale_sel,
+            por_pagina=POR_PAGINA,
+            opciones_por=[(n, url_for("home", **{**{k: v for k, v in request.args.to_dict(flat=False).items()
+                                                    if k not in ("por", "pagina")}, "por": str(n)}))
+                          for n in (12, 24, 36, 48)],
+            n_sale=sum(1 for d in all_disponibles if d.en_oferta and not d.esta_agotado),
+            url_sale=url_for("home", **{**{k: v for k, v in request.args.to_dict(flat=False).items()
+                                            if k not in ("sale", "pagina")}, "sale": "1"}),
+            url_sin_sale=url_for("home", **{k: v for k, v in request.args.to_dict(flat=False).items()
+                                            if k not in ("sale", "pagina")}),
             total_comprables=total_comprables,
             filtros_activos=filtros_activos,
             **_public_context(),

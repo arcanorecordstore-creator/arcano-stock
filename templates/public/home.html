@@ -153,6 +153,7 @@
 {% endmacro %}
 
 <form method="get" action="{{ url_for('home') }}" class="public-search-bar" id="public-filters">
+{% if filtro_sale %}<input type="hidden" name="sale" value="1">{% endif %}
     <div class="public-filters-top">
         <div class="public-search-wrap">
             <input type="text" name="q" placeholder="Buscar por artista, titulo, sello, genero..." value="{{ filtro_q }}" class="public-filter-search" id="public-search-input" autocomplete="off">
@@ -309,6 +310,17 @@
         <span class="listen-all-play">&#9654; Escuchar todo</span>
         <span class="listen-all-stop" hidden>&#9724; Detener</span>
     </button>
+    {% if filtro_sale %}
+    <a href="{{ url_sin_sale }}" class="sale-filter-btn is-on" title="Volver a ver todos los discos">SALE &middot; quitar &times;</a>
+    {% elif n_sale %}
+    <a href="{{ url_sale }}" class="sale-filter-btn" title="Ver solo los discos en oferta">SALE &middot; {{ n_sale }} disco{{ 's' if n_sale != 1 else '' }}</a>
+    {% endif %}
+    {% if opciones_por %}
+    <nav class="por-pagina" aria-label="Discos por página">
+        <span class="por-pagina-label">Ver</span>
+        {% for n, u in opciones_por %}<a href="{{ u }}" class="por-pagina-op{% if n == por_pagina %} is-on{% endif %}"{% if n == por_pagina %} aria-current="true"{% endif %}>{{ n }}</a>{% endfor %}
+    </nav>
+    {% endif %}
 </div>
 
 <div class="public-grid public-grid-{{ card_tamano or 'mediano' }}" data-mobile-cols="{{ grid_mobile or '1' }}"{% if grid_columnas and grid_columnas != 'auto' %} style="grid-template-columns: repeat({{ grid_columnas }}, 1fr);"{% endif %}>
@@ -477,7 +489,7 @@
 
 {% else %}
 <div class="public-empty">
-    {% if filtro_q or filtro_sellos or filtro_generos or filtro_tags or filtro_formatos or filtro_paises or filtro_decadas or filtro_con_sample or filtro_precio_min is not none or filtro_precio_max is not none or filtro_anios or filtro_condiciones %}
+    {% if filtro_q or filtro_sellos or filtro_generos or filtro_tags or filtro_formatos or filtro_paises or filtro_decadas or filtro_con_sample or filtro_precio_min is not none or filtro_precio_max is not none or filtro_anios or filtro_condiciones or filtro_sale %}
         <p>No encontramos discos con esos filtros.</p>
         <a href="{{ url_for('home') }}" class="btn btn-ghost">Ver todo el catalogo</a>
     {% else %}
