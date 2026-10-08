@@ -311,7 +311,7 @@
         <span class="listen-all-stop" hidden>&#9724; Detener</span>
     </button>
     {% if filtro_sale %}
-    <a href="{{ url_sin_sale }}" class="sale-filter-btn is-on" data-mantener-posicion title="Volver a ver todos los discos">Discos en SALE! <span class="sale-filter-x" aria-hidden="true">&times;</span><span class="visually-hidden"> (quitar)</span></a>
+    <a href="{{ url_sin_sale }}" class="sale-volver-btn" data-mantener-posicion title="Volver a ver todos los discos"><span aria-hidden="true">&larr;</span> Volver al cat&aacute;logo</a>
     {% elif n_sale %}
     <a href="{{ url_sale }}" class="sale-filter-btn" data-mantener-posicion title="Ver solo los discos en oferta">Discos en SALE!</a>
     {% endif %}

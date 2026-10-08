@@ -184,3 +184,11 @@ body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture):not(.vista-lista) .pub
     font-size: 11px;
     padding: 4px 12px;
 }
+
+/* "<- Volver al catalogo" (filtro SALE puesto) en los disenos con banda marron: beige
+   lleno con letra marron, como "Escuchar todo". */
+body:is(.tema-tocadiscos, .tema-fundaviva, .tema-picture) .sale-volver-btn {
+    background: var(--arcano-beige, #E9D1AF);
+    color: var(--arcano-marron, #3D3033);
+    border-color: var(--arcano-beige, #E9D1AF);
+}
