@@ -1478,6 +1478,8 @@ class Pedido(db.Model):
     # Comisión del banco (en UYU) que se cobró por el pago del pedido. SUMA al total:
     # es plata real que saliste pagando además del costo de los discos.
     comision_banco_uyu = db.Column(db.Float, nullable=True)
+    # Link del seguimiento del paquete (DHL, UPS, correo...), v6.01
+    seguimiento_url = db.Column(db.String(500), nullable=True)
     creado = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
 
     # Relacion con los discos asignados a este pedido
@@ -2146,6 +2148,11 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE pedidos ADD COLUMN comision_banco_uyu FLOAT"))
                     conn.commit()
                 print("Migracion: columna comision_banco_uyu agregada a pedidos")
+            if "seguimiento_url" not in pcols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE pedidos ADD COLUMN seguimiento_url VARCHAR(500)"))
+                    conn.commit()
+                print("Migracion: columna seguimiento_url agregada a pedidos")
 
         # Columnas es_tip y resena_corta en discs (curaduria visible)
         if inspector.has_table("discs"):

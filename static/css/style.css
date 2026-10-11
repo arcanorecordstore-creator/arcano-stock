@@ -8942,6 +8942,20 @@ td.num,
     gap: 8px;
 }
 .ped-numero { font-size: 18px; font-weight: 700; margin-right: 10px; }
+/* Seguimiento del paquete en la tarjeta del pedido */
+.ped-card { scroll-margin-top: 96px; }   /* al volver de guardar, que el menu fijo no tape el pedido */
+.ped-seguimiento { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 14px; }
+.ped-seg-label { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; color: var(--text-4); }
+.ped-seg-ver {
+    display: inline-flex; align-items: center; gap: 4px; padding: 5px 12px; border-radius: 999px;
+    border: 1px solid var(--border-3); color: var(--text-1); text-decoration: none; font-size: 13px; white-space: nowrap;
+}
+.ped-seg-ver:hover { background: var(--bg-3); }
+.ped-seg-form { display: flex; align-items: center; gap: 6px; flex: 1 1 260px; min-width: 0; }
+.ped-seg-input {
+    flex: 1 1 auto; min-width: 0; font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 8px;
+    border: 1px solid var(--border-2); background: var(--bg-1); color: var(--text-1);
+}
 .ped-proveedor {
     font-size: 12px;
     padding: 2px 8px;

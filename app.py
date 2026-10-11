@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.00"
+APP_VERSION = "6.01"
 import metrics
 import auth
 import mailer
@@ -5822,6 +5822,30 @@ def register_routes(app: Flask) -> None:
                 db.session.commit()
                 flash(f"Costo real del pedido guardado: {val:,.0f} UYU.".replace(",", "."), "success")
         return redirect(url_for("pedidos"))
+
+    @app.route("/admin/pedidos/<int:pedido_id>/seguimiento", methods=["POST"])
+    @auth.admin_required
+    def pedido_seguimiento(pedido_id):
+        """Guarda (o borra, si viene vacio) el link de seguimiento del paquete."""
+        from models import Pedido
+        from urllib.parse import urlsplit
+        ped = Pedido.query.get_or_404(pedido_id)
+        raw = (request.form.get("seguimiento_url") or "").strip()
+        if not raw:
+            ped.seguimiento_url = None
+            db.session.commit()
+            flash("Se borro el link de seguimiento del pedido.", "success")
+        else:
+            if "://" not in raw:
+                raw = "https://" + raw          # pegado sin https:// -> se completa
+            partes = urlsplit(raw)
+            if partes.scheme not in ("http", "https") or "." not in (partes.netloc or ""):
+                flash("Ese link no parece valido. Pegalo completo (ej: https://www.dhl.com/...).", "error")
+            else:
+                ped.seguimiento_url = raw[:500]
+                db.session.commit()
+                flash("Link de seguimiento guardado.", "success")
+        return redirect(url_for("pedidos") + f"#ped-{ped.id}")
 
     @app.route("/admin/pedidos/<int:pedido_id>/editar", methods=["POST"])
     @auth.admin_required

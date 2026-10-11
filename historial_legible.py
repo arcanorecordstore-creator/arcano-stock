@@ -135,7 +135,7 @@ CAMPOS = {
     # plata
     'categoria': 'Categoría', 'descripcion': 'Descripción', 'monto': 'Monto', 'moneda': 'Moneda',
     'monto_uyu': 'Monto en $', 'activo': 'Activo', 'numero': 'Número', 'cant_discos': 'Cantidad de discos',
-    'costo_usd': 'Costo US$', 'costo_uyu_manual': 'Costo manual', 'proveedor': 'Proveedor',
+    'costo_usd': 'Costo US$', 'costo_uyu_manual': 'Costo manual', 'seguimiento_url': 'Link de seguimiento', 'proveedor': 'Proveedor',
     'servicio_eur': 'Servicio €', 'comision_banco_uyu': 'Comisión del banco', 'tipo': 'Tipo',
     'concepto': 'Concepto', 'metodo': 'Método', 'origen_id': 'Origen (número)', 'es_aporte': 'Es aporte',
     'adelanto_mp': 'Adelanto de MP', 'manual_override': 'Editado a mano', 'origen_categoria': 'Categoría de origen',

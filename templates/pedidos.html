@@ -24,7 +24,7 @@
 {% if pedidos %}
 <section class="ped-list">
     {% for p in pedidos %}
-    <div class="ped-card {% if p.recuperado %}ped-recuperado{% endif %}">
+    <div class="ped-card {% if p.recuperado %}ped-recuperado{% endif %}" id="ped-{{ p.id }}">
         <div class="ped-card-head">
             <div>
                 <span class="ped-numero">Pedido {{ p.numero or p.id }}</span>
@@ -36,6 +36,20 @@
             {% else %}
             <span class="ped-badge ped-badge-pend">Falta {{ fmt_uyu(p.falta_recuperar_uyu) }} UYU</span>
             {% endif %}
+        </div>
+
+        <!-- Seguimiento del paquete -->
+        <div class="ped-seguimiento">
+            <span class="ped-seg-label">Seguimiento</span>
+            {% if p.seguimiento_url %}
+            <a href="{{ p.seguimiento_url }}" target="_blank" rel="noopener noreferrer" class="ped-seg-ver">Ver seguimiento &#8599;</a>
+            {% endif %}
+            <form method="post" action="{{ url_for('pedido_seguimiento', pedido_id=p.id) }}" class="ped-seg-form" data-edit-watch>
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <input type="text" name="seguimiento_url" value="{{ p.seguimiento_url or '' }}" class="ped-seg-input"
+                       placeholder="Pegá el link de seguimiento del paquete" inputmode="url" autocomplete="off">
+                <button type="submit" class="ped-costo-save ped-seg-save edit-actions" title="Guardar link">&#10003;</button>
+            </form>
         </div>
 
         <div class="ped-stats">
