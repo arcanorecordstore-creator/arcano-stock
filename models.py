@@ -2087,6 +2087,20 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN precio_venta_uyu FLOAT"))
                     conn.commit()
                 print("Migracion: columna precio_venta_uyu agregada a discs")
+            # Ventas sin el precio cobrado guardado (v6.04, decision de Facundo 12/10/2026):
+            # se fija como definitivo el precio que tienen hoy (oferta si la hay, si no el
+            # de lista), que es lo que se cobro. Asi cambiar despues el precio de un disco
+            # vendido ya no mueve los ingresos de meses pasados. Idempotente: solo toca los
+            # vendidos que todavia no tienen precio de venta (las ventas nuevas lo guardan
+            # solas al pasar a Vendido).
+            with db.engine.begin() as conn:
+                _rpv = conn.execute(text(
+                    "UPDATE discs SET precio_venta_uyu = CASE "
+                    "WHEN precio_oferta > 0 AND precio_uyu > 0 AND precio_oferta < precio_uyu "
+                    "THEN precio_oferta ELSE precio_uyu END "
+                    "WHERE estado = 'Vendido' AND precio_venta_uyu IS NULL AND precio_uyu IS NOT NULL"))
+                if _rpv.rowcount:
+                    print(f"Migracion: {_rpv.rowcount} venta(s) con su precio de venta fijado")
             if "es_preorder" not in cols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN es_preorder BOOLEAN DEFAULT 0"))
