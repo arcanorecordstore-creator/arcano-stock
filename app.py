@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.02"
+APP_VERSION = "6.03"
 import metrics
 import auth
 import mailer
@@ -80,6 +80,44 @@ def _reserva_registrar(ip):
     """Registra una reserva concretada desde esta IP (para el rate-limit)."""
     import time as _t
     _reserva_attempts.setdefault(ip, []).append(_t.time())
+
+
+# Tope de discos que puede apartar un pedido SIN pago online (coordinar / transferencia).
+# Decision de Facundo (12/10/2026): maximo 10.
+MAX_DISCOS_SIN_PAGO = 10
+
+
+def _vendible_web(d):
+    """True si el disco se puede pedir desde la tienda: no agotado ni oculto, no es la
+    ficha de la Mystery Box (esa se pide con su propio formulario) y tiene precio."""
+    return (d is not None and not d.esta_agotado and not d.oculto_web
+            and not getattr(d, "es_mystery_box", False)
+            and (d.precio_uyu or 0) > 0)
+
+
+_mail_cuenta_hist: dict = {}  # clave (ip o email) -> timestamps de mails del registro
+
+
+def _mail_cuenta_limitado(email, tope_ip=6, tope_email=2, ventana=3600):
+    """Tope de mails que dispara el registro de cuentas: por conexion y por email.
+    Devuelve True si se paso (y entonces NO hay que mandar el mail)."""
+    import time as _t
+    from flask import request as _rq
+    ahora = _t.time()
+    ip = _rq.headers.get("X-Forwarded-For", _rq.remote_addr or "")
+    claves = ((("ip", ip), tope_ip), (("em", (email or "").lower()), tope_email))
+    limitado = False
+    for clave, tope in claves:
+        marcas = [t for t in _mail_cuenta_hist.get(clave, []) if ahora - t < ventana]
+        _mail_cuenta_hist[clave] = marcas
+        if len(marcas) >= tope:
+            limitado = True
+    if not limitado:
+        for clave, _ in claves:
+            _mail_cuenta_hist[clave].append(ahora)
+    if len(_mail_cuenta_hist) > 5000:
+        _mail_cuenta_hist.clear()
+    return limitado
 
 
 _webhook_hits: dict = {}  # ip -> [timestamps] para limitar el webhook de MP
@@ -1285,10 +1323,15 @@ def _norm_ig(ig):
 
 
 def _buscar_o_crear_cliente(nombre=None, whatsapp=None, email=None, instagram=None,
-                            origen="web", crear=True):
+                            origen="web", crear=True, seguro=False):
     """Base de clientes: busca uno existente por email / whatsapp / instagram (en ese
     orden) y, si no hay, lo crea. Rellena los datos que le falten al que encuentre (sin
-    pisar lo que ya tiene). Devuelve el Cliente, o None si no hay datos utiles."""
+    pisar lo que ya tiene). Devuelve el Cliente, o None si no hay datos utiles.
+
+    seguro=True (compras web que se atan solas): por celular o Instagram SOLO se toma
+    una ficha que NO es cuenta web (sin contrasena). Si no, alguien que se registraba
+    con el celular de otra persona veia sus compras en "Mi cuenta" y se llevaba sus
+    puntos de lealtad."""
     from models import Cliente
     nombre = (nombre or "").strip()[:200] or None
     whatsapp = (whatsapp or "").strip()[:50] or None
@@ -1300,9 +1343,15 @@ def _buscar_o_crear_cliente(nombre=None, whatsapp=None, email=None, instagram=No
     if email_n:
         cli = Cliente.query.filter(db.func.lower(Cliente.email) == email_n).first()
     if not cli and whatsapp:
-        cli = Cliente.query.filter(Cliente.whatsapp == whatsapp).first()
+        _q = Cliente.query.filter(Cliente.whatsapp == whatsapp)
+        if seguro:
+            _q = _q.filter(Cliente.password_hash.is_(None))
+        cli = _q.first()
     if not cli and ig:
-        cli = Cliente.query.filter(db.func.lower(Cliente.instagram) == ig).first()
+        _q = Cliente.query.filter(db.func.lower(Cliente.instagram) == ig)
+        if seguro:
+            _q = _q.filter(Cliente.password_hash.is_(None))
+        cli = _q.first()
     if cli:
         # Rellenar lo que falte, sin pisar lo que ya cargaste
         if nombre and not cli.nombre:
@@ -3668,11 +3717,20 @@ def register_routes(app: Flask) -> None:
         valor = data.get("valor")
 
         if campo == "precio_uyu":
+            # Formato uruguayo: "1.800" = mil ochocientos (punto de miles). Antes se leia
+            # como 1,8 y el disco quedaba a $1 en la tienda.
             try:
-                nuevo = int(float(valor))
-                if nuevo < 0:
+                import math as _math
+                _txt = str(valor if valor is not None else "").strip()
+                # Solo numeros (con punto/coma de miles o decimales): "abc" o vacio no
+                # pueden terminar guardando el disco a $0.
+                if not _re_email.fullmatch(r"\$?\s*\d[\d.,\s]*", _txt):
                     raise ValueError()
-            except (ValueError, TypeError):
+                _p = _parse_monto_caja(_txt)
+                if not _math.isfinite(_p) or _p < 0 or _p > 10_000_000:
+                    raise ValueError()
+                nuevo = int(round(_p))
+            except (ValueError, TypeError, OverflowError):
                 return jsonify({"ok": False, "error": "Precio invalido"}), 400
             disc.precio_uyu = nuevo
             db.session.commit()
@@ -3686,10 +3744,10 @@ def register_routes(app: Flask) -> None:
 
         elif campo == "stock":
             try:
-                nuevo = int(valor)
-                if nuevo < 0:
+                nuevo = int(str(valor).strip())
+                if nuevo < 0 or nuevo > 1000:
                     raise ValueError()
-            except (ValueError, TypeError):
+            except (ValueError, TypeError, OverflowError):
                 return jsonify({"ok": False, "error": "Stock invalido"}), 400
             disc.stock = nuevo
             db.session.commit()
@@ -4256,12 +4314,35 @@ def register_routes(app: Flask) -> None:
         """Aparta los discos de un pedido web que todavia no se pago (transferencia con
         comprobante o "reservar y coordinar"): los Disponibles pasan a Reservado (nota
         "Reserva #id", asi cancelar/borrar el pedido los libera) y los Pre-order quedan
-        tomados por el pedido (venta_grupo "r<id>"), asi nadie mas los compra."""
+        tomados por el pedido (venta_grupo "r<id>"), asi nadie mas los compra.
+
+        El apartado es ATOMICO en la base (UPDATE ... WHERE estado='Disponible'): si dos
+        clientes confirman el mismo disco a la vez (el servidor corre en 2 procesos), solo
+        uno lo gana. Devuelve la lista de discos que NO se pudieron apartar porque otro
+        pedido se los llevo en el medio (el que llama los saca del pedido)."""
+        from sqlalchemy import update as _upd
+        perdidos = []
+        grupo = f"r{reserva.id}"
         for d in discos:
             if d.estado == "Disponible":
+                res = db.session.execute(
+                    _upd(Disc).where(Disc.id == d.id, Disc.estado == "Disponible")
+                    .values(estado="Reservado")
+                    .execution_options(synchronize_session=False))
+                if res.rowcount != 1:
+                    perdidos.append(d)
+                    continue
                 register_status_change(d, "Reservado", nota=f"Reserva #{reserva.id} - {motivo}")
             elif d.estado in ("Pre-order", "Encargo") and not d.venta_grupo:
-                d.venta_grupo = f"r{reserva.id}"
+                res = db.session.execute(
+                    _upd(Disc).where(Disc.id == d.id, Disc.venta_grupo.is_(None))
+                    .values(venta_grupo=grupo)
+                    .execution_options(synchronize_session=False))
+                if res.rowcount != 1:
+                    perdidos.append(d)
+                    continue
+                d.venta_grupo = grupo
+        return perdidos
 
     def _disco_es_de_reserva(d, reserva):
         """True si el estado actual del disco (Vendido / Reservado) se lo puso ESTA
@@ -4567,13 +4648,20 @@ def register_routes(app: Flask) -> None:
         moneda = (request.form.get("moneda") or e.moneda).strip().upper()
         if moneda not in ("UYU", "USD", "EUR"):
             moneda = e.moneda
+        _cambio_base = (abs((monto or 0) - (e.monto or 0)) > 0.004) or (moneda != e.moneda)
+        _uyu_viejo = e.monto_uyu or 0
         e.monto = monto
         e.moneda = moneda
 
         # Monto en pesos: si viene un valor, se respeta; si viene vacio, se recalcula.
         # Mismo parser que la Caja (punto = miles, coma = decimal, es-UY).
+        # Si cambiaste el monto o la moneda y NO tocaste "En pesos" (el form lo manda
+        # lleno con el valor viejo), se recalcula: antes quedaba el valor en pesos viejo.
         raw_in = (request.form.get("monto_uyu") or "").strip()
+        _uyu_sin_tocar = False
         if raw_in and any(ch.isdigit() for ch in raw_in):
+            _uyu_sin_tocar = abs(_parse_monto_caja(raw_in) - round(_uyu_viejo)) < 1
+        if raw_in and any(ch.isdigit() for ch in raw_in) and not (_cambio_base and _uyu_sin_tocar):
             val = _parse_monto_caja(raw_in)
             if val >= 0:
                 e.monto_uyu = round(val, 2)
@@ -5054,14 +5142,21 @@ def register_routes(app: Flask) -> None:
             if m.tipo == "ingreso" and not m.es_aporte
             and m.metodo == "mercadopago" and m.fecha and m.fecha > limite_mp
         )
-        adelanto_todos = sum(m.monto_uyu or 0 for m in movs if (m.adelanto_mp or ""))
+        # Solo restan los adelantos de la MISMA ventana de 30 dias (son los que cubren
+        # esas ventas). Antes restaban todos los adelantos de la historia, incluso los ya
+        # saldados, y tapaban las ventas nuevas por MP ("En MP" quedaba en 0).
+        adelanto_todos = sum(
+            m.monto_uyu or 0 for m in movs
+            if (m.adelanto_mp or "") and m.fecha and m.fecha > limite_mp
+        )
         mp_pendiente = max(0.0, mp_bruto - adelanto_todos)
         # Adelantos de MP: aportes que Facundo hizo para tener la liquidez de MP
         # antes de que MP pague. Los 'pendiente' todavia esperan el pago de MP.
         adelantos_pendientes = [m for m in movs if (m.adelanto_mp or "") == "pendiente"]
         adelanto_pendiente_total = sum(m.monto_uyu or 0 for m in adelantos_pendientes)
-        # Lo que hay en MP y todavia no adelantaste (para no adelantar dos veces)
-        por_adelantar = max(0.0, mp_pendiente - adelanto_pendiente_total)
+        # Lo que hay en MP y todavia no adelantaste (para no adelantar dos veces). Los
+        # adelantos ya estan descontados en mp_pendiente: restarlos otra vez era doble.
+        por_adelantar = mp_pendiente
         # PLATA EN LA MANO HOY = saldo - lo que todavia esta retenido en Mercado Pago.
         # La venta por MP NO se cuenta como plata en mano hasta que MP la deposita
         # (modelo confirmado por Facundo). El adelanto que pusiste ya esta en el saldo
@@ -7131,7 +7226,7 @@ def register_routes(app: Flask) -> None:
         cli_res = _Cliente.query.get(reserva.cliente_id) if reserva.cliente_id else None
         if cli_res is None:
             cli_res = _buscar_o_crear_cliente(reserva.nombre, reserva.whatsapp, reserva.email,
-                                              origen="web")
+                                              origen="web", seguro=True)
             if cli_res and not reserva.cliente_id:
                 reserva.cliente_id = cli_res.id
         conflicto = []  # discos comprometidos con OTRA venta/persona (posible doble cobro)
@@ -7855,8 +7950,9 @@ def register_routes(app: Flask) -> None:
         """Form de reserva."""
         disc = Disc.query.get_or_404(disc_id)
         # Los pre-orders y encargos se pueden reservar aunque no tengan stock todavia,
-        # salvo que ya los haya pedido otra persona (esta_agotado lo contempla).
-        if disc.esta_agotado or disc.oculto_web:
+        # salvo que ya los haya pedido otra persona (esta_agotado lo contempla). La ficha
+        # de la Mystery Box y los discos sin precio no se reservan sueltos.
+        if not _vendible_web(disc):
             return render_template(
                 "public/not_available.html",
                 disc=disc,
@@ -7927,7 +8023,14 @@ def register_routes(app: Flask) -> None:
             # Igual que "Reservar y coordinar" del carrito: el disco queda reservado de
             # verdad (el mail le dice al cliente que esta reservado para el).
             reserva.metodo_pago = "coordinar"
-            _apartar_para_pedido(reserva, [disc], "a coordinar")
+            if _apartar_para_pedido(reserva, [disc], "a coordinar"):
+                # Otra persona lo confirmo justo antes (compra simultanea)
+                db.session.rollback()
+                return render_template(
+                    "public/not_available.html",
+                    disc=Disc.query.get(disc_id),
+                    **_public_context(),
+                ), 400
             db.session.commit()
             _reserva_registrar(ip_reserva)
 
@@ -8161,8 +8264,13 @@ def register_routes(app: Flask) -> None:
             # El email ya tiene CUENTA: no se dice en pantalla (asi nadie puede averiguar
             # que emails son clientes). Se le manda al dueno un mail con el link para
             # cambiar la contrasena, y en pantalla sale el mismo mensaje que en otros casos.
+            # Tope de mails: el registro manda mails a emails ajenos (ya tenes cuenta /
+            # activacion). Sin tope un bot podia bombardear a un cliente y agotar el cupo
+            # de Gmail. Pasado el tope no se manda nada, pero la pantalla dice lo mismo
+            # (para no revelar nada).
+            _mail_ok = not _mail_cuenta_limitado(email)
             if _existente and _existente.password_hash:
-                if mailer.can_send():
+                if mailer.can_send() and _mail_ok:
                     _tk = _reset_serializer().dumps({"c": _existente.id, "v": _existente.password_hash[-16:]})
                     _url = _base_publica() + url_for("cliente_reset", token=_tk)
                     _nom = _existente.nombre or ""
@@ -8190,7 +8298,7 @@ def register_routes(app: Flask) -> None:
             # El email ya tiene compras (ficha sin contrasena o pedidos sin cuenta): la
             # cuenta se activa recien cuando el dueno del email toca el link del mail.
             if _email_tiene_compras(email):
-                if _mandar_activacion(email, password, nombre, whatsapp):
+                if (not _mail_ok) or _mandar_activacion(email, password, nombre, whatsapp):
                     from markupsafe import escape as _esc
                     flash("Te mandamos un mail a "
                           f"{_esc(email)} para seguir: revis&aacute; tu correo (y la carpeta de spam).", "info")
@@ -8558,14 +8666,26 @@ def register_routes(app: Flask) -> None:
                     if _comp_size > 12 * 1024 * 1024:
                         errores.append("El comprobante es muy grande (max 12 MB). Saca una foto mas liviana o mandalo en PDF.")
 
-            # Traer discos y validar disponibilidad
+            # Traer discos y validar disponibilidad. La ficha de la Mystery Box y los
+            # discos sin precio (fichas del Drop Hunter sin completar) no se venden sueltos.
             discs = Disc.query.filter(Disc.id.in_(ids)).all() if ids else []
             by_id = {d.id: d for d in discs}
-            disponibles = [by_id[i] for i in ids if i in by_id
-                           and not by_id[i].esta_agotado and not by_id[i].oculto_web]
+            disponibles = [by_id[i] for i in ids if i in by_id and _vendible_web(by_id[i])]
 
             if ids and not disponibles and not hay_box:
                 errores.append("Ninguno de los discos del carrito esta disponible.")
+
+            # Tope de discos por pedido SIN pago online (coordinar / transferencia): esos
+            # pedidos apartan los discos al instante, y sin tope una sola persona (o un bot)
+            # podia vaciar la tienda entera. Con Mercado Pago no hay tope: no se aparta
+            # nada hasta que paga.
+            _met_tope = request.form.get("metodo", "coordinar")
+            _es_mp_tope = (_met_tope == "mercadopago" and mp.activo())
+            if not _es_mp_tope and len(disponibles) > MAX_DISCOS_SIN_PAGO:
+                errores.append(
+                    f"Pod&eacute;s reservar hasta {MAX_DISCOS_SIN_PAGO} discos por pedido sin pago online. "
+                    f"Ten&eacute;s {len(disponibles)} en el carrito: sac&aacute; algunos, pag&aacute; con "
+                    "Mercado Pago, o escribinos por Instagram/WhatsApp y lo coordinamos.")
 
             # Fire Sale: los discos con descuento son exclusivos para clientes con
             # cuenta. Si el visitante no inicio sesion, no puede comprarlos.
@@ -8650,10 +8770,13 @@ def register_routes(app: Flask) -> None:
                     return redirect(url_for("public_checkout", ids=ids_raw))
 
             # Aviso si algun disco se agoto entre "agregar" y "confirmar"
-            n_descartados = sum(1 for i in ids if i in by_id
-                                and (by_id[i].esta_agotado or by_id[i].oculto_web))
+            n_descartados = sum(1 for i in ids if i in by_id and not _vendible_web(by_id[i]))
             if n_descartados:
                 flash(f"{n_descartados} disco(s) del carrito ya no estaban disponibles y se quitaron del pedido.", "info")
+
+            es_transf_checkout = (_metodo_form == "transferencia"
+                                  and Setting.get("transferencia_activa", "0") == "1")
+            es_mp_checkout = (_metodo_form == "mercadopago" and mp.activo())
 
             # Un doble click puede mandar DOS pedidos a la vez: si los dos miran la
             # base antes de que el primero se guarde, los dos pasan. Este candado por
@@ -8695,6 +8818,30 @@ def register_routes(app: Flask) -> None:
                 db.session.add(reserva)
                 db.session.flush()
 
+                # El precio a cobrar se anota ANTES de apartar: un disco ya Reservado deja
+                # de estar "en Fire Sale" y se cobraria el precio normal.
+                _precio_snap = {d.id: _precio_a_cobrar(d) for d in disponibles}
+
+                # Pedido sin pago online: apartar los discos YA, en la misma transaccion
+                # que crea el pedido. El apartado es atomico: si otro cliente se llevo un
+                # disco en el medio (compra simultanea), ese disco sale de este pedido.
+                if not es_mp_checkout:
+                    _motivo_ap = ("transferencia (comprobante subido)" if es_transf_checkout
+                                  else "a coordinar")
+                    _perdidos = _apartar_para_pedido(reserva, disponibles, _motivo_ap)
+                    if _perdidos:
+                        _ids_perd = {d.id for d in _perdidos}
+                        disponibles = [d for d in disponibles if d.id not in _ids_perd]
+                        if not disponibles and not hay_box:
+                            db.session.rollback()
+                            flash("Justo otra persona confirm&oacute; esos discos antes que vos: "
+                                  "ya no est&aacute;n disponibles.", "error")
+                            return redirect(url_for("public_carrito"))
+                        flash(f"{len(_perdidos)} disco(s) los acaba de confirmar otra persona y "
+                              "se quitaron de tu pedido.", "info")
+                        if es_compra and not hay_box:
+                            envio_costo = _calcular_envio_uyu(entrega_tipo, len(disponibles))
+
                 # Entrega / envio (solo compras; en "coordinar" queda todo en null / 0)
                 reserva.entrega_tipo = entrega_tipo
                 reserva.envio_costo_uyu = envio_costo
@@ -8707,7 +8854,7 @@ def register_routes(app: Flask) -> None:
                         disc_id=d.id,
                         artista_snap=d.artista,
                         titulo_snap=d.titulo,
-                        precio_uyu_snap=_precio_a_cobrar(d),
+                        precio_uyu_snap=_precio_snap.get(d.id, _precio_a_cobrar(d)),
                     )
                     db.session.add(item)
 
@@ -8770,12 +8917,11 @@ def register_routes(app: Flask) -> None:
             if metodo == "transferencia" and Setting.get("transferencia_activa", "0") == "1":
                 reserva.metodo_pago = "transferencia"
                 _guardar_comprobante(reserva, request.files.get("comprobante"))
-                # El cliente subio comprobante: apartamos los discos (Reservado)
-                # automaticamente para que nadie mas los compre. NO se marcan
-                # Vendido ni entran a la caja hasta que Facundo confirme que la
-                # plata llego (marca la reserva Pagada). El comprobante es una
-                # foto del cliente, no una confirmacion real del banco.
-                _apartar_para_pedido(reserva, disponibles, "transferencia (comprobante subido)")
+                # Los discos ya quedaron apartados (Reservado) al crear el pedido, para
+                # que nadie mas los compre. NO se marcan Vendido ni entran a la caja
+                # hasta que Facundo confirme que la plata llego (marca la reserva
+                # Pagada). El comprobante es una foto del cliente, no una confirmacion
+                # real del banco.
                 db.session.commit()
             elif metodo == "mercadopago" and mp.activo():
                 reserva.metodo_pago = "mercadopago"
@@ -8789,16 +8935,21 @@ def register_routes(app: Flask) -> None:
                 # mercadopago y el aviso al admin y el push decian MP).
                 reserva.metodo_pago = "coordinar"
                 reserva.mp_status = None
-                _apartar_para_pedido(reserva, disponibles, "a coordinar")
+                _perd_mp = _apartar_para_pedido(reserva, disponibles, "a coordinar")
+                if _perd_mp:
+                    # Discos que otro cliente confirmo en el medio: salen de este pedido
+                    _ids_pm = {d.id for d in _perd_mp}
+                    for _it in list(reserva.items):
+                        if _it.disc_id in _ids_pm:
+                            db.session.delete(_it)
+                    disponibles = [d for d in disponibles if d.id not in _ids_pm]
                 db.session.commit()
                 flash("No pudimos iniciar el pago online. Te dejamos la reserva para coordinar por mensaje.", "error")
             else:
                 # "Reservar y coordinar": la pantalla y el mail dicen "queda apartado para
-                # vos", asi que el disco se aparta de verdad (antes seguia Disponible y otro
-                # cliente lo podia pagar por MP). Si no se concreta, cancelas la reserva y
-                # vuelve a Disponible solo.
+                # vos", asi que el disco se aparta de verdad (ya se hizo al crear el
+                # pedido). Si no se concreta, cancelas la reserva y vuelve a Disponible solo.
                 reserva.metodo_pago = "coordinar"
-                _apartar_para_pedido(reserva, disponibles, "a coordinar")
                 db.session.commit()
 
             # Email al admin (best-effort, no rompe si falla) — con el comprobante adjunto si lo hay.
@@ -9180,7 +9331,8 @@ def register_routes(app: Flask) -> None:
                             if cli_res is None:
                                 cli_res = _buscar_o_crear_cliente(
                                     reserva.nombre, reserva.whatsapp, reserva.email,
-                                    origen=("web" if (reserva.canal or "web") == "web" else "manual"))
+                                    origen=("web" if (reserva.canal or "web") == "web" else "manual"),
+                                    seguro=True)
                                 if cli_res and not reserva.cliente_id:
                                     reserva.cliente_id = cli_res.id
                             # Si la reserva no tiene email pero el cliente si, usarlo (para
@@ -9399,6 +9551,16 @@ def register_routes(app: Flask) -> None:
                             d.venta_grupo = grupo
                         if cli and not d.cliente_id:
                             d.cliente_id = cli.id
+                    # Si la caja se asigna en varias tandas, el precio de la caja se
+                    # reparte entre TODOS sus discos (los de antes y los nuevos). Antes cada
+                    # tanda se repartia la caja entera y el ingreso se contaba doble.
+                    if box_total > 0:
+                        db.session.flush()
+                        db.session.expire(reserva)
+                        for _did, _share in _reparto_box(reserva).items():
+                            _dd = Disc.query.get(_did)
+                            if _dd is not None and _dd.estado == "Vendido":
+                                _dd.precio_venta_uyu = _share
                     db.session.commit()
                     flash(f"Asignaste {n} disco(s) a la reserva: quedaron Vendidos y se descont&oacute; el stock.", "success")
 
@@ -9549,6 +9711,11 @@ def register_routes(app: Flask) -> None:
             # Toggles/checkboxes: presente = "1", ausente = "0"
             if key in checkbox_keys:
                 Setting.set(key, "1" if request.form.get(key) else "0")
+                continue
+            # Un campo de texto que NO viene en el formulario no se toca. Antes se
+            # guardaba vacio: guardar Ajustes borraba el video del banner (que vive en
+            # otro formulario) sin avisar.
+            if key not in request.form:
                 continue
             value = (request.form.get(key) or "").strip()
             # Recargo de Mercado Pago: entre 0 y 20 %

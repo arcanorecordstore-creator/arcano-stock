@@ -164,6 +164,13 @@
         <span class="conta-row-detail">{{ conta.stock_no_vendido_titulos }} disco(s) comprados y aun sin vender</span>
     </div>
     {% endif %}
+    {% if conta.perdida_descartados_uyu %}
+    <div class="conta-row conta-row-egreso">
+        <span class="conta-row-label">Discos descartados (p&eacute;rdida)</span>
+        <span class="conta-row-value">&minus; {{ fmt_uyu(conta.perdida_descartados_uyu) }}</span>
+        <span class="conta-row-detail">{{ conta.descartados_count }} disco(s) de Arcano que pasaste a Descartado en el periodo (su costo)</span>
+    </div>
+    {% endif %}
     <div class="conta-row conta-row-egreso">
         <span class="conta-row-label">Gastos operativos</span>
         <span class="conta-row-value">&minus; {{ fmt_uyu(conta.egresos_uyu) }}</span>

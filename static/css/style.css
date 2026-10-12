@@ -7944,6 +7944,20 @@ td.num,
 }
 .arcano-toast-error { background: var(--loss); color: #fff; }
 
+/* Modo claro: el naranja sobre crema se leia mal (contraste 1,8). Mismo naranja, mas oscuro. */
+[data-theme="light"] .public-disc-urgency {
+    color: #8f4300 !important;
+    background: rgba(214, 120, 20, 0.12) !important;
+    border-color: rgba(143, 67, 0, 0.35) !important;
+}
+/* La etiqueta de oferta vive dentro del precio: la regla gris de ".public-disc-price span"
+   le pisaba el color crema (gris sobre marron). */
+.public-disc-price .public-disc-sale-badge {
+    color: var(--arcano-crema);
+    letter-spacing: 0.5px;
+    font-size: 13px;
+}
+
 /* Urgencia en la ficha del disco (ultima copia) */
 .public-disc-urgency {
     display: inline-block;

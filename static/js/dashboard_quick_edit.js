@@ -39,11 +39,14 @@
             var textoOriginal = td.textContent;
 
             var input = document.createElement('input');
-            input.type = 'number';
+            // Precio y stock en texto: un campo numerico del navegador leia "1.800" como
+            // 1,8 (y el disco quedaba a $1). El servidor entiende el punto de miles.
+            var esEntero = (campo === 'precio_uyu' || campo === 'stock');
+            input.type = esEntero ? 'text' : 'number';
+            if (esEntero) input.inputMode = 'numeric';
             input.className = 'cell-edit-input';
             input.value = actual;
-            input.min = '0';
-            if (campo === 'precio_uyu') input.step = '10';
+            if (!esEntero) input.min = '0';
             td.textContent = '';
             td.appendChild(input);
             input.focus();
@@ -58,6 +61,25 @@
                     // sin cambios: restaurar
                     td.textContent = textoOriginal;
                     return;
+                }
+                if (campo === 'precio_uyu') {
+                    // "1.800" o "1800" -> 1800 (punto = miles); "$" y espacios afuera
+                    var limpio = nuevo.replace(/[\s$]/g, '');
+                    var num = /^\d{1,3}(\.\d{3})+$/.test(limpio) ? Number(limpio.replace(/\./g, ''))
+                              : Number(limpio.replace(',', '.'));
+                    var ant = Number(actual) || 0;
+                    if (!isFinite(num) || num < 0) {
+                        alert('Ese precio no es valido. Escribilo solo con numeros, ej: 1800 o 1.800');
+                        td.textContent = textoOriginal;
+                        return;
+                    }
+                    if (ant > 0 && Math.round(num) < ant * 0.1 &&
+                        !confirm('Vas a cambiar el precio de $' + fmtMiles(ant) + ' a $' + fmtMiles(Math.round(num)) + '. ¿Seguro?')) {
+                        td.textContent = textoOriginal;
+                        return;
+                    }
+                    nuevo = String(Math.round(num));
+                    if (nuevo === actual) { td.textContent = textoOriginal; return; }
                 }
                 td.textContent = '...';
                 guardar(discId, campo, nuevo).then(function (res) {
@@ -101,6 +123,7 @@
                     } else {
                         td.textContent = textoOriginal;
                         flashCell(td, false);
+                        if (res.data && res.data.error) alert(res.data.error);
                     }
                 }).catch(function () {
                     td.textContent = textoOriginal;

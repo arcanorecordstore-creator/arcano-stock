@@ -406,6 +406,12 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
     )
     costo_stock_no_vendido_uyu = sum(d.costo_real_uyu * (d.stock or 1) for d in disponibles_arcano)
 
+    # --- DESCARTADOS: perdida del periodo (decision de Facundo, 12/10/2026) ---
+    # Un disco de Arcano que pasaste a Descartado (roto, perdido) es plata perdida: su
+    # costo resta en el mes en que lo descartaste. Antes simplemente dejaba de contar
+    # como stock y la ganancia SUBIA al descartarlo.
+    descartados, perdida_descartados_uyu = _descartados_en_rango(inicio, fin)
+
     # --- EGRESOS: gastos operativos del periodo ---
     from models import CAT_RETIRO_PERSONAL
     egresos_all = (
@@ -444,7 +450,8 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
     # (mes pasado, custom viejo) NO lo resta. Antes usaba una lista fija que dejaba "Este
     # ano" afuera por error, dando distinto que "Todo" aunque para Arcano son lo mismo.
     incluir_stock = fin > today_uy()
-    ganancia_real = ganancia_bruta - egresos_uyu - (costo_stock_no_vendido_uyu if incluir_stock else 0)
+    ganancia_real = (ganancia_bruta - egresos_uyu - perdida_descartados_uyu
+                     - (costo_stock_no_vendido_uyu if incluir_stock else 0))
 
     # --- COMPARACION con periodo anterior ---
     comparacion = None
@@ -456,7 +463,7 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
         # foto "a hoy" (no pertenece a un periodo pasado), asi que dejarlo afuera
         # de ambos lados hace la comparacion coherente. _resumen_rango usa esa
         # misma formula, asi que aca comparamos manzanas con manzanas.
-        flujo_actual = ganancia_bruta - egresos_uyu
+        flujo_actual = ganancia_bruta - egresos_uyu - perdida_descartados_uyu
         prev = ant["ganancia_real_uyu"]
         if prev != 0:
             var_pct = round((flujo_actual - prev) / abs(prev) * 100, 1)
@@ -495,7 +502,42 @@ def contabilidad(periodo: str = "mes_actual", desde: str = None, hasta: str = No
         "costo_stock_no_vendido_uyu": round(costo_stock_no_vendido_uyu, 2),
         "stock_no_vendido_titulos": len(disponibles_arcano),
         "stock_en_ganancia": incluir_stock,
+        "perdida_descartados_uyu": round(perdida_descartados_uyu, 2),
+        "descartados_count": len(descartados),
     }
+
+
+def _descartados_en_rango(inicio, fin):
+    """Discos de Arcano (no personales, no la Mystery Box) que estan Descartados y cuya
+    fecha de descarte (el ultimo paso a "Descartado" en su historial) cae en el rango.
+    Si no hay fecha registrada, solo cuentan en "Todo" (rango que arranca en el 2000 o
+    antes). Devuelve (lista, perdida_uyu)."""
+    from models import StatusHistory
+    from datetime import datetime as _dt
+    discs = (
+        Disc.query.filter(Disc.estado == "Descartado")
+        .filter((Disc.origen != "personal") | (Disc.origen.is_(None)))
+        .filter(Disc.es_mystery_box.isnot(True))
+        .all()
+    )
+    if not discs:
+        return [], 0.0
+    ids = [d.id for d in discs]
+    fechas = {}
+    for h in (StatusHistory.query.filter(StatusHistory.disc_id.in_(ids))
+              .filter(StatusHistory.estado == "Descartado").all()):
+        if h.fecha and (h.disc_id not in fechas or h.fecha > fechas[h.disc_id]):
+            fechas[h.disc_id] = h.fecha
+    ini_dt = _dt(inicio.year, inicio.month, inicio.day)
+    fin_dt = _dt(fin.year, fin.month, fin.day)
+    es_todo = inicio.year <= 2000
+    en_rango = []
+    for d in discs:
+        f = fechas.get(d.id)
+        if (f is not None and ini_dt <= f < fin_dt) or (f is None and es_todo):
+            en_rango.append(d)
+    perdida = sum(d.costo_real_uyu * (d.stock or 1) for d in en_rango)
+    return en_rango, perdida
 
 
 def _periodo_anterior(periodo: str):
@@ -544,13 +586,18 @@ def _resumen_rango(inicio, fin):
         d.costo_real_uyu * d.copias_facturadas
         for d in vendidos if (d.origen or "arcano") != "personal"
     )
+    # Los retiros personales NO son gasto del negocio (igual que en contabilidad()):
+    # antes bajaban la ganancia en el grafico de 6 meses y en la comparacion.
+    from models import CAT_RETIRO_PERSONAL
     egresos = (
-        Egreso.query.filter(Egreso.fecha >= inicio).filter(Egreso.fecha < fin).all()
+        Egreso.query.filter(Egreso.fecha >= inicio).filter(Egreso.fecha < fin)
+        .filter(Egreso.categoria != CAT_RETIRO_PERSONAL).all()
     )
     egresos_uyu = sum(e.monto_uyu or 0 for e in egresos)
+    _desc, perdida_desc = _descartados_en_rango(inicio, fin)
     return {
         "ingresos_uyu": round(ingresos, 2),
-        "ganancia_real_uyu": round(ingresos - costo - egresos_uyu, 2),
+        "ganancia_real_uyu": round(ingresos - costo - egresos_uyu - perdida_desc, 2),
         "egresos_uyu": round(egresos_uyu, 2),
     }
 
