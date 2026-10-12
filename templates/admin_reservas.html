@@ -66,7 +66,7 @@
             {% if r.total_uyu > 0 %}<span class="reserva-card-total">$ {{ '{:,.0f}'.format(r.total_uyu).replace(',', '.') }}</span>{% endif %}
         </div>
         {% if r.sena_cobrada_total > 0 %}
-        <div class="reserva-card-sena">&#10003; Se&ntilde;a cobrada: {{ money(r.sena_cobrada_total) }}{% if r.total_uyu > r.sena_cobrada_total %} &middot; falta {{ money(r.total_uyu - r.sena_cobrada_total) }}{% endif %}</div>
+        <div class="reserva-card-sena">&#10003; Se&ntilde;a cobrada: {{ money(r.sena_cobrada_total) }}{% if r.estado == 'Pagada' %} &middot; resto pagado{% elif r.falta_cobrar_uyu > 0 %} &middot; falta {{ money(r.falta_cobrar_uyu) }}{% endif %}</div>
         {% endif %}
         <div class="reserva-card-cliente">
             {{ r.nombre }} &middot; {{ r.whatsapp }}
@@ -146,7 +146,8 @@
                 <span class="reserva-grupo-meta">{{ u.reservas|length }} reservas &middot; {{ u.n_discos }} disco{{ 's' if u.n_discos != 1 else '' }} &middot; {{ u.cliente }}</span>
                 {% if u.entregado %}<span class="reserva-grupo-entregado">&#10003; Todo entregado</span>{% endif %}
                 {% set _sena = u.reservas | sum(attribute='sena_cobrada_total') %}
-                {% if _sena > 0 %}<span class="reserva-grupo-sena">&#10003; Se&ntilde;a {{ money(_sena) }}{% if u.total > _sena %} &middot; falta {{ money(u.total - _sena) }}{% endif %}</span>{% endif %}
+                {% set _falta = u.reservas | sum(attribute='falta_cobrar_uyu') %}
+                {% if _sena > 0 %}<span class="reserva-grupo-sena">&#10003; Se&ntilde;a {{ money(_sena) }}{% if _falta > 0 %} &middot; falta {{ money(_falta) }}{% else %} &middot; todo pagado{% endif %}</span>{% endif %}
                 <span class="reserva-grupo-total">{{ money(u.total) }}</span>
                 <form method="post" action="{{ url_for('reservas_desagrupar') }}"
                       onsubmit="return confirm('¿Separar este pedido? Cada reserva vuelve a ir por su cuenta.');">

@@ -1188,6 +1188,14 @@ class Reserva(db.Model):
         return round(tot, 2)
 
     @property
+    def falta_cobrar_uyu(self) -> float:
+        """Lo que el cliente todavia debe de esta reserva: total menos la sena.
+        Si la reserva ya esta Pagada (o Cancelada) no debe nada."""
+        if self.estado != "Pendiente":
+            return 0.0
+        return round(max(0.0, self.total_uyu - self.sena_cobrada_total), 2)
+
+    @property
     def cantidad_discos(self) -> int:
         return len(self.items_efectivos)
 

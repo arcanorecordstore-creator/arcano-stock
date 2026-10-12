@@ -257,7 +257,7 @@ Montevideo, Uruguay</div>
                     {% if d %}
                         {% if d.sena_cobrada %}
                         <div class="disc-sena">
-                            <span class="disc-sena-tag">&#10003; Se&ntilde;a $ {{ '{:,.0f}'.format(d.sena_efectiva).replace(',', '.') }} cobrada &middot; falta $ {{ '{:,.0f}'.format(d.precio_falta_uyu).replace(',', '.') }}</span>
+                            <span class="disc-sena-tag">&#10003; Se&ntilde;a $ {{ '{:,.0f}'.format(d.sena_efectiva).replace(',', '.') }} cobrada &middot; {% if reserva.estado == 'Pagada' or d.estado == 'Vendido' %}resto pagado{% else %}falta $ {{ '{:,.0f}'.format(d.precio_falta_uyu).replace(',', '.') }}{% endif %}</span>
                             <form method="post" action="{{ url_for('admin_disc_sena', disc_id=d.id) }}" onsubmit="return confirm('¿Le devolviste la seña al cliente? Se saca de la caja.');">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                                 <input type="hidden" name="accion" value="devolver"><input type="hidden" name="next" value="{{ request.path }}">
