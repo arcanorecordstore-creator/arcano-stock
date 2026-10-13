@@ -2,9 +2,10 @@
 
 {% block title %}Home &middot; Arcano{% endblock %}
 
-{% macro money(n) -%}$ {{ '{:,.0f}'.format(n or 0).replace(',', '.') }}{%- endmacro %}
+{% macro money(n) -%}$ {{ '{:,.0f}'.format((n or 0)|round|int).replace(',', '.') }}{%- endmacro %}
 
-{% macro signo(n) -%}{% if (n or 0) < 0 %}&minus;{% endif %}$ {{ '{:,.0f}'.format((n or 0)|abs).replace(',', '.') }}{%- endmacro %}
+{# Signo y color se deciden sobre el numero YA redondeado: un saldo de -0,30 se ve "$ 0" (sin menos ni rojo). #}
+{% macro signo(n) -%}{% set _r = ((n or 0)|round|int) %}{% if _r < 0 %}&minus;{% endif %}$ {{ '{:,.0f}'.format(_r|abs).replace(',', '.') }}{%- endmacro %}
 
 {% block content %}
 {% set _dias = ['lunes','martes','miércoles','jueves','viernes','sábado','domingo'] %}
@@ -41,14 +42,14 @@
         </a>
         <a href="{{ url_for('ventas_panel') }}" class="home-kpi">
             <span class="home-kpi-l">Ganancia de ventas</span>
-            <span class="home-kpi-n {% if kpis.mes.ganancia_uyu >= 0 %}gain{% else %}loss{% endif %}">{{ signo(kpis.mes.ganancia_uyu) }}</span>
+            <span class="home-kpi-n {% if (kpis.mes.ganancia_uyu or 0)|round|int >= 0 %}gain{% else %}loss{% endif %}">{{ signo(kpis.mes.ganancia_uyu) }}</span>
             <span class="home-kpi-s">precio &minus; costo de lo vendido</span>
         </a>
         {% endif %}
         {% if kpis.conta %}
         <a href="{{ url_for('contabilidad') }}" class="home-kpi">
             <span class="home-kpi-l">Ganancia real</span>
-            <span class="home-kpi-n {% if kpis.conta.ganancia_real_uyu >= 0 %}gain{% else %}loss{% endif %}">{{ signo(kpis.conta.ganancia_real_uyu) }}</span>
+            <span class="home-kpi-n {% if (kpis.conta.ganancia_real_uyu or 0)|round|int >= 0 %}gain{% else %}loss{% endif %}">{{ signo(kpis.conta.ganancia_real_uyu) }}</span>
             <span class="home-kpi-s">igual que en Contabilidad (gastos {{ money(kpis.conta.egresos_uyu) }})</span>
         </a>
         {% endif %}
@@ -80,7 +81,7 @@
     <div class="home-kpis home-caja">
         <a href="{{ url_for('caja') }}" class="home-kpi home-kpi-main">
             <span class="home-kpi-l">Plata en caja</span>
-            <span class="home-kpi-n {% if caja.saldo_actual < 0 %}loss{% endif %}">{{ signo(caja.saldo_actual) }}</span>
+            <span class="home-kpi-n {% if (caja.saldo_actual or 0)|round|int < 0 %}loss{% endif %}">{{ signo(caja.saldo_actual) }}</span>
             <span class="home-kpi-s">lo que tenés en el banco</span>
         </a>
         <a href="{{ url_for('caja') }}" class="home-kpi">
