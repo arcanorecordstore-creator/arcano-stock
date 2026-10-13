@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.04"
+APP_VERSION = "6.05"
 import metrics
 import auth
 import mailer
@@ -264,6 +264,31 @@ def convertir_cover_a_webp(path_original: str) -> str:
         return _os.path.basename(webp_path)
     except Exception:
         return _os.path.basename(path_original)
+
+
+from werkzeug.routing import BaseConverter as _BaseConverter
+
+
+class _DiscoSlugConverter(_BaseConverter):
+    """Direccion de la ficha: url_for('public_disc', disc_id=<id>) devuelve
+    /artista-titulo (sin tocar las plantillas). Al entrar, la vista recibe el texto
+    de la direccion y busca el disco."""
+    regex = r"[^/]+"
+
+    def to_python(self, value):
+        return value
+
+    def to_url(self, value):
+        from models import Disc as _D
+        d = value if isinstance(value, _D) else None
+        if d is None:
+            try:
+                d = db.session.get(_D, int(value))
+            except Exception:
+                d = None
+        if d is not None and getattr(d, "slug", None):
+            return d.slug
+        return super().to_url(getattr(d, "id", value))
 
 
 def create_app() -> Flask:
@@ -651,10 +676,21 @@ self.addEventListener('notificationclick', function(e){
     def serve_comprobante(filename):
         return send_from_directory(app.config["COMPROBANTES_DIR"], filename)
 
+    app.url_map.converters["disco_slug"] = _DiscoSlugConverter
     init_db(app)
     _backfill_ventas_sin_cliente(app)
     app.enviar_push = _enviar_push
     register_routes(app)
+    # Direcciones de las fichas: no pueden pisar ninguna ruta de la app
+    try:
+        import models as _mdl
+        for _rule in app.url_map.iter_rules():
+            _seg = _rule.rule.lstrip("/").split("/")[0].lower()
+            if _seg and "<" not in _seg:
+                _mdl.SLUGS_RESERVADOS.add(_seg)
+        _mdl.asignar_slugs_faltantes(app)
+    except Exception as _e:
+        print("Aviso: no se pudieron armar las direcciones de los discos:", _e)
     from security import init_security
     init_security(app)
     register_history(app)
@@ -7411,7 +7447,7 @@ def register_routes(app: Flask) -> None:
             return jsonify([])
         like = f"%{q}%"
         disponibles = Disc.query.filter(Disc.estado == "Disponible", Disc.stock > 0,
-                                        Disc.oculto_web.isnot(True))
+                                        Disc.precio_uyu > 0, Disc.oculto_web.isnot(True))
         # Recolectar coincidencias unicas de artista, sello y titulo
         sugerencias = []
         vistos = set()
@@ -7428,7 +7464,8 @@ def register_routes(app: Flask) -> None:
             titulo_full = f"{d.artista} - {d.titulo}"
             if titulo_full.lower() not in vistos:
                 vistos.add(titulo_full.lower())
-                sugerencias.append({"texto": titulo_full, "tipo": "disco", "id": d.id})
+                sugerencias.append({"texto": titulo_full, "tipo": "disco", "id": d.id,
+                                    "url": url_for("public_disc", disc_id=d.id)})
         return jsonify(sugerencias[:8])
 
     @app.route("/robots.txt")
@@ -7442,6 +7479,10 @@ def register_routes(app: Flask) -> None:
             "Disallow: /cuenta/",
             "Disallow: /carrito",
             "Disallow: /checkout",
+            "Disallow: /favoritos",
+            "Disallow: /reservar/",
+            "Disallow: /mp/",
+            "Disallow: /api/",
             "",
             f"Sitemap: {base}/sitemap.xml",
         ]
@@ -7872,10 +7913,69 @@ def register_routes(app: Flask) -> None:
         db.session.commit()
         return jsonify({"ok": True, "plays": track.play_count})
 
+    _ESTADOS_FICHA = ("Disponible", "Pre-order", "Encargo", "Reservado", "Vendido")
+
+    def _resolver_ficha(valor):
+        """Busca el disco de una direccion. Devuelve (disco, redireccion).
+        - /123 (numero): direccion vieja -> redirige a la linda.
+        - /DJ-Gamba (mayusculas, tildes): redirige a la forma normal en minusculas.
+        - Direccion vieja de un disco al que le cambiaste el nombre: redirige a la nueva.
+        - Varias copias del mismo disco comparten direccion: se muestra la que se puede
+          comprar (la visible y disponible); si todas se vendieron, la ultima vendida."""
+        from models import slugify, DiscSlugViejo
+        s = str(valor or "")
+        if "." in s:
+            return None, None   # /favicon.ico, /wp-login.php...: no es una ficha
+        if s.isdigit():
+            d = db.session.get(Disc, int(s))
+            if d is not None and d.slug:
+                return None, url_for("public_disc", disc_id=d.id)
+            return d, None
+        norm = slugify(s, largo=160)
+        if not norm:
+            return None, None
+        if norm != s:
+            return None, "/" + norm
+        cands = Disc.query.filter(Disc.slug == norm).all()
+        if not cands:
+            v = (DiscSlugViejo.query.filter_by(slug=norm)
+                 .order_by(DiscSlugViejo.id.desc()).first())
+            if v is not None:
+                d = db.session.get(Disc, v.disc_id)
+                if d is not None and d.slug and d.slug != norm:
+                    return None, url_for("public_disc", disc_id=d.id)
+            return None, None
+        publicos = [d for d in cands if d.estado in _ESTADOS_FICHA and not d.oculto_web]
+        if not publicos:
+            return cands[0], None   # la vista de abajo responde "no encontrado"
+
+        def _orden(d):
+            if d.estado == "Disponible" and not d.esta_agotado:
+                return (0, 0)
+            if d.estado in ("Pre-order", "Encargo") and not d.esta_agotado:
+                return (1, 0)
+            if d.estado == "Reservado":
+                return (2, 0)
+            _fv = d.fecha_venta.timestamp() if getattr(d, "fecha_venta", None) else 0
+            return (3, -_fv)
+        return sorted(publicos, key=_orden)[0], None
+
     @app.route("/disco/<int:disc_id>")
-    def public_disc(disc_id: int):
-        """Ficha publica de un disco."""
-        disc = Disc.query.get_or_404(disc_id)
+    def public_disc_id(disc_id: int):
+        """Direccion vieja (/disco/123): redirige para siempre a la nueva
+        (/artista-titulo). Asi siguen andando los links de mails, Instagram y Google."""
+        if db.session.get(Disc, disc_id) is None:
+            return render_template("public/not_found.html", **_public_context()), 404
+        return redirect(url_for("public_disc", disc_id=disc_id), 301)
+
+    @app.route("/<disco_slug:disc_id>")
+    def public_disc(disc_id):
+        """Ficha publica de un disco: arcanorecordstore.com/artista-titulo."""
+        disc, _redir = _resolver_ficha(disc_id)
+        if _redir:
+            return redirect(_redir, 301)
+        if disc is None:
+            return render_template("public/not_found.html", **_public_context()), 404
         # No mostrar discos que no esten disponibles publicamente
         # (excepcion: los pre-orders se ven siempre). "NO mostrar" = como si no existiera.
         if (disc.estado not in ("Disponible", "Pre-order", "Encargo", "Reservado", "Vendido")
@@ -7912,7 +8012,9 @@ def register_routes(app: Flask) -> None:
             .filter(Disc.id != disc.id)
             .filter(Disc.estado == "Disponible")
             .filter(Disc.stock > 0)
+            .filter(Disc.precio_uyu > 0)
             .filter(Disc.oculto_web.isnot(True))
+            .filter((Disc.slug != disc.slug) | (Disc.slug.is_(None)))   # no la otra copia del mismo
             # La Mystery Box no va en "Similares" (ni en ningun carrusel)
             .filter(or_(Disc.es_mystery_box == False, Disc.es_mystery_box == None))  # noqa: E711,E712
         )
@@ -9013,23 +9115,41 @@ def register_routes(app: Flask) -> None:
         from xml.sax.saxutils import escape
         from datetime import datetime as _dt
         urls = []
-        # Home y sobre
-        urls.append((url_for("home", _external=True), "1.0", None))
-        urls.append((url_for("public_sobre", _external=True), "0.6", None))
-        # Discos disponibles y reservados (siguen siendo paginas validas)
-        discs = Disc.query.filter(Disc.estado.in_(["Disponible", "Reservado"]),
-                                  Disc.oculto_web.isnot(True)).all()
+        # Home, sobre y legales
+        urls.append((url_for("home", _external=True), "1.0", None, None))
+        urls.append((url_for("public_sobre", _external=True), "0.6", None, None))
+        urls.append((url_for("public_legal", _external=True), "0.2", None, None))
+        # Todas las fichas publicas: disponibles, pre-orders, reservadas y VENDIDAS (la
+        # ficha vendida sigue captando busquedas del disco y muestra similares). Sin las
+        # ocultas ni las que no tienen precio. Las copias del mismo disco comparten
+        # direccion: va una sola vez.
+        _prio = {"Disponible": "0.8", "Pre-order": "0.7", "Encargo": "0.5",
+                 "Reservado": "0.6", "Vendido": "0.4"}
+        discs = (Disc.query.filter(Disc.estado.in_(list(_prio)), Disc.oculto_web.isnot(True))
+                 .filter((Disc.precio_uyu > 0) | (Disc.es_mystery_box.is_(True)))
+                 .order_by(Disc.id).all())
+        vistos = {}
         for d in discs:
+            loc = url_for("public_disc", disc_id=d.id, _external=True)
             lastmod = (d.fecha_modificacion or d.fecha_ingreso or _dt.utcnow()).strftime("%Y-%m-%d")
-            urls.append((url_for("public_disc", disc_id=d.id, _external=True), "0.8", lastmod))
+            img = (url_for("serve_cover", filename=d.cover_local, _external=True) if d.cover_local
+                   else (d.cover_url if (d.cover_url or "").startswith("http") else None))
+            prev = vistos.get(loc)
+            if prev is None or float(_prio[d.estado]) > float(prev[1]):
+                vistos[loc] = (loc, _prio[d.estado], lastmod, img)
+        urls += list(vistos.values())
 
         body = ['<?xml version="1.0" encoding="UTF-8"?>',
-                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">']
-        for loc, pri, lastmod in urls:
+                '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+                'xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">']
+        for loc, pri, lastmod, img in urls:
             entry = f"<url><loc>{escape(loc)}</loc>"
             if lastmod:
                 entry += f"<lastmod>{lastmod}</lastmod>"
-            entry += f"<priority>{pri}</priority></url>"
+            entry += f"<priority>{pri}</priority>"
+            if img:
+                entry += f"<image:image><image:loc>{escape(img)}</image:loc></image:image>"
+            entry += "</url>"
             body.append(entry)
         body.append("</urlset>")
         return "\n".join(body), 200, {"Content-Type": "application/xml; charset=utf-8"}

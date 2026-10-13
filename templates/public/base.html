@@ -3,24 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Arcano Record Store &middot; Vinilos de electronica en Montevideo{% endblock %}</title>
-    <meta name="description" content="{% block meta_description %}{{ tagline or 'Tienda de vinilos de musica electronica en Montevideo. House, techno, minimal y mas, con curaduria propia.' }}{% endblock %}">
+    <title>{% block title %}Arcano Record Store &middot; Vinilos de m&uacute;sica electr&oacute;nica en Montevideo{% endblock %}</title>
+    <meta name="description" content="{% block meta_description %}{{ tagline or 'Tienda de vinilos de m&uacute;sica electr&oacute;nica en Montevideo. House, techno, minimal y m&aacute;s, con curadur&iacute;a propia.' }}{% endblock %}">
     <meta name="keywords" content="{% block meta_keywords %}vinilos, discos, vinilo, musica electronica, techno, house, minimal, Montevideo, Uruguay, tienda de discos, record store{% endblock %}">
-    <meta name="robots" content="index, follow">
-    <link rel="canonical" href="{% block canonical %}{{ request.url }}{% endblock %}">
+    {# Solo se indexan las paginas con contenido (catalogo, fichas, sobre, legal) y sin
+       parametros: la busqueda, los filtros y las vistas previas de diseno (?tema=,
+       ?modo=) no son paginas aparte para Google. Carrito, cuenta, checkout: noindex. #}
+    {% set _params = request.args.keys()|reject('equalto', 'pagina')|list %}
+    {% set _indexable = request.endpoint in ('home', 'public_disc', 'public_sobre', 'public_legal') and not _params %}
+    <meta name="robots" content="{% block robots %}{{ 'index, follow' if _indexable else 'noindex, follow' }}{% endblock %}">
+    <link rel="canonical" href="{% block canonical %}{{ request.base_url }}{% endblock %}">
 
     {# Open Graph / Twitter Card para que se vea bien al compartir #}
     <meta property="og:site_name" content="Arcano Record Store">
     <meta property="og:locale" content="es_UY">
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
-    <meta property="og:title" content="{% block og_title %}Arcano Record Store &middot; Vinilos de electronica{% endblock %}">
-    <meta property="og:description" content="{% block og_description %}{{ tagline or 'Vinilos de musica electronica con curaduria propia. Montevideo, Uruguay.' }}{% endblock %}">
-    <meta property="og:url" content="{{ request.url }}">
-    {% block og_image %}{% if banner_url %}<meta property="og:image" content="{{ request.url_root.rstrip('/') }}{{ banner_url }}">{% endif %}{% endblock %}
+    <meta property="og:title" content="{% block og_title %}Arcano Record Store &middot; Vinilos de m&uacute;sica electr&oacute;nica{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ tagline or 'Vinilos de m&uacute;sica electr&oacute;nica con curadur&iacute;a propia. Montevideo, Uruguay.' }}{% endblock %}">
+    <meta property="og:url" content="{{ self.canonical() }}">
+    {% set _og_img_def = (request.url_root.rstrip('/') ~ banner_url) if (banner_url and banner_url.startswith('/')) else (banner_url or url_for('static', filename='brand/favicon-512.png', _external=True)) %}
+    {% block og_image %}<meta property="og:image" content="{{ _og_img_def }}">{% endblock %}
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="{% block twitter_title %}Arcano Record Store{% endblock %}">
-    <meta name="twitter:description" content="{% block twitter_description %}{{ tagline or 'Vinilos de electronica en Montevideo.' }}{% endblock %}">
-    {% block twitter_image %}{% endblock %}
+    <meta name="twitter:description" content="{% block twitter_description %}{{ tagline or 'Vinilos de m&uacute;sica electr&oacute;nica en Montevideo.' }}{% endblock %}">
+    {% block twitter_image %}<meta name="twitter:image" content="{{ _og_img_def }}">{% endblock %}
     {% block structured_data %}{% endblock %}
     {% if analytics_snippet %}{{ analytics_snippet|safe }}{% endif %}
     {% if meta_pixel_id %}

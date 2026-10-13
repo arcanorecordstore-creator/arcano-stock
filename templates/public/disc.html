@@ -1,24 +1,33 @@
 {% extends "public/base.html" %}
 
-{% block title %}{{ disc.artista }} - {{ disc.titulo }} &middot; Arcano{% endblock %}
+{# Estado y precio REALES de la ficha (antes decia "Disponible" aunque estuviera
+   vendido, y mostraba el precio de lista aunque estuviera en oferta). #}
+{% set _precio_seo = (disc.precio_mostrar or disc.precio_uyu or 0) %}
+{% if disc.estado == 'Vendido' or (disc.esta_agotado and not disc.mostrar_preorder and disc.estado != 'Reservado') %}{% set _estado_seo = 'Agotado en Arcano Record Store' %}
+{% elif disc.estado == 'Reservado' %}{% set _estado_seo = 'Reservado en Arcano Record Store' %}
+{% elif disc.estado in ('Pre-order', 'Encargo') %}{% set _estado_seo = 'Pre-order en Arcano Record Store, Montevideo' %}
+{% else %}{% set _estado_seo = 'Disponible en Arcano Record Store, Montevideo' %}{% endif %}
+{% set _vende = disc.estado not in ('Vendido', 'Reservado') and not (disc.esta_agotado and not disc.mostrar_preorder) %}
 
-{% block meta_description %}{% if disc.resena_corta %}{{ disc.resena_corta }} · {% endif %}{{ disc.artista }} - {{ disc.titulo }}{% if disc.sello %} en {{ disc.sello }}{% endif %}. {% if disc.precio_uyu > 0 %}$ {{ '{:,.0f}'.format(disc.precio_uyu).replace(',', '.') }} UYU. {% endif %}Disponible en Arcano Record Store.{% endblock %}
+{% block title %}{% if disc.es_mystery_box %}Mystery Box de vinilos &middot; Arcano Record Store{% else %}{{ disc.artista }} - {{ disc.titulo }} &middot; Vinilo &middot; Arcano Record Store{% endif %}{% endblock %}
+
+{% block meta_description %}{% if disc.resena_corta %}{{ disc.resena_corta }} · {% endif %}{{ disc.artista }} - {{ disc.titulo }}{% if disc.sello %} ({{ disc.sello }}{% if disc.anio %}, {{ disc.anio }}{% endif %}){% endif %}. Vinilo{% if disc.genero %} de {{ disc.genero }}{% endif %}. {% if _vende and _precio_seo > 0 %}$ {{ '{:,.0f}'.format(_precio_seo).replace(',', '.') }} UYU. {% endif %}{{ _estado_seo }}.{% endblock %}
 
 {% block og_type %}product{% endblock %}
 {% block og_title %}{{ disc.artista }} - {{ disc.titulo }}{% endblock %}
-{% block og_description %}{% if disc.sello %}{{ disc.sello }}{% if disc.anio %} ({{ disc.anio }}){% endif %} &middot; {% endif %}{% if disc.precio_uyu > 0 %}$ {{ '{:,.0f}'.format(disc.precio_uyu).replace(',', '.') }} UYU &middot; {% endif %}Disponible en Arcano.{% endblock %}
+{% block og_description %}{% if disc.sello %}{{ disc.sello }}{% if disc.anio %} ({{ disc.anio }}){% endif %} &middot; {% endif %}{% if _vende and _precio_seo > 0 %}$ {{ '{:,.0f}'.format(_precio_seo).replace(',', '.') }} UYU &middot; {% endif %}{{ _estado_seo }}.{% endblock %}
 {% block og_image %}
 {% if disc.cover_local %}<meta property="og:image" content="{{ url_for('serve_cover', filename=disc.cover_local, _external=True) }}">
 {% elif disc.cover_url %}<meta property="og:image" content="{{ disc.cover_url }}">
-{% endif %}
+{% else %}{{ super() }}{% endif %}
 {% endblock %}
 
 {% block twitter_title %}{{ disc.artista }} - {{ disc.titulo }}{% endblock %}
-{% block twitter_description %}{% if disc.sello %}{{ disc.sello }} &middot; {% endif %}Disponible en Arcano Record Store.{% endblock %}
+{% block twitter_description %}{% if disc.sello %}{{ disc.sello }} &middot; {% endif %}{{ _estado_seo }}.{% endblock %}
 {% block twitter_image %}
 {% if disc.cover_local %}<meta name="twitter:image" content="{{ url_for('serve_cover', filename=disc.cover_local, _external=True) }}">
 {% elif disc.cover_url %}<meta name="twitter:image" content="{{ disc.cover_url }}">
-{% endif %}
+{% else %}{{ super() }}{% endif %}
 {% endblock %}
 
 {% block canonical %}{{ url_for('public_disc', disc_id=disc.id, _external=True) }}{% endblock %}
@@ -29,24 +38,44 @@
    los escapaba como HTML, rompiendo el dato estructurado. #}
 {% set _sellopart = '' %}
 {% if disc.sello %}{% set _sellopart = ' (' ~ disc.sello ~ (', ' ~ (disc.anio|string) if disc.anio else '') ~ ')' %}{% endif %}
-{% set _desc = disc.artista ~ ' - ' ~ disc.titulo ~ _sellopart ~ '. Vinilo disponible en Arcano Record Store, Montevideo.' %}
+{% set _desc = disc.artista ~ ' - ' ~ disc.titulo ~ _sellopart ~ '. Vinilo en Arcano Record Store, Montevideo.' %}
+{# Disponibilidad real: en venta / pre-order / reservado o vendido. Precio = el que se
+   cobra (oferta si la hay). Sin precio (ficha sin completar) no se publica la oferta. #}
+{% if disc.estado == 'Vendido' %}{% set _avail = 'https://schema.org/SoldOut' %}
+{% elif disc.estado in ('Pre-order', 'Encargo') and not disc.esta_agotado %}{% set _avail = 'https://schema.org/PreOrder' %}
+{% elif disc.estado == 'Disponible' and not disc.esta_agotado %}{% set _avail = 'https://schema.org/InStock' %}
+{% else %}{% set _avail = 'https://schema.org/OutOfStock' %}{% endif %}
+{% set _cond = (disc.condicion or '')|lower %}
+{% set _cond_url = 'https://schema.org/NewCondition' if (not _cond or 'nuevo' in _cond or 'new' in _cond or 'sellado' in _cond) else 'https://schema.org/UsedCondition' %}
 <script type="application/ld+json">
 {
     "@context": "https://schema.org/",
     "@type": "Product",
     "name": {{ (disc.artista ~ ' - ' ~ disc.titulo) | tojson }},
+    "sku": {{ ('ARC-' ~ disc.id) | tojson }},
     {% if disc.cover_local %}"image": {{ url_for('serve_cover', filename=disc.cover_local, _external=True) | tojson }},{% elif disc.cover_url %}"image": {{ disc.cover_url | tojson }},{% endif %}
     "description": {{ _desc | tojson }},
     {% if disc.sello %}"brand": { "@type": "Brand", "name": {{ disc.sello | tojson }} },{% endif %}
-    "category": {{ (disc.genero if disc.genero else 'Musica electronica') | tojson }},
+    "category": {{ (disc.genero if disc.genero else 'Música electrónica') | tojson }}{% if _precio_seo > 0 %},
     "offers": {
         "@type": "Offer",
         "url": {{ url_for('public_disc', disc_id=disc.id, _external=True) | tojson }},
         "priceCurrency": "UYU",
-        "price": "{{ disc.precio_uyu | int }}",
-        "availability": "{% if disc.stock > 0 and disc.estado == 'Disponible' %}https://schema.org/InStock{% else %}https://schema.org/OutOfStock{% endif %}",
+        "price": "{{ _precio_seo | int }}",
+        "availability": "{{ _avail }}",
+        "itemCondition": "{{ _cond_url }}",
         "seller": { "@type": "Organization", "name": "Arcano Record Store" }
-    }
+    }{% endif %}
+}
+</script>
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Catálogo", "item": {{ url_for('home', _external=True) | tojson }} },
+        { "@type": "ListItem", "position": 2, "name": {{ (disc.artista ~ ' - ' ~ disc.titulo) | tojson }}, "item": {{ url_for('public_disc', disc_id=disc.id, _external=True) | tojson }} }
+    ]
 }
 </script>
 {% endblock %}

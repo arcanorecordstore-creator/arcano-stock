@@ -1,6 +1,25 @@
 {% extends "public/base.html" %}
 
-{% block title %}Catálogo &middot; Arcano Record Store{% endblock %}
+{% block title %}Arcano Record Store &middot; Vinilos de m&uacute;sica electr&oacute;nica en Montevideo{% endblock %}
+{% block canonical %}{{ url_for('home', _external=True) }}{% if pagina and pagina > 1 %}?pagina={{ pagina }}{% endif %}{% endblock %}
+{% block structured_data %}
+{# Datos de la tienda para Google (nombre, logo, ciudad, Instagram). Sin direccion de
+   calle ni telefono: no se publican datos que no estan en la web. #}
+<script type="application/ld+json">
+{
+    "@context": "https://schema.org",
+    "@type": "OnlineStore",
+    "name": "Arcano Record Store",
+    "url": {{ url_for('home', _external=True) | tojson }},
+    "logo": {{ url_for('static', filename='brand/favicon-512.png', _external=True) | tojson }},
+    "description": "Tienda de vinilos de m\u00fasica electr\u00f3nica (house, techno, minimal) con curadur\u00eda propia.",
+    "address": { "@type": "PostalAddress", "addressLocality": "Montevideo", "addressCountry": "UY" },
+    "areaServed": "UY",
+    "currenciesAccepted": "UYU"{% if instagram %},
+    "sameAs": [ {{ ('https://instagram.com/' ~ instagram|replace('@', '')) | tojson }} ]{% endif %}
+}
+</script>
+{% endblock %}
 
 {% block content %}
 

@@ -161,6 +161,9 @@ class Disc(db.Model):
     # de la reserva), asi la caja y la contabilidad cuentan la plata que entro de
     # verdad y no el precio de lista. Null en ventas viejas -> cae a precio_mostrar.
     precio_venta_uyu = db.Column(db.Float, nullable=True, default=None)
+    # Direccion linda de la ficha (v6.05): arcanorecordstore.com/<slug>, armada con
+    # artista + titulo. Las copias del mismo disco comparten la direccion.
+    slug = db.Column(db.String(160), nullable=True, index=True)
     # Mostrar en el catalogo aunque este agotado/vendido (con sello "Agotado")
     mostrar_agotado = db.Column(db.Boolean, nullable=False, default=False)
     # Badge de recomendacion del curador (etiqueta editable en Ajustes, default "Tip").
@@ -1908,6 +1911,108 @@ def _disc_autofecha_venta(mapper, connection, target):
         target.fecha_venta = now_uy()
 
 
+# --------------------------------------------------------------------------
+# Direcciones lindas de los discos (v6.05): arcanorecordstore.com/artista-titulo
+# --------------------------------------------------------------------------
+# Primeros tramos de las rutas de la app (carrito, sobre, admin...): una ficha nunca
+# puede usar esas direcciones. Los completa create_app al registrar las rutas.
+SLUGS_RESERVADOS = {"admin", "static", "disco", "cuenta", "carrito", "checkout", "sobre",
+                    "legal", "favoritos", "reservar", "api", "mp", "sitemap.xml", "robots.txt"}
+
+
+class DiscSlugViejo(db.Model):
+    """Direcciones viejas de una ficha (si cambiaste el artista o el titulo): siguen
+    funcionando y llevan a la direccion nueva, asi no se rompen links ya compartidos
+    ni lo que Google ya tiene guardado."""
+    __tablename__ = "disc_slugs_viejos"
+    id = db.Column(db.Integer, primary_key=True)
+    slug = db.Column(db.String(160), nullable=False, index=True)
+    disc_id = db.Column(db.Integer, db.ForeignKey("discs.id", ondelete="CASCADE"), nullable=False)
+    fecha = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+
+def slugify(texto, largo=90):
+    """'DJ Gamba - Transform Your Consciousness' -> 'dj-gamba-transform-your-consciousness'.
+    Minusculas, sin tildes ni signos, guiones entre palabras."""
+    import unicodedata
+    t = unicodedata.normalize("NFKD", str(texto or ""))
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    t = t.replace("&", " and ").lower()
+    t = re.sub(r"[^a-z0-9]+", "-", t).strip("-")
+    if len(t) > largo:
+        t = t[:largo].rsplit("-", 1)[0] or t[:largo]
+    return t
+
+
+def _slug_base(artista, titulo):
+    s = slugify(f"{artista or ''} {titulo or ''}")
+    if s and (s in SLUGS_RESERVADOS or s.isdigit()):
+        s += "-vinilo"
+    return s
+
+
+def _slug_libre(connection, disc_id, base, sello):
+    """Direccion para este disco. Las copias del MISMO disco (mismo artista, titulo y
+    sello) comparten la direccion; un disco distinto que se llama igual suma el sello
+    (y si hiciera falta, un numero)."""
+    from sqlalchemy import text as _t
+    mio = sello_base(sello or "").strip().lower()
+    candidatos = [base]
+    _sl = slugify(sello_base(sello or ""))
+    if _sl:
+        candidatos.append(f"{base}-{_sl}")
+    candidatos += [f"{base}-{n}" for n in range(2, 60)]
+    for c in candidatos:
+        filas = connection.execute(_t("SELECT sello FROM discs WHERE slug = :s AND id != :i"),
+                                   {"s": c, "i": disc_id or -1}).fetchall()
+        if not filas or any(sello_base(f[0] or "").strip().lower() == mio for f in filas):
+            return c
+    return f"{base}-{disc_id or 'x'}"
+
+
+def asignar_slugs_faltantes(app):
+    """Al arrancar (idempotente): arma la direccion de los discos que no la tienen."""
+    from sqlalchemy import text as _t
+    with app.app_context():
+        with db.engine.begin() as conn:
+            filas = conn.execute(_t("SELECT id, artista, titulo, sello FROM discs "
+                                    "WHERE slug IS NULL ORDER BY id")).fetchall()
+            n = 0
+            for did, artista, titulo, sello in filas:
+                base = _slug_base(artista, titulo)
+                if not base:
+                    continue
+                conn.execute(_t("UPDATE discs SET slug = :s WHERE id = :i"),
+                             {"s": _slug_libre(conn, did, base, sello), "i": did})
+                n += 1
+            if n:
+                print(f"Migracion: {n} disco(s) con su direccion nueva (slug)")
+
+
+@_sa_event.listens_for(Disc, "before_insert")
+@_sa_event.listens_for(Disc, "before_update")
+def _disc_slug(mapper, connection, target):
+    """Arma (o actualiza) la direccion de la ficha cuando se crea el disco o cambia su
+    artista, titulo o sello. La direccion vieja queda guardada y redirige a la nueva."""
+    from sqlalchemy import inspect as _insp, text as _t
+    st = _insp(target)
+    cambio = (target.slug is None
+              or st.attrs.artista.history.has_changes()
+              or st.attrs.titulo.history.has_changes()
+              or st.attrs.sello.history.has_changes())
+    if not cambio:
+        return
+    base = _slug_base(target.artista, target.titulo)
+    if not base:
+        return
+    nuevo = _slug_libre(connection, target.id, base, target.sello)
+    viejo = st.attrs.slug.history.deleted[0] if st.attrs.slug.history.deleted else target.slug
+    if target.id and viejo and viejo != nuevo:
+        connection.execute(_t("INSERT INTO disc_slugs_viejos (slug, disc_id, fecha) "
+                              "VALUES (:s, :d, :f)"), {"s": viejo, "d": target.id, "f": datetime.utcnow()})
+    target.slug = nuevo
+
+
 def _migrate_schema(app):
     """Aplicar migraciones idempotentes a la DB existente.
     
@@ -2101,6 +2206,13 @@ def _migrate_schema(app):
                     "WHERE estado = 'Vendido' AND precio_venta_uyu IS NULL AND precio_uyu IS NOT NULL"))
                 if _rpv.rowcount:
                     print(f"Migracion: {_rpv.rowcount} venta(s) con su precio de venta fijado")
+            if "slug" not in cols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN slug VARCHAR(160)"))
+                    conn.commit()
+                print("Migracion: columna slug agregada a discs")
+            with db.engine.begin() as conn:
+                conn.execute(text("CREATE INDEX IF NOT EXISTS ix_discs_slug ON discs (slug)"))
             if "es_preorder" not in cols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN es_preorder BOOLEAN DEFAULT 0"))

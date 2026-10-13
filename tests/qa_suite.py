@@ -177,8 +177,12 @@ def test_publico(c):
         check("Home muestra discos", "Disco Disponible" in html, "no aparece el disco de prueba")
         check("Home NO muestra vendidos como disponibles",
               "public-card" in html, "no hay cards")
-    check_status(c, "GET", "/disco/%d" % SEED["disc_disponible"], 200, "Ficha de disco")
+    # v6.05: la ficha vive en /artista-titulo; /disco/<id> redirige (301) para siempre
+    check_status(c, "GET", "/disco/%d" % SEED["disc_disponible"], 301, "Direccion vieja de la ficha redirige")
+    check_status(c, "GET", "/disco/%d" % SEED["disc_disponible"], 200, "Ficha de disco",
+                 follow_redirects=True)
     check_status(c, "GET", "/disco/999999", 404, "Ficha inexistente da 404")
+    check_status(c, "GET", "/no-existe-este-disco", 404, "Direccion de ficha inexistente da 404")
     check_status(c, "GET", "/carrito", 200, "Carrito")
     check_status(c, "GET", "/favoritos", 200, "Favoritos")
     check_status(c, "GET", "/sobre", 200, "Sobre Arcano")

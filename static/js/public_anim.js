@@ -612,8 +612,8 @@ window.arcanoGA = function (name, params) {
                 items.forEach(function (item) {
                     var el = document.createElement('a');
                     el.className = 'search-suggestion';
-                    if (item.tipo === 'disco' && item.id) {
-                        el.href = '/disco/' + item.id;
+                    if (item.tipo === 'disco' && (item.url || item.id)) {
+                        el.href = item.url || ('/disco/' + item.id);
                     } else {
                         el.href = '/?q=' + encodeURIComponent(item.texto);
                     }
@@ -689,12 +689,15 @@ window.arcanoGA = function (name, params) {
         link.href = url;
         document.head.appendChild(link);
     }
+    // Links a fichas: las tarjetas del catalogo, los carruseles y las sugerencias.
+    // (Las fichas ya no viven en /disco/: su direccion es /artista-titulo.)
+    var SEL_FICHA = 'a.public-card[href], a.carrusel-cover-link, a.carrusel-info-link, a.search-suggestion[href^="/"]:not([href^="/?"])';
     document.addEventListener('mouseover', function (e) {
-        var a = e.target.closest('a[href^="/disco/"]');
+        var a = e.target.closest(SEL_FICHA);
         if (a) prefetch(a.getAttribute('href'));
     });
     document.addEventListener('touchstart', function (e) {
-        var a = e.target.closest('a[href^="/disco/"]');
+        var a = e.target.closest(SEL_FICHA);
         if (a) prefetch(a.getAttribute('href'));
     }, { passive: true });
 
