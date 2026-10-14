@@ -22,6 +22,18 @@
         }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); });
     }
 
+    var ESTADO_CLASES = {
+        'Disponible': 'badge-disponible', 'Pre-order': 'badge-preorder', 'Encargo': 'badge-encargo',
+        'Reservado': 'badge-reservado', 'Vendido': 'badge-vendido',
+        'Apartado para mi': 'badge-apartado', 'Descartado': 'badge-descartado'
+    };
+    function badgeEstado(e) {
+        var sp = document.createElement('span');
+        sp.className = 'badge ' + (ESTADO_CLASES[e] || 'badge-default');
+        sp.textContent = e;
+        return sp.outerHTML;
+    }
+
     function flashCell(td, ok) {
         td.classList.remove('cell-saved', 'cell-error');
         void td.offsetWidth; // reflow para reiniciar animacion
@@ -30,8 +42,10 @@
     }
 
     // ---- Precio y stock (input inline) ----
-    tabla.querySelectorAll('.col-editable[data-edit]').forEach(function (td) {
-        td.addEventListener('click', function () {
+    tabla.addEventListener('click', function (ev) {
+        var td = ev.target.closest('.col-editable[data-edit]');
+        if (!td || !tabla.contains(td)) return;
+        (function () {
             if (td.querySelector('input')) return; // ya en edicion
             var campo = td.dataset.edit;
             var discId = td.dataset.discId;
@@ -49,7 +63,7 @@
             if (!esEntero) input.min = '0';
             td.textContent = '';
             td.appendChild(input);
-            input.focus();
+            input.focus({ preventScroll: true });
             input.select();
 
             var terminado = false;
@@ -136,12 +150,15 @@
                 else if (e.key === 'Escape') { cerrar(false); }
             });
             input.addEventListener('blur', function () { cerrar(true); });
-        });
+        })();
     });
 
     // ---- Estado (select inline) ----
-    tabla.querySelectorAll('.col-editable-estado').forEach(function (td) {
-        td.addEventListener('click', function () {
+    tabla.addEventListener('click', function (ev) {
+        var td = ev.target.closest('.col-editable-estado');
+        if (!td || !tabla.contains(td)) return;
+        if (ev.target.closest('.sena-cell')) return;   // la sena tiene su propio manejo
+        (function () {
             if (td.querySelector('select')) return;
             var discId = td.dataset.discId;
             var actual = td.dataset.estado;
@@ -157,7 +174,7 @@
             });
             td.innerHTML = '';
             td.appendChild(select);
-            select.focus();
+            select.focus({ preventScroll: true });
 
             var terminado = false;
             function cerrar(guardar_) {
@@ -170,8 +187,12 @@
                 }
                 guardar(discId, 'estado', nuevo).then(function (res) {
                     if (res.ok && res.data.ok) {
-                        // recargar para reflejar badge con su color correcto y filtros
-                        window.location.reload();
+                        // Sin recargar: el cartel cambia ya y despues se trae la fila
+                        // actualizada (stock, fechas, sena, totales) sin moverte de lugar.
+                        td.dataset.estado = res.data.valor;
+                        td.innerHTML = badgeEstado(res.data.valor);
+                        flashCell(td, true);
+                        if (window.arcanoStock) window.arcanoStock.refrescar([discId]);
                     } else {
                         td.innerHTML = badgeOriginal;
                         flashCell(td, false);
@@ -191,7 +212,7 @@
             select.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') cerrar(false);
             });
-        });
+        })();
     });
 
     // ---- Audio (estado de digitalizacion: select inline con badge de color) ----
@@ -206,8 +227,10 @@
         if (!valor) return '<span class="audio-sindef">—</span>';
         return '<span class="badge ' + (AUDIO_CLASES[valor] || 'badge-default') + '">' + valor + '</span>';
     }
-    tabla.querySelectorAll('.col-editable-audio').forEach(function (td) {
-        td.addEventListener('click', function () {
+    tabla.addEventListener('click', function (ev) {
+        var td = ev.target.closest('.col-editable-audio');
+        if (!td || !tabla.contains(td)) return;
+        (function () {
             if (td.querySelector('select')) return;
             var discId = td.dataset.discId;
             var actual = td.dataset.audio || '';
@@ -223,7 +246,7 @@
             });
             td.innerHTML = '';
             td.appendChild(select);
-            select.focus();
+            select.focus({ preventScroll: true });
 
             var terminado = false;
             function cerrar(guardar_) {
@@ -255,12 +278,14 @@
             select.addEventListener('keydown', function (e) {
                 if (e.key === 'Escape') cerrar(false);
             });
-        });
+        })();
     });
 
     // ---- Origen (toggle Arcano / Personal) ----
-    tabla.querySelectorAll('.col-editable-origen').forEach(function (td) {
-        td.addEventListener('click', function () {
+    tabla.addEventListener('click', function (ev) {
+        var td = ev.target.closest('.col-editable-origen');
+        if (!td || !tabla.contains(td)) return;
+        (function () {
             var discId = td.dataset.discId;
             var actual = td.dataset.origen;
             var nuevo = (actual === 'personal') ? 'arcano' : 'personal';
@@ -285,12 +310,14 @@
                 td.innerHTML = original;
                 flashCell(td, false);
             });
-        });
+        })();
     });
 
     // ---- Campos de texto (artista, titulo, sello, genero) ----
-    tabla.querySelectorAll('.col-editable-text[data-edit]').forEach(function (el) {
-        el.addEventListener('click', function () {
+    tabla.addEventListener('click', function (ev) {
+        var el = ev.target.closest('.col-editable-text[data-edit]');
+        if (!el || !tabla.contains(el)) return;
+        (function () {
             if (el.querySelector('input')) return;
             var campo = el.dataset.edit;
             var discId = el.dataset.discId;
@@ -303,7 +330,7 @@
             input.value = actual;
             el.textContent = '';
             el.appendChild(input);
-            input.focus();
+            input.focus({ preventScroll: true });
             input.select();
 
             var terminado = false;
@@ -337,13 +364,15 @@
                 else if (e.key === 'Escape') { cerrar(false); }
             });
             input.addEventListener('blur', function () { cerrar(true); });
-        });
+        })();
     });
 
     // ---- Recalcular TC: actualiza el disco al TC global actual y recalcula el costo UYU ----
-    tabla.querySelectorAll('.tc-recalc-btn').forEach(function (btn) {
-        btn.addEventListener('click', function (e) {
-            e.stopPropagation();
+    tabla.addEventListener('click', function (ev) {
+        var btn = ev.target.closest('.tc-recalc-btn');
+        if (!btn || !tabla.contains(btn)) return;
+        (function () {
+            ev.stopPropagation();
             var discId = btn.dataset.discId;
             // Confirmar antes de cambiar el TC: un click sin querer cambiaba el costo de
             // un disco comprado hace tiempo (se rige por el TC de cuando lo compraste).
@@ -393,15 +422,17 @@
                 btn.classList.remove('spinning');
                 if (td) flashCell(td, false);
             });
-        });
+        })();
     });
 })();
 
 /* Marcado rapido para las secciones de la home (destacado / nuevos ingresos) */
 (function () {
     'use strict';
-    document.querySelectorAll('.mark-home').forEach(function (chk) {
-        chk.addEventListener('change', function () {
+    document.addEventListener('change', function (ev) {
+        var chk = ev.target.closest ? ev.target.closest('.mark-home') : null;
+        if (!chk) return;
+        (function () {
             var discId = chk.dataset.discId;
             var campo = chk.dataset.campo;
             var valor = chk.checked ? '1' : '0';
@@ -417,11 +448,13 @@
                     if (chip) chip.hidden = !chk.checked;
                 }
             }).catch(function () { chk.checked = !chk.checked; });
-        });
+        })();
     });
     // Select de cartel "Nuevo" (auto/si/no)
-    document.querySelectorAll('.cartel-nuevo-select').forEach(function (sel) {
-        sel.addEventListener('change', function () {
+    document.addEventListener('change', function (ev) {
+        var sel = ev.target.closest ? ev.target.closest('.cartel-nuevo-select') : null;
+        if (!sel) return;
+        (function () {
             var discId = sel.dataset.discId;
             fetch('/admin/discs/' + discId + '/quick-update', {
                 method: 'POST',
@@ -430,12 +463,14 @@
             }).then(function (r) { return r.json(); }).then(function (d) {
                 if (!d.ok) { /* revertir no critico */ }
             });
-        });
+        })();
     });
 
     // Selector de pedido en el dashboard
-    document.querySelectorAll('.pedido-select').forEach(function (sel) {
-        sel.addEventListener('change', function () {
+    document.addEventListener('change', function (ev) {
+        var sel = ev.target.closest ? ev.target.closest('.pedido-select') : null;
+        if (!sel) return;
+        (function () {
             var discId = sel.dataset.discId;
             var original = sel.dataset.original || '';
             fetch('/admin/discs/' + discId + '/quick-update', {
@@ -452,7 +487,7 @@
                     sel.value = original; // revertir si fallo
                 }
             }).catch(function () { sel.value = original; });
-        });
+        })();
     });
 
     // ---- Sena de reserva (chip en la celda de estado) ----
@@ -481,15 +516,14 @@
         }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, data: d }; }); });
     }
 
-    document.querySelectorAll('.sena-cell').forEach(function (cell) {
+    function senaCelda(cell) {
         var discId = cell.dataset.discId;
-        var chipHtml = null; // guarda el chip actual al abrir el resolver (para cancelar)
 
         function cobrar() {
             var inp = cell.querySelector('.sena-input');
             if (!inp) return;
             var val = ('' + inp.value).replace(/[^0-9.,]/g, '');
-            if (!val) { inp.focus(); return; }
+            if (!val) { inp.focus({ preventScroll: true }); return; }
             guardar(discId, 'sena_cobrar', val).then(function (res) {
                 if (res.ok && res.data && res.data.ok) {
                     cell.innerHTML = chipSena(res.data.sena_monto || val);
@@ -505,29 +539,205 @@
             });
         }
 
-        cell.addEventListener('click', function (e) {
-            e.stopPropagation(); // no abrir el editor de estado de esta celda
+        return { cobrar: cobrar, resolver: resolver };
+    }
+    // chipHtml: el chip actual al abrir el resolver (para cancelar), guardado en la celda
+    document.addEventListener('click', function (e) {
+        var cell = e.target.closest ? e.target.closest('.sena-cell') : null;
+        if (!cell) return;
+        var acc = senaCelda(cell);
+        (function () {
             var t = e.target;
             if (t.closest('.sena-add')) {
                 cell.innerHTML = SENA_INPUT;
                 var inp = cell.querySelector('.sena-input');
-                if (inp) inp.focus();
+                if (inp) inp.focus({ preventScroll: true });
             } else if (t.closest('.sena-ok')) {
-                cobrar();
+                acc.cobrar();
             } else if (t.closest('.sena-chip')) {
-                chipHtml = t.closest('.sena-chip').outerHTML;
+                cell._chipHtml = t.closest('.sena-chip').outerHTML;
                 cell.innerHTML = SENA_RESOLVE;
             } else if (t.closest('.sena-res')) {
-                resolver(t.closest('.sena-res').dataset.res);
+                acc.resolver(t.closest('.sena-res').dataset.res);
             } else if (t.closest('.sena-cancel')) {
-                cell.innerHTML = chipHtml || SENA_ADD;
-                chipHtml = null;
+                cell.innerHTML = cell._chipHtml || SENA_ADD;
+                cell._chipHtml = null;
             }
-        });
-        cell.addEventListener('keydown', function (e) {
-            if (!e.target.classList || !e.target.classList.contains('sena-input')) return;
-            if (e.key === 'Enter') { e.preventDefault(); cobrar(); }
-            else if (e.key === 'Escape') { cell.innerHTML = SENA_ADD; }
-        });
+        })();
     });
+    document.addEventListener('keydown', function (e) {
+        if (!e.target.classList || !e.target.classList.contains('sena-input')) return;
+        var cell = e.target.closest('.sena-cell');
+        if (!cell) return;
+        if (e.key === 'Enter') { e.preventDefault(); senaCelda(cell).cobrar(); }
+        else if (e.key === 'Escape') { cell.innerHTML = SENA_ADD; }
+    });
+})();
+
+/* Stock sin recargar (v6.07): despues de un cambio se trae la pagina en segundo
+   plano y se actualizan SOLO las filas tocadas y los totales. La ventana queda donde
+   estaba (sin saltar arriba ni perder filtros). Tambien la edicion masiva y Eliminar. */
+(function () {
+    'use strict';
+    var tabla = document.querySelector('.stock-table');
+    if (!tabla) return;
+
+    function traerPagina() {
+        return fetch(window.location.href, {
+            credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (r) { return r.text(); })
+          .then(function (t) { return new DOMParser().parseFromString(t, 'text/html'); });
+    }
+
+    // Copia el contenido de la fila nueva celda por celda. La celda del tilde de
+    // seleccion se deja como esta (para no perder lo que tenias seleccionado).
+    function copiarFila(vieja, nueva) {
+        var cv = vieja.children, cn = nueva.children;
+        if (cv.length !== cn.length) return;
+        vieja.className = nueva.className;
+        for (var i = 0; i < cv.length; i++) {
+            var a = cv[i], b = cn[i];
+            if (a.querySelector('.row-check')) continue;
+            if (a.querySelector('input:focus, select:focus')) continue;   // estas editando ahi
+            if (a.innerHTML !== b.innerHTML) a.innerHTML = b.innerHTML;
+            a.className = b.className;
+            Array.prototype.forEach.call(b.attributes, function (at) {
+                if (at.name.indexOf('data-') === 0 || at.name === 'title') a.setAttribute(at.name, at.value);
+            });
+        }
+    }
+
+    function copiar(sel, doc) {
+        var a = document.querySelector(sel), b = doc.querySelector(sel);
+        if (a && b && a.innerHTML !== b.innerHTML) a.innerHTML = b.innerHTML;
+    }
+
+    function refrescar(ids) {
+        return traerPagina().then(function (doc) {
+            (ids || []).forEach(function (id) {
+                var vieja = tabla.querySelector('tbody tr[data-disc-id="' + id + '"]');
+                var nueva = doc.querySelector('.stock-table tbody tr[data-disc-id="' + id + '"]');
+                if (vieja && nueva) copiarFila(vieja, nueva);
+            });
+            copiar('.stock-table tfoot', doc);
+            copiar('.dash-kpis-top', doc);
+            copiar('.summary-cards', doc);
+        }).catch(function () { /* si falla, la fila ya muestra el cambio basico */ });
+    }
+
+    function aviso(texto, tipo) {
+        var stack = document.querySelector('.flash-stack');
+        if (!stack) {
+            stack = document.createElement('div');
+            stack.className = 'flash-stack';
+            var main = document.querySelector('.app-main');
+            if (main && main.parentNode) main.parentNode.insertBefore(stack, main);
+            else document.body.insertBefore(stack, document.body.firstChild);
+        }
+        var f = document.createElement('div');
+        f.className = 'flash flash-' + (tipo || 'success');
+        var sp = document.createElement('span');
+        sp.textContent = texto;
+        f.appendChild(sp);
+        stack.appendChild(f);
+        if (tipo !== 'error' && tipo !== 'warning') {
+            setTimeout(function () {
+                f.classList.add('flash-fade');
+                setTimeout(function () { if (f.parentNode) f.parentNode.removeChild(f); }, 420);
+            }, 3800);
+        }
+    }
+
+    // Avisos que dejo el servidor en la respuesta (ya renderizados en su HTML)
+    function avisosDe(html) {
+        var doc = new DOMParser().parseFromString(html, 'text/html');
+        doc.querySelectorAll('.flash-stack .flash').forEach(function (f) {
+            var m = (f.className.match(/flash-(\w+)/g) || []).filter(function (c) { return c !== 'flash-stack'; });
+            var tipo = m.length ? m[m.length - 1].replace('flash-', '') : 'success';
+            aviso((f.textContent || '').trim(), tipo);
+        });
+    }
+
+    function enviar(form) {
+        // getAttribute: el form tiene un campo oculto llamado "action" que tapa form.action
+        return fetch(form.getAttribute('action'), {
+            method: 'POST', credentials: 'same-origin', body: new FormData(form),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function (r) {
+            return r.text().then(function (t) { if (!r.ok) throw new Error('status ' + r.status); return t; });
+        });
+    }
+
+    function idsDe(form) {
+        return Array.prototype.map.call(form.querySelectorAll('input[name="ids[]"]'), function (i) { return i.value; });
+    }
+
+    function limpiarSeleccion() {
+        var b = document.getElementById('bulk-clear');
+        if (b) b.click();
+    }
+
+    function sacarFilas(ids) {
+        ids.forEach(function (id) {
+            var tr = tabla.querySelector('tbody tr[data-disc-id="' + id + '"]');
+            if (!tr) return;
+            var cb = tr.querySelector('.row-check');
+            if (cb) cb.checked = false;
+            tr.parentNode.removeChild(tr);
+        });
+    }
+
+    // Se engancha despues de app.js (que arma los campos ocultos y pide confirmacion):
+    // si cancelaste, defaultPrevented ya viene en true y no se hace nada.
+    document.addEventListener('DOMContentLoaded', function () {
+        var fieldForm = document.getElementById('bulk-field-form');
+        if (fieldForm) {
+            fieldForm.addEventListener('submit', function (e) {
+                if (e.defaultPrevented) return;
+                e.preventDefault();
+                var ids = idsDe(fieldForm);
+                var btn = document.getElementById('bulk-apply-btn');
+                if (btn) btn.disabled = true;
+                enviar(fieldForm).then(function (html) {
+                    avisosDe(html);
+                    limpiarSeleccion();
+                    return refrescar(ids);
+                }).catch(function () {
+                    aviso('No se pudo aplicar el cambio. Proba de nuevo.', 'error');
+                }).then(function () { if (btn) btn.disabled = false; });
+            });
+        }
+        var delForm = document.getElementById('bulk-delete-form');
+        if (delForm) {
+            delForm.addEventListener('submit', function (e) {
+                if (e.defaultPrevented) return;
+                e.preventDefault();
+                var ids = idsDe(delForm);
+                enviar(delForm).then(function (html) {
+                    avisosDe(html);
+                    sacarFilas(ids);
+                    limpiarSeleccion();
+                    return refrescar([]);
+                }).catch(function () { aviso('No se pudo eliminar. Proba de nuevo.', 'error'); });
+            });
+        }
+    });
+
+    // "Eliminar" del menu de acciones de cada disco: sin recargar
+    document.addEventListener('submit', function (e) {
+        var form = e.target;
+        if (e.defaultPrevented || !form.closest || !form.closest('#row-drawer')) return;
+        var m = (form.getAttribute('action') || '').match(/\/admin\/discs\/(\d+)\/delete/);
+        if (!m) return;   // Duplicar sigue llevandote a editar la copia
+        e.preventDefault();
+        enviar(form).then(function (html) {
+            avisosDe(html);
+            sacarFilas([m[1]]);
+            var ov = document.getElementById('row-drawer-overlay');
+            if (ov) ov.click();
+            return refrescar([]);
+        }).catch(function () { aviso('No se pudo eliminar. Proba de nuevo.', 'error'); });
+    });
+
+    window.arcanoStock = { refrescar: refrescar, aviso: aviso };
 })();
