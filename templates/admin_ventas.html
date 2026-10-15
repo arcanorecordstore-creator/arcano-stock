@@ -130,7 +130,7 @@
 
 <div class="pv-card">
     <div class="pv-card-head">
-        <h2 class="pv-card-title">Facturado por d&iacute;a</h2>
+        <h2 class="pv-card-title">Facturado por {{ {'dia': 'd&iacute;a', 'semana': 'semana', 'mes': 'mes'}[trend_unidad or 'dia']|safe }}</h2>
         <div class="pv-tops">
             {% if top_sello %}<span>Top sello: <strong>{{ top_sello.nombre }}</strong> ($ {{ fmt(top_sello.monto) }})</span>{% endif %}
             {% if top_artista %}<span>Top artista: <strong>{{ top_artista.nombre }}</strong></span>{% endif %}
@@ -138,7 +138,7 @@
     </div>
     <div class="pv-trend">
         {% for t in trend %}
-        <span class="pv-col" data-label="{{ t.label }}" data-monto="$ {{ fmt(t.monto) }}">
+        <span class="pv-col" data-label="{{ t.titulo or t.label }}" data-monto="$ {{ fmt(t.monto) }}">
             <span class="pv-bar" style="height: {{ (t.monto / trend_max * 100)|round(1) }}%"></span>
         </span>
         {% endfor %}

@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.08"
+APP_VERSION = "6.09"
 import metrics
 import auth
 import mailer
@@ -4153,16 +4153,59 @@ def register_routes(app: Flask) -> None:
         por_canal = _agrupar(canal_de, _CANALES_VENTA)
         por_metodo = _agrupar(metodo_de, _METODOS_VENTA)
 
-        # Tendencia: facturado por dia (ultimos N dias del periodo, sin dibujar futuro).
-        ndias = max(7, min(dur.days, 30))
-        base_fin = min(fin_dt.date(), today_uy() + _td(days=1))
-        dias = [base_fin - _td(days=i + 1) for i in range(ndias)][::-1]
-        tmap = {dd: 0.0 for dd in dias}
+        # Tendencia: facturado del PERIODO ELEGIDO (antes eran siempre los ultimos 30
+        # dias, aunque eligieras "Todo" o "Este ano"). Segun el largo del periodo las
+        # barras son por dia (hasta 45 dias), por semana (hasta ~6 meses) o por mes.
+        # Misma cuenta que el KPI "Facturado": la suma de las barras da ese numero.
+        _MESES_C = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+        _MESES_L = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+                    "setiembre", "octubre", "noviembre", "diciembre"]
+        t_ini = inicio_dt.date()
+        t_fin = min(fin_dt.date(), today_uy() + _td(days=1))      # sin dibujar el futuro
+        _fechas_v = [d.fecha_venta.date() for d in base if d.fecha_venta]
+        if periodo == "todo" or (t_fin - t_ini).days > 1500:
+            # "Todo" arranca en un tope tecnico (ano 2000): empezar en la primera venta
+            t_ini = min(_fechas_v) if _fechas_v else max(t_ini, t_fin - _td(days=30))
+        if t_fin <= t_ini:
+            t_fin = t_ini + _td(days=1)
+        _span = (t_fin - t_ini).days
+        if _span <= 45:
+            trend_unidad = "dia"
+            _cubos = [t_ini + _td(days=i) for i in range(_span)]
+            _clave = lambda f: f
+            _etq = lambda c: (c.strftime("%d/%m"), c.strftime("%d/%m/%Y"))
+        elif _span <= 190:
+            trend_unidad = "semana"
+            _lunes0 = t_ini - _td(days=t_ini.weekday())
+            _cubos = []
+            _c = _lunes0
+            while _c < t_fin:
+                _cubos.append(_c)
+                _c += _td(days=7)
+            _clave = lambda f: f - _td(days=f.weekday())
+            _etq = lambda c: (c.strftime("%d/%m"), "semana del " + c.strftime("%d/%m/%Y"))
+        else:
+            trend_unidad = "mes"
+            _cubos = []
+            _y, _m = t_ini.year, t_ini.month
+            while (_y, _m) < (t_fin.year, t_fin.month) or (
+                    (_y, _m) == (t_fin.year, t_fin.month) and t_fin.day > 1):
+                _cubos.append(t_ini.replace(year=_y, month=_m, day=1))
+                _m += 1
+                if _m > 12:
+                    _m, _y = 1, _y + 1
+            _clave = lambda f: f.replace(day=1)
+            _etq = lambda c: (_MESES_C[c.month - 1] + " " + c.strftime("%y"),
+                              _MESES_L[c.month - 1] + " " + str(c.year))
+        tmap = {c: 0.0 for c in _cubos}
         for d in base:
             fv = d.fecha_venta.date() if d.fecha_venta else None
-            if fv in tmap:
-                tmap[fv] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
-        trend = [{"label": dd.strftime("%d/%m"), "monto": round(tmap[dd])} for dd in dias]
+            if fv is None:
+                continue
+            k = _clave(fv)
+            if k in tmap:
+                tmap[k] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+        trend = [{"label": _etq(c)[0], "titulo": _etq(c)[1], "monto": round(tmap[c])} for c in _cubos]
         trend_max = max((t["monto"] for t in trend), default=0) or 1
 
         def _top(attr):
@@ -4240,6 +4283,7 @@ def register_routes(app: Flask) -> None:
             grupos=grupos,
             metodo_por_disc=metodo_res, disc_ids_web=web_ids,
             cliente_por_disc=cliente_res, dias_venta=dias_venta,
+            trend_unidad=trend_unidad,
             canales=_CANALES_VENTA, metodos=_METODOS_VENTA,
             filtros={"canal": f_canal, "metodo": f_metodo, "q": f_q},
             hoy=today_uy(),
