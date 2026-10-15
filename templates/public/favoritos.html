@@ -24,6 +24,7 @@
     {% if whatsapp %}
     <a href="#" id="fav-whatsapp" target="_blank" rel="noopener" class="btn btn-primary">Consultar por todos por WhatsApp</a>
     {% endif %}
+    <button type="button" id="fav-all-cart" class="btn btn-primary" hidden>Agregar todos al carrito</button>
     <button type="button" id="fav-clear" class="btn btn-ghost">Vaciar favoritos</button>
 </div>
 
@@ -40,6 +41,10 @@
     var clearBtn = document.getElementById('fav-clear');
     var waBtn = document.getElementById('fav-whatsapp');
     var waNumber = {{ whatsapp|tojson if whatsapp else '""'|safe }};
+    var allCartBtn = document.getElementById('fav-all-cart');
+    var logueado = document.body.getAttribute('data-logged-in') === '1';
+    // Se puede pasar al carrito: disponible, con precio, y si esta en Fire Sale, con cuenta
+    function comprable(d) { return d.disponible && d.precio_uyu > 0 && !(d.en_fire_sale && !logueado); }
 
     function getFavs() {
         try { return JSON.parse(localStorage.getItem(KEY) || '[]'); }
@@ -92,6 +97,13 @@
                             '<div class="public-card-title">' + escapeHtml(d.titulo) + '</div>' +
                             (d.sello ? '<div class="public-card-label">' + escapeHtml(d.sello) + '</div>' : '') +
                             '<div class="public-card-price">' + precio + '</div>' +
+                            (comprable(d)
+                                ? '<button type="button" class="cart-btn cart-btn-inline" data-cart-id="' + d.id + '" title="Agregar al carrito">' +
+                                      '<span class="cart-label-add">Agregar al carrito</span>' +
+                                      '<span class="cart-label-in">&#10003; Agregado</span></button>'
+                                : (d.disponible && d.precio_uyu > 0 && d.en_fire_sale
+                                    ? '<span class="cart-btn cart-btn-inline cart-btn-locked" title="Los discos en Fire Sale son para clientes con cuenta">&#128274; Inici&aacute; sesi&oacute;n para comprar</span>'
+                                    : '')) +
                         '</div>' +
                     '</a>' +
                     '<button type="button" class="fav-btn fav-btn-card is-fav" data-fav-id="' + d.id + '" title="Quitar de favoritos">' +
@@ -99,6 +111,48 @@
                     '</button>';
                 grid.appendChild(card);
             });
+            // Las tapas arrancan invisibles hasta que el script de la tienda las marca
+            // como cargadas; estas tarjetas se dibujan despues de que ese script corrio,
+            // asi que se lo vuelve a correr (si no, quedaba el vinilo de relleno).
+            if (window.Arcano && window.Arcano.runContent) window.Arcano.runContent();
+            // Botones "Agregar al carrito" de cada disco (mismo funcionamiento que el catalogo)
+            if (window.ArcanoCart && window.ArcanoCart.rebind) window.ArcanoCart.rebind();
+
+            // "Agregar todos al carrito": los que se pueden comprar y todavia no estan
+            var comprables = discos.filter(comprable);
+            function pintarTodos() {
+                if (!allCartBtn) return;
+                var faltan = comprables.filter(function (d) {
+                    return !(window.ArcanoCart && window.ArcanoCart.has(d.id));
+                });
+                allCartBtn.hidden = comprables.length === 0;
+                allCartBtn.disabled = faltan.length === 0;
+                allCartBtn.textContent = faltan.length === 0 ? '✓ Todos en el carrito'
+                    : (faltan.length === comprables.length ? 'Agregar todos al carrito'
+                       : 'Agregar ' + faltan.length + ' al carrito');
+            }
+            pintarTodos();
+            if (allCartBtn) {
+                allCartBtn.addEventListener('click', function () {
+                    var nuevos = comprables.filter(function (d) { return !window.ArcanoCart.has(d.id); });
+                    nuevos.forEach(function (d) { window.ArcanoCart.add(d.id); });
+                    if (window.ArcanoCart.rebind) window.ArcanoCart.rebind();
+                    pintarTodos();
+                    if (!nuevos.length) return;
+                    if (window.arcanoGA) window.arcanoGA('add_to_cart', { currency: 'UYU', items: nuevos.map(function (d) {
+                        return { item_id: String(d.id), item_name: d.artista + ' - ' + d.titulo };
+                    }) });
+                    var txt = nuevos.length === 1 ? (nuevos[0].artista + ' - ' + nuevos[0].titulo)
+                        : (nuevos.length + ' discos');
+                    if (window.ArcanoCartDrawer) window.ArcanoCartDrawer.open(txt);
+                    else if (window.arcanoToast) window.arcanoToast('✓ Agregados al carrito');
+                });
+                // Si agregas o sacas uno suelto desde su tarjeta, el boton general se actualiza
+                // (en captura: el boton del carrito corta la propagacion del clic)
+                grid.addEventListener('click', function (e) {
+                    if (e.target.closest('.cart-btn')) setTimeout(pintarTodos, 0);
+                }, true);
+            }
 
             // Boton WhatsApp con lista
             if (waBtn && waNumber) {
