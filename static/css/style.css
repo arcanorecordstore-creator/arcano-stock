@@ -8956,6 +8956,11 @@ td.num,
     gap: 8px;
 }
 .ped-numero { font-size: 18px; font-weight: 700; margin-right: 10px; }
+/* Separar un disco de la reserva (detalle de la reserva) */
+.reserva-separar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.reserva-separar-label { font-size: 12px; color: var(--text-4); }
+.reserva-separar select { font: inherit; font-size: 12px; padding: 3px 8px; border-radius: 8px;
+    border: 1px solid var(--border-2); background: var(--bg-1); color: var(--text-1); max-width: 100%; }
 /* Seguimiento del paquete en la tarjeta del pedido */
 .ped-card { scroll-margin-top: 96px; }   /* al volver de guardar, que el menu fijo no tape el pedido */
 .ped-seguimiento { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 10px 0 14px; }

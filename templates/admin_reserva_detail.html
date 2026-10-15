@@ -285,6 +285,23 @@ Montevideo, Uruguay</div>
                         </form>
                         {% endif %}
                     {% endif %}
+                    {# Separar este disco a otra reserva (ej: uno ya llego y el otro sigue encargado) #}
+                    {% if item.id and item.disc_id and reserva.estado != 'Cancelada' and (reserva.items|selectattr('disc_id')|list|length) >= 2 %}
+                    <form method="post" class="reserva-separar"
+                          onsubmit="return confirm('¿Separar {{ (item.artista_snap or '')|replace("'", "")|e }} - {{ (item.titulo_snap or '')|replace("'", "")|e }} de esta reserva? El disco queda como está; lo demás sigue en la #{{ reserva.id }}.');">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="accion" value="separar_item">
+                        <input type="hidden" name="item_id" value="{{ item.id }}">
+                        <span class="reserva-separar-label">Separar a</span>
+                        <select name="destino" title="A dónde va este disco">
+                            <option value="nueva">una reserva nueva</option>
+                            {% for r2 in destinos_separar %}
+                            <option value="{{ r2.id }}">la reserva #{{ r2.id }} ({{ r2.cantidad_discos }} disco{{ 's' if r2.cantidad_discos != 1 else '' }})</option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-ghost btn-xs">Separar</button>
+                    </form>
+                    {% endif %}
                 </div>
             </div>
             {% endif %}

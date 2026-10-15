@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.07"
+APP_VERSION = "6.08"
 import metrics
 import auth
 import mailer
@@ -9684,6 +9684,72 @@ def register_routes(app: Flask) -> None:
                     db.session.commit()
                     flash(f"Asignaste {n} disco(s) a la reserva: quedaron Vendidos y se descont&oacute; el stock.", "success")
 
+            elif accion == "separar_item":
+                # Separar UN disco de la reserva: pasa a una reserva nueva (mismos datos del
+                # cliente y mismo estado) o a otra reserva del mismo cliente en el mismo
+                # estado. El disco sigue como esta (Reservado / Encargo / Vendido) pero
+                # ahora "pertenece" a la otra reserva: cancelarla o borrarla lo libera, y
+                # cancelar esta ya no lo toca. La sena del disco viaja con el disco.
+                from models import ReservaItem, StatusHistory
+                try:
+                    _item_id = int(request.form.get("item_id") or 0)
+                except ValueError:
+                    _item_id = 0
+                item = ReservaItem.query.filter_by(id=_item_id, reserva_id=reserva.id).first()
+                _n_items = ReservaItem.query.filter_by(reserva_id=reserva.id).count()
+                destino_raw = (request.form.get("destino") or "nueva").strip()
+                dest = None
+                if item is None or not item.disc_id or getattr(item, "es_mystery_box", False):
+                    flash("Ese disco no se puede separar.", "error")
+                elif _n_items < 2:
+                    flash("La reserva tiene un solo disco: no hay nada para separar.", "warning")
+                elif reserva.estado == "Cancelada":
+                    flash("La reserva esta cancelada: no hace falta separar nada.", "warning")
+                else:
+                    if destino_raw == "nueva":
+                        dest = Reserva(
+                            nombre=reserva.nombre, whatsapp=reserva.whatsapp or "",
+                            email=reserva.email, cliente_id=reserva.cliente_id,
+                            estado=reserva.estado, pagado=bool(reserva.pagado),
+                            metodo_pago=reserva.metodo_pago, canal=reserva.canal or "web",
+                            nota=f"Separada de la reserva #{reserva.id}", fecha_es_utc=True,
+                        )
+                        db.session.add(dest)
+                        db.session.flush()
+                    else:
+                        try:
+                            dest = Reserva.query.get(int(destino_raw))
+                        except ValueError:
+                            dest = None
+                        if (dest is None or dest.id == reserva.id or dest.estado != reserva.estado
+                                or dest.estado == "Cancelada"):
+                            flash("Esa reserva no sirve de destino (tiene que estar en el mismo "
+                                  "estado que esta).", "error")
+                            dest = None
+                if dest is not None:
+                    d = item.disco
+                    _era_suyo = bool(d) and _disco_es_de_reserva(d, reserva)
+                    item.reserva = dest   # por la relacion (si no, el 'borrar huerfanos' lo perdia)
+                    if d is not None and _era_suyo:
+                        _viejo = f"r{reserva.id}"
+                        if d.venta_grupo == _viejo or (d.estado == "Vendido" and not d.venta_grupo):
+                            d.venta_grupo = f"r{dest.id}"
+                        if d.estado == "Reservado":
+                            db.session.add(StatusHistory(
+                                disc_id=d.id, estado="Reservado",
+                                nota=f"Reserva #{dest.id} - separada de la reserva #{reserva.id}"))
+                    # Reservas viejas de un solo disco guardan el disco tambien en la reserva
+                    if d is not None and reserva.disc_id == d.id:
+                        _otro = (ReservaItem.query.filter(ReservaItem.reserva_id == reserva.id,
+                                                          ReservaItem.id != item.id,
+                                                          ReservaItem.disc_id.isnot(None)).first())
+                        reserva.disc_id = _otro.disc_id if _otro else None
+                    db.session.commit()
+                    flash(f"Separaste {item.artista_snap or ''} - {item.titulo_snap or ''}: ahora esta "
+                          f"en la reserva #{dest.id}. El resto sigue en la #{reserva.id}.", "success")
+                    return redirect(url_for("admin_reserva_detail", reserva_id=dest.id))
+                return redirect(url_for("admin_reserva_detail", reserva_id=reserva.id))
+
             elif accion == "delete":
                 # Revertir los discos de la reserva: los Reservados Y los Vendidos vuelven
                 # a Disponible y se les limpian los datos de venta. Sin esto, borrar una
@@ -9759,11 +9825,25 @@ def register_routes(app: Flask) -> None:
                 .order_by(Disc.artista.asc(), Disc.titulo.asc())
                 .all()
             )
+        # Reservas del mismo cliente en el mismo estado: destino posible al separar un disco
+        destinos_separar = []
+        if reserva.estado != "Cancelada":
+            _conds = []
+            if reserva.cliente_id:
+                _conds.append(Reserva.cliente_id == reserva.cliente_id)
+            if (reserva.whatsapp or "").strip():
+                _conds.append(Reserva.whatsapp == reserva.whatsapp)
+            if _conds:
+                destinos_separar = (Reserva.query
+                                    .filter(Reserva.id != reserva.id, Reserva.estado == reserva.estado)
+                                    .filter(or_(*_conds))
+                                    .order_by(Reserva.id.desc()).limit(20).all())
         return render_template(
             "admin_reserva_detail.html",
             reserva=reserva,
             estados=ESTADOS_RESERVA,
             conflictos=conflictos,
+            destinos_separar=destinos_separar,
             tc=Setting.get_tc(),
             texto_mail_default=mailer.texto_estado_default(reserva.estado),
             mail_subject=mail_subject,
