@@ -1811,6 +1811,45 @@ FORMATOS_IDEA = ["Reel", "Historia", "Posteo", "Carrusel", "Unboxing", "Otro"]
 ESTADOS_IDEA = ["Idea", "En producción", "Publicada"]
 
 
+class Nota(db.Model):
+    """Nota libre de Estrategia (v6.14): cuentas, ideas sueltas, lo que se te ocurra.
+    Tabla nueva (create_all), no toca nada mas. Se guarda sola mientras escribis."""
+    __tablename__ = "notas"
+
+    id = db.Column(db.Integer, primary_key=True)
+    titulo = db.Column(db.String(200), nullable=True)
+    texto = db.Column(db.Text, nullable=True)
+    fijada = db.Column(db.Boolean, nullable=False, default=False)
+    creada = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+    actualizada = db.Column(db.DateTime, nullable=False, default=datetime.utcnow)
+
+    @property
+    def titulo_mostrar(self) -> str:
+        """El titulo, o la primera linea del texto si no le pusiste titulo."""
+        if (self.titulo or "").strip():
+            return self.titulo.strip()
+        for ln in (self.texto or "").splitlines():
+            if ln.strip():
+                return ln.strip().lstrip("#-*• ").strip()[:120]
+        return "Nota sin título"
+
+    @property
+    def vista_previa(self) -> str:
+        """Unas palabras del texto (sin la linea que ya se usa como titulo)."""
+        lineas = [ln.strip() for ln in (self.texto or "").splitlines() if ln.strip()]
+        if not (self.titulo or "").strip() and lineas:
+            lineas = lineas[1:]
+        return " · ".join(lineas)[:160]
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id, "titulo": self.titulo or "", "texto": self.texto or "",
+            "fijada": bool(self.fijada), "titulo_mostrar": self.titulo_mostrar,
+            "vista_previa": self.vista_previa,
+            "actualizada": self.actualizada.isoformat() if self.actualizada else None,
+        }
+
+
 class IdeaContenido(db.Model):
     """Idea para crear contenido (redes). Tabla nueva (create_all), no toca nada mas."""
     __tablename__ = "ideas_contenido"

@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.13"
+APP_VERSION = "6.14"
 import metrics
 import auth
 import mailer
@@ -10606,7 +10606,16 @@ def register_routes(app: Flask) -> None:
     def tareas_page():
         from models import Tarea, CATEGORIAS_TAREA, PRIORIDADES_TAREA, ESTADOS_TAREA
         hoy = today_uy()
-        vista = request.args.get("vista") if request.args.get("vista") in ("ideas", "constancia") else "tareas"
+        vista = (request.args.get("vista") if request.args.get("vista") in ("ideas", "constancia", "notas")
+                 else "tareas")
+        if vista == "notas":
+            from models import Nota
+            notas = (Nota.query.order_by(Nota.fijada.desc(), Nota.actualizada.desc(), Nota.id.desc()).all())
+            n_abiertas = Tarea.query.filter(Tarea.estado != "Hecha").count()
+            return render_template("tareas.html", vista=vista, n_abiertas=n_abiertas,
+                                   n_ideas_pend=_n_ideas_pend(), n_constancia=_n_constancia(),
+                                   notas=notas, n_notas=len(notas),
+                                   abrir_nota=request.args.get("abrir", type=int))
         if vista == "ideas":
             n_abiertas = Tarea.query.filter(Tarea.estado != "Hecha").count()
             return render_template("tareas.html", vista=vista, n_abiertas=n_abiertas,
@@ -10652,6 +10661,54 @@ def register_routes(app: Flask) -> None:
             cats_usadas=cats_usadas, prioridades=PRIORIDADES_TAREA, estados_tarea=ESTADOS_TAREA,
             dias_txt=_tk_dias_txt, dias_partes=_tk_dias_partes, resumen=resumen, tag_rgb=_tk_tag_rgb,
         )
+
+    # ------------------------------------------------------------------
+    # Estrategia -> Notas (v6.14): notas libres que se guardan solas
+    # ------------------------------------------------------------------
+    @app.route("/admin/notas/nueva", methods=["POST"])
+    @auth.admin_required
+    def nota_nueva():
+        from models import Nota
+        data = request.get_json(silent=True) or {}
+        n = Nota(titulo=(str(data.get("titulo") or "").strip()[:200] or None),
+                 texto=(str(data.get("texto") or "")[:200000] or None),
+                 creada=datetime.utcnow(), actualizada=datetime.utcnow())
+        db.session.add(n)
+        db.session.commit()
+        return jsonify({"ok": True, "nota": n.to_dict()})
+
+    @app.route("/admin/notas/<int:nota_id>", methods=["POST"])
+    @auth.admin_required
+    def nota_guardar(nota_id):
+        """Guarda lo que vino (titulo, texto y/o fijada). Lo llama el editor solo,
+        mientras escribis."""
+        from models import Nota
+        n = Nota.query.get_or_404(nota_id)
+        data = request.get_json(silent=True) or {}
+        if "titulo" in data:
+            n.titulo = str(data.get("titulo") or "").strip()[:200] or None
+        if "texto" in data:
+            n.texto = str(data.get("texto") or "")[:200000] or None
+        if "fijada" in data:
+            n.fijada = bool(data.get("fijada"))
+        n.actualizada = datetime.utcnow()
+        db.session.commit()
+        return jsonify({"ok": True, "nota": n.to_dict()})
+
+    @app.route("/admin/notas/<int:nota_id>/borrar", methods=["POST"])
+    @auth.admin_required
+    def nota_borrar(nota_id):
+        from models import Nota
+        n = Nota.query.get_or_404(nota_id)
+        db.session.delete(n)
+        db.session.commit()
+        return jsonify({"ok": True})
+
+    @app.route("/admin/estrategia")
+    @auth.admin_required
+    def estrategia_page():
+        """Direccion con el nombre nuevo de la seccion (antes 'Tareas')."""
+        return redirect(url_for("tareas_page", **request.args))
 
     @app.route("/admin/tareas/<int:tarea_id>/campo", methods=["POST"])
     @auth.admin_required

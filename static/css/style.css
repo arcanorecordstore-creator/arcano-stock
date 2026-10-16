@@ -12359,3 +12359,40 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 
 /* Filtro de la tienda sin discos (ej. Condicion "Usado" cuando no hay usados a la venta) */
 .filter-check.is-disabled { opacity: .45; cursor: default; }
+
+/* ===== Estrategia -> Notas (v6.14) ===== */
+.nt-toolbar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 0 0 16px; }
+.nt-buscar { flex: 1 1 240px; max-width: 360px; font: inherit; font-size: 14px; padding: 9px 14px; border-radius: 999px; border: 1px solid var(--border-2); background: var(--bg-1); color: var(--text-1); }
+.nt-buscar:focus { outline: none; border-color: var(--border-3); }
+.tk-table.nt-table { min-width: 0; }
+.nt-table tbody tr.nt-row { cursor: pointer; }
+.nt-table tbody tr.nt-row:hover td, .nt-table tbody tr.nt-row:focus-visible td { background: var(--bg-hover, var(--bg-2)); }
+.nt-table tbody tr.nt-row:focus-visible { outline: 2px solid var(--border-3); outline-offset: -2px; }
+.nt-table tbody td { height: auto; padding-top: 12px; padding-bottom: 12px; }
+.nt-table .nt-c-pin { width: 28px; padding-right: 0; text-align: center; }
+.nt-table .nt-c-nota { min-width: 0; }
+.nt-table .nt-c-fecha { width: 150px; white-space: nowrap; color: var(--text-4); font-size: 13px; font-variant-numeric: tabular-nums; }
+.nt-tit { display: block; font-size: 15px; font-weight: 500; color: var(--text-1); line-height: 1.35; overflow-wrap: anywhere; }
+.nt-prev { display: block; margin-top: 3px; font-size: 13px; color: var(--text-4); line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 70ch; }
+.nt-pin { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--text-2); }
+.nt-head-acc { display: flex; align-items: center; gap: 8px; }
+.nt-fijar { font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border-2); background: transparent; color: var(--text-3); cursor: pointer; }
+.nt-fijar:hover { color: var(--text-1); border-color: var(--border-3); }
+.nt-fijar.is-on { background: var(--text-1); border-color: var(--text-1); color: var(--bg-0); }
+.nt-titulo { width: 100%; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--text-1); font: inherit; font-size: 24px; font-weight: 500; line-height: 1.25; padding: 6px 8px; margin: 0 -8px; }
+.nt-titulo::placeholder { color: var(--text-5); }
+.nt-titulo:hover { border-color: var(--border-2); }
+.nt-titulo:focus { outline: none; border-color: var(--border-3); background: var(--bg-1); }
+.nt-texto { width: 100%; min-height: 260px; resize: none; overflow: hidden; font: inherit; font-size: 15px; line-height: 1.65; color: var(--text-1); background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 10px; padding: 14px 16px; font-variant-numeric: tabular-nums; }
+.nt-texto:focus { outline: none; border-color: var(--border-3); }
+.nt-texto::placeholder { color: var(--text-5); }
+.nt-ayuda { margin: -4px 0 0; font-size: 12px; color: var(--text-4); line-height: 1.5; }
+.nt-ayuda code { font-family: inherit; font-size: 12px; padding: 1px 6px; border-radius: 6px; background: var(--bg-2); color: var(--text-2); white-space: nowrap; }
+.nt-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.nt-borrar { font: inherit; font-size: 12px; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border-2); background: transparent; color: var(--text-4); cursor: pointer; }
+.nt-borrar:hover { color: var(--loss, #ad4632); border-color: var(--loss, #ad4632); }
+@media (max-width: 640px) {
+    .nt-table .nt-c-fecha { width: auto; font-size: 12px; }
+    .nt-prev { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+    .nt-buscar { max-width: none; }
+}

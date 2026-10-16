@@ -1,13 +1,15 @@
 {% extends "base.html" %}
 
-{% block title %}Tareas &middot; Arcano{% endblock %}
+{% block title %}Estrategia &middot; Arcano{% endblock %}
 
 {% block content %}
 <div class="tk-scope">
 <section class="page-head">
     <div>
-        <h1 class="page-title">Tareas</h1>
-        {% if vista == 'constancia' %}
+        <h1 class="page-title">Estrategia</h1>
+        {% if vista == 'notas' %}
+        <p class="page-sub">{{ n_notas }} nota{{ 's' if n_notas != 1 else '' }} &middot; cuentas, ideas sueltas, lo que se te ocurra. Se guardan solas.</p>
+        {% elif vista == 'constancia' %}
         <p class="page-sub">Tu constancia de publicaciones: marcá lo que vas subiendo cada día.</p>
         {% elif vista == 'ideas' %}
         <p class="page-sub">{{ n_ideas_pend }} idea{{ 's' if n_ideas_pend != 1 else '' }} por hacer &middot; {{ n_ideas_pub }} publicada{{ 's' if n_ideas_pub != 1 else '' }}</p>
@@ -18,12 +20,15 @@
 </section>
 
 <nav class="tk-vistas" aria-label="Secciones">
-    <a href="{{ url_for('tareas_page') }}" class="{% if vista != 'ideas' %}is-on{% endif %}">Tareas <span>{{ n_abiertas }}</span></a>
+    <a href="{{ url_for('tareas_page') }}" class="{% if vista == 'tareas' %}is-on{% endif %}">Tareas <span>{{ n_abiertas }}</span></a>
     <a href="{{ url_for('tareas_page', vista='ideas') }}" class="{% if vista == 'ideas' %}is-on{% endif %}">Ideas <span>{{ n_ideas_pend }}</span></a>
     <a href="{{ url_for('tareas_page', vista='constancia') }}" class="{% if vista == 'constancia' %}is-on{% endif %}">Constancia{% if n_constancia %} <span>{{ n_constancia }}</span>{% endif %}</a>
+    <a href="{{ url_for('tareas_page', vista='notas') }}" class="{% if vista == 'notas' %}is-on{% endif %}">Notas{% if n_notas %} <span>{{ n_notas }}</span>{% endif %}</a>
 </nav>
 
-{% if vista == 'ideas' %}
+{% if vista == 'notas' %}
+{% include "_notas.html" %}
+{% elif vista == 'ideas' %}
 {% include "_ideas_contenido.html" %}
 {% elif vista == 'constancia' %}
 {% include "_constancia.html" %}
@@ -87,4 +92,5 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/tareas.js') }}"></script>
+{% if vista == 'notas' %}<script src="{{ url_for('static', filename='js/notas.js') }}"></script>{% endif %}
 {% endblock %}

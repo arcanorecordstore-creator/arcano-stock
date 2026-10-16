@@ -72,6 +72,7 @@ ORIGENES = {
     'admin_deshacer': 'Deshacer (Ctrl+Z)',
     'settings_recalculate': 'Recalcular stock (Ajustes)',
     'admin_limpiar_samples': 'Limpieza de audios sin usar',
+    'nota_nueva': 'Nota nueva (Estrategia)', 'nota_borrar': 'Nota borrada (Estrategia)',
 }
 
 # Operaciones que no hiciste vos a proposito: escuchas y favoritos de visitantes,

@@ -1,0 +1,55 @@
+{#- Estrategia -> Notas (v6.14): notas libres para cuentas, ideas sueltas, lo que sea.
+    La lista se abre en un panel lateral para escribir; se guarda sola. -#}
+<div class="nt-toolbar">
+    <button type="button" class="btn btn-primary" id="nt-nueva">+ Nueva nota</button>
+    <input type="search" id="nt-buscar" class="nt-buscar" placeholder="Buscar en tus notas" aria-label="Buscar en las notas" autocomplete="off">
+</div>
+
+<div class="tk-table-wrap">
+<table class="tk-table nt-table" id="nt-table" data-resize-key="notas"{% if abrir_nota %} data-abrir="{{ abrir_nota }}"{% endif %}>
+    <thead>
+        <tr>
+            <th class="nt-c-pin"><span class="sr-only">Fijada</span></th>
+            <th class="nt-c-nota">Nota</th>
+            <th class="nt-c-fecha">&Uacute;ltima edici&oacute;n</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for n in notas %}
+        <tr class="nt-row{% if n.fijada %} is-fijada{% endif %}" tabindex="0" data-id="{{ n.id }}"
+            data-titulo="{{ n.titulo or '' }}" data-texto="{{ n.texto or '' }}" data-fijada="{{ '1' if n.fijada else '0' }}">
+            <td class="nt-c-pin">{% if n.fijada %}<span class="nt-pin" title="Fijada arriba" aria-label="Fijada arriba"></span>{% endif %}</td>
+            <td class="nt-c-nota">
+                <span class="nt-tit">{{ n.titulo_mostrar }}</span>
+                <span class="nt-prev"{% if not n.vista_previa %} hidden{% endif %}>{{ n.vista_previa }}</span>
+            </td>
+            <td class="nt-c-fecha" data-iso="{{ n.actualizada.isoformat() if n.actualizada else '' }}">{{ n.actualizada.strftime('%d/%m/%Y') if n.actualizada else '' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+<p class="tk-empty" id="nt-vacio"{% if notas %} hidden{% endif %}>Todav&iacute;a no ten&eacute;s notas. Toc&aacute; &ldquo;Nueva nota&rdquo; y escrib&iacute; lo que quieras: una cuenta, una idea, algo para no olvidarte.</p>
+<p class="tk-empty" id="nt-sin-res" hidden>Ninguna nota tiene ese texto.</p>
+
+{# Panel para escribir (mismo estilo que el de las tareas) #}
+<div class="tkd nt-drawer" id="nt-drawer" hidden>
+    <div class="tkd-bg" data-nt-close></div>
+    <aside class="tkd-panel nt-panel" role="dialog" aria-modal="true" aria-label="Nota">
+        <header class="tkd-head">
+            <div class="tkd-meta" id="nt-meta">Nota</div>
+            <div class="nt-head-acc">
+                <button type="button" class="nt-fijar" id="nt-fijar" aria-pressed="false" title="Mostrarla siempre primera en la lista">Fijar arriba</button>
+                <button type="button" class="tkd-x" data-nt-close aria-label="Cerrar (Esc)" title="Cerrar (Esc)">&times;</button>
+            </div>
+        </header>
+        <input type="text" id="nt-titulo" class="nt-titulo" maxlength="200" placeholder="T&iacute;tulo (opcional)" aria-label="T&iacute;tulo de la nota">
+        <textarea id="nt-texto" class="nt-texto" aria-label="Texto de la nota"
+                  placeholder="Escrib&iacute; lo que quieras. Para una cuenta, escrib&iacute; la operaci&oacute;n con = al final y apret&aacute; Enter (ej: 1.400 x 12 =)"></textarea>
+        <p class="nt-ayuda">Cuentas: <code>1.400 x 12 =</code> + Enter &rarr; <code>1.400 x 12 = 16.800</code>. Sirven + &minus; x / ( ) y %, por ejemplo <code>1.800 - 10% =</code>.</p>
+        <footer class="tkd-foot nt-foot">
+            <span class="tkd-status" id="nt-status" aria-live="polite"></span>
+            <button type="button" class="nt-borrar" id="nt-borrar">Borrar nota</button>
+        </footer>
+    </aside>
+</div>
