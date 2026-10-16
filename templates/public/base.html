@@ -28,8 +28,11 @@
     <meta name="twitter:description" content="{% block twitter_description %}{{ tagline or 'Vinilos de m&uacute;sica electr&oacute;nica en Montevideo.' }}{% endblock %}">
     {% block twitter_image %}<meta name="twitter:image" content="{{ _og_img_def }}">{% endblock %}
     {% block structured_data %}{% endblock %}
-    {% if analytics_snippet %}{{ analytics_snippet|safe }}{% endif %}
-    {% if meta_pixel_id %}
+    {# La medicion (GA4 + pixel de Meta) solo corre en la web real: las pruebas en la
+       compu (localhost) ensuciaban los datos de Meta y Google. #}
+    {% set _medir = (request.host or '').split(':')[0] not in ('localhost', '127.0.0.1', '0.0.0.0') %}
+    {% if analytics_snippet and _medir %}{{ analytics_snippet|safe }}{% endif %}
+    {% if meta_pixel_id and _medir %}
     <script>
     !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
     fbq('init', {{ meta_pixel_id|tojson }});
