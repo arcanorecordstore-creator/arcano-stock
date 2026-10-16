@@ -6,6 +6,22 @@
 {% macro money(n) -%}$ {{ '{:,.0f}'.format(n or 0).replace(',', '.') }}{%- endmacro %}
 
 {% block content %}
+{% if duplicados_cli %}
+<div class="cli-dup-aviso">
+    <span class="cli-dup-tit">&iquest;Es la misma persona?</span>
+    {% for o, motivo in duplicados_cli %}
+    <form method="post" action="{{ url_for('admin_cliente_fusionar', cliente_id=cli.id) }}" class="cli-dup-item"
+          onsubmit="return confirm('¿Unificar a {{ cli.nombre|replace("'", "")|e }} con {{ o.nombre|replace("'", "")|e }}? Queda una sola ficha con todo.');">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="destino_id" value="{{ o.id }}">
+        <a href="{{ url_for('admin_cliente_detail', cliente_id=o.id) }}">{{ o.nombre }}</a>
+        <span class="cli-dup-motivo">{{ motivo }}{% if o.password_hash %} &middot; cuenta web{% else %} &middot; cargado a mano{% endif %}</span>
+        <button type="submit" class="btn btn-primary btn-sm">Unificar</button>
+    </form>
+    {% endfor %}
+</div>
+{% endif %}
+
 
 <section class="page-head">
     <div>
@@ -257,18 +273,26 @@
     </form>
 </section>
 
-<!-- Fusionar / eliminar -->
-<section class="cli-panel cli-danger">
-    <h2 class="cli-panel-title">Fusionar o eliminar</h2>
+<!-- Unificar / eliminar -->
+<section class="cli-panel cli-danger" id="unificar">
+    <h2 class="cli-panel-title">Unificar o eliminar</h2>
     {% if otros %}
-    <form method="post" action="{{ url_for('admin_cliente_fusionar', cliente_id=cli.id) }}" class="cli-merge" onsubmit="return confirm('¿Fusionar este cliente dentro del elegido? Sus compras y reservas pasan al otro y este se borra.');">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-        <span class="cli-merge-lbl">Si qued&oacute; duplicado, fusionarlo dentro de:</span>
+    <p class="cli-merge-help">Si esta persona est&aacute; dos veces (por ejemplo, la cargaste a mano y despu&eacute;s se hizo cuenta en la web), unificala: queda <strong>una sola ficha</strong> con todas las compras, reservas, favoritos, la cuenta web y la barra de premios. Si una de las dos es cuenta web, esa es la que queda, as&iacute; sigue entrando con su mail.</p>
+    <form method="post" action="{{ url_for('admin_cliente_fusionar', cliente_id=cli.id) }}" class="cli-merge" onsubmit="return confirm('¿Unificar a {{ cli.nombre|replace("'", "")|e }} con el cliente elegido? Queda una sola ficha con todo.');">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <span class="cli-merge-lbl">Unificar con:</span>
         <select name="destino_id" required>
-            <option value="">&mdash; eleg&iacute; el cliente que se queda &mdash;</option>
-            {% for o in otros %}<option value="{{ o.id }}">{{ o.nombre }}{% if o.whatsapp %} &middot; {{ o.whatsapp }}{% endif %}</option>{% endfor %}
+            <option value="">&mdash; eleg&iacute; el otro cliente &mdash;</option>
+            {% if duplicados_cli %}
+            <optgroup label="Posibles duplicados">
+                {% for o, motivo in duplicados_cli %}<option value="{{ o.id }}">{{ o.nombre }} &middot; {{ motivo }}{% if o.password_hash %} &middot; cuenta web{% endif %}</option>{% endfor %}
+            </optgroup>
+            {% endif %}
+            <optgroup label="Todos los clientes">
+                {% for o in otros %}<option value="{{ o.id }}">{{ o.nombre }}{% if o.whatsapp %} &middot; {{ o.whatsapp }}{% elif o.instagram %} &middot; @{{ o.instagram }}{% elif o.email %} &middot; {{ o.email }}{% endif %}{% if o.password_hash %} &middot; cuenta web{% endif %}</option>{% endfor %}
+            </optgroup>
         </select>
-        <button type="submit" class="btn btn-ghost">Fusionar</button>
+        <button type="submit" class="btn btn-primary">Unificar</button>
     </form>
     {% endif %}
     <form method="post" action="{{ url_for('admin_cliente_eliminar', cliente_id=cli.id) }}" onsubmit="return confirm('¿Eliminar este cliente? Las ventas NO se borran, solo se desvinculan.');" style="margin-top:10px;">
@@ -279,6 +303,13 @@
 </section>
 
 <style>
+.cli-dup-aviso{display:flex;flex-direction:column;gap:8px;background:rgba(214,169,69,.10);border:1px solid rgba(214,169,69,.4);border-radius:12px;padding:12px 16px;margin:0 0 16px;}
+.cli-dup-tit{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);}
+.cli-dup-item{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+.cli-dup-item a{color:var(--text-1);font-weight:500;}
+.cli-dup-motivo{font-size:12.5px;color:var(--text-3);}
+.cli-merge-help{font-size:13px;color:var(--text-3);margin:0 0 10px;max-width:70ch;line-height:1.5;}
+.cli-merge-help strong{font-weight:500;color:var(--text-1);}
 .cli-origen{font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:2px 8px;border-radius:999px;}
 .cli-origen.web{background:rgba(46,92,158,.18);color:#6ea3e0;}
 .cli-origen.manual{background:rgba(168,117,15,.18);color:#d6a945;}

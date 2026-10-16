@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.14"
+APP_VERSION = "6.15"
 import metrics
 import auth
 import mailer
@@ -10292,8 +10292,10 @@ def register_routes(app: Flask) -> None:
                 if est["tiene_premio"]:
                     premios[c.id] = est
         con_cuenta = Cliente.query.filter(Cliente.password_hash.isnot(None)).count()
+        duplicados = _posibles_duplicados(Cliente.query.all())
         return render_template(
             "admin_clientes.html", clientes=visible_records(clientes, 'clientes'), compras=compras,
+            duplicados=duplicados,
             activas=activas, q=q, total=Cliente.query.count(),
             con_cuenta=con_cuenta, wa_default=Setting.get("public_whatsapp", ""),
             lealtad_activa=lcfg["activa"], premios=premios,
@@ -11293,9 +11295,11 @@ def register_routes(app: Flask) -> None:
         reservados_cliente = (Disc.query
                               .filter(Disc.estado.in_(["Reservado", "Encargo"]), Disc.cliente_id == cli.id)
                               .order_by(Disc.estado.desc(), Disc.fecha_reserva.desc(), Disc.id.desc()).all())
+        duplicados_cli = _posibles_duplicados(Cliente.query.all()).get(cli.id, [])
         return render_template(
             "admin_cliente_detail.html", cli=cli, compras=compras,
             reservas_activas=reservas_activas, total=total, otros=otros,
+            duplicados_cli=duplicados_cli,
             lealtad=lealtad, discs_para_agregar=discs_para_agregar,
             reservados_cliente=reservados_cliente,
         )
@@ -11489,31 +11493,124 @@ def register_routes(app: Flask) -> None:
     @app.route("/admin/clientes/<int:cliente_id>/fusionar", methods=["POST"])
     @auth.admin_required
     def admin_cliente_fusionar(cliente_id):
-        """Fusiona ESTE cliente dentro de otro (destino): pasa sus compras y reservas al
-        destino, le completa los datos que le falten, y borra este."""
+        """UNIFICA este cliente con otro: queda una sola ficha con TODO (compras,
+        reservas, favoritos, cuenta web, barra de premios, datos de contacto).
+        Si una de las dos es una cuenta web, esa es la que queda (asi el cliente sigue
+        entrando con su mail y contrasena); si no, queda la elegida."""
         from models import Cliente
         cli = Cliente.query.get_or_404(cliente_id)
         destino_id = request.form.get("destino_id")
         destino = Cliente.query.get(int(destino_id)) if (destino_id or "").isdigit() else None
         if not destino or destino.id == cli.id:
-            flash("Elegí un cliente destino válido para fusionar.", "error")
+            flash("Elegí con qué cliente unificarlo.", "error")
             return redirect(url_for("admin_cliente_detail", cliente_id=cli.id))
-        # Mover compras (discos) y reservas al destino
-        Disc.query.filter_by(cliente_id=cli.id).update({"cliente_id": destino.id})
-        Reserva.query.filter_by(cliente_id=cli.id).update({"cliente_id": destino.id})
-        # Completar datos que al destino le falten
-        if not destino.whatsapp and cli.whatsapp:
-            destino.whatsapp = cli.whatsapp
-        if not destino.email and cli.email:
-            destino.email = cli.email
-        if not destino.instagram and cli.instagram:
-            destino.instagram = cli.instagram
-        if cli.notas:
-            destino.notas = ((destino.notas + "\n") if destino.notas else "") + cli.notas
-        db.session.delete(cli)
+        queda, se_va = destino, cli
+        if cli.password_hash and not destino.password_hash:
+            queda, se_va = cli, destino
+        nombre_ido = se_va.nombre
+        _unificar_clientes(queda, se_va)
         db.session.commit()
-        flash(f"Cliente fusionado dentro de '{destino.nombre}'.", "success")
-        return redirect(url_for("admin_cliente_detail", cliente_id=destino.id))
+        flash(f"Listo: '{nombre_ido}' quedó unificado en '{queda.nombre}'. Compras, reservas, "
+              "favoritos, cuenta web y premios quedaron todos juntos.", "success")
+        return redirect(url_for("admin_cliente_detail", cliente_id=queda.id))
+
+    def _unificar_clientes(queda, se_va):
+        """Pasa TODO de 'se_va' a 'queda' y borra 'se_va' (sin commit).
+        - Compras (discos), reservas y favoritos (sin repetir).
+        - Cuenta web: si 'queda' no tiene contrasena y el otro si, se la pasa con su
+          mail (el mail es el usuario para entrar).
+        - Barra de premios: el avance se suma (las bases se suman) y un premio ya
+          entregado no se vuelve a dar.
+        - Avisos: si cualquiera de los dos pidio no recibirlos, se respeta.
+        - Contacto: completa lo que falte; si los dos tienen un dato distinto, el otro
+          queda anotado en las notas para no perderlo."""
+        from models import ClienteFavorito
+        Disc.query.filter_by(cliente_id=se_va.id).update({"cliente_id": queda.id}, synchronize_session=False)
+        Reserva.query.filter_by(cliente_id=se_va.id).update({"cliente_id": queda.id}, synchronize_session=False)
+        ya = {f.disc_id for f in ClienteFavorito.query.filter_by(cliente_id=queda.id).all()}
+        for f in ClienteFavorito.query.filter_by(cliente_id=se_va.id).all():
+            if f.disc_id in ya:
+                db.session.delete(f)
+            else:
+                f.cliente_id = queda.id
+                ya.add(f.disc_id)
+        extra = []
+        # Cuenta web
+        if se_va.password_hash and not queda.password_hash:
+            queda.password_hash = se_va.password_hash
+            if se_va.email and (queda.email or "").strip().lower() != se_va.email.strip().lower():
+                if queda.email:
+                    extra.append(f"otro mail: {queda.email}")
+                queda.email = se_va.email
+        elif se_va.password_hash and queda.password_hash:
+            extra.append(f"tenía otra cuenta web con {se_va.email or 'otro mail'} (ya no entra con esa)")
+        # Nombre: el mas completo (ej. 'Franco' + 'Franco Suarez' -> 'Franco Suarez')
+        n_q, n_s = (queda.nombre or "").strip(), (se_va.nombre or "").strip()
+        if n_s and (not n_q or n_q.startswith("@") or n_q.replace(" ", "").isdigit()
+                    or len(n_s.split()) > len(n_q.split())):
+            queda.nombre = n_s
+
+        def _norm(v):
+            return "".join(ch for ch in (v or "").lower() if ch.isalnum())
+        for campo, rotulo in (("whatsapp", "otro celular"), ("email", "otro mail"), ("instagram", "otro Instagram")):
+            a, b = getattr(queda, campo), getattr(se_va, campo)
+            if b and not a:
+                setattr(queda, campo, b)
+            elif b and a and _norm(a) != _norm(b) and not (campo == "whatsapp" and _norm(a)[-8:] == _norm(b)[-8:]):
+                extra.append(f"{rotulo}: {'@' if campo == 'instagram' else ''}{b}")
+        # Premios y avisos
+        queda.lealtad_base = int(queda.lealtad_base or 0) + int(se_va.lealtad_base or 0)
+        queda.premio1_cobrado = bool(queda.premio1_cobrado or se_va.premio1_cobrado)
+        queda.acepta_avisos = bool(queda.acepta_avisos) and bool(se_va.acepta_avisos)
+        if se_va.fecha_registro and (not queda.fecha_registro or se_va.fecha_registro < queda.fecha_registro):
+            queda.fecha_registro = se_va.fecha_registro
+        if queda.password_hash:
+            queda.origen = "web"
+        # Notas
+        partes = [p for p in [queda.notas, se_va.notas] if p]
+        if extra:
+            partes.append(f"Unificado con '{se_va.nombre}' ({today_uy().strftime('%d/%m/%Y')}): " + "; ".join(extra) + ".")
+        queda.notas = "\n".join(partes) or None
+        db.session.flush()          # mover/borrar favoritos antes de borrar la ficha
+        db.session.delete(se_va)
+
+    def _claves_cliente(c):
+        """Datos que identifican a una persona, normalizados para comparar."""
+        import unicodedata as _ud
+        claves = []
+        tel = "".join(ch for ch in (c.whatsapp or "") if ch.isdigit())
+        if len(tel) >= 7:
+            claves.append(("tel", tel[-8:], "mismo celular"))
+        if (c.email or "").strip():
+            claves.append(("mail", c.email.strip().lower(), "mismo mail"))
+        ig = (c.instagram or "").strip().lstrip("@").lower()
+        if ig:
+            claves.append(("ig", ig, "mismo Instagram"))
+        nom = _ud.normalize("NFKD", (c.nombre or "").lower())
+        nom = " ".join("".join(ch for ch in nom if ch.isalnum() or ch == " ").split())
+        if len(nom.split()) >= 2:
+            claves.append(("nom", nom, "mismo nombre"))
+        return claves
+
+    def _posibles_duplicados(clientes):
+        """{id_cliente: [(otro_cliente, motivo), ...]}: fichas que parecen la misma
+        persona (mismo celular, mail, Instagram o nombre completo)."""
+        por_clave = {}
+        for c in clientes:
+            for tipo, val, motivo in _claves_cliente(c):
+                por_clave.setdefault((tipo, val), []).append((c, motivo))
+        out = {}
+        for grupo in por_clave.values():
+            if len(grupo) < 2:
+                continue
+            for c, motivo in grupo:
+                for o, _m in grupo:
+                    if o.id == c.id:
+                        continue
+                    lista = out.setdefault(c.id, [])
+                    if not any(x[0].id == o.id for x in lista):
+                        lista.append((o, motivo))
+        return out
 
     @app.route("/admin/clientes/<int:cliente_id>/eliminar", methods=["POST"])
     @auth.admin_required

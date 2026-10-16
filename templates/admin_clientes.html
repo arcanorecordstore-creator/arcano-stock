@@ -89,6 +89,7 @@
             <td class="cli-td-nombre">
                 <a href="{{ url_for('admin_cliente_detail', cliente_id=c.id) }}" class="cli-name">{{ c.nombre }}</a>
                 <span class="cli-origen {{ 'web' if c.origen == 'web' else 'manual' }}">{{ 'Web' if c.origen == 'web' else 'Manual' }}</span>
+                {% if duplicados.get(c.id) %}<a href="{{ url_for('admin_cliente_detail', cliente_id=c.id) }}#unificar" class="cli-dup-chip" title="Parece la misma persona que {{ duplicados[c.id]|map(attribute=0)|map(attribute='nombre')|join(', ') }} ({{ duplicados[c.id][0][1] }}). Abrí la ficha para unificarlos.">posible duplicado</a>{% endif %}
             </td>
             <td class="cli-contacto" data-label="Contacto">
                 {% if c.instagram %}<span>&#9673; @{{ c.instagram }}</span>{% endif %}
@@ -146,7 +147,12 @@
 .cli-origen{font-size:10px;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:999px;margin-left:7px;}
 .cli-origen.web{background:rgba(46,92,158,.18);color:#6ea3e0;}
 .cli-origen.manual{background:rgba(168,117,15,.18);color:#d6a945;}
-.cli-contacto{display:flex;flex-direction:column;gap:2px;font-size:12.5px;color:var(--text-2,#bbb);}
+/* La celda sigue siendo celda (con display:flex la fila se desarmaba en la compu):
+   cada dato de contacto va en su propia linea. En el celular la tarjeta usa flex. */
+.cli-contacto{font-size:12.5px;color:var(--text-2,#bbb);}
+.cli-dup-chip{display:inline-block;margin-left:6px;font-size:10px;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:rgba(214,169,69,.16);color:#a87a1c;text-decoration:none;white-space:nowrap;}
+.cli-dup-chip:hover{background:rgba(214,169,69,.28);}
+.cli-contacto > span{display:block;line-height:1.5;}
 .cli-contacto .cli-email{color:var(--text-3,#888);}
 .cli-activa{background:rgba(192,52,30,.16);color:#e08a78;font-weight:700;padding:2px 8px;border-radius:999px;font-size:12px;}
 .cli-cuenta{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap;}

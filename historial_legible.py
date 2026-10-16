@@ -48,7 +48,7 @@ ORIGENES = {
     'admin_cliente_nuevo': 'Cliente nuevo (cargado a mano)',
     'admin_cliente_editar': 'Edición de cliente', 'admin_cliente_eliminar': 'Cliente borrado',
     'admin_clientes_eliminar_multiple': 'Varios clientes borrados',
-    'admin_cliente_fusionar': 'Clientes fusionados',
+    'admin_cliente_fusionar': 'Clientes unificados',
     'admin_cliente_agregar_disco': 'Disco asignado a un cliente',
     'admin_cliente_premio': 'Premio de lealtad entregado',
     'cliente_registro': 'Un cliente creó su cuenta en la web',
