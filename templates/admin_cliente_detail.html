@@ -277,7 +277,7 @@
 <section class="cli-panel cli-danger" id="unificar">
     <h2 class="cli-panel-title">Unificar o eliminar</h2>
     {% if otros %}
-    <p class="cli-merge-help">Si esta persona est&aacute; dos veces (por ejemplo, la cargaste a mano y despu&eacute;s se hizo cuenta en la web), unificala: queda <strong>una sola ficha</strong> con todas las compras, reservas, favoritos, la cuenta web y la barra de premios. Si una de las dos es cuenta web, esa es la que queda, as&iacute; sigue entrando con su mail.</p>
+    <p class="cli-merge-help">Si esta persona est&aacute; dos veces (por ejemplo, la cargaste a mano y despu&eacute;s se hizo cuenta en la web), unificala: queda <strong>una sola ficha</strong> con todas las compras, reservas, favoritos, la cuenta web y la barra de premios. <strong>La web siempre tiene prioridad:</strong> lo cargado a mano se une a la cuenta web, que queda con su nombre, mail y contrase&ntilde;a (el cliente sigue entrando igual). Lo que le falte se completa con lo manual.</p>
     <form method="post" action="{{ url_for('admin_cliente_fusionar', cliente_id=cli.id) }}" class="cli-merge" onsubmit="return confirm('¿Unificar a {{ cli.nombre|replace("'", "")|e }} con el cliente elegido? Queda una sola ficha con todo.');">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <span class="cli-merge-lbl">Unificar con:</span>

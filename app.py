@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.15"
+APP_VERSION = "6.16"
 import metrics
 import auth
 import mailer
@@ -11495,8 +11495,9 @@ def register_routes(app: Flask) -> None:
     def admin_cliente_fusionar(cliente_id):
         """UNIFICA este cliente con otro: queda una sola ficha con TODO (compras,
         reservas, favoritos, cuenta web, barra de premios, datos de contacto).
-        Si una de las dos es una cuenta web, esa es la que queda (asi el cliente sigue
-        entrando con su mail y contrasena); si no, queda la elegida."""
+        La web SIEMPRE tiene prioridad sobre lo manual: queda la ficha con cuenta web
+        (o, si ninguna tiene cuenta, la que vino de la web), con su nombre y sus datos;
+        lo manual completa lo que falte. Si empatan, queda la elegida."""
         from models import Cliente
         cli = Cliente.query.get_or_404(cliente_id)
         destino_id = request.form.get("destino_id")
@@ -11504,8 +11505,13 @@ def register_routes(app: Flask) -> None:
         if not destino or destino.id == cli.id:
             flash("Elegí con qué cliente unificarlo.", "error")
             return redirect(url_for("admin_cliente_detail", cliente_id=cli.id))
+        # La web SIEMPRE tiene prioridad sobre lo manual (decision de Facundo, 16/10/2026):
+        # primero la que tiene cuenta (contrasena), despues la que vino de la web. Si
+        # empatan, queda la que elegiste en la lista.
+        def _rango(c):
+            return (1 if c.password_hash else 0, 1 if (c.origen or "") == "web" else 0)
         queda, se_va = destino, cli
-        if cli.password_hash and not destino.password_hash:
+        if _rango(cli) > _rango(destino):
             queda, se_va = cli, destino
         nombre_ido = se_va.nombre
         _unificar_clientes(queda, se_va)
@@ -11525,6 +11531,13 @@ def register_routes(app: Flask) -> None:
         - Contacto: completa lo que falte; si los dos tienen un dato distinto, el otro
           queda anotado en las notas para no perderlo."""
         from models import ClienteFavorito
+        # Barra de premios: avance = gastado - base. Se toma de cada ficha solo la parte
+        # de la base que de verdad se uso (nunca mas que lo que gasto), asi el avance de la
+        # ficha unificada es exactamente la suma del avance de las dos.
+        _gasto_q = sum((e["precio"] or 0) for e in _compras_de_cliente(queda))
+        _gasto_s = sum((e["precio"] or 0) for e in _compras_de_cliente(se_va))
+        _base_nueva = (min(int(queda.lealtad_base or 0), int(round(_gasto_q)))
+                       + min(int(se_va.lealtad_base or 0), int(round(_gasto_s))))
         Disc.query.filter_by(cliente_id=se_va.id).update({"cliente_id": queda.id}, synchronize_session=False)
         Reserva.query.filter_by(cliente_id=se_va.id).update({"cliente_id": queda.id}, synchronize_session=False)
         ya = {f.disc_id for f in ClienteFavorito.query.filter_by(cliente_id=queda.id).all()}
@@ -11544,11 +11557,14 @@ def register_routes(app: Flask) -> None:
                 queda.email = se_va.email
         elif se_va.password_hash and queda.password_hash:
             extra.append(f"tenía otra cuenta web con {se_va.email or 'otro mail'} (ya no entra con esa)")
-        # Nombre: el mas completo (ej. 'Franco' + 'Franco Suarez' -> 'Franco Suarez')
+        # Nombre: manda el de la ficha que queda (la cuenta web). Solo se toma el otro si
+        # el que queda no tiene un nombre de verdad (vacio, @usuario o un numero); si no,
+        # el otro nombre queda anotado en las notas.
         n_q, n_s = (queda.nombre or "").strip(), (se_va.nombre or "").strip()
-        if n_s and (not n_q or n_q.startswith("@") or n_q.replace(" ", "").isdigit()
-                    or len(n_s.split()) > len(n_q.split())):
+        if n_s and (not n_q or n_q.startswith("@") or n_q.replace(" ", "").isdigit()):
             queda.nombre = n_s
+        elif n_s and n_s.lower() != n_q.lower():
+            extra.append(f"también figuraba como '{n_s}'")
 
         def _norm(v):
             return "".join(ch for ch in (v or "").lower() if ch.isalnum())
@@ -11559,7 +11575,7 @@ def register_routes(app: Flask) -> None:
             elif b and a and _norm(a) != _norm(b) and not (campo == "whatsapp" and _norm(a)[-8:] == _norm(b)[-8:]):
                 extra.append(f"{rotulo}: {'@' if campo == 'instagram' else ''}{b}")
         # Premios y avisos
-        queda.lealtad_base = int(queda.lealtad_base or 0) + int(se_va.lealtad_base or 0)
+        queda.lealtad_base = _base_nueva
         queda.premio1_cobrado = bool(queda.premio1_cobrado or se_va.premio1_cobrado)
         queda.acepta_avisos = bool(queda.acepta_avisos) and bool(se_va.acepta_avisos)
         if se_va.fecha_registro and (not queda.fecha_registro or se_va.fecha_registro < queda.fecha_registro):
