@@ -2090,6 +2090,17 @@ def _migrate_schema(app):
                 if _r.rowcount:
                     print(f"Migracion: {_r.rowcount} disco(s) vendido(s) quedaron con stock 0")
 
+        # Pixel de Meta: cambio de ID pedido por Facundo (16/10/2026, v6.17). El ID vive en
+        # Ajustes (settings.meta_pixel_id), no en el codigo ni en el hosting. Solo reemplaza
+        # el ID viejo EXACTO: es idempotente y no pisa un ID que cargues despues en Ajustes.
+        if inspector.has_table("settings"):
+            with db.engine.begin() as conn:
+                _rpx = conn.execute(
+                    text("UPDATE settings SET value = :nuevo WHERE key = 'meta_pixel_id' AND value = :viejo"),
+                    {"nuevo": "1938172937362871", "viejo": "1674775404435874"})
+                if _rpx.rowcount:
+                    print("Migracion: ID del pixel de Meta cambiado a 1938172937362871")
+
         # Duracion estimada de las tareas (v5.70)
         if inspector.has_table("tareas"):
             _tcols = [c["name"] for c in inspector.get_columns("tareas")]
