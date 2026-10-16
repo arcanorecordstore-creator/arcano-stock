@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.10"
+APP_VERSION = "6.11"
 import metrics
 import auth
 import mailer
@@ -1013,7 +1013,7 @@ def _ga_purchase_items(reserva):
         for it in reserva.items_efectivos:
             nombre = f"{it.artista_snap or ''} - {it.titulo_snap or ''}".strip(" -")
             items.append({
-                "item_id": str(it.disc_id or ""),
+                "item_id": str(it.disc_id) if it.disc_id else ("mystery-box" if getattr(it, "es_mystery_box", False) else ""),
                 "item_name": nombre or "Disco",
                 "price": round(it.precio_uyu_snap or 0, 2),
                 "quantity": 1,
@@ -7959,6 +7959,15 @@ def register_routes(app: Flask) -> None:
 
     _ESTADOS_FICHA = ("Disponible", "Pre-order", "Encargo", "Reservado", "Vendido")
 
+    def _con_query(url):
+        """Le agrega a una redireccion los parametros de la direccion original
+        (?utm_source=..., fbclid de Meta, gclid de Google). Si se pierden, la visita de
+        un anuncio queda como "directa" y no se puede medir la campana."""
+        qs = request.query_string.decode("utf-8", "ignore") if request.query_string else ""
+        if not qs:
+            return url
+        return url + ("&" if "?" in url else "?") + qs
+
     def _resolver_ficha(valor):
         """Busca el disco de una direccion. Devuelve (disco, redireccion).
         - /123 (numero): direccion vieja -> redirige a la linda.
@@ -8010,14 +8019,14 @@ def register_routes(app: Flask) -> None:
         (/artista-titulo). Asi siguen andando los links de mails, Instagram y Google."""
         if db.session.get(Disc, disc_id) is None:
             return render_template("public/not_found.html", **_public_context()), 404
-        return redirect(url_for("public_disc", disc_id=disc_id), 301)
+        return redirect(_con_query(url_for("public_disc", disc_id=disc_id)), 301)
 
     @app.route("/<disco_slug:disc_id>")
     def public_disc(disc_id):
         """Ficha publica de un disco: arcanorecordstore.com/artista-titulo."""
         disc, _redir = _resolver_ficha(disc_id)
         if _redir:
-            return redirect(_redir, 301)
+            return redirect(_con_query(_redir), 301)
         if disc is None:
             return render_template("public/not_found.html", **_public_context()), 404
         # No mostrar discos que no esten disponibles publicamente
@@ -8246,12 +8255,17 @@ def register_routes(app: Flask) -> None:
         # "Reservar y coordinar" es un lead, no una venta: no debe inflar los ingresos.
         # (El pago por Mercado Pago se mide aparte en /mp/retorno cuando se confirma.)
         medir_compra = (reserva.metodo_pago == "transferencia")
+        # "Reservar y coordinar" (y el pago online que fallo y quedo a coordinar): se mide
+        # como Lead (GA4 generate_lead + Meta Lead), con el valor de la reserva. No es una
+        # venta todavia, pero es el resultado que trae la publicidad.
+        medir_lead = not medir_compra and reserva.metodo_pago in ("coordinar", None, "")
         return render_template(
             "public/reserva_ok.html",
             reserva=reserva,
             disc=disc,
             multi=multi,
             medir_compra=medir_compra,
+            medir_lead=medir_lead,
             purchase_items=_ga_purchase_items(reserva),
             **_public_context(),
         )

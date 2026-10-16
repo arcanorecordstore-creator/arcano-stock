@@ -11,27 +11,69 @@ window.Arcano = window.Arcano || {};
     window.Arcano.runContent = function () { fns.forEach(function (fn) { try { fn(); } catch (e) {} }); };
 })();
 
-/* Evento a Google Analytics (embudo de conversion). No hace nada si GA no esta
-   cargado, asi que es seguro en local y en el sandbox. */
+/* Evento a Google Analytics 4 + Meta Pixel (embudo de conversion). No hace nada si
+   GA o el pixel no estan cargados, asi que es seguro en local y en el sandbox.
+   Recibe el formato de GA4 (items con item_id / item_name / price) y arma solo los
+   datos de producto que pide Meta (content_ids, contents, value...): con eso la
+   publicidad puede optimizar por valor y mostrarle a cada persona el disco que vio. */
 window.arcanoGA = function (name, params) {
     params = params || {};
+    var items = Array.isArray(params.items) ? params.items : [];
+    // Valor: si no vino, la suma de los precios de los discos
+    if (params.value == null && items.length) {
+        var suma = 0, hayPrecio = false;
+        items.forEach(function (it) {
+            if (it && it.price != null && !isNaN(it.price)) { suma += Number(it.price) * (it.quantity || 1); hayPrecio = true; }
+        });
+        if (hayPrecio) params.value = suma;
+    }
+    if (params.currency == null && (params.value != null || items.length)) params.currency = 'UYU';
     if (typeof window.gtag === 'function') {
         try { window.gtag('event', name, params); } catch (e) {}
     }
-    // Meta Pixel (Facebook): mapea los eventos de conversion a los estandar de Meta.
-    // Se dispara solo si el pixel esta cargado (ID puesto en Ajustes).
     if (typeof window.fbq === 'function') {
         try {
-            var mapa = { add_to_cart: 'AddToCart', begin_checkout: 'InitiateCheckout', purchase: 'Purchase' };
+            var mapa = {
+                view_item: 'ViewContent', add_to_cart: 'AddToCart', add_to_wishlist: 'AddToWishlist',
+                begin_checkout: 'InitiateCheckout', purchase: 'Purchase',
+                generate_lead: 'Lead', contact: 'Contact'
+            };
             var evento = mapa[name];
             if (evento) {
-                var datos = { currency: params.currency || 'UYU' };
-                if (params.value != null) datos.value = params.value;
-                window.fbq('track', evento, datos);
+                var datos = {};
+                if (params.value != null) { datos.value = Number(params.value) || 0; datos.currency = params.currency || 'UYU'; }
+                if (items.length) {
+                    var ids = items.map(function (it) { return String(it.item_id || ''); }).filter(Boolean);
+                    if (ids.length) {
+                        datos.content_ids = ids;
+                        datos.content_type = 'product';
+                        datos.contents = items.filter(function (it) { return it.item_id; }).map(function (it) {
+                            var c = { id: String(it.item_id), quantity: it.quantity || 1 };
+                            if (it.price != null) c.item_price = Number(it.price) || 0;
+                            return c;
+                        });
+                        datos.num_items = ids.length;
+                    }
+                    if (items.length === 1 && items[0].item_name) datos.content_name = items[0].item_name;
+                }
+                if (params.method) datos.content_category = params.method;
+                var opciones = params.transaction_id ? { eventID: String(params.transaction_id) } : undefined;
+                window.fbq('track', evento, datos, opciones);
             }
         } catch (e) {}
     }
 };
+
+/* Clics para escribir por WhatsApp o Instagram: son ventas que se cierran por mensaje
+   (lo que trae un reel). GA4 'contact' + Meta 'Contact'. */
+document.addEventListener('click', function (e) {
+    var a = e.target.closest ? e.target.closest('a[href]') : null;
+    if (!a) return;
+    var h = a.getAttribute('href') || '';
+    var via = /wa\.me|api\.whatsapp|whatsapp:\/\//i.test(h) ? 'whatsapp'
+            : (/ig\.me|instagram\.com\/direct/i.test(h) ? 'instagram' : null);
+    if (via && window.arcanoGA) window.arcanoGA('contact', { method: via, link_url: h.slice(0, 200) });
+}, true);
 
 /* Animaciones sutiles para la tienda publica.
    Usa IntersectionObserver para revelar elementos al scroll.
@@ -292,7 +334,10 @@ window.arcanoGA = function (name, params) {
                     if (window.ArcanoFlyToCart) window.ArcanoFlyToCart(_flyImg);
                     var tit = ((card.querySelector('.public-card-title') || card.querySelector('.carrusel-title-disc') || card.querySelector('.public-disc-title') || {}).textContent || '').trim();
                     var art = ((card.querySelector('.public-card-artist') || card.querySelector('.carrusel-artist') || card.querySelector('.public-disc-artist') || {}).textContent || '').trim();
-                    if (window.arcanoGA) window.arcanoGA('add_to_cart', { currency: 'UYU', items: [{ item_id: String(id), item_name: (art ? art + ' - ' : '') + tit }] });
+                    var _precio = parseFloat(btn.dataset.cartPrecio || '');
+                    var _item = { item_id: String(id), item_name: (art ? art + ' - ' : '') + tit, quantity: 1 };
+                    if (!isNaN(_precio)) _item.price = _precio;
+                    if (window.arcanoGA) window.arcanoGA('add_to_cart', { currency: 'UYU', items: [_item] });
                     if (window.ArcanoCartDrawer) window.ArcanoCartDrawer.open((art ? art + ' - ' : '') + tit);
                     else if (window.arcanoToast) window.arcanoToast('\u2713 Agregado al carrito');
                 } else if (window.arcanoToast) {

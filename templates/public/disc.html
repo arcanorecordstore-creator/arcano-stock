@@ -82,6 +82,31 @@
 
 {% block content %}
 
+{# Medicion: "vio el disco" (GA4 view_item + Meta ViewContent). Es el evento que usa
+   la publicidad para optimizar y para mostrarle a cada persona el disco que miro.
+   Corre tambien al llegar navegando sin recargar (pjax ejecuta los scripts). #}
+<script>
+(function () {
+    var payload = {
+        currency: 'UYU',
+        value: {{ ((disc.precio_fire_sale if (disc.en_fire_sale_activo and cliente_actual) else disc.precio_mostrar) or 0)|int }},
+        items: [{
+            item_id: {{ ('mystery-box' if disc.es_mystery_box else (disc.id|string))|tojson }},
+            item_name: {{ ('Mystery Box' if disc.es_mystery_box else (disc.artista ~ ' - ' ~ disc.titulo))|tojson }},
+            item_brand: {{ (disc.sello or '')|tojson }},
+            item_category: {{ (disc.genero or '')|tojson }},
+            price: {{ ((disc.precio_fire_sale if (disc.en_fire_sale_activo and cliente_actual) else disc.precio_mostrar) or 0)|int }},
+            quantity: 1
+        }]
+    };
+    var n = 0;
+    (function fire() {
+        if (typeof window.arcanoGA === 'function') { try { window.arcanoGA('view_item', payload); } catch (e) {} return; }
+        if (++n < 60) setTimeout(fire, 100);
+    })();
+})();
+</script>
+
 <a href="{{ url_for('home') }}" class="public-back">&larr; Volver al catalogo</a>
 
 {% set cover_bg = url_for('serve_cover', filename=disc.cover_local) if disc.cover_local else (disc.cover_url if disc.cover_url else '') %}
@@ -279,7 +304,7 @@
                 {% if disc.en_fire_sale_activo and not cliente_actual %}
                 <a href="{{ url_for('cliente_login_page') }}" class="btn btn-primary cart-btn-full public-fire-login-btn">&#128274; Inici&aacute; sesi&oacute;n para el pre-order Fire Sale</a>
                 {% else %}
-                <button type="button" class="btn btn-primary cart-btn cart-btn-full" data-cart-id="{{ disc.id }}">
+                <button type="button" class="btn btn-primary cart-btn cart-btn-full" data-cart-id="{{ disc.id }}" data-cart-precio="{{ ((disc.precio_fire_sale if (disc.en_fire_sale_activo and cliente_actual) else disc.precio_mostrar) or 0)|int }}">
                     <span class="cart-label-add">&#43; Agregar al carrito (pre-order)</span>
                     <span class="cart-label-in">&#10003; En el carrito</span>
                 </button>
@@ -335,7 +360,7 @@
                 {% if disc.en_fire_sale_activo and not cliente_actual %}
                 <a href="{{ url_for('cliente_login_page') }}" class="btn btn-primary cart-btn-full public-fire-login-btn">&#128274; Inici&aacute; sesi&oacute;n para comprar en Fire Sale</a>
                 {% else %}
-                <button type="button" class="btn btn-primary cart-btn cart-btn-full" data-cart-id="{{ disc.id }}">
+                <button type="button" class="btn btn-primary cart-btn cart-btn-full" data-cart-id="{{ disc.id }}" data-cart-precio="{{ ((disc.precio_fire_sale if (disc.en_fire_sale_activo and cliente_actual) else disc.precio_mostrar) or 0)|int }}">
                     <span class="cart-label-add">&#43; Agregar al carrito{% if disc.en_fire_sale_activo %} (Fire Sale){% endif %}</span>
                     <span class="cart-label-in">&#10003; En el carrito</span>
                 </button>
@@ -587,7 +612,7 @@
     {% if disc.en_fire_sale_activo and not cliente_actual %}
     <a href="{{ url_for('cliente_login_page') }}" class="btn btn-primary disc-buybar-btn">Iniciar sesi&oacute;n</a>
     {% else %}
-    <button type="button" class="btn btn-primary cart-btn disc-buybar-btn" data-cart-id="{{ disc.id }}">
+    <button type="button" class="btn btn-primary cart-btn disc-buybar-btn" data-cart-id="{{ disc.id }}" data-cart-precio="{{ ((disc.precio_fire_sale if (disc.en_fire_sale_activo and cliente_actual) else disc.precio_mostrar) or 0)|int }}">
         <span class="cart-label-add">&#43; Agregar</span>
         <span class="cart-label-in">&#10003; En el carrito</span>
     </button>

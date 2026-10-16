@@ -98,7 +98,7 @@
                             (d.sello ? '<div class="public-card-label">' + escapeHtml(d.sello) + '</div>' : '') +
                             '<div class="public-card-price">' + precio + '</div>' +
                             (comprable(d)
-                                ? '<button type="button" class="cart-btn cart-btn-inline" data-cart-id="' + d.id + '" title="Agregar al carrito">' +
+                                ? '<button type="button" class="cart-btn cart-btn-inline" data-cart-id="' + d.id + '" data-cart-precio="' + (d.precio_uyu || 0) + '" title="Agregar al carrito">' +
                                       '<span class="cart-label-add">Agregar al carrito</span>' +
                                       '<span class="cart-label-in">&#10003; Agregado</span></button>'
                                 : (d.disponible && d.precio_uyu > 0 && d.en_fire_sale
@@ -140,7 +140,7 @@
                     pintarTodos();
                     if (!nuevos.length) return;
                     if (window.arcanoGA) window.arcanoGA('add_to_cart', { currency: 'UYU', items: nuevos.map(function (d) {
-                        return { item_id: String(d.id), item_name: d.artista + ' - ' + d.titulo };
+                        return { item_id: String(d.id), item_name: d.artista + ' - ' + d.titulo, price: d.precio_uyu, quantity: 1 };
                     }) });
                     var txt = nuevos.length === 1 ? (nuevos[0].artista + ' - ' + nuevos[0].titulo)
                         : (nuevos.length + ' discos');

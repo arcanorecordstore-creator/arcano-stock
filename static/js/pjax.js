@@ -161,7 +161,11 @@
         ejecutarScripts(nuevoMain);
         reengancharJS();
 
-        if (window.gtag) { try { gtag('event', 'page_view', { page_location: url, page_title: document.title }); } catch (e) {} }
+        // page_view: lo manda GA4 SOLO al cambiar la direccion (medicion mejorada,
+        // "cambios de pagina segun el historial del navegador"). Mandarlo tambien aca
+        // contaba cada pagina DOS veces (verificado en vivo, oct 2026). El titulo ya se
+        // cambio antes del pushState, asi que GA lo toma bien. El pixel de Meta tambien
+        // cuenta el PageView solo al cambiar la direccion.
     }
 
     function navegar(url, push, y, mantener) {

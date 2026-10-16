@@ -155,7 +155,7 @@
                 {% if d.en_fire_sale_activo and not cliente_actual %}
                 <span class="cart-btn cart-btn-inline cart-btn-carrusel cart-btn-locked" title="Los discos en Fire Sale son para clientes con cuenta">&#128274; Inici&aacute; sesi&oacute;n</span>
                 {% else %}
-                <button type="button" class="cart-btn cart-btn-inline cart-btn-carrusel" data-cart-id="{{ d.id }}" aria-label="Agregar {{ d.artista }} - {{ d.titulo }} al carrito" title="Agregar al carrito">
+                <button type="button" class="cart-btn cart-btn-inline cart-btn-carrusel" data-cart-id="{{ d.id }}" data-cart-precio="{{ ((d.precio_fire_sale if (d.en_fire_sale_activo and cliente_actual) else d.precio_mostrar) or 0)|int }}" aria-label="Agregar {{ d.artista }} - {{ d.titulo }} al carrito" title="Agregar al carrito">
                     <span class="cart-label-add">Agregar al carrito</span>
                     <span class="cart-label-in">&#10003; Agregado</span>
                 </button>
@@ -457,7 +457,7 @@
                 {% if d.en_fire_sale_activo and not cliente_actual %}
                 <span class="cart-btn cart-btn-inline cart-btn-locked" title="Los discos en Fire Sale son para clientes con cuenta">&#128274; Inici&aacute; sesi&oacute;n para comprar</span>
                 {% else %}
-                <button type="button" class="cart-btn cart-btn-inline" data-cart-id="{{ d.id }}" aria-label="Agregar {{ d.artista }} - {{ d.titulo }} al carrito" title="Agregar al carrito">
+                <button type="button" class="cart-btn cart-btn-inline" data-cart-id="{{ d.id }}" data-cart-precio="{{ ((d.precio_fire_sale if (d.en_fire_sale_activo and cliente_actual) else d.precio_mostrar) or 0)|int }}" aria-label="Agregar {{ d.artista }} - {{ d.titulo }} al carrito" title="Agregar al carrito">
                     <span class="cart-label-add">Agregar al carrito</span>
                     <span class="cart-label-in">&#10003; Agregado</span>
                 </button>

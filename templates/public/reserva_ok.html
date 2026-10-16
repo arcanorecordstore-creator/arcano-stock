@@ -84,6 +84,24 @@
     <a href="{{ url_for('home') }}" class="public-reserve-ok-back">Volver al catalogo</a>
 </section>
 
+{% if medir_lead %}
+<script>
+(function () {
+    // Conversion: reserva "a coordinar" (todavia sin pago) -> Lead en GA4 y Meta.
+    var payload = {
+        transaction_id: 'reserva-{{ reserva.id }}',
+        value: {{ reserva.total_uyu or 0 }},
+        currency: 'UYU',
+        items: {{ purchase_items|tojson }}
+    };
+    var n = 0;
+    (function fire() {
+        if (typeof window.arcanoGA === 'function') { try { window.arcanoGA('generate_lead', payload); } catch (e) {} return; }
+        if (++n < 60) setTimeout(fire, 100);
+    })();
+})();
+</script>
+{% endif %}
 {% if medir_compra %}
 <script>
 (function () {
