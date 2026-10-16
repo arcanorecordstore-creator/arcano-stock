@@ -328,7 +328,11 @@ document.addEventListener('click', function (e) {
                 btn.classList.add('cart-pop');
                 // Al agregar: abrir el menu lateral. Al quitar: solo un toast.
                 if (added) {
-                    var card = btn.closest('.public-card') || btn.closest('.carrusel-card') || btn.closest('.public-disc-layout') || document;
+                    // Tarjeta del catalogo/carrusel; en la ficha (o su barra de compra), la
+                    // ficha misma. Antes caia en "document" y tomaba el nombre del primer
+                    // disco de "Similares" (el id era el correcto, el nombre no).
+                    var card = btn.closest('.public-card') || btn.closest('.carrusel-card')
+                        || (!btn.closest('.public-related') && document.querySelector('.public-disc')) || document;
                     // Animacion "vuela al carrito" (solo al agregar)
                     var _flyImg = card.querySelector('.public-card-cover img') || card.querySelector('.carrusel-cover img') || card.querySelector('.public-disc-cover img');
                     if (window.ArcanoFlyToCart) window.ArcanoFlyToCart(_flyImg);
