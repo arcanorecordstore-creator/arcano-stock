@@ -137,6 +137,9 @@
     var valEstado = document.getElementById('bulk-val-estado');
     var valBool = document.getElementById('bulk-val-bool');
     var valNuevo = document.getElementById('bulk-val-nuevo');
+    var valSale = document.getElementById('bulk-val-sale');
+    var valPct = document.getElementById('bulk-val-pct');
+    var valHasta = document.getElementById('bulk-val-hasta');
 
     function getSelected() {
       var ids = [];
@@ -177,10 +180,17 @@
       [valEstado, valBool, valNuevo].forEach(function (el) {
         if (el) { el.hidden = true; el.disabled = true; }
       });
+      if (valSale) valSale.hidden = true;
+      if (valPct) valPct.disabled = true;
+      if (valHasta) valHasta.disabled = true;
       if (campo === 'status' && valEstado) {
         valEstado.hidden = false; valEstado.disabled = false;
       } else if (campo === 'cartel_nuevo' && valNuevo) {
         valNuevo.hidden = false; valNuevo.disabled = false;
+      } else if (campo === 'poner_oferta' && valSale) {
+        valSale.hidden = false;
+        if (valPct) { valPct.disabled = false; valPct.focus(); }
+        if (valHasta) valHasta.disabled = false;
       } else if (campo === 'quitar_oferta') {
         // no necesita valor
       } else if (campo && valBool) {
@@ -199,6 +209,9 @@
       fieldForm.addEventListener('submit', function (e) {
         var campo = fieldSelector ? fieldSelector.value : '';
         if (!campo) { e.preventDefault(); alert('Elegi que queres cambiar.'); return; }
+        if (campo === 'poner_oferta' && !(parseFloat(valPct && valPct.value) >= 1 && parseFloat(valPct.value) <= 90)) {
+          e.preventDefault(); alert('Poné el % de descuento (entre 1 y 90).'); if (valPct) valPct.focus(); return;
+        }
         // Confirmacion: la edicion masiva toca varios discos a la vez
         var nSel = getSelected().length;
         if (!window.confirm('Vas a aplicar este cambio a ' + nSel + ' disco' + (nSel === 1 ? '' : 's') + '. Continuar?')) {
@@ -215,6 +228,11 @@
         if (campo === 'status') {
           addHidden('action', 'status');
           addHidden('nuevo_estado', valEstado.value);
+        } else if (campo === 'poner_oferta') {
+          addHidden('action', 'set_field');
+          addHidden('campo', 'poner_oferta');
+          addHidden('pct', valPct ? valPct.value : '');
+          addHidden('hasta', valHasta ? valHasta.value : '');
         } else if (campo === 'quitar_oferta') {
           addHidden('action', 'set_field');
           addHidden('campo', 'quitar_oferta');

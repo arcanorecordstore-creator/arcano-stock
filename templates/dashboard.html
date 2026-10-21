@@ -329,7 +329,7 @@
                         <input type="checkbox" class="mark-home" data-campo="oculto_web" data-disc-id="{{ d.id }}" {% if d.oculto_web %}checked{% endif %}>
                         <span class="home-check-icon">NO</span>
                     </label>
-                    {% if d.en_oferta %}<span class="home-sale-flag" title="En oferta (-{{ d.descuento_pct }}%)">SALE</span>{% endif %}
+                    {% if d.en_oferta %}<span class="home-sale-flag" title="En oferta (-{{ d.descuento_pct }}%){% if d.oferta_hasta %} hasta el {{ d.oferta_hasta.strftime('%d/%m') }}{% endif %}">SALE</span>{% endif %}
                     <select class="cartel-nuevo-select" data-disc-id="{{ d.id }}" title="Cartel Nuevo">
                         <option value="auto" {% if d.cartel_nuevo == 'auto' %}selected{% endif %}>Nuevo: auto</option>
                         <option value="si" {% if d.cartel_nuevo == 'si' %}selected{% endif %}>Nuevo: si</option>
@@ -461,6 +461,7 @@
                     <option value="cartel_nuevo">Cartel Nuevo</option>
                 </optgroup>
                 <optgroup label="Oferta">
+                    <option value="poner_oferta">Poner en SALE (% de descuento)</option>
                     <option value="quitar_oferta">Quitar oferta (SALE)</option>
                 </optgroup>
                 <optgroup label="Fire Sale">
@@ -475,6 +476,10 @@
                 <option value="1">Activar</option>
                 <option value="0">Desactivar</option>
             </select>
+            <span id="bulk-val-sale" class="bulk-sale" hidden>
+                <input type="number" id="bulk-val-pct" class="bulk-select bulk-pct" min="1" max="90" step="1" placeholder="%" aria-label="Porcentaje de descuento">
+                <label class="bulk-sale-hasta">hasta <input type="date" id="bulk-val-hasta" class="bulk-select" aria-label="Último día de la oferta (opcional)"></label>
+            </span>
             <select name="_nuevo_val" id="bulk-val-nuevo" class="bulk-select" hidden>
                 <option value="auto">auto</option>
                 <option value="si">si</option>

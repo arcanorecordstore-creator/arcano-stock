@@ -112,7 +112,7 @@ CAMPOS = {
     'precio_uyu': 'Precio', 'stock': 'Stock', 'estado': 'Estado', 'condicion': 'Condición',
     'origen': 'Origen', 'notas': 'Notas', 'descripcion_publica': 'Descripción pública', 'tags': 'Tags',
     'destacado': 'Destacado', 'en_nuevos': 'En "Nuevos ingresos"', 'cartel_nuevo': 'Cartel "Nuevo"',
-    'cartel_ultima': 'Cartel "Última copia"', 'precio_oferta': 'Precio de oferta',
+    'cartel_ultima': 'Cartel "Última copia"', 'precio_oferta': 'Precio de oferta', 'oferta_hasta': 'Oferta hasta',
     'en_fire_sale': 'En Fire Sale', 'precio_venta_uyu': 'Precio de venta', 'mostrar_agotado': 'Mostrar agotado', 'oculto_web': 'NO mostrar en la web',
     'es_tip': 'Staff Pick', 'es_mystery_box': 'Mystery Box', 'resena_corta': 'Reseña corta',
     'audio_estado': 'Estado del audio', 'es_preorder': 'Pre-order', 'copias_vendidas': 'Copias vendidas',

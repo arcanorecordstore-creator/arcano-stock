@@ -149,6 +149,9 @@ class Disc(db.Model):
     # Precio de oferta (opcional). Si esta seteado y es menor al precio, se
     # muestra el precio tachado con el de oferta al lado (SALE).
     precio_oferta = db.Column(db.Float, nullable=True, default=None)
+    # Ultimo dia de la oferta (v6.18). Vacio = sin fecha de fin. Pasado ese dia el disco
+    # vuelve solo a su precio normal en toda la tienda.
+    oferta_hasta = db.Column(db.Date, nullable=True, default=None)
     # Fire Sale: marca manual para incluir este disco cuando el alcance del
     # Fire Sale es "seleccion" (si el alcance es "todo", este flag se ignora).
     en_fire_sale = db.Column(db.Boolean, nullable=False, default=False)
@@ -309,9 +312,13 @@ class Disc(db.Model):
 
     @property
     def en_oferta(self) -> bool:
-        """True si tiene un precio de oferta valido (menor al precio normal)."""
+        """True si tiene un precio de oferta valido (menor al precio normal) y, si la
+        oferta tiene fecha de fin, todavia no paso."""
         po = getattr(self, "precio_oferta", None)
-        return bool(po and po > 0 and self.precio_uyu and po < self.precio_uyu)
+        if not (po and po > 0 and self.precio_uyu and po < self.precio_uyu):
+            return False
+        hasta = getattr(self, "oferta_hasta", None)
+        return not (hasta and today_uy() > hasta)
 
     @property
     def precio_mostrar(self) -> float:
@@ -2217,6 +2224,11 @@ def _migrate_schema(app):
                     conn.execute(text("ALTER TABLE discs ADD COLUMN cartel_ultima BOOLEAN DEFAULT 0"))
                     conn.commit()
                 print("Migracion: columna cartel_ultima agregada a discs")
+            if "oferta_hasta" not in cols:
+                with db.engine.connect() as conn:
+                    conn.execute(text("ALTER TABLE discs ADD COLUMN oferta_hasta DATE"))
+                    conn.commit()
+                print("Migracion: columna oferta_hasta agregada a discs")
             if "precio_oferta" not in cols:
                 with db.engine.connect() as conn:
                     conn.execute(text("ALTER TABLE discs ADD COLUMN precio_oferta FLOAT"))

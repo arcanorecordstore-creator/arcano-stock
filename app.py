@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.17"
+APP_VERSION = "6.18"
 import metrics
 import auth
 import mailer
@@ -85,6 +85,19 @@ def _reserva_registrar(ip):
 # Tope de discos que puede apartar un pedido SIN pago online (coordinar / transferencia).
 # Decision de Facundo (12/10/2026): maximo 10.
 MAX_DISCOS_SIN_PAGO = 10
+
+
+def _wa_numero(tel):
+    """Numero uruguayo para wa.me: solo digitos, con 598 y sin el 0 inicial
+    ('099 123 456' -> '59899123456'). Sin el 598 el link de WhatsApp no abre el chat."""
+    d = "".join(ch for ch in str(tel or "") if ch.isdigit())
+    if not d:
+        return ""
+    if d.startswith("598"):
+        return d
+    if d.startswith("0"):
+        d = d[1:]
+    return "598" + d
 
 
 def _vendible_web(d):
@@ -677,6 +690,7 @@ self.addEventListener('notificationclick', function(e){
         return send_from_directory(app.config["COMPROBANTES_DIR"], filename)
 
     app.url_map.converters["disco_slug"] = _DiscoSlugConverter
+    app.add_template_filter(_wa_numero, "wa_num")
     init_db(app)
     _backfill_ventas_sin_cliente(app)
     app.enviar_push = _enviar_push
@@ -1150,6 +1164,15 @@ def populate_disc_from_form(disc: Disc, form) -> list[str]:
     # Precio de oferta (opcional). Vacio o 0 = sin oferta.
     _po = _parse_float(form.get("precio_oferta"), default=0.0)
     disc.precio_oferta = _po if _po and _po > 0 else None
+    # Ultimo dia de la oferta (opcional). Sin oferta no hay fecha.
+    if "oferta_hasta" in form:
+        _oh = (form.get("oferta_hasta") or "").strip()
+        try:
+            disc.oferta_hasta = datetime.strptime(_oh, "%Y-%m-%d").date() if (_oh and disc.precio_oferta) else None
+        except ValueError:
+            disc.oferta_hasta = None
+    if not disc.precio_oferta:
+        disc.oferta_hasta = None
 
     if not disc.tc_usado:
         disc.tc_usado = Setting.get_tc()
@@ -3000,10 +3023,21 @@ def register_routes(app: Flask) -> None:
     @auth.admin_required
     def disc_detail(disc_id: int):
         disc = Disc.query.get_or_404(disc_id)
+        # Clientes que lo guardaron en favoritos (de esta copia o de otra del mismo disco)
+        from models import ClienteFavorito, Cliente
+        _ids_mismo = [disc.id]
+        if getattr(disc, "slug", None):
+            _ids_mismo = [i for (i,) in db.session.query(Disc.id).filter(Disc.slug == disc.slug).all()] or [disc.id]
+        favoritos_de = (db.session.query(Cliente, db.func.max(ClienteFavorito.fecha))
+                        .join(ClienteFavorito, ClienteFavorito.cliente_id == Cliente.id)
+                        .filter(ClienteFavorito.disc_id.in_(_ids_mismo))
+                        .group_by(Cliente.id)
+                        .order_by(db.func.max(ClienteFavorito.fecha).desc()).all())
         # disc.history ya viene ordenado desc por la relacion del modelo
         return render_template(
             "disc_detail.html",
             disc=disc,
+            favoritos_de=favoritos_de,
             history=disc.history,
             estados=ESTADOS_DISCO,
             tc=Setting.get_tc(),
@@ -3314,9 +3348,48 @@ def register_routes(app: Flask) -> None:
             elif campo == "quitar_oferta":
                 for d in discs:
                     d.precio_oferta = None
+                    d.oferta_hasta = None
                     cambios += 1
                 db.session.commit()
                 flash(f"{cambios} disco(s): oferta quitada.", "success")
+            elif campo == "poner_oferta":
+                # SALE en masa (v6.18): % de descuento sobre el precio de cada disco,
+                # redondeado a $10, con fecha de fin opcional. No toca los vendidos (su
+                # precio de venta ya quedo guardado) ni los que no tienen precio.
+                try:
+                    pct = int(float((request.form.get("pct") or "").replace(",", ".")))
+                except ValueError:
+                    pct = 0
+                if not 1 <= pct <= 90:
+                    flash("Poné un descuento entre 1 y 90 %.", "error")
+                    return redirect(url_for("dashboard"))
+                hasta = None
+                _h = (request.form.get("hasta") or "").strip()
+                if _h:
+                    try:
+                        hasta = datetime.strptime(_h, "%Y-%m-%d").date()
+                    except ValueError:
+                        hasta = None
+                    if hasta and hasta < today_uy():
+                        flash("La fecha de fin ya pasó: elegí hoy o un día que venga.", "error")
+                        return redirect(url_for("dashboard"))
+                salteados = 0
+                for d in discs:
+                    if (d.estado in ("Vendido", "Descartado") or not (d.precio_uyu or 0) > 0
+                            or getattr(d, "es_mystery_box", False)):   # la box tiene su propio precio
+                        salteados += 1
+                        continue
+                    nuevo_p = int(round((d.precio_uyu * (100 - pct) / 100.0) / 10.0) * 10)
+                    if nuevo_p <= 0 or nuevo_p >= d.precio_uyu:
+                        salteados += 1
+                        continue
+                    d.precio_oferta = nuevo_p
+                    d.oferta_hasta = hasta
+                    cambios += 1
+                db.session.commit()
+                _hasta_txt = f" hasta el {hasta.strftime('%d/%m')}" if hasta else ""
+                _salt_txt = (f" ({salteados} sin cambiar: vendidos, sin precio o la Mystery Box)" if salteados else "")
+                flash(f"{cambios} disco(s) en SALE -{pct}%{_hasta_txt}.{_salt_txt}", "success")
             else:
                 flash(f"Campo no valido para cambio masivo: {campo}", "error")
             return redirect(url_for("dashboard"))
@@ -3997,8 +4070,17 @@ def register_routes(app: Flask) -> None:
         # Lo más buscado en general (con o sin resultado)
         top_busquedas = sorted(_all_busq, key=lambda a: a["veces"], reverse=True)[:25]
 
+        # Los mas guardados en favoritos por clientes con cuenta (intencion de compra con
+        # nombre y apellido). Solo los que todavia se pueden vender.
+        from models import ClienteFavorito
+        _fav_rows = (db.session.query(Disc, db.func.count(db.func.distinct(ClienteFavorito.cliente_id)))
+                     .join(ClienteFavorito, ClienteFavorito.disc_id == Disc.id)
+                     .filter(Disc.estado.in_(["Disponible", "Pre-order", "Encargo", "Reservado"]))
+                     .group_by(Disc.id).all())
+        mas_guardados = sorted(_fav_rows, key=lambda x: (-x[1], (x[0].artista or "").lower()))[:20]
         return render_template(
             "radar.html",
+            mas_guardados=mas_guardados,
             disponibles=disponibles,
             vendidos=vendidos,
             con_escuchas=len(con_escuchas),
@@ -9896,9 +9978,12 @@ def register_routes(app: Flask) -> None:
                                     .filter(Reserva.id != reserva.id, Reserva.estado == reserva.estado)
                                     .filter(or_(*_conds))
                                     .order_by(Reserva.id.desc()).limit(20).all())
+        mensajes_wa = _mensajes_whatsapp_reserva(reserva)
         return render_template(
             "admin_reserva_detail.html",
             reserva=reserva,
+            mensajes_wa=mensajes_wa,
+            wa_numero=_wa_numero(reserva.whatsapp),
             estados=ESTADOS_RESERVA,
             conflictos=conflictos,
             destinos_separar=destinos_separar,
@@ -11296,13 +11381,74 @@ def register_routes(app: Flask) -> None:
                               .filter(Disc.estado.in_(["Reservado", "Encargo"]), Disc.cliente_id == cli.id)
                               .order_by(Disc.estado.desc(), Disc.fecha_reserva.desc(), Disc.id.desc()).all())
         duplicados_cli = _posibles_duplicados(Cliente.query.all()).get(cli.id, [])
+        from models import ClienteFavorito
+        favoritos_cli = (db.session.query(Disc, ClienteFavorito.fecha)
+                         .join(ClienteFavorito, ClienteFavorito.disc_id == Disc.id)
+                         .filter(ClienteFavorito.cliente_id == cli.id)
+                         .order_by(ClienteFavorito.fecha.desc()).all())
         return render_template(
             "admin_cliente_detail.html", cli=cli, compras=compras,
             reservas_activas=reservas_activas, total=total, otros=otros,
-            duplicados_cli=duplicados_cli,
+            duplicados_cli=duplicados_cli, favoritos_cli=favoritos_cli,
             lealtad=lealtad, discs_para_agregar=discs_para_agregar,
             reservados_cliente=reservados_cliente,
         )
+
+    def _mensajes_whatsapp_reserva(reserva):
+        """Mensajes listos para mandarle al cliente por WhatsApp (o copiar para Instagram),
+        armados con los datos de la reserva. Texto simple y directo; se puede editar antes
+        de mandarlo. Devuelve [{clave, titulo, texto}] ordenados por lo mas util segun el
+        estado de la reserva."""
+        def plata(n):
+            return "$ " + f"{round(n or 0):,.0f}".replace(",", ".")
+        nombre = ((reserva.nombre or "").strip().split(" ") or [""])[0]
+        hola = f"Hola {nombre}!" if nombre else "Hola!"
+        items = reserva.items_efectivos
+        lineas = []
+        for it in items:
+            if getattr(it, "es_mystery_box", False):
+                t = it.titulo_snap or "Mystery Box"          # "Mystery Box · 5 discos"
+            else:
+                t = f"{it.artista_snap or ''} - {it.titulo_snap or ''}".strip(" -") or "Disco"
+            precio = it.precio_uyu_snap or 0
+            lineas.append(f"- {t}" + (f" ({plata(precio)})" if precio else ""))
+        lista = "\n".join(lineas)
+        n = len(items)
+        los_discos = "tu disco" if n == 1 else "tus discos"
+        total = reserva.total_final or reserva.total_con_envio or 0
+        sena = reserva.sena_cobrada_total or 0
+        falta = max(0.0, (reserva.total_con_envio or 0) - sena)
+        detalle_total = f"Total: {plata(total)}"
+        if reserva.envio_costo_uyu:
+            detalle_total += f" (incluye envío {plata(reserva.envio_costo_uyu)})"
+        if sena and reserva.estado == "Pendiente":
+            detalle_total += f"\nYa pagaste {plata(sena)} de seña, falta {plata(falta)}."
+        datos_banco = (Setting.get("transferencia_datos", "") or "").strip()
+        pago = (f"\n\nPodés pagar por transferencia:\n{datos_banco}" if datos_banco
+                else "\n\nDecime cómo preferís pagar y te paso los datos.")
+        entrega = reserva.entrega_label
+        msgs = {
+            "pago": ("Datos para pagar",
+                     f"{hola} Te paso el detalle de tu reserva #{reserva.id} en Arcano:\n{lista}\n\n{detalle_total}{pago}"),
+            "recordatorio": ("Recordatorio de pago",
+                             f"{hola} Te escribo por tu reserva #{reserva.id}, que la tengo apartada:\n{lista}\n\n"
+                             f"{detalle_total}\n¿Cómo querés hacer con el pago?"),
+            "llego": ("Ya llegó tu disco",
+                      f"{hola} Ya tengo {los_discos}:\n{lista}\n\n¿Coordinamos la entrega?"),
+            "entrega": ("Coordinar entrega",
+                        f"{hola} Te escribo para coordinar la entrega de {los_discos} (reserva #{reserva.id})"
+                        + (f", {entrega.lower()}" if entrega else "") + ". ¿Qué día y horario te queda bien?"),
+            "gracias": ("Pago recibido",
+                        f"{hola} Recibí el pago de tu reserva #{reserva.id}. ¡Gracias por la compra!"
+                        + ("\nAhora coordinamos la entrega." if not reserva.entregado else "")),
+        }
+        if reserva.estado == "Pagada":
+            orden = ["gracias", "entrega", "llego"]
+        elif reserva.estado == "Cancelada":
+            orden = []
+        else:
+            orden = ["pago", "recordatorio", "llego", "entrega"]
+        return [{"clave": k, "titulo": msgs[k][0], "texto": msgs[k][1]} for k in orden]
 
     def _volver_admin(default_endpoint="dashboard", **kw):
         """Redirige a donde vino (next del form o referer) si es una URL /admin;

@@ -78,6 +78,31 @@
     </section>
 
     <section class="radar-section">
+        <h2 class="gest-sec-title">Los m&aacute;s guardados en favoritos</h2>
+        <p class="radar-hint">Discos que tus clientes <strong>guardaron</strong> y todav&iacute;a ten&eacute;s: intenci&oacute;n de compra con nombre y apellido. Entr&aacute; al disco para ver qui&eacute;nes son y escribirles (por ejemplo si lo pon&eacute;s en SALE o queda uno).</p>
+        {% if mas_guardados %}
+        <div class="radar-table-wrap">
+        <table data-resize-key="radar-favs" class="radar-table">
+            <thead><tr><th class="ra-rank">#</th><th class="ra-num">Guardado por</th><th>Disco</th><th>Estado</th><th class="ra-num">Precio</th></tr></thead>
+            <tbody>
+                {% for d, n in mas_guardados %}
+                <tr>
+                    <td class="ra-rank">{{ loop.index }}</td>
+                    <td class="ra-num ra-interes" data-label="Guardado por">{{ n }} cliente{{ 's' if n != 1 else '' }}</td>
+                    <td class="ra-disco"><a href="{{ url_for('disc_detail', disc_id=d.id) }}">{{ d.artista }} &mdash; {{ d.titulo }}</a>{% if d.sello %}<span class="ra-sello">{{ d.sello }}</span>{% endif %}</td>
+                    <td class="ra-estado"><span class="badge {{ estado_class.get(d.estado, 'badge-default') }}">{{ d.estado }}</span></td>
+                    <td class="ra-num" data-label="Precio">$ {{ '{:,.0f}'.format(d.precio_mostrar or d.precio_uyu or 0).replace(',', '.') }}{% if d.en_oferta %} <small>SALE</small>{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        </div>
+        {% else %}
+        <p class="radar-empty">Todav&iacute;a ning&uacute;n cliente con cuenta guard&oacute; discos disponibles en favoritos.</p>
+        {% endif %}
+    </section>
+
+    <section class="radar-section">
         <h2 class="gest-sec-title">Calientes y disponibles</h2>
         <p class="radar-hint">Los que más ganas despiertan por día <strong>y todavía tenés</strong>. Candidatos para subir a la primera fila de la home, destacar, o hacerles una story hoy.</p>
         {{ tabla_radar(disponibles, 'Todavía no hay discos disponibles con escuchas. Cuando la gente empiece a escuchar samples, aparecen acá ordenados por interés.') }}

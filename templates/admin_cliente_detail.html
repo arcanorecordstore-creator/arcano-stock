@@ -138,6 +138,20 @@
         <p class="cli-empty">Todav&iacute;a no tiene compras registradas.</p>
         {% endif %}
 
+        <h2 class="cli-panel-title" style="margin-top:20px;">En sus favoritos ({{ favoritos_cli|length }})</h2>
+        {% if favoritos_cli %}
+        <ul class="cli-favs">
+            {% for d, fecha in favoritos_cli %}
+            <li>
+                <a href="{{ url_for('disc_detail', disc_id=d.id) }}">{{ d.artista }} &mdash; {{ d.titulo }}</a>
+                <span class="cli-fav-meta">{{ d.estado }}{% if d.estado != 'Vendido' and d.precio_uyu %} &middot; $ {{ '{:,.0f}'.format(d.precio_mostrar or d.precio_uyu).replace(',', '.') }}{% if d.en_oferta %} (SALE){% endif %}{% endif %}{% if fecha %} &middot; guardado el {{ fecha.strftime('%d/%m') }}{% endif %}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="cli-empty" style="font-size:13px;color:var(--text-4);">No tiene discos guardados (o no inici&oacute; sesi&oacute;n cuando los guard&oacute;).</p>
+        {% endif %}
+
         {% if reservas_activas %}
         <h2 class="cli-panel-title" style="margin-top:20px;">Reservas activas ({{ reservas_activas|length }})</h2>
         <div class="cli-compras">
@@ -303,6 +317,9 @@
 </section>
 
 <style>
+.cli-favs{list-style:none;margin:0 0 4px;padding:0;display:flex;flex-direction:column;gap:6px;}
+.cli-favs a{color:var(--text-1);}
+.cli-fav-meta{font-size:12.5px;color:var(--text-4);margin-left:6px;}
 .cli-dup-aviso{display:flex;flex-direction:column;gap:8px;background:rgba(214,169,69,.10);border:1px solid rgba(214,169,69,.4);border-radius:12px;padding:12px 16px;margin:0 0 16px;}
 .cli-dup-tit{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-3);}
 .cli-dup-item{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}

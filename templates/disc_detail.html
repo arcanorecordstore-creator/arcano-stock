@@ -141,6 +141,12 @@
                     <span class="detail-meta-label">Precio venta UYU</span>
                     <span class="detail-meta-value">{{ '{:,.0f}'.format(disc.precio_uyu or 0).replace(',', '.') }}</span>
                 </div>
+                {% if disc.precio_oferta %}
+                <div class="detail-meta">
+                    <span class="detail-meta-label">Oferta{% if disc.oferta_hasta %} hasta el {{ disc.oferta_hasta.strftime('%d/%m/%Y') }}{% endif %}</span>
+                    <span class="detail-meta-value">{{ '{:,.0f}'.format(disc.precio_oferta).replace(',', '.') }}{% if not disc.en_oferta %} <small>(vencida: se cobra el precio normal)</small>{% endif %}</span>
+                </div>
+                {% endif %}
                 <div class="detail-meta">
                     <span class="detail-meta-label">Ganancia UYU</span>
                     <span class="detail-meta-value {% if (disc.ganancia_uyu or 0) >= 0 %}detail-gain{% else %}detail-loss{% endif %}">{{ '{:,.0f}'.format(disc.ganancia_uyu or 0).replace(',', '.') }}</span>
@@ -150,6 +156,24 @@
                     <span class="detail-meta-value {% if (disc.margen_pct or 0) < 0 %}detail-loss{% endif %}">{{ '%.1f'|format(disc.margen_pct or 0) }}%</span>
                 </div>
             </div>
+        </section>
+
+        <!-- Card: quien lo tiene en favoritos (clientes con cuenta) -->
+        <section class="detail-card">
+            <h2 class="detail-card-title">En favoritos{% if favoritos_de %} &middot; {{ favoritos_de|length }}{% endif %}</h2>
+            {% if favoritos_de %}
+            <ul class="fav-adm-list">
+                {% for cli, fecha in favoritos_de %}
+                <li>
+                    <a href="{{ url_for('admin_cliente_detail', cliente_id=cli.id) }}">{{ cli.nombre }}</a>
+                    <span class="fav-adm-meta">{% if cli.whatsapp %}{{ cli.whatsapp }}{% elif cli.instagram %}@{{ cli.instagram }}{% elif cli.email %}{{ cli.email }}{% endif %}{% if fecha %} &middot; lo guard&oacute; el {{ fecha.strftime('%d/%m') }}{% endif %}</span>
+                    {% if cli.whatsapp %}<a class="fav-adm-wa" href="https://wa.me/{{ cli.whatsapp|wa_num }}?text={{ ('Hola ' ~ (cli.nombre.split(' ')[0]) ~ '! Te escribo por ' ~ disc.artista ~ ' - ' ~ disc.titulo ~ ', que lo tenés guardado en favoritos en Arcano.')|urlencode }}" target="_blank" rel="noopener">WhatsApp &nearr;</a>{% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="fav-adm-vacio">Ning&uacute;n cliente con cuenta lo guard&oacute; todav&iacute;a. (Los favoritos de quien no inici&oacute; sesi&oacute;n quedan solo en su celu y no se ven ac&aacute;.)</p>
+            {% endif %}
         </section>
 
         <!-- Card: escuchar el disco (tracks con audio: MP3, YouTube o SoundCloud) -->
@@ -306,4 +330,12 @@ body:has(#floating-player:not([hidden])) .app-main { padding-bottom: 110px; }
 })();
 </script>
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
+<style>
+.fav-adm-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
+.fav-adm-list li{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
+.fav-adm-list li > a:first-child{color:var(--text-1);font-weight:500;}
+.fav-adm-meta{font-size:12.5px;color:var(--text-4);}
+.fav-adm-wa{font-size:12px;color:var(--text-2);margin-left:auto;}
+.fav-adm-vacio{font-size:13px;color:var(--text-4);margin:0;}
+</style>
 {% endblock %}

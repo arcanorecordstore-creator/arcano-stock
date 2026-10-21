@@ -28,7 +28,7 @@
                 <div class="detail-meta">
                     <span class="detail-meta-label">WhatsApp</span>
                     <span class="detail-meta-value">
-                        <a href="https://wa.me/{{ reserva.whatsapp|replace('+', '')|replace(' ', '')|replace('-', '') }}" target="_blank" rel="noopener" class="link">{{ reserva.whatsapp }} &nearr;</a>
+                        <a href="https://wa.me/{{ wa_numero }}" target="_blank" rel="noopener" class="link">{{ reserva.whatsapp }} &nearr;</a>
                     </span>
                 </div>
                 {% if reserva.email %}
@@ -38,6 +38,26 @@
                 </div>
                 {% endif %}
             </div>
+
+            {# Mensajes armados para WhatsApp (o copiar para mandar por Instagram) #}
+            {% if mensajes_wa %}
+            <div class="wa-msgs" data-wa="{{ wa_numero }}">
+                <span class="detail-meta-label">Escribirle</span>
+                <div class="wa-msgs-chips">
+                    {% for m in mensajes_wa %}
+                    <button type="button" class="wa-chip{% if loop.first %} is-on{% endif %}" data-clave="{{ m.clave }}">{{ m.titulo }}</button>
+                    {% endfor %}
+                </div>
+                <script type="application/json" id="wa-msgs-data">{{ mensajes_wa|tojson }}</script>
+                <textarea class="wa-texto" rows="8" aria-label="Mensaje para el cliente">{{ mensajes_wa[0].texto }}</textarea>
+                <div class="wa-acciones">
+                    <a class="btn btn-primary btn-sm wa-abrir" href="#" target="_blank" rel="noopener"{% if not wa_numero %} aria-disabled="true"{% endif %}>Abrir WhatsApp</a>
+                    <button type="button" class="btn btn-ghost btn-sm wa-copiar">Copiar (para Instagram)</button>
+                    <span class="wa-ok" aria-live="polite"></span>
+                </div>
+                <p class="form-field-hint">Pod&eacute;s editar el texto antes de mandarlo.{% if not wa_numero %} Esta reserva no tiene celular: us&aacute; Copiar.{% endif %}</p>
+            </div>
+            {% endif %}
 
             {# Asignar esta reserva (y sus discos) a un cliente ya cargado, o cambiarlo. #}
             <form method="post" class="reserva-asignar" style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-1);">
@@ -390,6 +410,46 @@ Montevideo, Uruguay</div>
             r.style.display = (!q || (r.dataset.txt || '').indexOf(q) !== -1) ? '' : 'none';
         });
     });
+})();
+</script>
+
+<style>
+.wa-msgs{margin-top:16px;padding-top:16px;border-top:1px solid var(--border-1);display:flex;flex-direction:column;gap:8px;}
+.wa-msgs-chips{display:flex;flex-wrap:wrap;gap:6px;}
+.wa-chip{font:inherit;font-size:12px;padding:5px 11px;border-radius:999px;border:1px solid var(--border-2);background:transparent;color:var(--text-3);cursor:pointer;}
+.wa-chip:hover{color:var(--text-1);border-color:var(--border-3);}
+.wa-chip.is-on{background:var(--text-1);border-color:var(--text-1);color:var(--bg-0);}
+.wa-texto{width:100%;font:inherit;font-size:13px;line-height:1.5;padding:10px 12px;border-radius:10px;border:1px solid var(--border-2);background:var(--bg-1);color:var(--text-1);resize:vertical;}
+.wa-texto:focus{outline:none;border-color:var(--border-3);}
+.wa-acciones{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.wa-abrir[aria-disabled="true"]{opacity:.45;pointer-events:none;}
+.wa-ok{font-size:12px;color:var(--text-3);}
+</style>
+<script>
+(function () {
+    var box = document.querySelector('.wa-msgs');
+    if (!box) return;
+    var txt = box.querySelector('.wa-texto'), abrir = box.querySelector('.wa-abrir'), ok = box.querySelector('.wa-ok');
+    var num = box.getAttribute('data-wa') || '';
+    var datos = [];
+    try { datos = JSON.parse(document.getElementById('wa-msgs-data').textContent); } catch (e) {}
+    function link() { abrir.href = num ? ('https://wa.me/' + num + '?text=' + encodeURIComponent(txt.value)) : '#'; }
+    box.querySelectorAll('.wa-chip').forEach(function (b) {
+        b.addEventListener('click', function () {
+            box.querySelectorAll('.wa-chip').forEach(function (x) { x.classList.toggle('is-on', x === b); });
+            var m = datos.filter(function (x) { return x.clave === b.dataset.clave; })[0];
+            if (m) txt.value = m.texto;
+            link(); ok.textContent = '';
+        });
+    });
+    txt.addEventListener('input', link);
+    box.querySelector('.wa-copiar').addEventListener('click', function () {
+        var hecho = function () { ok.textContent = 'Copiado'; setTimeout(function () { ok.textContent = ''; }, 1500); };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(txt.value).then(hecho, function () { txt.select(); document.execCommand('copy'); hecho(); });
+        } else { txt.select(); document.execCommand('copy'); hecho(); }
+    });
+    link();
 })();
 </script>
 {% endblock %}

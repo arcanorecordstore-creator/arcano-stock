@@ -298,6 +298,11 @@
                            value="{{ field_value('precio_oferta', '%.0f'|format(disc.precio_oferta) if disc.precio_oferta is not none else '') }}">
                 </div>
                 <div class="form-field form-field-sm">
+                    <label for="oferta_hasta">Oferta hasta <span class="form-field-hint">(opcional)</span></label>
+                    <input type="date" id="oferta_hasta" name="oferta_hasta"
+                           value="{{ field_value('oferta_hasta', disc.oferta_hasta.isoformat() if disc.oferta_hasta else '') }}">
+                </div>
+                <div class="form-field form-field-sm">
                     <label for="stock">Stock</label>
                     <input type="number" id="stock" name="stock" min="1" step="1"
                            value="{{ field_value('stock', disc.stock or 1) }}">
