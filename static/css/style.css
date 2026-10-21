@@ -9230,7 +9230,23 @@ td.num,
 
 /* Grafico de rendimiento por pedido */
 .ped-chart { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
-.ped-chart-row { display: flex; align-items: center; gap: 12px; }
+.ped-chart-row { display: flex; align-items: center; gap: 12px; position: relative; cursor: default; border-radius: 6px; }
+.ped-chart-row:hover, .ped-chart-row:focus-visible { background: var(--bg-2); outline: none; }
+/* Cartelito al pasar el mouse sobre la barra: cuantos discos faltan vender */
+.ped-chart-tip {
+    position: absolute; left: 50%; bottom: calc(100% + 6px); transform: translateX(-50%);
+    display: flex; flex-direction: column; gap: 3px; min-width: 240px; max-width: min(360px, 90vw);
+    padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border-2);
+    background: var(--bg-0); color: var(--text-2); font-size: 12.5px; line-height: 1.4;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, .18); z-index: 30;
+    opacity: 0; visibility: hidden; pointer-events: none; transition: opacity .15s ease;
+}
+.ped-chart-tip strong { color: var(--text-1); font-weight: 500; }
+.ped-chart-tip b { color: var(--text-1); font-weight: 500; }
+.ped-tip-verde { color: var(--gain); }
+.ped-tip-rojo { color: var(--loss); }
+.ped-tip-gris { color: var(--text-4); }
+.ped-chart-row:hover .ped-chart-tip, .ped-chart-row:focus .ped-chart-tip { opacity: 1; visibility: visible; }
 .ped-chart-label {
     min-width: 60px;
     font-size: 13px;

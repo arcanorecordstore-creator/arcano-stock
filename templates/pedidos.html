@@ -353,7 +353,23 @@
     {% endfor %}
     <div class="ped-chart">
         {% for p in pedidos %}
-        <div class="ped-chart-row">
+        {% set _dpr = p.discos_para_recuperar %}
+        <div class="ped-chart-row" tabindex="0">
+            {# Al pasar el mouse (o tocar en el celu): cuantos discos faltan vender #}
+            <div class="ped-chart-tip" role="tooltip">
+                <strong>Pedido {{ p.numero or ('#' ~ p.id) }}</strong>
+                <span>Vendiste {{ p.discos_vendidos }} de {{ p.discos_asignados }} disco{{ 's' if p.discos_asignados != 1 else '' }}</span>
+                <span>Faltan vender <b>{{ _dpr.a_la_venta }}</b> disco{{ 's' if _dpr.a_la_venta != 1 else '' }}</span>
+                {% if _dpr.sin_datos %}
+                <span class="ped-tip-gris">Sin costo cargado: no se puede calcular el recupero</span>
+                {% elif p.recuperado or (_dpr.faltan == 0 and _dpr.alcanza) %}
+                <span class="ped-tip-verde">Ya recuperaste lo que pagaste</span>
+                {% elif not _dpr.alcanza %}
+                <span class="ped-tip-rojo">Aunque vendas todo lo que queda, faltar&iacute;an $ {{ '{:,.0f}'.format(_dpr.quedaria or 0).replace(',', '.') }} para recuperarlo</span>
+                {% else %}
+                <span>Para recuperar lo que pagaste: vend&eacute; <b>{{ _dpr.faltan }}</b> m&aacute;s{% if _dpr.rango %} (entre {{ _dpr.rango[0] }} y {{ _dpr.rango[1] }}, seg&uacute;n cu&aacute;les salgan){% endif %}</span>
+                {% endif %}
+            </div>
             <span class="ped-chart-label">{{ p.numero or ('#' ~ p.id) }}</span>
             <div class="ped-chart-track">
                 {% set ancho = (p.margen_pct|abs / ns.max * 100) if ns.max > 0 else 0 %}
