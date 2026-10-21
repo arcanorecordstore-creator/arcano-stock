@@ -77,6 +77,77 @@
         {% endif %}
     </section>
 
+    {# ---- Frenados: precio o exposicion ---- #}
+    {% macro tabla_frenados(lista, form_id) %}
+    <div class="radar-table-wrap">
+    <table data-resize-key="radar-frenados" class="radar-table">
+        <thead><tr><th class="ra-chk"><input type="checkbox" class="fr-todos" data-form="{{ form_id }}" aria-label="Elegir todos"></th><th>Disco</th><th class="ra-num">D&iacute;as</th><th class="ra-num">Vistas</th><th class="ra-num">Escuchas</th><th class="ra-num">Favoritos</th><th class="ra-num">Precio</th></tr></thead>
+        <tbody>
+            {% for f in lista %}
+            <tr>
+                <td class="ra-chk"><input type="checkbox" name="ids[]" value="{{ f.disc.id }}" form="{{ form_id }}" aria-label="Elegir {{ f.disc.artista }}"></td>
+                <td class="ra-disco"><a href="{{ url_for('disc_detail', disc_id=f.disc.id) }}">{{ f.disc.artista }} &mdash; {{ f.disc.titulo }}</a>{% if f.disc.sello %}<span class="ra-sello">{{ f.disc.sello }}</span>{% endif %}</td>
+                <td class="ra-num" data-label="Días">{{ f.dias }}</td>
+                <td class="ra-num" data-label="Vistas">{{ f.vistas }}</td>
+                <td class="ra-num" data-label="Escuchas">{{ f.plays }}</td>
+                <td class="ra-num" data-label="Favoritos">{{ f.favs }}</td>
+                <td class="ra-num" data-label="Precio">$ {{ '{:,.0f}'.format(f.precio or 0).replace(',', '.') }}{% if f.disc.en_oferta %} <small>SALE</small>{% endif %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    <form method="post" action="{{ url_for('disc_bulk_action') }}" id="{{ form_id }}" class="fr-sale"
+          onsubmit="var n=this.ownerDocument.querySelectorAll('input[form={{ form_id }}][name=&quot;ids[]&quot;]:checked').length; if(!n){alert('Elegí al menos un disco.');return false;} return confirm('¿Poner en SALE ' + n + ' disco(s)?');">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="set_field">
+        <input type="hidden" name="campo" value="poner_oferta">
+        <input type="hidden" name="next" value="{{ url_for('radar_demanda') }}">
+        <span>Poner los elegidos en SALE</span>
+        <input type="number" name="pct" min="1" max="90" step="1" required placeholder="%" aria-label="Porcentaje de descuento">
+        <label>hasta <input type="date" name="hasta" min="{{ hoy_iso }}" aria-label="Último día de la oferta (opcional)"></label>
+        <button type="submit" class="btn btn-primary btn-sm">Aplicar</button>
+    </form>
+    {% endmacro %}
+
+    <section class="radar-section">
+        <h2 class="gest-sec-title">Discos frenados: &iquest;precio o exposici&oacute;n?</h2>
+        <p class="radar-hint">Discos de Arcano con m&aacute;s de {{ frenado_umbral }} d&iacute;as sin venderse, separados por lo que hace la gente con ellos.</p>
+        <h3 class="fr-sub">Los miran, escuchan o guardan, pero no se venden ({{ frenados_precio|length }}) &mdash; <span>prob&aacute; bajar el precio</span></h3>
+        {% if frenados_precio %}{{ tabla_frenados(frenados_precio, 'fr-form-precio') }}{% else %}<p class="radar-empty">Ninguno por ahora.</p>{% endif %}
+        <h3 class="fr-sub">Casi nadie los mira ({{ frenados_expo|length }}) &mdash; <span>les falta exposici&oacute;n: sample, Staff Pick, una story o destacarlos</span></h3>
+        {% if frenados_expo %}{{ tabla_frenados(frenados_expo, 'fr-form-expo') }}{% else %}<p class="radar-empty">Ninguno por ahora.</p>{% endif %}
+        <p class="radar-hint" style="margin-top:6px;">Las vistas se cuentan desde el 21/10/2026: al principio van a ser pocas.</p>
+    </section>
+
+    {# ---- Embudo por disco ---- #}
+    <section class="radar-section">
+        <h2 class="gest-sec-title">Embudo por disco (30 d&iacute;as)</h2>
+        <p class="radar-hint">Cu&aacute;nta gente <strong>abri&oacute;</strong> la ficha, lo <strong>agreg&oacute; al carrito</strong>, lo <strong>reserv&oacute;</strong> y lo <strong>compr&oacute;</strong>. Un disco con muchas vistas y ninguna venta atrae pero no cierra: revis&aacute; el precio o la ficha (samples, fotos).</p>
+        {% if embudo %}
+        <div class="radar-table-wrap">
+        <table data-resize-key="radar-embudo" class="radar-table">
+            <thead><tr><th>Disco</th><th class="ra-num">Vistas</th><th class="ra-num">Carrito</th><th class="ra-num">Reservas</th><th class="ra-num">Ventas</th><th class="ra-num">Vista &rarr; venta</th></tr></thead>
+            <tbody>
+                {% for f in embudo %}
+                <tr class="{% if f.vistas >= 10 and not f.ventas %}emb-alerta{% endif %}">
+                    <td class="ra-disco"><a href="{{ url_for('disc_detail', disc_id=f.disc.id) }}">{{ f.disc.artista }} &mdash; {{ f.disc.titulo }}</a> <span class="badge {{ estado_class.get(f.disc.estado, 'badge-default') }}">{{ f.disc.estado }}</span></td>
+                    <td class="ra-num" data-label="Vistas">{{ f.vistas }}</td>
+                    <td class="ra-num" data-label="Carrito">{{ f.carrito }}</td>
+                    <td class="ra-num" data-label="Reservas">{{ f.reservas }}</td>
+                    <td class="ra-num" data-label="Ventas">{{ f.ventas }}</td>
+                    <td class="ra-num" data-label="Vista → venta">{% if f.vistas %}{{ (f.ventas / f.vistas * 100)|round|int }}%{% else %}&mdash;{% endif %}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot><tr><td>Total</td><td class="ra-num">{{ embudo_total.vistas }}</td><td class="ra-num">{{ embudo_total.carrito }}</td><td class="ra-num">{{ embudo_total.reservas }}</td><td class="ra-num">{{ embudo_total.ventas }}</td><td class="ra-num">{% if embudo_total.vistas %}{{ (embudo_total.ventas / embudo_total.vistas * 100)|round(1) }}%{% else %}&mdash;{% endif %}</td></tr></tfoot>
+        </table>
+        </div>
+        {% else %}
+        <p class="radar-empty">Todav&iacute;a no hay datos: las visitas y los &ldquo;agregar al carrito&rdquo; se empiezan a contar desde hoy (21/10/2026). En unos d&iacute;as vas a ver ac&aacute; qu&eacute; discos atraen y cu&aacute;les cierran.</p>
+        {% endif %}
+    </section>
+
     <section class="radar-section">
         <h2 class="gest-sec-title">Los m&aacute;s guardados en favoritos</h2>
         <p class="radar-hint">Discos que tus clientes <strong>guardaron</strong> y todav&iacute;a ten&eacute;s: intenci&oacute;n de compra con nombre y apellido. Entr&aacute; al disco para ver qui&eacute;nes son y escribirles (por ejemplo si lo pon&eacute;s en SALE o queda uno).</p>
@@ -129,4 +200,21 @@
     </section>
     {% endif %}
 </div>
+<style>
+.fr-sub{font-size:13px;font-weight:500;color:var(--text-2);margin:14px 0 8px;}
+.fr-sub span{color:var(--text-4);font-weight:400;}
+.ra-chk{width:34px;text-align:center;}
+.fr-sale{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 4px;font-size:13px;color:var(--text-3);}
+.fr-sale input[type=number]{width:70px;}
+.fr-sale input{font:inherit;font-size:13px;padding:5px 8px;border-radius:8px;border:1px solid var(--border-2);background:var(--bg-1);color:var(--text-1);}
+.emb-alerta td{background:rgba(214,169,69,.08);}
+.radar-table tfoot td{font-weight:500;border-top:1px solid var(--border-2);}
+</style>
+<script>
+document.querySelectorAll('.fr-todos').forEach(function (t) {
+    t.addEventListener('change', function () {
+        document.querySelectorAll('input[form="' + t.dataset.form + '"][name="ids[]"]').forEach(function (c) { c.checked = t.checked; });
+    });
+});
+</script>
 {% endblock %}

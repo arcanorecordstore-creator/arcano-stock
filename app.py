@@ -51,7 +51,7 @@ import scraper
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.18"
+APP_VERSION = "6.19"
 import metrics
 import auth
 import mailer
@@ -208,6 +208,40 @@ def _norm_busqueda(texto):
 _recuperar_hist = {}   # clave (ip o email) -> timestamps de pedidos de "olvide mi contrasena"
 _play_ip_hist = {}   # ip -> timestamps de escuchas contadas (tope por IP)
 _busq_ip_hist = {}   # ip -> timestamps de busquedas registradas en el Radar (tope por IP)
+
+
+_evento_dedup: dict = {}
+
+
+def _evento_valido(ip, disc_id, tipo):
+    """True si hay que registrar esta visita / agregado al carrito. Descarta:
+    buscadores y previsualizaciones de links (Google, WhatsApp, Instagram...), las
+    precargas del navegador, y la misma persona repitiendo (vista: 30 min, carrito:
+    10 min). Tope: 120 eventos cada 10 minutos por conexion."""
+    import time as _t
+    from flask import request as _rq
+    ua = (_rq.headers.get("User-Agent") or "").lower()
+    if not ua or any(x in ua for x in ("bot", "crawl", "spider", "slurp", "preview", "facebookexternalhit",
+                                         "whatsapp", "telegram", "headless", "python-requests", "curl")):
+        return False
+    if "prefetch" in (_rq.headers.get("Purpose", "") + _rq.headers.get("Sec-Purpose", "")).lower():
+        return False
+    ahora = _t.time()
+    if len(_evento_dedup) > 8000:
+        for k, ts in list(_evento_dedup.items()):
+            if ahora - (ts if isinstance(ts, (int, float)) else 0) > 3600:
+                _evento_dedup.pop(k, None)
+    ventana = 1800 if tipo == "vista" else 600
+    clave = (ip, disc_id, tipo)
+    if ahora - _evento_dedup.get(clave, 0) < ventana:
+        return False
+    cupo = [t for t in _evento_dedup.get(("cupo", ip), []) if ahora - t < 600]
+    if len(cupo) >= 120:
+        return False
+    cupo.append(ahora)
+    _evento_dedup[("cupo", ip)] = cupo
+    _evento_dedup[clave] = ahora
+    return True
 
 
 def _play_ya_contado(ip, track_id, ventana=20):
@@ -3392,7 +3426,7 @@ def register_routes(app: Flask) -> None:
                 flash(f"{cambios} disco(s) en SALE -{pct}%{_hasta_txt}.{_salt_txt}", "success")
             else:
                 flash(f"Campo no valido para cambio masivo: {campo}", "error")
-            return redirect(url_for("dashboard"))
+            return _volver_admin("dashboard")
 
         flash(f"Accion desconocida: {action}", "error")
         return redirect(url_for("dashboard"))
@@ -4078,9 +4112,57 @@ def register_routes(app: Flask) -> None:
                      .filter(Disc.estado.in_(["Disponible", "Pre-order", "Encargo", "Reservado"]))
                      .group_by(Disc.id).all())
         mas_guardados = sorted(_fav_rows, key=lambda x: (-x[1], (x[0].artista or "").lower()))[:20]
+
+        # --- Embudo por disco, ultimos 30 dias: vistas -> carrito -> reservas -> ventas ---
+        from models import EventoDisco, ReservaItem
+        _ev = {}
+        for did, tipo, n in (db.session.query(EventoDisco.disc_id, EventoDisco.tipo, db.func.count(EventoDisco.id))
+                             .filter(EventoDisco.fecha >= _cut).group_by(EventoDisco.disc_id, EventoDisco.tipo).all()):
+            _ev.setdefault(did, {"vista": 0, "carrito": 0})[tipo] = n
+        _res30 = dict(db.session.query(ReservaItem.disc_id, db.func.count(ReservaItem.id))
+                      .join(Reserva, Reserva.id == ReservaItem.reserva_id)
+                      .filter(Reserva.fecha >= _cut, Reserva.estado != "Cancelada", ReservaItem.disc_id.isnot(None))
+                      .group_by(ReservaItem.disc_id).all())
+        _ven30 = {d.id: 1 for d in Disc.query.filter(Disc.estado == "Vendido", Disc.fecha_venta >= _cut).all()}
+        _discs_ev = {d.id: d for d in Disc.query.filter(Disc.id.in_(list(_ev) or [0])).all()}
+        embudo = []
+        for did, e in _ev.items():
+            d = _discs_ev.get(did)
+            if d is None or getattr(d, "es_mystery_box", False):
+                continue
+            embudo.append({"disc": d, "vistas": e.get("vista", 0), "carrito": e.get("carrito", 0),
+                           "reservas": _res30.get(did, 0), "ventas": _ven30.get(did, 0)})
+        embudo.sort(key=lambda f: (-f["vistas"], -f["carrito"]))
+        embudo = embudo[:30]
+        embudo_total = {k: sum(f[k] for f in embudo) for k in ("vistas", "carrito", "reservas", "ventas")}
+
+        # --- Frenados: precio o exposicion (stock de mas de 45 dias sin venderse) ---
+        _sf = metrics.stock_frenado()
+        _vistas_tot = dict(db.session.query(EventoDisco.disc_id, db.func.count(EventoDisco.id))
+                           .filter(EventoDisco.tipo == "vista").group_by(EventoDisco.disc_id).all())
+        _favs_tot = dict(db.session.query(ClienteFavorito.disc_id, db.func.count(ClienteFavorito.id))
+                         .group_by(ClienteFavorito.disc_id).all())
+        _plays = {f["disc"].id: f["plays"] for f in filas}
+        frenados_precio, frenados_expo = [], []
+        for f in _sf["filas"]:
+            if (f["dias"] or 0) < _sf["umbral"]:
+                continue
+            d = f["disc"]
+            fila = {"disc": d, "dias": f["dias"], "plays": _plays.get(d.id, 0),
+                    "vistas": _vistas_tot.get(d.id, 0), "favs": _favs_tot.get(d.id, 0), "precio": f["precio"]}
+            # Lo miran / escuchan / guardan y no se vende -> revisar el precio
+            if fila["plays"] >= 3 or fila["vistas"] >= 10 or fila["favs"] >= 1:
+                frenados_precio.append(fila)
+            else:
+                frenados_expo.append(fila)
+        frenados_precio.sort(key=lambda x: -(x["plays"] + x["vistas"] + 5 * x["favs"]))
+        frenados_expo.sort(key=lambda x: -(x["dias"] or 0))
         return render_template(
             "radar.html",
             mas_guardados=mas_guardados,
+            embudo=embudo, embudo_total=embudo_total,
+            frenados_precio=frenados_precio, frenados_expo=frenados_expo, frenado_umbral=_sf["umbral"],
+            hoy_iso=today_uy().isoformat(),
             disponibles=disponibles,
             vendidos=vendidos,
             con_escuchas=len(con_escuchas),
@@ -8019,6 +8101,21 @@ def register_routes(app: Flask) -> None:
             **_public_context(),
         )
 
+    @app.route("/api/disco/<int:disc_id>/carrito", methods=["POST"])
+    def api_disco_carrito(disc_id: int):
+        """Registra que alguien agrego este disco al carrito (el carrito vive en el
+        navegador, asi que la tienda avisa aca). Para el embudo por disco del Radar."""
+        from models import EventoDisco
+        if db.session.get(Disc, disc_id) is None:
+            return jsonify({"ok": False}), 404
+        try:
+            if _evento_valido(_client_ip(), disc_id, "carrito"):
+                db.session.add(EventoDisco(disc_id=disc_id, tipo="carrito"))
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+        return jsonify({"ok": True})
+
     @app.route("/api/track/<int:track_id>/play", methods=["POST"])
     def api_track_play(track_id: int):
         """Registra una reproduccion de sample (la llama el player al dar play).
@@ -8116,6 +8213,15 @@ def register_routes(app: Flask) -> None:
         if (disc.estado not in ("Disponible", "Pre-order", "Encargo", "Reservado", "Vendido")
                 or disc.oculto_web):
             return render_template("public/not_found.html", **_public_context()), 404
+
+        # Embudo por disco (v6.19): registrar la visita (sin bots ni recargas)
+        try:
+            if _evento_valido(_client_ip(), disc.id, "vista"):
+                from models import EventoDisco
+                db.session.add(EventoDisco(disc_id=disc.id, tipo="vista"))
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
 
         # Mystery Box: ficha propia (selector de cantidad + texto), sin "similares".
         if getattr(disc, "es_mystery_box", False):
@@ -10378,9 +10484,10 @@ def register_routes(app: Flask) -> None:
                     premios[c.id] = est
         con_cuenta = Cliente.query.filter(Cliente.password_hash.isnot(None)).count()
         duplicados = _posibles_duplicados(Cliente.query.all())
+        recompra = _recompra_clientes(compras)
         return render_template(
             "admin_clientes.html", clientes=visible_records(clientes, 'clientes'), compras=compras,
-            duplicados=duplicados,
+            duplicados=duplicados, recompra=recompra,
             activas=activas, q=q, total=Cliente.query.count(),
             con_cuenta=con_cuenta, wa_default=Setting.get("public_whatsapp", ""),
             lealtad_activa=lcfg["activa"], premios=premios,
@@ -11735,6 +11842,47 @@ def register_routes(app: Flask) -> None:
         queda.notas = "\n".join(partes) or None
         db.session.flush()          # mover/borrar favoritos antes de borrar la ficha
         db.session.delete(se_va)
+
+    def _recompra_clientes(agregados, dias_dormido=60):
+        """Clientes que vuelven y clientes dormidos (v6.19). Una COMPRA = un dia con
+        discos vendidos a ese cliente (3 discos el mismo dia = 1 compra). Usa las
+        mismas compras que la ficha del cliente (discos vendidos a su nombre + Mystery
+        Box pagadas)."""
+        from models import Cliente
+        dias = {}
+        for d in Disc.query.filter(Disc.estado == "Vendido", Disc.cliente_id.isnot(None)).all():
+            if d.fecha_venta:
+                dias.setdefault(d.cliente_id, set()).add(d.fecha_venta.date())
+        for r in Reserva.query.filter(Reserva.estado == "Pagada", Reserva.cliente_id.isnot(None)).all():
+            if any(getattr(it, "es_mystery_box", False) for it in r.items_efectivos) and r.fecha:
+                dias.setdefault(r.cliente_id, set()).add(r.fecha.date())
+        hoy = today_uy()
+        con_compras = [cid for cid, s in dias.items() if s]
+        recompran = [cid for cid in con_compras if len(dias[cid]) >= 2]
+        gaps = []
+        for cid in recompran:
+            fs = sorted(dias[cid])
+            gaps += [(b - a).days for a, b in zip(fs, fs[1:])]
+        n_compras = sum(len(dias[cid]) for cid in con_compras)
+        gasto_total = sum((agregados.get(cid, {}) or {}).get("total", 0) or 0 for cid in con_compras)
+        clis = {c.id: c for c in Cliente.query.filter(Cliente.id.in_(con_compras or [0])).all()}
+        dormidos = []
+        for cid in con_compras:
+            ultima = max(dias[cid])
+            sin = (hoy - ultima).days
+            if sin >= dias_dormido and cid in clis:
+                dormidos.append({"cli": clis[cid], "ultima": ultima, "dias": sin, "compras": len(dias[cid]),
+                                 "total": (agregados.get(cid, {}) or {}).get("total", 0) or 0})
+        dormidos.sort(key=lambda x: -x["total"])
+        return {
+            "con_compras": len(con_compras),
+            "recompran": len(recompran),
+            "pct": round(len(recompran) / len(con_compras) * 100) if con_compras else 0,
+            "dias_entre": round(sum(gaps) / len(gaps)) if gaps else None,
+            "ticket": round(gasto_total / n_compras) if n_compras else 0,
+            "compras_por_cliente": round(n_compras / len(con_compras), 1) if con_compras else 0,
+            "dormidos": dormidos[:25], "n_dormidos": len(dormidos), "dias_dormido": dias_dormido,
+        }
 
     def _claves_cliente(c):
         """Datos que identifican a una persona, normalizados para comparar."""

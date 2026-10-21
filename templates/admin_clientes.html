@@ -26,6 +26,37 @@
 </div>
 {% endif %}
 
+{% if recompra and recompra.con_compras %}
+<!-- Recompra y clientes dormidos (v6.19) -->
+<section class="cli-recompra">
+    <div class="cli-rc-kpis">
+        <div class="cli-rc-kpi"><span class="n">{{ recompra.pct }}%</span><span class="l">vuelve a comprar &middot; {{ recompra.recompran }} de {{ recompra.con_compras }}</span></div>
+        <div class="cli-rc-kpi"><span class="n">{% if recompra.dias_entre is not none %}{{ recompra.dias_entre }} d&iacute;as{% else %}&mdash;{% endif %}</span><span class="l">entre una compra y la siguiente (promedio)</span></div>
+        <div class="cli-rc-kpi"><span class="n">{{ money(recompra.ticket) }}</span><span class="l">gasta por compra (promedio)</span></div>
+        <div class="cli-rc-kpi"><span class="n">{{ recompra.compras_por_cliente }}</span><span class="l">compras por cliente</span></div>
+    </div>
+    {% if recompra.dormidos %}
+    <details class="cli-dormidos">
+        <summary>{{ recompra.n_dormidos }} cliente{{ 's' if recompra.n_dormidos != 1 else '' }} dormido{{ 's' if recompra.n_dormidos != 1 else '' }} &mdash; compraron y no volvieron hace m&aacute;s de {{ recompra.dias_dormido }} d&iacute;as</summary>
+        <table class="cli-dorm-tabla">
+            <thead><tr><th>Cliente</th><th class="num">&Uacute;ltima compra</th><th class="num">Compras</th><th class="num">Gast&oacute;</th><th></th></tr></thead>
+            <tbody>
+            {% for d in recompra.dormidos %}
+            <tr>
+                <td><a href="{{ url_for('admin_cliente_detail', cliente_id=d.cli.id) }}">{{ d.cli.nombre }}</a></td>
+                <td class="num">{{ d.ultima.strftime('%d/%m/%Y') }} <small>(hace {{ d.dias }} d&iacute;as)</small></td>
+                <td class="num">{{ d.compras }}</td>
+                <td class="num">{{ money(d.total) }}</td>
+                <td class="num">{% if d.cli.whatsapp %}<a href="https://wa.me/{{ d.cli.whatsapp|wa_num }}?text={{ ('Hola ' ~ d.cli.nombre.split(' ')[0] ~ '! ¿Cómo andás? Entraron discos nuevos en Arcano que capaz te interesan: arcanorecordstore.com')|urlencode }}" target="_blank" rel="noopener">WhatsApp &nearr;</a>{% elif d.cli.instagram %}<a href="https://instagram.com/{{ d.cli.instagram }}" target="_blank" rel="noopener">@{{ d.cli.instagram }} &nearr;</a>{% endif %}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </details>
+    {% endif %}
+</section>
+{% endif %}
+
 <!-- Alta manual -->
 <details class="cli-nuevo">
     <summary class="btn btn-primary" style="display:inline-block;">+ Nuevo cliente</summary>
@@ -150,6 +181,19 @@
 /* La celda sigue siendo celda (con display:flex la fila se desarmaba en la compu):
    cada dato de contacto va en su propia linea. En el celular la tarjeta usa flex. */
 .cli-contacto{font-size:12.5px;color:var(--text-2,#bbb);}
+.cli-recompra{margin:0 0 16px;display:flex;flex-direction:column;gap:10px;}
+.cli-rc-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+.cli-rc-kpi{background:var(--bg-2);border:1px solid var(--border-1);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;}
+.cli-rc-kpi .n{font-size:22px;font-weight:500;color:var(--text-1);font-variant-numeric:tabular-nums;}
+.cli-rc-kpi .l{font-size:12px;color:var(--text-4);}
+.cli-dormidos{background:var(--bg-2);border:1px solid var(--border-1);border-radius:12px;padding:10px 14px;}
+.cli-dormidos summary{cursor:pointer;font-size:13px;color:var(--text-2);}
+.cli-dorm-tabla{width:100%;border-collapse:collapse;margin-top:10px;font-size:13px;}
+.cli-dorm-tabla th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-4);font-weight:500;padding:6px 8px;border-bottom:1px solid var(--border-1);}
+.cli-dorm-tabla td{padding:7px 8px;border-bottom:1px solid var(--border-1);}
+.cli-dorm-tabla .num{text-align:right;white-space:nowrap;}
+.cli-dorm-tabla small{color:var(--text-4);}
+@media (max-width:700px){.cli-rc-kpis{grid-template-columns:repeat(2,minmax(0,1fr));}.cli-dorm-tabla th:nth-child(3),.cli-dorm-tabla td:nth-child(3){display:none;}}
 .cli-dup-chip{display:inline-block;margin-left:6px;font-size:10px;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:999px;background:rgba(214,169,69,.16);color:#a87a1c;text-decoration:none;white-space:nowrap;}
 .cli-dup-chip:hover{background:rgba(214,169,69,.28);}
 .cli-contacto > span{display:block;line-height:1.5;}

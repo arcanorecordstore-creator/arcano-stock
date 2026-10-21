@@ -913,6 +913,18 @@ def parse_tracklist_text(text: str) -> list[dict]:
 # Modelo: Reserva
 # ---------------------------------------------------------------------------
 
+class EventoDisco(db.Model):
+    """Visitas a la ficha y 'agregar al carrito' de cada disco (v6.19), para el embudo
+    por disco del Radar. Tabla nueva (create_all). No guarda datos personales: solo
+    disco, tipo y fecha. Sin bots, previsualizaciones ni recargas de la misma persona."""
+    __tablename__ = "eventos_disco"
+
+    id = db.Column(db.Integer, primary_key=True)
+    disc_id = db.Column(db.Integer, db.ForeignKey("discs.id", ondelete="CASCADE"), nullable=False, index=True)
+    tipo = db.Column(db.String(12), nullable=False, index=True)    # vista | carrito
+    fecha = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+
+
 class PlayEvent(db.Model):
     """Registro de cada reproduccion de un sample, con fecha.
 
@@ -2107,6 +2119,11 @@ def _migrate_schema(app):
                     {"nuevo": "1938172937362871", "viejo": "1674775404435874"})
                 if _rpx.rowcount:
                     print("Migracion: ID del pixel de Meta cambiado a 1938172937362871")
+
+        # Eventos por disco (v6.19): se guardan 400 dias, despues se borran solos.
+        if inspector.has_table("eventos_disco"):
+            with db.engine.begin() as conn:
+                conn.execute(text("DELETE FROM eventos_disco WHERE fecha < datetime('now', '-400 days')"))
 
         # Duracion estimada de las tareas (v5.70)
         if inspector.has_table("tareas"):

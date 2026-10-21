@@ -280,6 +280,15 @@ document.addEventListener('click', function (e) {
         try { localStorage.setItem(KEY, JSON.stringify((arr || []).filter(idValido).map(String))); } catch (e) {}
     }
     function inCart(id) { return getCart().indexOf(String(id)) !== -1; }
+    // Embudo por disco: avisar a la tienda que se agrego (el carrito vive en el navegador)
+    function avisarCarrito(id) {
+        try {
+            fetch('/api/disco/' + encodeURIComponent(id) + '/carrito', {
+                method: 'POST', credentials: 'same-origin', keepalive: true,
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            }).catch(function () {});
+        } catch (e) {}
+    }
     function toggle(id) {
         if (!idValido(id)) return false;
         id = String(id);
@@ -287,6 +296,7 @@ document.addEventListener('click', function (e) {
         var i = cart.indexOf(id);
         if (i === -1) { cart.push(id); } else { cart.splice(i, 1); }
         setCart(cart);
+        if (i === -1) avisarCarrito(id);
         return i === -1;
     }
 
@@ -359,7 +369,7 @@ document.addEventListener('click', function (e) {
             if (!idValido(id)) return false;
             id = String(id);
             var cart = getCart();
-            if (cart.indexOf(id) === -1) { cart.push(id); setCart(cart); }
+            if (cart.indexOf(id) === -1) { cart.push(id); setCart(cart); avisarCarrito(id); }
             updateCount();
             paintButtons();
             return true;
