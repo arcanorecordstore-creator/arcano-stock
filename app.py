@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.22"
+APP_VERSION = "6.23"
 import metrics
 import auth
 import mailer
@@ -2188,6 +2188,18 @@ def register_routes(app: Flask) -> None:
         except Exception:
             return None
 
+    def _bf_destino_llego(d):
+        """A donde pasa un Pre-order/Encargo cuando llega: si ya es de un cliente
+        (reserva pendiente o encargo/pre-order con comprador) queda Reservado para esa
+        persona y NO sale a la venta; si no, Disponible en la tienda.
+        Devuelve (estado_destino, nombre_del_cliente_o_None)."""
+        res = _bf_reserva_pendiente(d)
+        if res:
+            return "Reservado", res.nombre
+        if d.cliente_id and d.comprador:
+            return "Reservado", d.comprador.nombre
+        return "Disponible", None
+
     def _bf_item(d, cand=None):
         """Lo que la pantalla necesita de un disco (tarjeta de resultado)."""
         cover = None
@@ -2204,11 +2216,12 @@ def register_routes(app: Flask) -> None:
                                     "conviene marcar la reserva como Pagada en Reservas: así queda "
                                     "el cliente y cómo pagó.")
                 else:
-                    aviso_llego = (f"Ojo: lo tiene pedido {res.nombre} (reserva #{res.id}). Si lo pasás "
-                                   "a Disponible queda libre en la tienda para cualquiera.")
-            elif d.estado == "Encargo" and d.cliente_id and d.comprador:
-                aviso_llego = (f"Ojo: es un encargo de {d.comprador.nombre}. Si lo pasás a Disponible "
-                               "queda libre en la tienda para cualquiera.")
+                    aviso_llego = (f"Lo tiene pedido {res.nombre} (reserva #{res.id}): queda Reservado "
+                                   "para esa persona, no sale a la venta.")
+            elif d.estado in _BF_LLEGO and d.cliente_id and d.comprador:
+                aviso_llego = (f"Es un encargo de {d.comprador.nombre}: queda Reservado para esa "
+                               "persona, no sale a la venta.")
+        llego_destino = _bf_destino_llego(d)[0] if d.estado in _BF_LLEGO else None
         item = {
             "id": d.id,
             "artista": d.artista or "",
@@ -2224,6 +2237,7 @@ def register_routes(app: Flask) -> None:
             "puede_llegar": d.estado in _BF_LLEGO and not d.es_mystery_box,
             "aviso_vender": aviso_vender,
             "aviso_llego": aviso_llego,
+            "llego_destino": llego_destino,
         }
         if cand:
             item.update(nivel=cand["nivel"], confianza=cand["confianza"], motivos=cand["motivos"])
@@ -2299,7 +2313,9 @@ def register_routes(app: Flask) -> None:
             if disc.estado not in _BF_LLEGO:
                 return jsonify({"ok": False, "disco": _bf_item(disc),
                                 "error": f"Este disco ya está {disc.estado}: solo un Pre-order o Encargo puede \"llegar\"."}), 400
-            register_status_change(disc, "Disponible", nota="Llegó (Buscar con la cámara)")
+            destino, para = _bf_destino_llego(disc)
+            nota = "Llegó (Buscar con la cámara)" + (f": queda reservado para {para}" if para else "")
+            register_status_change(disc, destino, nota=nota)
         else:
             return jsonify({"ok": False, "error": "Acción inválida."}), 400
         db.session.commit()

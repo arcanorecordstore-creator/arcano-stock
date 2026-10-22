@@ -317,7 +317,9 @@
             pregunta = '¿Marcar como VENDIDO?\n\n' + nombre + '\n' + plata(it.precio);
             if (it.aviso_vender) pregunta += '\n\n' + it.aviso_vender;
         } else {
-            pregunta = '¿Ya llegó? Pasa a Disponible y se puede comprar en la tienda.\n\n' + nombre;
+            pregunta = (it.llego_destino === 'Reservado'
+                ? '¿Ya llegó? Pasa a Reservado (no sale a la venta).\n\n'
+                : '¿Ya llegó? Pasa a Disponible y se puede comprar en la tienda.\n\n') + nombre;
             if (it.aviso_llego) pregunta += '\n\n' + it.aviso_llego;
         }
         if (!window.confirm(pregunta)) return;
@@ -347,7 +349,9 @@
                     avisoEnTarjeta(card, 'Listo, quedó vendido.', 'ok',
                         { texto: 'Cargar canal y comprador en Ventas →', href: URL_VENTAS });
                 } else {
-                    avisoEnTarjeta(card, 'Listo, ya está Disponible en la tienda.', 'ok');
+                    avisoEnTarjeta(card, (data.disco && data.disco.estado === 'Reservado')
+                        ? 'Listo, llegó y quedó Reservado para el cliente.'
+                        : 'Listo, ya está Disponible en la tienda.', 'ok');
                 }
             } else {
                 if (!data || !data.disco) {
