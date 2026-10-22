@@ -7,6 +7,7 @@ Lee credenciales desde .env:
 Guarda la sesion via Flask session (cookie firmada con SECRET_KEY).
 Si no hay credenciales en .env, deshabilita el login (acceso libre, modo dev).
 """
+import hashlib
 import hmac
 from functools import wraps
 
@@ -30,11 +31,34 @@ def auth_enabled() -> bool:
     return bool(user and password)
 
 
+def _huella_admin() -> str:
+    """Huella de las credenciales del admin (HMAC con la SECRET_KEY, no se puede
+    revertir). Va guardada en la sesion: si cambias ADMIN_PASS (o ADMIN_USER) en
+    Render, la huella cambia y TODAS las sesiones abiertas se cierran solas. Es el
+    "cerrar sesion en todos lados" por si perdes el celular."""
+    from flask import current_app
+    user, password = _get_admin_credentials()
+    clave = (current_app.config.get("SECRET_KEY") or "").encode()
+    return hmac.new(clave, f"{user}:{password}".encode(), hashlib.sha256).hexdigest()[:20]
+
+
 def is_logged_in() -> bool:
-    """True si el usuario actual paso por login."""
+    """True si el usuario actual paso por login (y la contrasena no cambio desde entonces)."""
     if not auth_enabled():
         return True  # Modo dev: sin login, todos adentro
-    return session.get("admin_logged_in") is True
+    if session.get("admin_logged_in") is not True:
+        return False
+    huella = session.get("admin_pv")
+    if huella is None:
+        # Sesion abierta antes de la sesion persistente: se pasa sola al modo nuevo
+        # (sin pedir login de nuevo) y desde ahora queda atada a la contrasena actual.
+        session["admin_pv"] = _huella_admin()
+        session.permanent = True
+        return True
+    if not hmac.compare_digest(str(huella), _huella_admin()):
+        logout()  # cambiaron la contrasena: esta sesion ya no vale
+        return False
+    return True
 
 
 def check_credentials(user: str, password: str) -> bool:
@@ -51,12 +75,17 @@ def login(user: str) -> None:
     """Marca la sesion como autenticada."""
     session["admin_logged_in"] = True
     session["admin_user"] = user
+    session["admin_pv"] = _huella_admin()
+    # Cookie con vencimiento (90 dias, se renueva en cada visita): la app del celular
+    # no pierde la sesion cuando Android la cierra en segundo plano.
+    session.permanent = True
 
 
 def logout() -> None:
     """Limpia la sesion."""
     session.pop("admin_logged_in", None)
     session.pop("admin_user", None)
+    session.pop("admin_pv", None)
 
 
 def admin_required(view_func):

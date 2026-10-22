@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.24"
+APP_VERSION = "6.25"
 import metrics
 import auth
 import mailer
@@ -414,6 +414,11 @@ def create_app() -> Flask:
     app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
     if os.environ.get("RENDER"):
         app.config["SESSION_COOKIE_SECURE"] = True
+    # La sesion del ADMIN es "permanente" (cookie con vencimiento): sin esto la cookie
+    # moria cada vez que el celular cerraba la app en segundo plano y habia que volver
+    # a loguearse. Dura 90 dias y se renueva sola en cada visita (Flask la reescribe en
+    # cada request). Las sesiones de clientes de la tienda no cambian.
+    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=90)
 
     # --- Compresion gzip (reduce ~80% el peso de HTML/CSS/JS) ---
     try:
