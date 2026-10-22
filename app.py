@@ -56,6 +56,7 @@ import metrics
 import auth
 import mailer
 import mp
+import meta_capi
 from operation_history import register_history, visible_records, archived_ids
 
 
@@ -475,6 +476,23 @@ def create_app() -> Flask:
             session["cliente_pv"] = pv
         elif session.get("cliente_pv") != pv:
             auth.cliente_logout()
+
+    # --- Conversions API de Meta: recordar el fbclid de la visita que llego de un anuncio ---
+    # Meta agrega ?fbclid=... a los links de sus anuncios. El pixel lo guarda en la cookie
+    # _fbc, pero si el pixel esta bloqueado se pierde. Lo anotamos en la sesion (formato
+    # fb.1.<ms>.<fbclid>) para mandarlo con la compra desde el servidor.
+    @app.before_request
+    def _meta_guardar_fbclid():
+        if request.method != "GET" or "fbclid" not in request.args:
+            return
+        if request.path.startswith(("/admin", "/static/", "/covers/", "/api/", "/mp/")):
+            return
+        try:
+            limpio = meta_capi.limpiar_fbclid(request.args.get("fbclid"))
+            if limpio and not str(session.get("meta_fbc") or "").endswith("." + limpio):
+                session["meta_fbc"] = meta_capi.fbc_desde_fbclid(limpio)
+        except Exception:
+            pass
 
     # --- Proteccion CSRF liviana para el admin: verificar el origen de los POST ---
     # Si un POST a /admin viene desde otro sitio (Origin/Referer ajeno), se rechaza.
@@ -1069,6 +1087,97 @@ def _ga_purchase_items(reserva):
     except Exception:
         pass
     return items
+
+
+# ---------------------------------------------------------------------------
+# Conversions API de Meta (medicion desde el servidor; ver meta_capi.py)
+# ---------------------------------------------------------------------------
+
+def _meta_datos_navegador():
+    """Datos del navegador del cliente que necesita la Conversions API. Se guardan en
+    la reserva al crearla: el pago de Mercado Pago se confirma despues por webhook,
+    cuando el navegador del cliente ya no esta. Nunca rompe: ante cualquier error
+    devuelve lo que pudo armar."""
+    datos = {"meta_fbp": None, "meta_fbc": None, "cliente_ip": None, "cliente_ua": None}
+    try:
+        datos["meta_fbp"] = meta_capi.limpiar_cookie_fb(request.cookies.get("_fbp")) or None
+        # _fbc lo pone el pixel cuando el cliente llega desde un anuncio (?fbclid=...).
+        # Si no esta (pixel bloqueado), se usa el que armamos al llegar (ver
+        # _meta_guardar_fbclid en create_app).
+        datos["meta_fbc"] = (meta_capi.limpiar_cookie_fb(request.cookies.get("_fbc"))
+                             or meta_capi.limpiar_cookie_fb(session.get("meta_fbc")) or None)
+        datos["cliente_ip"] = (_client_ip() or "")[:64] or None
+        datos["cliente_ua"] = (request.headers.get("User-Agent") or "")[:500] or None
+    except Exception:
+        pass
+    return datos
+
+
+def _meta_guardar_datos_en_reserva(reserva):
+    """Copia los datos del navegador a la reserva (best-effort)."""
+    try:
+        for k, v in _meta_datos_navegador().items():
+            setattr(reserva, k, v)
+    except Exception:
+        pass
+
+
+def _meta_capi_reserva(reserva, evento, pagina):
+    """Manda a Meta (Conversions API) el evento 'Lead' o 'Purchase' de una reserva,
+    con el MISMO event_id que usa el pixel del navegador ("reserva-<id>") para que
+    Meta no lo cuente dos veces. `pagina` = endpoint de la pagina donde el navegador
+    mide el mismo evento (event_source_url).
+
+    Nunca rompe ni demora: si no hay token o pixel no hace nada; el envio va en un
+    hilo aparte; y una marca en la reserva evita mandar dos veces el mismo evento.
+    Llamarla SOLO despues de commitear la reserva."""
+    try:
+        pixel_id = meta_capi.pixel_valido(Setting.get("meta_pixel_id", ""))
+        if not meta_capi.configurado() or not pixel_id or reserva is None:
+            return None
+        # Marca atomica: si otra llamada (webhook + retorno) ya lo mando, cortamos aca.
+        marcado = (
+            db.session.query(Reserva)
+            .filter(Reserva.id == reserva.id)
+            .filter(or_(Reserva.meta_capi_enviado.is_(None),
+                        ~Reserva.meta_capi_enviado.like("%" + evento + "%")))
+            .update({"meta_capi_enviado": db.func.coalesce(Reserva.meta_capi_enviado, "")
+                     .op("||")("," + evento)}, synchronize_session=False)
+        )
+        db.session.commit()
+        if not marcado:
+            return None
+        items = _ga_purchase_items(reserva)
+        ids = [it["item_id"] for it in items if it.get("item_id")]
+        custom = {
+            "currency": "UYU",
+            "value": round(float(reserva.total_uyu or 0), 2),
+            "content_ids": ids,
+            "content_type": "product",
+            "contents": [{"id": it["item_id"], "quantity": it.get("quantity") or 1,
+                          "item_price": it.get("price") or 0}
+                         for it in items if it.get("item_id")],
+            "num_items": len(ids),
+        }
+        ud = meta_capi.armar_user_data(
+            email=reserva.email, celular=reserva.whatsapp, nombre=reserva.nombre,
+            ip=reserva.cliente_ip, user_agent=reserva.cliente_ua,
+            fbp=reserva.meta_fbp, fbc=reserva.meta_fbc)
+        ev = meta_capi.armar_evento(
+            evento, "reserva-%s" % reserva.id,
+            _base_publica() + url_for(pagina), ud, custom)
+        return meta_capi.enviar(pixel_id, [ev])
+    except Exception as ex:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        try:
+            from flask import current_app as _ca
+            _ca.logger.warning("Meta CAPI: no se pudo preparar el evento (%s)", ex)
+        except Exception:
+            pass
+        return None
 
 
 def get_sellos_unicos():
@@ -7007,6 +7116,10 @@ def register_routes(app: Flask) -> None:
             public_whatsapp=Setting.get("public_whatsapp", ""),
             analytics_snippet=Setting.get("analytics_snippet", ""),
             meta_pixel_id=Setting.get("meta_pixel_id", ""),
+            # Conversions API (token en Render) + catalogo de productos para Meta
+            meta_capi_activo=meta_capi.configurado(),
+            meta_capi_modo_prueba=bool(meta_capi.test_event_code()),
+            meta_catalogo_url=_base_publica() + url_for("catalogo_meta_xml"),
             public_diseno=Setting.get("public_diseno", ""),
             public_carrusel_modo=Setting.get("public_carrusel_modo", "compacto"),
             public_modo_defecto=Setting.get("public_modo_defecto", "oscuro"),
@@ -7295,6 +7408,7 @@ def register_routes(app: Flask) -> None:
             "whatsapp": Setting.get("public_whatsapp", ""),
             "analytics_snippet": Setting.get("analytics_snippet", ""),
             "meta_pixel_id": Setting.get("meta_pixel_id", ""),
+            "meta_capi_activo": meta_capi.configurado(),
             "tip_label": Setting.get("tip_label", "Staff Picks"),
             "banner_url": _banner_url_si_existe(),
             "anuncio_texto": Setting.get("public_anuncio_texto", ""),
@@ -7529,6 +7643,10 @@ def register_routes(app: Flask) -> None:
                      "para otra persona: %s. NO se marcaron vendidos. Revisar/reembolsar.]" % _nombres)
             reserva.nota = ((reserva.nota + " ") if reserva.nota else "") + _nota
         db.session.commit()
+        # Medicion desde el servidor (Conversions API de Meta): compra pagada por MP.
+        # Mismo criterio que el pixel en /mp/retorno (reserva pagada = Purchase). En hilo
+        # aparte y con marca en la reserva: no demora el webhook ni se manda dos veces.
+        _meta_capi_reserva(reserva, "Purchase", "mp_retorno")
         # Si hubo conflicto (disco ya vendido): avisar al admin y NO mandar "gracias por
         # tu compra" al cliente (primero hay que resolver el reembolso).
         if conflicto:
@@ -8352,6 +8470,8 @@ def register_routes(app: Flask) -> None:
                 estado="Pendiente",
                 cliente_id=auth.cliente_actual_id(),
             )
+            # Datos del navegador para medir la reserva desde el servidor (Meta)
+            _meta_guardar_datos_en_reserva(reserva)
             db.session.add(reserva)
             db.session.flush()
 
@@ -8376,6 +8496,9 @@ def register_routes(app: Flask) -> None:
                 ), 400
             db.session.commit()
             _reserva_registrar(ip_reserva)
+
+            # Medicion desde el servidor (Conversions API de Meta): reserva a coordinar = Lead
+            _meta_capi_reserva(reserva, "Lead", "reserva_confirmada")
 
             # Mandar email al admin (opcional, si SMTP esta configurado)
             if mailer.is_configured():
@@ -9163,6 +9286,8 @@ def register_routes(app: Flask) -> None:
                     estado="Pendiente",
                     cliente_id=auth.cliente_actual_id(),
                 )
+                # Datos del navegador para medir la compra desde el servidor (Meta)
+                _meta_guardar_datos_en_reserva(reserva)
                 db.session.add(reserva)
                 db.session.flush()
 
@@ -9300,6 +9425,14 @@ def register_routes(app: Flask) -> None:
                 reserva.metodo_pago = "coordinar"
                 db.session.commit()
 
+            # Medicion desde el servidor (Conversions API de Meta), con el mismo criterio
+            # que el pixel en /reserva-confirmada: transferencia con comprobante = Purchase;
+            # "reservar y coordinar" (o el pago online que fallo) = Lead.
+            if reserva.metodo_pago == "transferencia":
+                _meta_capi_reserva(reserva, "Purchase", "reserva_confirmada")
+            elif reserva.metodo_pago in ("coordinar", None, ""):
+                _meta_capi_reserva(reserva, "Lead", "reserva_confirmada")
+
             # Email al admin (best-effort, no rompe si falla) — con el comprobante adjunto si lo hay.
             # (Los mails se arman a partir de un disco; una orden de SOLO Mystery Box no
             # tiene disco, asi que ahi el aviso viaja por push y por la pantalla de gracias.)
@@ -9399,6 +9532,102 @@ def register_routes(app: Flask) -> None:
             body.append(entry)
         body.append("</urlset>")
         return "\n".join(body), 200, {"Content-Type": "application/xml; charset=utf-8"}
+
+    @app.route("/catalogo-meta.xml")
+    def catalogo_meta_xml():
+        """Catalogo de productos para Meta (Administrador de comercio -> Catalogo ->
+        Origenes de datos -> Feed programado). Feed RSS 2.0 con el formato g: de
+        Google/Meta: un item por disco que se puede pedir en la web.
+
+        g:id = id del disco, IGUAL al content_ids que manda el pixel (ViewContent,
+        AddToCart...): asi Meta cruza "vio este disco" con el producto del catalogo y
+        puede mostrarle a cada persona el disco que miro (anuncios de catalogo)."""
+        import re as _re_x
+        from xml.sax.saxutils import escape
+
+        _invalidos = _re_x.compile("[\x00-\x08\x0b\x0c\x0e-\x1f￾￿]")
+
+        def _t(valor, largo=None):
+            """Texto seguro para XML: sin caracteres de control y con & < > escapados."""
+            s = _invalidos.sub("", str(valor or "")).strip()
+            if largo and len(s) > largo:
+                s = s[:largo - 1].rstrip() + "…"
+            return escape(s)
+
+        base = _base_publica()
+        discs = (Disc.query
+                 .filter(Disc.estado.in_(["Disponible", "Pre-order", "Encargo", "Reservado"]))
+                 .filter(Disc.oculto_web.isnot(True))
+                 .filter(Disc.es_mystery_box.isnot(True))
+                 .filter(Disc.precio_uyu > 0)
+                 .order_by(Disc.id).all())
+        hoy = today_uy()
+
+        items = []
+        for d in discs:
+            # Portada absoluta (Meta no acepta productos sin imagen)
+            if d.cover_local:
+                img = base + url_for("serve_cover", filename=d.cover_local)
+            elif (d.cover_url or "").startswith(("http://", "https://")):
+                img = d.cover_url
+            else:
+                continue
+            # Disponibilidad
+            if d.estado == "Reservado":
+                disponibilidad = "out of stock"
+            elif d.estado in ("Pre-order", "Encargo"):
+                disponibilidad = "out of stock" if d.preorder_tomado else "preorder"
+            else:
+                disponibilidad = "in stock" if (d.stock or 0) > 0 else "out of stock"
+            condicion = "used" if (d.condicion or "").lower().startswith("usado") else "new"
+            titulo = " - ".join(x for x in ((d.artista or "").strip(), (d.titulo or "").strip()) if x) or "Vinilo"
+            generos = ", ".join(_pretty_genero(g) for g in _norm_generos(d.genero))
+            partes = ["Vinilo"]
+            if d.sello:
+                partes.append("Sello: %s" % d.sello)
+            if d.anio:
+                partes.append("Año: %s" % d.anio)
+            if generos:
+                partes.append("Género: %s" % generos)
+            if d.formato:
+                partes.append("Formato: %s" % d.formato)
+            descripcion = " · ".join(partes)
+
+            campos = [
+                ("g:id", _t(str(d.id))),
+                ("g:title", _t(titulo, 150)),
+                ("g:description", _t(descripcion, 5000)),
+                ("g:link", _t(base + url_for("public_disc", disc_id=d.id))),
+                ("g:image_link", _t(img)),
+                ("g:availability", disponibilidad),
+                ("g:condition", condicion),
+                ("g:price", "%.2f UYU" % float(d.precio_uyu or 0)),
+            ]
+            if d.en_oferta:
+                campos.append(("g:sale_price", "%.2f UYU" % float(d.precio_oferta)))
+                if d.oferta_hasta:
+                    # Uruguay es UTC-3 todo el ano (sin horario de verano)
+                    campos.append(("g:sale_price_effective_date", "%sT00:00-03:00/%sT23:59-03:00" % (
+                        hoy.isoformat(), d.oferta_hasta.isoformat())))
+            campos += [
+                ("g:brand", _t(d.sello or "Arcano Record Store", 100)),
+                ("g:google_product_category", _t("Media > Music & Sound Recordings")),
+            ]
+            items.append("<item>" + "".join("<%s>%s</%s>" % (k, v, k) for k, v in campos) + "</item>")
+
+        body = ['<?xml version="1.0" encoding="UTF-8"?>',
+                '<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">',
+                "<channel>",
+                "<title>Arcano Record Store</title>",
+                "<link>%s</link>" % _t(base + "/"),
+                "<description>Vinilos de m&#250;sica electr&#243;nica &#183; Montevideo, Uruguay</description>"]
+        body += items
+        body += ["</channel>", "</rss>"]
+        return "\n".join(body), 200, {
+            "Content-Type": "application/xml; charset=utf-8",
+            # Es para Meta, no para Google: que no aparezca en los buscadores
+            "X-Robots-Tag": "noindex",
+        }
 
     # ----------------------------------------------------------------------
     # ADMIN: bandeja de reservas

@@ -58,7 +58,10 @@
         condiciones: nosotros no vemos ni guardamos los datos de tu tarjeta.{% if analytics_snippet or meta_pixel_id %}
         Para medir las visitas{% if meta_pixel_id %} y los anuncios{% endif %} usamos
         {% if analytics_snippet %}Google Analytics{% endif %}{% if analytics_snippet and meta_pixel_id %} y {% endif %}{% if meta_pixel_id %}el Pixel de Meta{% endif %}
-        (más abajo, en Cookies).{% endif %}</p>
+        (más abajo, en Cookies).{% endif %}{% if meta_pixel_id and meta_capi_activo %}
+        Cuando hacés un pedido, también le avisamos a Meta desde nuestro servidor que hubo
+        una reserva o una compra, con tu email, celular y nombre codificados de forma
+        irreversible (hash), solo para medir qué anuncios funcionan.{% endif %}</p>
         <p>No vendemos tus datos. Podés pedirnos que los borremos cuando quieras, escribiéndonos
         por Instagram o WhatsApp.</p>
         {% endif %}

@@ -479,6 +479,27 @@
                 <label for="meta_pixel_id">Pixel de Meta (Facebook / Instagram) <span class="form-field-hint">(pega solo el ID numerico del pixel; lo sacas de Meta &rarr; Events Manager)</span></label>
                 <input type="text" id="meta_pixel_id" name="meta_pixel_id" value="{{ meta_pixel_id or '' }}" placeholder="1234567890123456" inputmode="numeric" style="font-family: monospace;">
                 <span class="form-field-hint">Con el ID cargado, la tienda mide las visitas y las conversiones (agregar al carrito, iniciar compra y compra) para optimizar la pauta. Deja el campo vacio para apagarlo.</span>
+
+                {# Conversions API: medicion desde el servidor (token en Render, no en Ajustes) #}
+                <div class="meta-capi-box" style="margin-top: 12px;">
+                    <strong style="font-size: 14px;">Medici&oacute;n desde el servidor (Conversions API)</strong>
+                    {% if meta_capi_activo and meta_pixel_id %}
+                    <p class="mp-info-ok">&#10003; Activa. Las reservas (Lead) y las compras (Purchase) se le avisan a Meta tambi&eacute;n desde la web, aunque el cliente tenga un bloqueador o cierre la pesta&ntilde;a. Meta no las cuenta doble: usan el mismo n&uacute;mero de evento que el pixel.{% if meta_capi_modo_prueba %} <strong>Modo prueba prendido</strong> (variable <code>META_TEST_EVENT_CODE</code>): los eventos se ven en &ldquo;Probar eventos&rdquo;; borrala de Render cuando termines de probar.{% endif %}</p>
+                    {% elif meta_capi_activo %}
+                    <p class="mp-warn">{{ icon('alert', 13) }} El token est&aacute; cargado en Render, pero falta el ID del pixel de arriba.</p>
+                    {% else %}
+                    <p class="mp-warn">{{ icon('alert', 13) }} Apagada: falta el token <code>META_CAPI_TOKEN</code> en Render. La web anda igual; solo mide con el pixel del navegador.</p>
+                    {% endif %}
+                    <p class="form-field-hint" style="margin-top: 6px;">C&oacute;mo prenderla: en Meta entr&aacute; al <strong>Administrador de eventos</strong> &rarr; tu pixel &rarr; <strong>Configuraci&oacute;n</strong> &rarr; secci&oacute;n &ldquo;Conversions API&rdquo; &rarr; <strong>Generar token de acceso</strong> y copialo. Despu&eacute;s, en Render &rarr; servicio <code>arcano-stock</code> &rarr; <strong>Environment</strong> &rarr; agreg&aacute; la variable <code>META_CAPI_TOKEN</code> con ese token y guard&aacute; (la web se reinicia sola).</p>
+                </div>
+
+                {# Catalogo de productos para el Administrador de comercio de Meta #}
+                <div class="meta-catalogo-box" style="margin-top: 12px;">
+                    <strong style="font-size: 14px;">Cat&aacute;logo de productos para Meta</strong>
+                    <p class="form-field-hint" style="margin-top: 4px;">Direcci&oacute;n del cat&aacute;logo (se actualiza sola con tu stock; solo discos que se pueden pedir, con foto y precio):</p>
+                    <input type="text" readonly value="{{ meta_catalogo_url }}" onclick="this.select()" style="font-family: monospace; font-size: 12px;">
+                    <p class="form-field-hint" style="margin-top: 6px;">C&oacute;mo cargarlo: en Meta entr&aacute; al <strong>Administrador de comercio</strong> &rarr; tu <strong>Cat&aacute;logo</strong> &rarr; <strong>Or&iacute;genes de datos</strong> &rarr; Agregar art&iacute;culos &rarr; <strong>Feed de datos</strong> &rarr; <strong>Feed programado</strong>, peg&aacute; esta direcci&oacute;n, eleg&iacute; que se actualice <strong>cada d&iacute;a</strong> y moneda UYU. Despu&eacute;s conect&aacute; el cat&aacute;logo con tu pixel (Cat&aacute;logo &rarr; Eventos) para que Meta cruce lo que mira cada persona con tus discos.</p>
+                </div>
             </div>
 
             <div class="form-field" style="margin-top: 22px; border-top: 1px solid var(--border-2, #333); padding-top: 18px;">

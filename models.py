@@ -1152,6 +1152,16 @@ class Reserva(db.Model):
     # Analogo a Disc.venta_grupo. Null = reserva suelta.
     grupo = db.Column(db.String(40), nullable=True, index=True)
 
+    # Conversions API de Meta (medicion desde el servidor). Se guardan los datos del
+    # navegador AL CREAR la reserva porque el pago de Mercado Pago se confirma despues
+    # por webhook, sin el navegador del cliente. meta_capi_enviado = eventos ya
+    # mandados a Meta ("Lead", "Purchase"), para no mandar dos veces el mismo.
+    meta_fbp = db.Column(db.String(200), nullable=True)
+    meta_fbc = db.Column(db.String(600), nullable=True)
+    cliente_ip = db.Column(db.String(64), nullable=True)
+    cliente_ua = db.Column(db.String(500), nullable=True)
+    meta_capi_enviado = db.Column(db.String(60), nullable=True)
+
     # Relacion (puede ser null si el disco se borro)
     disc = db.relationship("Disc", backref="reservas", foreign_keys=[disc_id])
     cliente = db.relationship("Cliente", backref=db.backref("reservas", order_by="Reserva.fecha.desc()"), foreign_keys=[cliente_id])
@@ -2185,6 +2195,12 @@ def _migrate_schema(app):
                 "entregado": "BOOLEAN DEFAULT 0",
                 "canal": "VARCHAR(20) DEFAULT 'web'",
                 "grupo": "VARCHAR(40)",
+                # Conversions API de Meta (datos del navegador + eventos ya enviados)
+                "meta_fbp": "VARCHAR(200)",
+                "meta_fbc": "VARCHAR(600)",
+                "cliente_ip": "VARCHAR(64)",
+                "cliente_ua": "VARCHAR(500)",
+                "meta_capi_enviado": "VARCHAR(60)",
             }
             for _col, _ddl in _radds.items():
                 if _col not in _rcols:
