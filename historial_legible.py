@@ -147,7 +147,9 @@ CAMPOS = {
 }
 # Campos tecnicos que no aportan nada al leer el cambio.
 OCULTOS = {'id', 'slug', 'fecha_modificacion', 'fecha_actualizacion', 'fecha_es_utc', 'password_hash',
-           'mp_preference_id', 'mp_payment_id', 'creado', 'sample_url'}
+           'mp_preference_id', 'mp_payment_id', 'creado', 'sample_url',
+           # Conversions API de Meta: datos tecnicos del navegador y marca de envio
+           'meta_fbp', 'meta_fbc', 'cliente_ip', 'cliente_ua', 'meta_capi_enviado'}
 PLATA = {'precio_uyu', 'costo_final_uyu', 'precio_oferta', 'precio_venta_uyu', 'sena_monto_uyu',
          'total_cobrado_uyu', 'envio_costo_uyu', 'disc_precio_uyu_snap', 'precio_uyu_snap', 'monto_uyu',
          'costo_uyu_manual', 'comision_banco_uyu', 'lealtad_base'}

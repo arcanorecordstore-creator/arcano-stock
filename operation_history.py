@@ -44,7 +44,7 @@ TABLE_LABELS = {'discs':'Discos / ventas', 'reservas':'Reservas', 'clientes':'Cl
 TRACKED = set(TABLE_LABELS) | {'reserva_items', 'tracks', 'disc_images', 'status_history', 'cliente_favoritos', 'archived_records'}
 # Columnas que, si son lo UNICO que cambio en un UPDATE, no vale la pena registrar
 # (el contador de escuchas, la marca de "ultima modificacion").
-IGNORED_COLS = {'play_count', 'fecha_modificacion'}
+IGNORED_COLS = {'play_count', 'fecha_modificacion', 'meta_capi_enviado'}
 # Cuanto se guarda: lo automatico (escuchas, sincronizaciones al abrir pantallas) 30
 # dias; lo que hiciste vos, 1 año. Los archivos de un disco/track borrado quedan
 # protegidos (para poder recuperarlo) solo esos mismos 30 dias.
