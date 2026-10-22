@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}{{ disc.artista }} - {{ disc.titulo }} &middot; Arcano{% endblock %}
 
@@ -10,9 +11,36 @@
     </div>
     <div class="page-actions">
         <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">&larr; Volver</a>
+        <button type="button" class="btn btn-ghost" data-sty-open aria-haspopup="dialog">{{ icon('camera', 14) }} Story</button>
         <a href="{{ url_for('disc_edit', disc_id=disc.id) }}" class="btn btn-primary">Editar</a>
     </div>
 </section>
+
+{# Story de Instagram en un clic: vista previa + descarga (PNG 1080x1920, story.py) #}
+<div class="sty" id="sty" hidden>
+    <div class="sty-bg" data-sty-close></div>
+    <section class="sty-panel" role="dialog" aria-modal="true" aria-labelledby="sty-titulo">
+        <header class="sty-head">
+            <h2 class="sty-titulo" id="sty-titulo">Story</h2>
+            <button type="button" class="sty-x" data-sty-close aria-label="Cerrar">&times;</button>
+        </header>
+        <div class="sty-vars" role="radiogroup" aria-label="Variante de la story">
+            {% for k, nombre in story_variantes %}
+            <button type="button" class="sty-var{% if k == story_default %} is-on{% endif %}" role="radio"
+                    aria-checked="{{ 'true' if k == story_default else 'false' }}" data-var="{{ k }}">{{ nombre }}</button>
+            {% endfor %}
+        </div>
+        <div class="sty-prev is-loading">
+            <img class="sty-img" alt="Vista previa de la story" width="1080" height="1920">
+            <span class="sty-estado sty-estado-cargando">Generando</span>
+            <span class="sty-estado sty-estado-error">No se pudo generar. Probá de nuevo.</span>
+        </div>
+        <div class="sty-acciones" data-base="{{ url_for('disc_story_png', disc_id=disc.id) }}" data-nombre="{{ story_nombre }}">
+            <a class="btn btn-primary sty-bajar" href="{{ url_for('disc_story_png', disc_id=disc.id, variante=story_default, descargar=1) }}" download="{{ story_nombre }}">Descargar</a>
+            <button type="button" class="btn btn-ghost sty-compartir" hidden>Compartir</button>
+        </div>
+    </section>
+</div>
 
 <div class="detail-grid">
 
@@ -331,6 +359,33 @@ body:has(#floating-player:not([hidden])) .app-main { padding-bottom: 110px; }
 </script>
 <script src="{{ url_for('static', filename='js/player.js') }}"></script>
 <style>
+/* Panel "Story" (vista previa + descarga). Entra en 390px sin desbordar. */
+.sty { position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center; padding: 16px; box-sizing: border-box; }
+.sty[hidden] { display: none; }
+.app-main > .sty { animation: none; }   /* sin la entrada de pagina: aparece con su propio fundido */
+.sty:not([hidden]) .sty-bg, .sty:not([hidden]) .sty-panel { animation: sty-in .2s ease both; }
+@keyframes sty-in { from { opacity: 0; } to { opacity: 1; } }
+.sty-bg { position: absolute; inset: 0; background: rgba(20, 16, 16, .55); }
+.sty-panel { position: relative; box-sizing: border-box; width: min(440px, 100%); max-height: calc(100vh - 32px); max-height: calc(100dvh - 32px); overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 16px 18px 18px; background: var(--bg-0); border: 1px solid var(--border-2); border-radius: 10px; box-shadow: 0 18px 40px rgba(0, 0, 0, .25); }
+.sty-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.sty-titulo { margin: 0; font-size: 12px; font-weight: 500; letter-spacing: .16em; text-transform: uppercase; color: var(--text-2); }
+.sty-x { width: 32px; height: 32px; flex: none; border-radius: 8px; border: 1px solid var(--border-2); background: transparent; color: var(--text-2); font-size: 20px; line-height: 1; cursor: pointer; }
+.sty-x:hover { color: var(--text-1); border-color: var(--border-3); }
+.sty-vars { display: flex; flex-wrap: wrap; gap: 6px; }
+.sty-var { font: inherit; font-size: 12.5px; line-height: 1.2; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--border-2); background: transparent; color: var(--text-2); cursor: pointer; white-space: nowrap; transition: opacity .15s ease, background-color .15s ease, color .15s ease; }
+.sty-var:hover { border-color: var(--border-3); color: var(--text-1); }
+.sty-var:active { opacity: .6; }
+.sty-var.is-on { background: var(--ink); border-color: var(--ink); color: var(--ink-contrast); }
+.sty-prev { position: relative; align-self: center; height: min(56vh, 540px); max-width: 100%; aspect-ratio: 9 / 16; border-radius: 6px; overflow: hidden; background: #0A0A0A; border: 1px solid var(--border-2); }
+.sty-img { display: block; width: 100%; height: 100%; object-fit: contain; transition: opacity .2s ease; }
+.sty-prev:not(.is-ok) .sty-img { opacity: 0; }
+.sty-prev.is-loading.is-ok .sty-img { opacity: .35; }
+.sty-estado { position: absolute; inset: 0; display: none; place-items: center; padding: 16px; text-align: center; font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: #E9D1AF; }
+.sty-prev.is-loading .sty-estado-cargando, .sty-prev.is-error .sty-estado-error { display: grid; }
+.sty-acciones { display: flex; gap: 8px; }
+.sty-acciones .btn { flex: 1 1 0; justify-content: center; min-height: 40px; }
+body.sty-abierto { overflow: hidden; }
+@media (prefers-reduced-motion: reduce) { .sty-img, .sty-var { transition: none; } .sty:not([hidden]) .sty-bg, .sty:not([hidden]) .sty-panel { animation: none; } }
 .fav-adm-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;}
 .fav-adm-list li{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;}
 .fav-adm-list li > a:first-child{color:var(--text-1);font-weight:500;}
@@ -338,4 +393,104 @@ body:has(#floating-player:not([hidden])) .app-main { padding-bottom: 110px; }
 .fav-adm-wa{font-size:12px;color:var(--text-2);margin-left:auto;}
 .fav-adm-vacio{font-size:13px;color:var(--text-4);margin:0;}
 </style>
+<script>
+/* Panel "Story": pide el PNG al servidor (una sola vez por variante elegida),
+   lo muestra como vista previa y deja bajarlo o compartirlo desde el celu. */
+(function () {
+    var root = document.getElementById('sty');
+    var abrir = document.querySelector('[data-sty-open]');
+    if (!root || !abrir) return;
+    var prev = root.querySelector('.sty-prev');
+    var img = root.querySelector('.sty-img');
+    var acciones = root.querySelector('.sty-acciones');
+    var bajar = root.querySelector('.sty-bajar');
+    var compartir = root.querySelector('.sty-compartir');
+    var base = acciones.getAttribute('data-base');
+    var nombre = acciones.getAttribute('data-nombre');
+    var elegida = root.querySelector('.sty-var.is-on') || root.querySelector('.sty-var');
+    var variante = elegida ? elegida.getAttribute('data-var') : 'nuevo';
+    var pedido = 0, blob = null, objUrl = null, cargada = null, foco = null;
+
+    function url(descargar) {
+        return base + '?variante=' + encodeURIComponent(variante) + (descargar ? '&descargar=1' : '');
+    }
+
+    function cargar() {
+        bajar.href = url(true);
+        if (cargada === variante) return;
+        var n = ++pedido;
+        blob = null;
+        prev.classList.remove('is-error');
+        prev.classList.add('is-loading');
+        fetch(url(false), { credentials: 'same-origin' })
+            .then(function (r) {
+                var tipo = r.headers.get('Content-Type') || '';
+                if (!r.ok || tipo.indexOf('image/png') !== 0) throw new Error('sin imagen');
+                return r.blob();
+            })
+            .then(function (b) {
+                if (n !== pedido) return;
+                blob = b;
+                cargada = variante;
+                if (objUrl) URL.revokeObjectURL(objUrl);
+                objUrl = URL.createObjectURL(b);
+                img.src = objUrl;
+            })
+            .catch(function () {
+                if (n !== pedido) return;
+                prev.classList.remove('is-loading');
+                prev.classList.add('is-error');
+            });
+    }
+    img.addEventListener('load', function () {
+        prev.classList.remove('is-loading');
+        prev.classList.add('is-ok');
+    });
+
+    root.querySelectorAll('.sty-var').forEach(function (b) {
+        b.addEventListener('click', function () {
+            variante = b.getAttribute('data-var');
+            root.querySelectorAll('.sty-var').forEach(function (o) {
+                var on = o === b;
+                o.classList.toggle('is-on', on);
+                o.setAttribute('aria-checked', on ? 'true' : 'false');
+            });
+            cargar();
+        });
+    });
+
+    function abrirPanel() {
+        foco = document.activeElement;
+        root.hidden = false;
+        document.body.classList.add('sty-abierto');
+        cargar();
+        root.querySelector('.sty-x').focus();
+    }
+    function cerrarPanel() {
+        root.hidden = true;
+        document.body.classList.remove('sty-abierto');
+        if (foco && foco.focus) foco.focus();
+    }
+    abrir.addEventListener('click', abrirPanel);
+    root.querySelectorAll('[data-sty-close]').forEach(function (el) {
+        el.addEventListener('click', cerrarPanel);
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !root.hidden) cerrarPanel();
+    });
+
+    /* Compartir: en el celu abre el menu del sistema con el PNG (Instagram incluido) */
+    try {
+        if (navigator.canShare && window.File &&
+            navigator.canShare({ files: [new File([''], 'story.png', { type: 'image/png' })] })) {
+            compartir.hidden = false;
+        }
+    } catch (e) { /* sin soporte: queda solo Descargar */ }
+    compartir.addEventListener('click', function () {
+        if (!blob) return;
+        var archivo = new File([blob], nombre, { type: 'image/png' });
+        navigator.share({ files: [archivo] }).catch(function () { /* cancelado */ });
+    });
+})();
+</script>
 {% endblock %}
