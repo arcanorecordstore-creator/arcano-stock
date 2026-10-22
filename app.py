@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.30"
+APP_VERSION = "6.31"
 import metrics
 import auth
 import mailer
@@ -4630,71 +4630,106 @@ def register_routes(app: Flask) -> None:
         por_canal = _agrupar(canal_de, _CANALES_VENTA)
         por_metodo = _agrupar(metodo_de, _METODOS_VENTA)
 
-        # Tendencia: facturado del PERIODO ELEGIDO (antes eran siempre los ultimos 30
-        # dias, aunque eligieras "Todo" o "Este ano"). Segun el largo del periodo las
-        # barras son por dia (hasta 45 dias), por semana (hasta ~6 meses) o por mes.
-        # Misma cuenta que el KPI "Facturado": la suma de las barras da ese numero.
+        # Grafico "Facturado por ...": cada barra = plata y unidades vendidas.
+        # - Auto: el PERIODO ELEGIDO, por dia (hasta 45 dias), semana (hasta ~6 meses)
+        #   o mes. La suma de las barras da el KPI "Facturado".
+        # - Elegido a mano (pedido de Facundo): ventana fija para comparar, que termina
+        #   donde termina el periodo elegido: Dia = ultimos 30 dias, Semana = ultimas 24
+        #   semanas, Mes = ultimos 12 meses, Ano = todos los anos desde la primera venta.
+        #   Las barras fuera del periodo elegido se ven mas claras.
         _MESES_C = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
         _MESES_L = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
                     "setiembre", "octubre", "noviembre", "diciembre"]
-        t_ini = inicio_dt.date()
-        t_fin = min(fin_dt.date(), today_uy() + _td(days=1))      # sin dibujar el futuro
+        p_ini = inicio_dt.date()
+        p_fin = min(fin_dt.date(), today_uy() + _td(days=1))      # sin dibujar el futuro
         _fechas_v = [d.fecha_venta.date() for d in base if d.fecha_venta]
-        if periodo == "todo" or (t_fin - t_ini).days > 1500:
+        if periodo == "todo" or (p_fin - p_ini).days > 1500:
             # "Todo" arranca en un tope tecnico (ano 2000): empezar en la primera venta
-            t_ini = min(_fechas_v) if _fechas_v else max(t_ini, t_fin - _td(days=30))
-        if t_fin <= t_ini:
-            t_fin = t_ini + _td(days=1)
-        _span = (t_fin - t_ini).days
-        trend_dia_ok = _span <= 400          # por dia en periodos largos serian cientos de barras
-        if agrupar == "auto" or (agrupar == "dia" and not trend_dia_ok):
-            _unidad = "dia" if _span <= 45 else ("semana" if _span <= 190 else "mes")
+            p_ini = min(_fechas_v) if _fechas_v else max(p_ini, p_fin - _td(days=30))
+        if p_fin <= p_ini:
+            p_fin = p_ini + _td(days=1)
+        _span = (p_fin - p_ini).days
+        trend_dia_ok = True
+
+        def _mes_mas(fecha, n):
+            m = fecha.month - 1 + n
+            return fecha.replace(year=fecha.year + m // 12, month=m % 12 + 1, day=1)
+
+        _ultimo_dia = p_fin - _td(days=1)
+        if agrupar == "auto":
+            trend_unidad = "dia" if _span <= 45 else ("semana" if _span <= 190 else "mes")
+            t_ini, t_fin = p_ini, p_fin
         else:
-            _unidad = agrupar
-        if _unidad == "dia":
-            trend_unidad = "dia"
-            _cubos = [t_ini + _td(days=i) for i in range(_span)]
+            trend_unidad = agrupar
+            t_fin = p_fin
+            if agrupar == "dia":
+                t_ini = t_fin - _td(days=30)
+            elif agrupar == "semana":
+                t_ini = _ultimo_dia - _td(days=_ultimo_dia.weekday()) - _td(weeks=23)
+            elif agrupar == "mes":
+                t_ini = _mes_mas(_ultimo_dia.replace(day=1), -11)
+            else:  # ano: desde el primer ano con ventas
+                _primera = db.session.query(db.func.min(Disc.fecha_venta)).filter(Disc.estado == "Vendido").scalar()
+                _y0 = _primera.year if _primera else _ultimo_dia.year
+                t_ini = _ultimo_dia.replace(year=min(_y0, p_ini.year), month=1, day=1)
+
+        # Cubos: (inicio, fin exclusivo) de cada barra
+        _cubos = []
+        if trend_unidad == "dia":
+            _c = t_ini
+            while _c < t_fin:
+                _cubos.append((_c, _c + _td(days=1)))
+                _c += _td(days=1)
             _clave = lambda f: f
             _etq = lambda c: (c.strftime("%d/%m"), c.strftime("%d/%m/%Y"))
-        elif _unidad == "semana":
-            trend_unidad = "semana"
-            _lunes0 = t_ini - _td(days=t_ini.weekday())
-            _cubos = []
-            _c = _lunes0
+        elif trend_unidad == "semana":
+            _c = t_ini - _td(days=t_ini.weekday())
             while _c < t_fin:
-                _cubos.append(_c)
+                _cubos.append((_c, _c + _td(days=7)))
                 _c += _td(days=7)
             _clave = lambda f: f - _td(days=f.weekday())
             _etq = lambda c: (c.strftime("%d/%m"), "semana del " + c.strftime("%d/%m/%Y"))
-        elif _unidad == "ano":
-            trend_unidad = "ano"
-            _ultimo = t_fin.year if (t_fin.month, t_fin.day) != (1, 1) else t_fin.year - 1
-            _cubos = [t_ini.replace(year=_y, month=1, day=1) for _y in range(t_ini.year, max(_ultimo, t_ini.year) + 1)]
+        elif trend_unidad == "ano":
+            for _y in range(t_ini.year, _ultimo_dia.year + 1):
+                _cubos.append((t_ini.replace(year=_y, month=1, day=1), t_ini.replace(year=_y + 1, month=1, day=1)))
             _clave = lambda f: f.replace(month=1, day=1)
             _etq = lambda c: (str(c.year), "año " + str(c.year))
         else:
-            trend_unidad = "mes"
-            _cubos = []
-            _y, _m = t_ini.year, t_ini.month
-            while (_y, _m) < (t_fin.year, t_fin.month) or (
-                    (_y, _m) == (t_fin.year, t_fin.month) and t_fin.day > 1):
-                _cubos.append(t_ini.replace(year=_y, month=_m, day=1))
-                _m += 1
-                if _m > 12:
-                    _m, _y = 1, _y + 1
+            _c = t_ini.replace(day=1)
+            while _c < t_fin:
+                _cubos.append((_c, _mes_mas(_c, 1)))
+                _c = _mes_mas(_c, 1)
             _clave = lambda f: f.replace(day=1)
             _etq = lambda c: (_MESES_C[c.month - 1] + " " + c.strftime("%y"),
                               _MESES_L[c.month - 1] + " " + str(c.year))
-        tmap = {c: 0.0 for c in _cubos}
-        for d in base:
+
+        # Ventas que alimentan el grafico: las del periodo; si la ventana se sale del
+        # periodo, se traen las de la ventana (con el mismo filtro de canal/metodo/texto).
+        _v_ini = _cubos[0][0] if _cubos else t_ini
+        _v_fin = _cubos[-1][1] if _cubos else t_fin
+        if _v_ini >= inicio_dt.date() and _v_fin <= fin_dt.date():
+            _fuente = base
+        else:
+            _extra = (Disc.query.filter(Disc.estado == "Vendido")
+                      .filter(Disc.fecha_venta >= _dt(_v_ini.year, _v_ini.month, _v_ini.day),
+                              Disc.fecha_venta < _dt(_v_fin.year, _v_fin.month, _v_fin.day)).all())
+            _fuente = [d for d in _extra if _pasa(d)] if _filtrando else _extra
+        tmap = {c[0]: [0.0, 0] for c in _cubos}
+        for d in _fuente:
             fv = d.fecha_venta.date() if d.fecha_venta else None
             if fv is None:
                 continue
             k = _clave(fv)
             if k in tmap:
-                tmap[k] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
-        trend = [{"label": _etq(c)[0], "titulo": _etq(c)[1], "monto": round(tmap[c])} for c in _cubos]
+                tmap[k][0] += (d.precio_mostrar or d.precio_uyu or 0) * d.copias_facturadas
+                tmap[k][1] += d.copias_facturadas
+        trend = [{"label": _etq(c0)[0], "titulo": _etq(c0)[1], "monto": round(tmap[c0][0]),
+                  "uds": int(tmap[c0][1]),
+                  "fuera": not (c0 < fin_dt.date() and c1 > inicio_dt.date())} for c0, c1 in _cubos]
         trend_max = max((t["monto"] for t in trend), default=0) or 1
+        trend_hay_fuera = any(t["fuera"] for t in trend)
+        trend_ventana = {"dia": "últimos 30 días", "semana": "últimas 24 semanas",
+                         "mes": "últimos 12 meses", "ano": "desde la primera venta"}.get(agrupar) if agrupar != "auto" else None
 
         def _top(attr):
             acc = {}
@@ -4772,6 +4807,7 @@ def register_routes(app: Flask) -> None:
             metodo_por_disc=metodo_res, disc_ids_web=web_ids,
             cliente_por_disc=cliente_res, dias_venta=dias_venta,
             trend_unidad=trend_unidad, trend_agrupar=agrupar, trend_dia_ok=trend_dia_ok,
+            trend_hay_fuera=trend_hay_fuera, trend_ventana=trend_ventana,
             canales=_CANALES_VENTA, metodos=_METODOS_VENTA,
             filtros={"canal": f_canal, "metodo": f_metodo, "q": f_q},
             hoy=today_uy(),

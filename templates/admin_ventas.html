@@ -131,7 +131,7 @@
 <div class="pv-card">
     <div class="pv-card-head">
         <div class="pv-trend-titulo">
-            <h2 class="pv-card-title">Facturado por {{ {'dia': 'd&iacute;a', 'semana': 'semana', 'mes': 'mes', 'ano': 'a&ntilde;o'}[trend_unidad or 'dia']|safe }}</h2>
+            <h2 class="pv-card-title">Facturado por {{ {'dia': 'd&iacute;a', 'semana': 'semana', 'mes': 'mes', 'ano': 'a&ntilde;o'}[trend_unidad or 'dia']|safe }}{% if trend_ventana %} <span class="pv-ventana">&middot; {{ trend_ventana }}</span>{% endif %}</h2>
             {# Selector: ver las barras por dia / semana / mes / ano (se recuerda). Auto = segun el periodo. #}
             <nav class="pv-agrupar" aria-label="Agrupar el gr&aacute;fico">
                 {% for _k, _l in [('auto', 'Auto'), ('dia', 'D&iacute;a'), ('semana', 'Semana'), ('mes', 'Mes'), ('ano', 'A&ntilde;o')] %}
@@ -149,19 +149,28 @@
             {% if top_artista %}<span>Top artista: <strong>{{ top_artista.nombre }}</strong></span>{% endif %}
         </div>
     </div>
-    <div class="pv-trend">
+    {# Hasta 24 barras: debajo de cada una, la plata y las unidades. En el celular el
+       grafico se desliza de costado (dentro de la tarjeta) para que entren los numeros. #}
+    {% set _con_valores = trend|length <= 24 %}
+    <div class="pv-trend-scroll">
+    <div class="pv-trend-inner"{% if _con_valores %} style="min-width: {{ trend|length * (66 if trend|length <= 14 else 50) }}px"{% endif %}>
+    <div class="pv-trend{% if _con_valores %} pv-trend-alta{% endif %}">
         {% for t in trend %}
-        <span class="pv-col" data-label="{{ t.titulo or t.label }}" data-monto="$ {{ fmt(t.monto) }}">
+        <span class="pv-col{% if t.fuera %} fuera{% endif %}" data-label="{{ t.titulo or t.label }}" data-monto="$ {{ fmt(t.monto) }} &middot; {{ t.uds }} disco{{ '' if t.uds == 1 else 's' }}">
             <span class="pv-bar" style="height: {{ (t.monto / trend_max * 100)|round(1) }}%"></span>
         </span>
         {% endfor %}
     </div>
-    {% if trend|length <= 14 and trend_unidad in ('mes', 'ano') %}
-    {# Pocas barras (por mes o por ano): el nombre debajo de cada una #}
-    <div class="pv-trend-labels pv-trend-labels-todas">{% for t in trend %}<span>{{ t.label }}</span>{% endfor %}</div>
+    {% if _con_valores %}
+    <div class="pv-trend-labels pv-trend-labels-todas">{% for t in trend %}<span class="pv-lab{% if t.fuera %} fuera{% endif %}"><span class="pv-lab-n">{{ t.label }}</span><span class="pv-lab-m">$ {{ fmt(t.monto) }}</span><span class="pv-lab-u">{{ t.uds }} {% if trend|length <= 14 %}disco{{ '' if t.uds == 1 else 's' }}{% else %}u.{% endif %}</span></span>{% endfor %}</div>
     {% else %}
     <div class="pv-trend-labels"><span>{{ trend[0].label if trend }}</span><span>{{ trend[-1].label if trend }}</span></div>
     {% endif %}
+    </div>
+    </div>
+    {# En el celular el grafico se desliza: arrancar mostrando lo mas reciente (derecha) #}
+    <script>document.querySelectorAll('.pv-trend-scroll').forEach(function (s) { s.scrollLeft = s.scrollWidth; });</script>
+    {% if trend_hay_fuera %}<p class="pv-trend-nota">Las barras m&aacute;s claras quedan fuera del per&iacute;odo elegido arriba ({{ periodo_label }}).</p>{% endif %}
 </div>
 
 <form method="get" class="pv-filters" id="pv-filters">
