@@ -130,7 +130,20 @@
 
 <div class="pv-card">
     <div class="pv-card-head">
-        <h2 class="pv-card-title">Facturado por {{ {'dia': 'd&iacute;a', 'semana': 'semana', 'mes': 'mes'}[trend_unidad or 'dia']|safe }}</h2>
+        <div class="pv-trend-titulo">
+            <h2 class="pv-card-title">Facturado por {{ {'dia': 'd&iacute;a', 'semana': 'semana', 'mes': 'mes', 'ano': 'a&ntilde;o'}[trend_unidad or 'dia']|safe }}</h2>
+            {# Selector: ver las barras por dia / semana / mes / ano (se recuerda). Auto = segun el periodo. #}
+            <nav class="pv-agrupar" aria-label="Agrupar el gr&aacute;fico">
+                {% for _k, _l in [('auto', 'Auto'), ('dia', 'D&iacute;a'), ('semana', 'Semana'), ('mes', 'Mes'), ('ano', 'A&ntilde;o')] %}
+                {% if _k == 'dia' and not trend_dia_ok %}
+                <span class="pv-tab is-off" title="El per&iacute;odo es muy largo para verlo por d&iacute;a">{{ _l|safe }}</span>
+                {% else %}
+                <a href="{{ url_for('ventas_panel', periodo=periodo, desde=desde or None, hasta=hasta or None, canal=filtros.canal or None, metodo=filtros.metodo or None, q=filtros.q or None, agrupar=_k) }}"
+                   class="pv-tab {% if trend_agrupar == _k %}on{% endif %}"{% if _k == 'auto' %} title="Elige solo seg&uacute;n el largo del per&iacute;odo"{% endif %}>{{ _l|safe }}</a>
+                {% endif %}
+                {% endfor %}
+            </nav>
+        </div>
         <div class="pv-tops">
             {% if top_sello %}<span>Top sello: <strong>{{ top_sello.nombre }}</strong> ($ {{ fmt(top_sello.monto) }})</span>{% endif %}
             {% if top_artista %}<span>Top artista: <strong>{{ top_artista.nombre }}</strong></span>{% endif %}
@@ -143,7 +156,12 @@
         </span>
         {% endfor %}
     </div>
+    {% if trend|length <= 14 and trend_unidad in ('mes', 'ano') %}
+    {# Pocas barras (por mes o por ano): el nombre debajo de cada una #}
+    <div class="pv-trend-labels pv-trend-labels-todas">{% for t in trend %}<span>{{ t.label }}</span>{% endfor %}</div>
+    {% else %}
     <div class="pv-trend-labels"><span>{{ trend[0].label if trend }}</span><span>{{ trend[-1].label if trend }}</span></div>
+    {% endif %}
 </div>
 
 <form method="get" class="pv-filters" id="pv-filters">

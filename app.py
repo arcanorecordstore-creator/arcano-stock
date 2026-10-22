@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.29"
+APP_VERSION = "6.30"
 import metrics
 import auth
 import mailer
@@ -4529,6 +4529,16 @@ def register_routes(app: Flask) -> None:
         f_canal = (request.args.get("canal") or "").strip()
         f_metodo = (request.args.get("metodo") or "").strip()
         f_q = (request.args.get("q") or "").strip()
+        # Como agrupar el grafico "Facturado por...": auto (segun el largo del periodo)
+        # o lo que elijas (dia / semana / mes / ano). La eleccion se recuerda.
+        agrupar = (request.args.get("agrupar") or "").strip().lower()
+        if agrupar in ("auto", "dia", "semana", "mes", "ano"):
+            if agrupar == "auto":
+                session.pop("ventas_agrupar", None)
+            else:
+                session["ventas_agrupar"] = agrupar
+        else:
+            agrupar = session.get("ventas_agrupar") or "auto"
 
         inicio, fin = metrics._rango_ventas(periodo, desde, hasta)
         inicio_dt = _dt(inicio.year, inicio.month, inicio.day)
@@ -4636,12 +4646,17 @@ def register_routes(app: Flask) -> None:
         if t_fin <= t_ini:
             t_fin = t_ini + _td(days=1)
         _span = (t_fin - t_ini).days
-        if _span <= 45:
+        trend_dia_ok = _span <= 400          # por dia en periodos largos serian cientos de barras
+        if agrupar == "auto" or (agrupar == "dia" and not trend_dia_ok):
+            _unidad = "dia" if _span <= 45 else ("semana" if _span <= 190 else "mes")
+        else:
+            _unidad = agrupar
+        if _unidad == "dia":
             trend_unidad = "dia"
             _cubos = [t_ini + _td(days=i) for i in range(_span)]
             _clave = lambda f: f
             _etq = lambda c: (c.strftime("%d/%m"), c.strftime("%d/%m/%Y"))
-        elif _span <= 190:
+        elif _unidad == "semana":
             trend_unidad = "semana"
             _lunes0 = t_ini - _td(days=t_ini.weekday())
             _cubos = []
@@ -4651,6 +4666,12 @@ def register_routes(app: Flask) -> None:
                 _c += _td(days=7)
             _clave = lambda f: f - _td(days=f.weekday())
             _etq = lambda c: (c.strftime("%d/%m"), "semana del " + c.strftime("%d/%m/%Y"))
+        elif _unidad == "ano":
+            trend_unidad = "ano"
+            _ultimo = t_fin.year if (t_fin.month, t_fin.day) != (1, 1) else t_fin.year - 1
+            _cubos = [t_ini.replace(year=_y, month=1, day=1) for _y in range(t_ini.year, max(_ultimo, t_ini.year) + 1)]
+            _clave = lambda f: f.replace(month=1, day=1)
+            _etq = lambda c: (str(c.year), "año " + str(c.year))
         else:
             trend_unidad = "mes"
             _cubos = []
@@ -4750,7 +4771,7 @@ def register_routes(app: Flask) -> None:
             grupos=grupos,
             metodo_por_disc=metodo_res, disc_ids_web=web_ids,
             cliente_por_disc=cliente_res, dias_venta=dias_venta,
-            trend_unidad=trend_unidad,
+            trend_unidad=trend_unidad, trend_agrupar=agrupar, trend_dia_ok=trend_dia_ok,
             canales=_CANALES_VENTA, metodos=_METODOS_VENTA,
             filtros={"canal": f_canal, "metodo": f_metodo, "q": f_q},
             hoy=today_uy(),

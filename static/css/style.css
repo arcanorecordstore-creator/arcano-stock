@@ -12602,3 +12602,13 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 button.ped-discos-toggle { background: none; border: 0; font-family: inherit; text-align: left; }
 .ped-discos-toggle[aria-expanded="true"]::before { transform: rotate(90deg); }
 .ped-card-foot:has(.ped-editar:not([open])) { display: none; }
+
+/* ===== Ventas: selector Auto/Dia/Semana/Mes/Ano del grafico (v6.30) ===== */
+.pv-trend-titulo { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 14px; }
+.pv-trend-titulo .pv-card-title { margin: 0; }
+.pv-agrupar { display: flex; flex-wrap: wrap; gap: 4px; }
+.pv-agrupar .pv-tab { padding: 3px 10px; font-size: 12px; border-radius: 7px; }
+.pv-agrupar .pv-tab.is-off { opacity: .4; cursor: not-allowed; }
+.pv-card-head:has(.pv-agrupar) { align-items: center; margin-bottom: 6px; }
+.pv-trend-labels.pv-trend-labels-todas { justify-content: stretch; gap: 3px; }
+.pv-trend-labels-todas span { flex: 1; text-align: center; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
