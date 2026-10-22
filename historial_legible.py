@@ -75,6 +75,8 @@ ORIGENES = {
     'settings_recalculate': 'Recalcular stock (Ajustes)',
     'admin_limpiar_samples': 'Limpieza de audios sin usar',
     'nota_nueva': 'Nota nueva (Estrategia)', 'nota_borrar': 'Nota borrada (Estrategia)',
+    'preguntar_datos': 'Pregunta a tus datos (Estrategia)',
+    'preguntar_borrar': 'Pregunta borrada del historial (Estrategia)',
 }
 
 # Operaciones que no hiciste vos a proposito: escuchas y favoritos de visitantes,
@@ -86,6 +88,8 @@ AUTOMATICAS = {
     'sistema', 'cliente_login_page', 'admin_login',
     # Exportes e informes: sincronizan la caja antes de armar el archivo
     'contabilidad_exportar', 'contabilidad_informe_pdf', 'informe_ejecutivo_pdf',
+    # Preguntar a tus datos: sincroniza la caja antes de leer los saldos
+    'preguntar_datos',
 }
 
 # --- Que es cada tabla ---------------------------------------------------------

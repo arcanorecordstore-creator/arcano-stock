@@ -511,3 +511,14 @@
         if (e.key === 'Escape') { e.stopPropagation(); e.target.value = e.target.dataset.ultimo; e.target.blur(); }
     });
 })();
+
+/* Pestanas de Estrategia en el celular: si no entran y se deslizan, mostrar la activa
+   (Notas y Preguntar quedan al final y si no, no se ven). */
+(function () {
+    'use strict';
+    var nav = document.querySelector('.tk-vistas');
+    var activa = nav && nav.querySelector('a.is-on');
+    if (!nav || !activa || nav.scrollWidth <= nav.clientWidth) return;
+    var x = activa.getBoundingClientRect().left - nav.getBoundingClientRect().left + nav.scrollLeft;
+    nav.scrollLeft = Math.max(0, x - 16);
+})();

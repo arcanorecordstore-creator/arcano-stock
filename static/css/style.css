@@ -12508,3 +12508,77 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
 @media (prefers-reduced-motion: reduce) {
     .bf-proceso.is-busy .bf-proceso-msg, .bf-cargando { animation: none; }
 }
+
+/* =====================================================================
+   ESTRATEGIA · Preguntar: "Preguntale a tus datos" (la IA contesta con tus numeros)
+   ===================================================================== */
+.pq { max-width: 880px; }
+.pq-aviso { margin: 0 0 16px; padding: 12px 16px; font-size: 13.5px; line-height: 1.5; color: var(--text-2); background: var(--bg-1); border: 1px solid var(--border-2); border-left: 2px solid var(--loss); border-radius: 10px; }
+.pq-aviso code, .pq-a code { font-family: inherit; font-size: .92em; padding: 1px 6px; border-radius: 6px; background: var(--bg-2); color: var(--text-2); }
+.pq-form { margin: 0; }
+.pq-input { display: block; width: 100%; min-height: 66px; max-height: 220px; resize: none; field-sizing: content; font: inherit; font-size: 16px; line-height: 1.45; color: var(--text-1); background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 12px; padding: 12px 14px; transition: border-color .15s ease; }
+.pq-input::placeholder { color: var(--text-5); }
+.pq-input:disabled { opacity: .6; }
+.pq-form-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px 14px; flex-wrap: wrap; margin-top: 10px; }
+.pq-uso { font-size: 12px; color: var(--text-4); font-variant-numeric: tabular-nums; }
+.pq-btn { border-radius: 999px; padding: 8px 20px; }
+.pq-btn:disabled { opacity: .55; cursor: default; }
+.pq-sugs-l { margin: 18px 0 8px; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-4); }
+.pq-sugs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 22px; }
+.pq-sug { font: inherit; font-size: 12.5px; line-height: 1.3; text-align: left; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border-2); background: transparent; color: var(--text-2); cursor: pointer; transition: border-color .15s ease, color .15s ease, opacity .12s ease; }
+.pq-sug:hover:not(:disabled) { border-color: var(--tk-ink); color: var(--text-1); }
+.pq-sug:active:not(:disabled) { opacity: .6; }
+.pq-sug:disabled { opacity: .45; cursor: default; }
+.pq-error { margin: 0 0 16px; padding: 8px 14px; font-size: 13.5px; line-height: 1.45; color: var(--loss); border-left: 2px solid var(--loss); background: var(--bg-1); border-radius: 0 8px 8px 0; }
+.pq-lista { display: flex; flex-direction: column; gap: 10px; }
+.pq-item { background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 12px; overflow: hidden; }
+.pq-item-head { display: flex; align-items: baseline; gap: 12px; padding: 13px 14px 13px 16px; cursor: pointer; list-style: none; transition: background-color .1s ease; }
+.pq-item-head::-webkit-details-marker { display: none; }
+.pq-item-head::marker { content: ""; }
+.pq-item-head:hover { background: var(--bg-hover, var(--bg-2)); }
+.pq-item-head:focus-visible { outline: 2px solid var(--border-3); outline-offset: -2px; }
+.pq-q { flex: 1 1 auto; min-width: 0; font-size: 14.5px; font-weight: 500; line-height: 1.4; color: var(--text-1); overflow-wrap: anywhere; }
+.pq-item:not([open]) .pq-q { color: var(--text-2); font-weight: 400; }
+.pq-when { flex: 0 0 auto; font-size: 12px; color: var(--text-4); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pq-del { flex: 0 0 24px; align-self: center; width: 24px; height: 24px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: var(--text-5); font-size: 17px; line-height: 1; cursor: pointer; opacity: 0; transition: opacity .15s ease, color .15s ease; }
+.pq-item-head:hover .pq-del, .pq-del:focus-visible { opacity: 1; }
+.pq-del:hover { color: var(--loss); }
+@media (hover: none) { .pq-del { opacity: .7; } }
+.pq-a { padding: 12px 16px 16px; border-top: 1px solid var(--border-1); font-size: 14.5px; line-height: 1.6; color: var(--text-1); overflow-wrap: anywhere; }
+.pq-a p { margin: 0 0 10px; }
+.pq-a > :last-child { margin-bottom: 0; }
+.pq-a ul, .pq-a ol { margin: 0 0 10px; padding-left: 20px; }
+.pq-a li { margin: 3px 0; }
+.pq-a strong { font-weight: 500; color: var(--text-1); }
+.pq-a em { font-style: italic; color: var(--text-3); }
+.pq-a .pq-h { margin: 14px 0 6px; font-size: 11px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: var(--text-4); }
+.pq-tabla-wrap { max-width: 100%; overflow-x: auto; margin: 4px 0 12px; border: 1px solid var(--border-2); border-radius: 10px; }
+.pq-tabla { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.4; }
+.pq-tabla th { text-align: left; font-weight: 500; font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--text-4); background: var(--bg-2); padding: 9px 12px; white-space: nowrap; border-bottom: 1px solid var(--border-2); }
+.pq-tabla td { padding: 8px 12px; border-bottom: 1px solid var(--border-1); vertical-align: top; overflow-wrap: normal; }
+.pq-tabla tr:last-child td { border-bottom: 0; }
+.pq-tabla td.pq-num { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pq-tabla th.pq-num { text-align: right; }
+.pq-pensando { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 13.5px; color: var(--text-3); }
+.pq-dots { display: inline-flex; gap: 4px; }
+.pq-dots i { width: 5px; height: 5px; border-radius: 50%; background: var(--tk-ink); opacity: .2; animation: pq-pulso 1.2s ease-in-out infinite; }
+.pq-dots i:nth-child(2) { animation-delay: .2s; }
+.pq-dots i:nth-child(3) { animation-delay: .4s; }
+@keyframes pq-pulso { 0%, 100% { opacity: .2; } 50% { opacity: .9; } }
+.pq-nota { margin: 22px 0 0; max-width: 72ch; font-size: 12px; font-weight: 300; line-height: 1.55; color: var(--text-4); }
+@media (prefers-reduced-motion: reduce) {
+    .pq-dots i { animation: none; opacity: .6; }
+}
+@media (max-width: 640px) {
+    /* Pestanas de Estrategia: con 5 secciones no entran en el celular -> se deslizan */
+    .tk-vistas { overflow-x: auto; scrollbar-width: none; border-bottom: 0; box-shadow: inset 0 -1px 0 var(--border-2); }
+    .tk-vistas::-webkit-scrollbar { display: none; }
+    .tk-vistas a { flex: 0 0 auto; white-space: nowrap; font-size: 13px; padding-right: 0; margin-right: 18px; margin-bottom: 0; }
+    .pq-item-head { padding: 12px 10px 12px 12px; gap: 8px; }
+    .pq-q { font-size: 14px; }
+    .pq-a { padding: 10px 12px 14px; font-size: 14px; }
+    /* Ejemplos en una sola fila que se desliza (asi la respuesta queda cerca del campo) */
+    .pq-sugs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 0 20px; padding-bottom: 2px; }
+    .pq-sugs::-webkit-scrollbar { display: none; }
+    .pq-sug { flex: 0 0 auto; white-space: nowrap; font-size: 12px; }
+}
