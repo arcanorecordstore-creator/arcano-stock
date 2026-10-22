@@ -1713,6 +1713,47 @@ class Pedido(db.Model):
         return res
 
     @property
+    def tasa_recupero(self):
+        """Tasa de recupero: de los discos del pedido, que parte hay que vender para
+        recuperar lo que costo (necesarios / discos del pedido, en %). Cuanto MAS BAJA,
+        mas eficiente fue el pedido. Sirve para comparar pedidos entre si.
+
+        - Si ya se recupero: es el numero REAL (las ventas en orden de fecha hasta
+          cubrir el costo).
+        - Si todavia no: la estimacion de discos_para_recuperar (vendidos + los que
+          faltan, con el precio promedio de lo que queda a la venta).
+        - None si falta el costo o no hay discos; pct None si con lo que queda a la
+          venta no se llega a recuperar."""
+        n = self.cant_discos or self.discos_asignados
+        costo = self.costo_total_uyu or 0
+        if n <= 0 or costo <= 0:
+            return None
+        if self.recuperado:
+            vendidos = sorted(
+                [d for d in self.discos if d.estado == "Vendido"],
+                key=lambda d: (d.fecha_venta is None, d.fecha_venta or datetime.min),
+            )
+            acum, necesarios = 0.0, 0
+            for d in vendidos:
+                precio = d.precio_mostrar or d.precio_uyu or 0
+                for _ in range(int(d.copias_facturadas or 0)):
+                    acum += precio
+                    necesarios += 1
+                    if acum >= costo:
+                        break
+                if acum >= costo:
+                    break
+            estimado = False
+        else:
+            rec = self.discos_para_recuperar
+            if not rec.get("alcanza") or rec.get("total") is None:
+                return {"pct": None, "necesarios": None, "de": n, "estimado": True}
+            necesarios = rec["total"]
+            estimado = True
+        return {"pct": round(necesarios / n * 100), "necesarios": necesarios,
+                "de": n, "estimado": estimado}
+
+    @property
     def costo_por_disco_uyu(self) -> float:
         """Costo promedio por disco del pedido."""
         n = self.cant_discos or self.discos_asignados

@@ -140,6 +140,13 @@
                     &middot; {{ rec.total }} en total
                 </span>
                 {% endif %}
+                {% set tasa = p.tasa_recupero %}
+                {% if tasa %}
+                <span class="ped-stat-detail ped-tasa" title="Discos que hay que vender para recuperar lo que pagaste, sobre el total de discos del pedido. Cuanto m&aacute;s baja, m&aacute;s eficiente fue el pedido.{% if tasa.pct is not none and tasa.estimado %} Es una estimaci&oacute;n: se ajusta a medida que vend&eacute;s.{% endif %}">
+                    {% if tasa.pct is not none %}Tasa de recupero <b>{{ tasa.pct }}%</b> &middot; {{ tasa.necesarios }} de {{ tasa.de }}{% if not tasa.estimado %} (real){% endif %}
+                    {% else %}Tasa de recupero: no se llega con lo que queda{% endif %}
+                </span>
+                {% endif %}
             </div>
             <div class="ped-stat">
                 <span class="ped-stat-label">Recuperacion</span>
@@ -333,6 +340,21 @@
             <span class="ped-compare-detail">{{ mejor_pedido.margen_pct }}% de margen</span>
         </div>
         {% endif %}
+        {% set _ef = namespace(p=none, t=none, n=0) %}
+        {% for p in pedidos %}
+            {% set _t = p.tasa_recupero %}
+            {% if _t and _t.pct is not none %}
+                {% set _ef.n = _ef.n + 1 %}
+                {% if _ef.t is none or _t.pct < _ef.t.pct %}{% set _ef.p = p %}{% set _ef.t = _t %}{% endif %}
+            {% endif %}
+        {% endfor %}
+        {% if _ef.p and _ef.n >= 2 %}
+        <div class="ped-compare-card ped-compare-mejor" title="El pedido que necesita vender la menor parte de sus discos para recuperar lo que cost&oacute; (tasa de recupero m&aacute;s baja).">
+            <span class="ped-compare-label">&#9650; M&aacute;s eficiente para recuperar</span>
+            <span class="ped-compare-value">Pedido {{ _ef.p.numero or _ef.p.id }}</span>
+            <span class="ped-compare-detail">tasa {{ _ef.t.pct }}% &middot; {{ _ef.t.necesarios }} de {{ _ef.t.de }} discos</span>
+        </div>
+        {% endif %}
         {% if peor_pedido and peor_pedido.id != mejor_pedido.id %}
         <div class="ped-compare-card ped-compare-peor">
             <span class="ped-compare-label">&#9660; Peor pedido</span>
@@ -368,6 +390,10 @@
                 <span class="ped-tip-rojo">Aunque vendas todo lo que queda, faltar&iacute;an $ {{ '{:,.0f}'.format(_dpr.quedaria or 0).replace(',', '.') }} para recuperarlo</span>
                 {% else %}
                 <span>Para recuperar lo que pagaste: vend&eacute; <b>{{ _dpr.faltan }}</b> m&aacute;s{% if _dpr.rango %} (entre {{ _dpr.rango[0] }} y {{ _dpr.rango[1] }}, seg&uacute;n cu&aacute;les salgan){% endif %}</span>
+                {% endif %}
+                {% set _tr = p.tasa_recupero %}
+                {% if _tr and _tr.pct is not none %}
+                <span>Tasa de recupero: <b>{{ _tr.pct }}%</b> ({{ _tr.necesarios }} de {{ _tr.de }} discos{% if not _tr.estimado %}, real{% endif %})</span>
                 {% endif %}
             </div>
             <span class="ped-chart-label">{{ p.numero or ('#' ~ p.id) }}</span>
