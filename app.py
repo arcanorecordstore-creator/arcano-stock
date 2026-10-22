@@ -46,6 +46,7 @@ from models import (
 )
 import vision
 import scraper
+import buscar_foto as busqueda_foto
 
 # ---------------------------------------------------------------------------
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
@@ -557,6 +558,12 @@ def create_app() -> Flask:
                 {"src": url_for("static", filename="brand/app-icon-192.png"), "sizes": "192x192", "type": "image/png"},
                 {"src": url_for("static", filename="brand/app-icon-512.png"), "sizes": "512x512", "type": "image/png"},
                 {"src": url_for("static", filename="brand/app-icon-maskable-512.png"), "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+            ],
+            # Atajo al mantener apretado el icono de la app en el celu (v6.20)
+            "shortcuts": [
+                {"name": "Buscar disco con la cámara", "short_name": "Buscar con cámara",
+                 "url": "/admin/buscar-foto",
+                 "icons": [{"src": url_for("static", filename="brand/app-icon-192.png"), "sizes": "192x192", "type": "image/png"}]},
             ],
         }
         return _Resp(_json.dumps(data), mimetype="application/manifest+json")
@@ -2156,6 +2163,147 @@ def register_routes(app: Flask) -> None:
             tc=Setting.get_tc(),
             api_key_set=api_key_set,
         )
+
+    # ---- Buscar un disco con la camara (v6.20) ----
+    # Con el vinilo en la mano: foto de la etiqueta / tapa / sticker del catalogo,
+    # la IA lee artista-titulo-sello-catalogo y se busca en el stock (buscar_foto.py).
+    # Desde el resultado se puede marcar vendido o "ya llego" sin entrar a la ficha.
+    _BF_VENDER = ("Disponible", "Reservado", "Pre-order", "Encargo")
+    _BF_LLEGO = ("Pre-order", "Encargo")
+
+    def _bf_stock():
+        """Todos los discos (menos los archivados) y sus tracks, para comparar."""
+        discos = visible_records(Disc.query.all(), "discs")
+        tracks = {}
+        for t in Track.query.all():
+            tracks.setdefault(t.disc_id, []).append(t)
+        return discos, tracks
+
+    def _bf_reserva_pendiente(d):
+        """La reserva pendiente que tiene tomado este disco (si hay)."""
+        try:
+            return (Reserva.query.join(ReservaItem, ReservaItem.reserva_id == Reserva.id)
+                    .filter(ReservaItem.disc_id == d.id, Reserva.estado == "Pendiente")
+                    .order_by(Reserva.id.desc()).first())
+        except Exception:
+            return None
+
+    def _bf_item(d, cand=None):
+        """Lo que la pantalla necesita de un disco (tarjeta de resultado)."""
+        cover = None
+        if d.cover_local:
+            cover = url_for("serve_cover", filename=d.cover_local)
+        elif (d.cover_url or "").startswith(("http://", "https://")):
+            cover = d.cover_url
+        aviso_vender = aviso_llego = None
+        if d.estado in ("Reservado",) + _BF_LLEGO:
+            res = _bf_reserva_pendiente(d)
+            if res:
+                if d.estado == "Reservado":
+                    aviso_vender = (f"Está en la reserva #{res.id} de {res.nombre}. Si ya te la pagó, "
+                                    "conviene marcar la reserva como Pagada en Reservas: así queda "
+                                    "el cliente y cómo pagó.")
+                else:
+                    aviso_llego = (f"Ojo: lo tiene pedido {res.nombre} (reserva #{res.id}). Si lo pasás "
+                                   "a Disponible queda libre en la tienda para cualquiera.")
+            elif d.estado == "Encargo" and d.cliente_id and d.comprador:
+                aviso_llego = (f"Ojo: es un encargo de {d.comprador.nombre}. Si lo pasás a Disponible "
+                               "queda libre en la tienda para cualquiera.")
+        item = {
+            "id": d.id,
+            "artista": d.artista or "",
+            "titulo": d.titulo or "",
+            "sello": d.sello or "",
+            "estado": d.estado,
+            "precio": int(round(d.precio_mostrar or 0)),
+            "precio_lista": int(round(d.precio_uyu or 0)),
+            "stock": d.stock or 0,
+            "cover": cover,
+            "url_ficha": url_for("disc_detail", disc_id=d.id),
+            "puede_vender": d.estado in _BF_VENDER and not d.es_mystery_box,
+            "puede_llegar": d.estado in _BF_LLEGO and not d.es_mystery_box,
+            "aviso_vender": aviso_vender,
+            "aviso_llego": aviso_llego,
+        }
+        if cand:
+            item.update(nivel=cand["nivel"], confianza=cand["confianza"], motivos=cand["motivos"])
+        return item
+
+    @app.route("/admin/buscar-foto", methods=["GET", "POST"])
+    @auth.admin_required
+    def buscar_foto():
+        """GET: la pantalla. POST (foto): la IA lee la etiqueta y devuelve (JSON) lo
+        que leyo y los 5 discos del stock que mas se parecen."""
+        api_key_set = bool(config.ANTHROPIC_API_KEY)
+        if request.method == "GET":
+            return render_template("buscar_foto.html", api_key_set=api_key_set,
+                                   q=(request.args.get("q") or "").strip()[:120])
+
+        if not api_key_set:
+            return jsonify({"ok": False, "sin_clave": True, "error": (
+                "La búsqueda con la cámara necesita la clave de la IA (ANTHROPIC_API_KEY), "
+                "que no está cargada en el servidor. Mientras tanto buscalo escribiendo abajo.")}), 400
+        f = request.files.get("foto")
+        if not f:
+            return jsonify({"ok": False, "error": "No llegó ninguna foto. Probá sacarla de nuevo."}), 400
+        res = vision.read_disc_label(f.read(), (f.mimetype or "").lower())
+        if res.cost_usd > 0:
+            try:
+                _track_api_cost(res.cost_usd)
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+        if not res.ok:
+            return jsonify({"ok": False, "error": res.error}), 502
+        leido = res.data or {}
+        if not busqueda_foto.hay_algo_leido(leido):
+            return jsonify({"ok": True, "leido": leido, "resultados": [], "nada_leido": True})
+        discos, tracks = _bf_stock()
+        cands = busqueda_foto.buscar(leido, discos, tracks, limite=5)
+        return jsonify({
+            "ok": True,
+            "leido": leido,
+            "resultados": [_bf_item(c["disco"], c) for c in cands],
+        })
+
+    @app.route("/admin/buscar-foto/texto")
+    @auth.admin_required
+    def buscar_foto_texto():
+        """Buscador a mano (cuando la foto no alcanzo): devuelve JSON igual que la foto."""
+        q = " ".join((request.args.get("q") or "").split())[:120]
+        if not q:
+            return jsonify({"ok": True, "q": "", "resultados": []})
+        discos, tracks = _bf_stock()
+        cands = busqueda_foto.buscar_texto(q, discos, tracks, limite=8)
+        return jsonify({"ok": True, "q": q, "resultados": [_bf_item(c["disco"], c) for c in cands]})
+
+    @app.route("/admin/buscar-foto/<int:disc_id>/estado", methods=["POST"])
+    @auth.admin_required
+    def buscar_foto_estado(disc_id: int):
+        """Acciones rapidas del resultado: "vendido" (Disponible/Reservado/Pre-order/
+        Encargo -> Vendido) y "llego" (Pre-order/Encargo -> Disponible). Pasan por
+        register_status_change como cualquier cambio de estado."""
+        disc = Disc.query.get_or_404(disc_id)
+        data = request.get_json(silent=True) or request.form
+        accion = (data.get("accion") or "").strip()
+        if disc.es_mystery_box:
+            return jsonify({"ok": False, "error": "La Mystery Box no se maneja desde acá."}), 400
+        # Si el estado cambio mientras tanto (ej. lo vendiste desde otro lado), se
+        # devuelve el disco actualizado para que la tarjeta se ponga al dia.
+        if accion == "vendido":
+            if disc.estado not in _BF_VENDER:
+                return jsonify({"ok": False, "disco": _bf_item(disc),
+                                "error": f"Este disco ya está {disc.estado}: no se puede marcar vendido desde acá."}), 400
+            register_status_change(disc, "Vendido", nota="Marcado vendido desde Buscar con la cámara")
+        elif accion == "llego":
+            if disc.estado not in _BF_LLEGO:
+                return jsonify({"ok": False, "disco": _bf_item(disc),
+                                "error": f"Este disco ya está {disc.estado}: solo un Pre-order o Encargo puede \"llegar\"."}), 400
+            register_status_change(disc, "Disponible", nota="Llegó (Buscar con la cámara)")
+        else:
+            return jsonify({"ok": False, "error": "Acción inválida."}), 400
+        db.session.commit()
+        return jsonify({"ok": True, "disco": _bf_item(disc)})
 
     def _limpiar_samples_huerfanos(max_horas=24):
         """Borra samples que ningun Track referencia (archivos que quedan de altas de

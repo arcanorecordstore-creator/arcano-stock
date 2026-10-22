@@ -28,6 +28,8 @@ ORIGENES = {
     'disc_images_reorder': 'Orden de fotos de la galería',
     'discs_reorder': 'Orden de los discos en la tienda',
     'admin_disc_sena': 'Seña de un disco',
+    'buscar_foto': 'Buscar disco con la cámara',
+    'buscar_foto_estado': 'Buscar con la cámara (vendido / ya llegó)',
     'api_crear_disco': 'Alta de disco desde Drop Hunter',
     'tracks_add': 'Tracks agregados', 'tracks_update': 'Edición de tracks',
     'tracks_delete': 'Track borrado', 'tracks_reorder': 'Orden de tracks',

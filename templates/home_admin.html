@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_icons.html" import icon %}
 
 {% block title %}Home &middot; Arcano{% endblock %}
 
@@ -16,6 +17,7 @@
         <p class="page-sub">{{ _dias[hoy.weekday()]|capitalize }} {{ hoy.day }} de {{ _meses[hoy.month - 1] }}</p>
     </div>
     <div class="page-actions">
+        <a href="{{ url_for('buscar_foto') }}" class="btn btn-ghost btn-camara" title="Sacale una foto a la etiqueta y te digo cuál es">{{ icon('camera', 16) }}Buscar con cámara</a>
         <a href="{{ url_for('dashboard') }}" class="btn btn-ghost">Ir al stock</a>
         <a href="{{ url_for('disc_new') }}" class="btn btn-primary">+ Agregar disco</a>
     </div>

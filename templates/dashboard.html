@@ -16,6 +16,11 @@
 </section>
 
 <div class="quick-actions">
+    <a href="{{ url_for('buscar_foto') }}" class="quick-action" title="Sacale una foto a la etiqueta y te digo cuál es en el stock">
+        <span class="quick-action-icon">{{ icon('camera', 20) }}</span>
+        <span class="quick-action-label">Buscar con cámara</span>
+        <span class="quick-action-sub">Foto de la etiqueta</span>
+    </a>
     <a href="{{ url_for('disc_new') }}" class="quick-action">
         <span class="quick-action-icon">{{ icon('plus', 20) }}</span>
         <span class="quick-action-label">Agregar disco</span>
