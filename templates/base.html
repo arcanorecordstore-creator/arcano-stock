@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+{% from "_icons.html" import icon as _icono %}<!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -57,6 +57,8 @@
                 {% set ep = request.endpoint or '' %}
                 <a href="{{ url_for('home_admin') }}" class="nav-link {% if ep == 'home_admin' %}active{% endif %}">Home</a>
                 <a href="{{ url_for('dashboard') }}" class="nav-link {% if ep == 'dashboard' %}active{% endif %}">Stock</a>
+                {# Solo en el celular (menu hamburguesa): buscar un disco sacandole una foto #}
+                <a href="{{ url_for('buscar_foto') }}" class="nav-link nav-link-movil {% if ep.startswith('buscar_foto') %}active{% endif %}">{{ _icono('camera', 16) }}Buscar con la c&aacute;mara</a>
                 <a href="{{ url_for('admin_reservas') }}" class="nav-link {% if ep.startswith('admin_reserva') %}active{% endif %}">
                     Reservas
                     {% if reservas_sin_ver_count > 0 %}

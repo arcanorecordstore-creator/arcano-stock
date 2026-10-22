@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+
+{% block title %}Buscar con la cámara &middot; Arcano{% endblock %}
+
+{% block content %}
+<section class="page-head">
+    <div>
+        <h1 class="page-title">Buscar con la cámara</h1>
+        <p class="page-sub">Sacale una foto a la etiqueta, la tapa o el sticker con el número de catálogo y te digo cuál es en el stock.</p>
+    </div>
+</section>
+
+<div class="bf" id="bf"
+     data-url-foto="{{ url_for('buscar_foto') }}"
+     data-url-texto="{{ url_for('buscar_foto_texto') }}"
+     data-url-estado="{{ url_for('buscar_foto_estado', disc_id=0) }}"
+     data-url-ventas="{{ url_for('ventas_panel') }}"
+     data-api="{{ '1' if api_key_set else '0' }}">
+
+    {% if not api_key_set %}
+    <div class="upload-warning bf-sin-clave">
+        <strong>La cámara no está disponible.</strong>
+        Para leer fotos hace falta la clave de la IA (<code>ANTHROPIC_API_KEY</code>) en las
+        variables de entorno del servidor. Mientras tanto podés buscar el disco escribiendo acá abajo.
+    </div>
+    {% endif %}
+
+    <section class="bf-captura">
+        <label class="bf-disparo{% if not api_key_set %} is-off{% endif %}" for="bf-camara" id="bf-disparo">
+            <span class="bf-disparo-ico">{{ icon('camera', 34) }}</span>
+            <span class="bf-disparo-txt" id="bf-disparo-txt">Sacar foto</span>
+            <span class="bf-disparo-sub">Etiqueta del centro, tapa o sticker del catálogo</span>
+        </label>
+        <input class="bf-file" type="file" id="bf-camara" accept="image/*" capture="environment"{% if not api_key_set %} disabled{% endif %}>
+        <label class="bf-galeria{% if not api_key_set %} is-off{% endif %}" for="bf-galeria">o elegí una foto de la galería</label>
+        <input class="bf-file" type="file" id="bf-galeria" accept="image/*"{% if not api_key_set %} disabled{% endif %}>
+    </section>
+
+    <section class="bf-proceso" id="bf-proceso" hidden>
+        <img class="bf-preview" id="bf-preview" alt="Foto que se está leyendo">
+        <p class="bf-proceso-msg" id="bf-proceso-msg">Leyendo la etiqueta&hellip;</p>
+    </section>
+
+    <div class="bf-error" id="bf-error" role="alert" hidden></div>
+
+    <section class="bf-leido" id="bf-leido" hidden>
+        <span class="bf-label">Lo que leí</span>
+        <div class="bf-chips" id="bf-chips"></div>
+    </section>
+
+    <section class="bf-lista" id="bf-resultados" aria-live="polite"></section>
+
+    <section class="bf-manual" id="bf-manual">
+        {# Sin JavaScript el form igual sirve: busca en la tabla de Stock. #}
+        <form class="bf-form" id="bf-form" action="{{ url_for('dashboard') }}" method="get" role="search">
+            <label for="bf-q" class="bf-label">Buscar a mano en el stock</label>
+            <div class="bf-form-row">
+                <input type="search" id="bf-q" name="q" value="{{ q }}" placeholder="Artista, título, sello o catálogo" autocomplete="off" enterkeyhint="search">
+                <button type="submit" class="btn btn-ghost">{{ icon('search', 16) }}<span>Buscar</span></button>
+            </div>
+        </form>
+        <div class="bf-lista" id="bf-resultados-texto" aria-live="polite"></div>
+    </section>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/buscar_foto.js') }}"></script>
+{% endblock %}

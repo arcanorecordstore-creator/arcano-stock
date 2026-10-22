@@ -811,3 +811,183 @@ def extract_invoice_from_image(
         ),
         raw_response=raw_text,
     )
+
+
+# ---------------------------------------------------------------------------
+# Buscar un disco del stock con la camara (v6.20)
+# ---------------------------------------------------------------------------
+# Prompt corto: solo queremos lo que se LEE en la foto para buscarlo en el stock.
+LABEL_SEARCH_PROMPT = """\
+Te paso una foto de un disco de vinilo: puede ser la etiqueta del centro, la tapa, \
+el lomo o el sticker con el numero de catalogo. Lee lo que se vea y responde SOLO \
+con este JSON:
+{"artista": string|null, "titulo": string|null, "sello": string|null, \
+"catalogo": string|null, "tracks": [string]}
+- artista: el o los artistas tal cual se leen (si dice "Various Artists" o "VA", pone "Various").
+- titulo: el nombre del disco / EP, si aparece.
+- sello: el nombre del sello, SIN el numero de catalogo.
+- catalogo: el numero de catalogo tal cual (ej. "PARPILL05", "SDT 002").
+- tracks: titulos de temas que se lean (maximo 8), sin la posicion (A1, B2...).
+Si algo no se lee claro, null (o [] en tracks). No inventes nada. Sin texto fuera del JSON.
+"""
+
+# Tamano al que se achica la foto si llega grande (por ej. si el navegador no la
+# pudo comprimir): la API acepta hasta ~5 MB y una etiqueta se lee bien a 1600px.
+LABEL_MAX_LADO = 1600
+LABEL_MAX_BYTES = 3_500_000
+
+
+def achicar_foto(image_bytes: bytes, media_type: str) -> tuple[bytes, str]:
+    """Si la foto es muy grande (lado > 2000px o > 3,5 MB), la achica a 1600px en
+    JPEG respetando la orientacion de la camara. Si no hace falta o algo falla,
+    devuelve la foto tal cual."""
+    try:
+        from PIL import Image, ImageOps
+        img = Image.open(io.BytesIO(image_bytes))
+        if max(img.size) <= 2000 and len(image_bytes) <= LABEL_MAX_BYTES:
+            return image_bytes, media_type
+        img = ImageOps.exif_transpose(img)
+        if img.mode != "RGB":
+            img = img.convert("RGB")
+        img.thumbnail((LABEL_MAX_LADO, LABEL_MAX_LADO), Image.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=85, optimize=True)
+        return buf.getvalue(), "image/jpeg"
+    except Exception:
+        return image_bytes, media_type
+
+
+def _normalize_label_data(data: dict) -> dict:
+    """Deja solo artista / titulo / sello / catalogo / tracks, limpios."""
+    if not isinstance(data, dict):
+        data = {}
+
+    def s(value, largo=200):
+        if value is None or isinstance(value, (dict, list)):
+            return None
+        v = " ".join(str(value).split())
+        if not v or v.lower() in ("null", "none", "n/a", "-", "?"):
+            return None
+        return v[:largo]
+
+    tracks = data.get("tracks") or []
+    if isinstance(tracks, str):
+        tracks = [tracks]
+    if not isinstance(tracks, list):
+        tracks = []
+    tracks_ok = []
+    for t in tracks[:10]:
+        v = s(t, 120)
+        if v and v not in tracks_ok:
+            tracks_ok.append(v)
+
+    return {
+        "artista": s(data.get("artista")),
+        "titulo": s(data.get("titulo")),
+        "sello": s(data.get("sello")),
+        "catalogo": s(data.get("catalogo"), 60),
+        "tracks": tracks_ok,
+    }
+
+
+def read_disc_label(image_bytes: bytes, media_type: str) -> VisionResult:
+    """Lee una foto de la etiqueta / tapa / sticker de un vinilo y devuelve lo que
+    se ve: {artista, titulo, sello, catalogo, tracks}. No busca nada: eso lo hace
+    buscar_foto.py contra el stock."""
+    if not config.ANTHROPIC_API_KEY:
+        return VisionResult(
+            ok=False,
+            error=(
+                "Falta la clave de la IA (ANTHROPIC_API_KEY) en el servidor, así que "
+                "no puedo leer fotos. Podés buscar el disco escribiendo."
+            ),
+        )
+    if not image_bytes:
+        return VisionResult(ok=False, error="La foto llegó vacía. Probá sacarla de nuevo.")
+
+    media_type = (media_type or "").lower()
+    if media_type == "image/jpg":
+        media_type = "image/jpeg"
+    image_bytes, media_type = achicar_foto(image_bytes, media_type)
+    image_bytes, media_type, prep_err = prepare_image_payload(image_bytes, media_type)
+    if prep_err:
+        return VisionResult(ok=False, error=prep_err)
+
+    image_b64 = base64.standard_b64encode(image_bytes).decode("utf-8")
+
+    try:
+        client = anthropic.Anthropic(api_key=config.ANTHROPIC_API_KEY, timeout=45.0)
+        message = client.messages.create(
+            model=VISION_MODEL,
+            max_tokens=500,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image",
+                            "source": {
+                                "type": "base64",
+                                "media_type": media_type,
+                                "data": image_b64,
+                            },
+                        },
+                        {"type": "text", "text": LABEL_SEARCH_PROMPT},
+                    ],
+                }
+            ],
+        )
+    except anthropic.AuthenticationError:
+        return VisionResult(
+            ok=False,
+            error="La clave de la IA es inválida o fue revocada. Revisala en Render.",
+        )
+    except anthropic.RateLimitError:
+        return VisionResult(
+            ok=False,
+            error="La IA está saturada. Esperá unos segundos y volvé a sacar la foto.",
+        )
+    except anthropic.APIStatusError as e:
+        msg = str(e)
+        if "credit" in msg.lower() or "balance" in msg.lower() or "billing" in msg.lower():
+            return VisionResult(
+                ok=False,
+                error=(
+                    "La cuenta de Anthropic no tiene créditos suficientes. "
+                    "Cargá saldo en console.anthropic.com/settings/billing."
+                ),
+            )
+        return VisionResult(ok=False, error=f"Error de la IA: {msg}")
+    except anthropic.APIConnectionError:
+        return VisionResult(
+            ok=False,
+            error="No se pudo conectar con la IA. Revisá la conexión y volvé a probar.",
+        )
+    except Exception as e:
+        return VisionResult(ok=False, error=f"Error inesperado: {type(e).__name__}: {e}")
+
+    raw_text = ""
+    for block in message.content:
+        if getattr(block, "type", None) == "text":
+            raw_text += block.text
+
+    costo = _calculate_cost(message.usage.input_tokens, message.usage.output_tokens)
+    parsed = _extract_json_from_text(raw_text)
+    if parsed is None:
+        return VisionResult(
+            ok=False,
+            error="La IA respondió algo que no pude interpretar. Probá con otra foto.",
+            input_tokens=message.usage.input_tokens,
+            output_tokens=message.usage.output_tokens,
+            cost_usd=costo,
+            raw_response=raw_text,
+        )
+
+    return VisionResult(
+        ok=True,
+        data=_normalize_label_data(parsed),
+        input_tokens=message.usage.input_tokens,
+        output_tokens=message.usage.output_tokens,
+        cost_usd=costo,
+        raw_response=raw_text,
+    )
