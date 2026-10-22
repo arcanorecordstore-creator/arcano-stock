@@ -169,8 +169,24 @@
 
         {% if p.notas %}<p class="ped-notas">{{ p.notas }}</p>{% endif %}
 
+        {# Una sola linea: "Ver los discos" a la izquierda y Editar / Anular a la derecha.
+           Los botones abren los desplegables de abajo (que ocupan todo el ancho). #}
+        <div class="ped-acciones-fila">
+            {% if p.discos %}
+            <button type="button" class="ped-discos-toggle ped-abre" data-abre="ped-discos-{{ p.id }}" aria-expanded="false" aria-controls="ped-discos-{{ p.id }}">Ver los {{ p.discos_asignados }} disco(s) de este pedido</button>
+            {% endif %}
+            <div class="ped-acciones-der">
+                <button type="button" class="action-btn ped-abre" data-abre="ped-editar-{{ p.id }}" aria-expanded="false" aria-controls="ped-editar-{{ p.id }}">&#9998; Editar pedido</button>
+                <form method="post" action="{{ url_for('pedido_borrar', pedido_id=p.id) }}" class="inline-form"
+                      data-confirm="Anular el pedido {{ p.numero or p.id }}? Los discos quedaran sin pedido (no se borran).">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="action-btn danger">Anular pedido</button>
+                </form>
+            </div>
+        </div>
+
         {% if p.discos %}
-        <details class="ped-discos">
+        <details class="ped-discos" id="ped-discos-{{ p.id }}">
             <summary class="ped-discos-toggle">Ver los {{ p.discos_asignados }} disco(s) de este pedido</summary>
             <table data-resize-key="pedido-discos" class="ped-discos-table">
                 <thead>
@@ -210,7 +226,7 @@
         {% endif %}
 
         <div class="ped-card-foot">
-            <details class="ped-editar">
+            <details class="ped-editar" id="ped-editar-{{ p.id }}">
                 <summary class="action-btn">&#9998; Editar pedido</summary>
                 <form method="post" action="{{ url_for('pedido_editar', pedido_id=p.id) }}" class="ped-editar-form">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
@@ -301,11 +317,6 @@
                     <button type="submit" class="btn btn-primary btn-sm">Guardar cambios</button>
                 </form>
             </details>
-            <form method="post" action="{{ url_for('pedido_borrar', pedido_id=p.id) }}" class="inline-form"
-                  data-confirm="Anular el pedido {{ p.numero or p.id }}? Los discos quedaran sin pedido (no se borran).">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                <button type="submit" class="action-btn danger">Anular pedido</button>
-            </form>
         </div>
     </div>
     {% endfor %}
@@ -492,6 +503,16 @@
 <script>
 (function () {
     // Tipo de cambio EUR->USD en vivo dentro de cada editor de pedido (USD / EUR).
+    // Fila de acciones del pedido: cada boton abre/cierra su desplegable (abajo, a lo ancho)
+    document.querySelectorAll('.ped-abre[data-abre]').forEach(function (btn) {
+        var panel = document.getElementById(btn.getAttribute('data-abre'));
+        if (!panel) return;
+        var sync = function () { btn.setAttribute('aria-expanded', panel.open ? 'true' : 'false'); };
+        btn.addEventListener('click', function () { panel.open = !panel.open; });
+        panel.addEventListener('toggle', sync);
+        sync();
+    });
+
     document.querySelectorAll('.ped-editar-form').forEach(function (form) {
         var eur = form.querySelector('[name="costo_eur"]');
         var usd = form.querySelector('[name="costo_usd"]');
