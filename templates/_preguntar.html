@@ -1,0 +1,46 @@
+{#- Estrategia -> Preguntar: "Preguntale a tus datos". Escribis una pregunta en criollo y
+    la IA contesta con tus numeros (ventas, stock, gastos, pedidos, clientes, caja...).
+    Las respuestas quedan en el historial de abajo. -#}
+<section class="pq" id="pq" data-url="{{ url_for('preguntar_datos') }}"
+         data-borrar="{{ url_for('preguntar_borrar', pregunta_id=0) }}"
+         data-tope="{{ pq_tope }}" data-usadas="{{ pq_usadas }}">
+
+    {% if not pq_ia_ok %}
+    <p class="pq-aviso" role="status">La IA todav&iacute;a no est&aacute; configurada: falta cargar la API key de Anthropic (<code>ANTHROPIC_API_KEY</code>) en las variables de entorno de Render. Hasta entonces no se pueden hacer preguntas.</p>
+    {% endif %}
+
+    <form class="pq-form" id="pq-form" autocomplete="off">
+        <label for="pq-input" class="sr-only">Tu pregunta</label>
+        <textarea id="pq-input" class="pq-input" rows="2" maxlength="500" required
+                  placeholder="Ej: &iquest;qu&eacute; sello vendi&oacute; m&aacute;s en setiembre?"{% if not pq_ia_ok %} disabled{% endif %}></textarea>
+        <div class="pq-form-foot">
+            <span class="pq-uso" id="pq-uso" aria-live="polite">{{ pq_usadas }} de {{ pq_tope }} preguntas en la &uacute;ltima hora</span>
+            <button type="submit" class="btn btn-primary pq-btn" id="pq-btn"{% if not pq_ia_ok %} disabled{% endif %}>Preguntar</button>
+        </div>
+    </form>
+
+    <p class="pq-sugs-l" id="pq-sugs-l">Prob&aacute; con</p>
+    <div class="pq-sugs" role="group" aria-labelledby="pq-sugs-l">
+        {% for s in pq_sugerencias %}
+        <button type="button" class="pq-sug" data-pregunta="{{ s }}"{% if not pq_ia_ok %} disabled{% endif %}>{{ s }}</button>
+        {% endfor %}
+    </div>
+
+    <p class="pq-error" id="pq-error" role="alert" hidden></p>
+
+    <div class="pq-lista" id="pq-lista">
+        {% for it in pq_historial %}
+        <details class="pq-item" data-id="{{ it.id }}"{% if loop.first %} open{% endif %}>
+            <summary class="pq-item-head">
+                <span class="pq-q">{{ it.pregunta }}</span>
+                <span class="pq-when">{{ it.fecha_txt }}</span>
+                <button type="button" class="pq-del" aria-label="Borrar esta pregunta del historial" title="Borrar del historial">&times;</button>
+            </summary>
+            <div class="pq-a">{{ it.html|safe }}</div>
+        </details>
+        {% endfor %}
+    </div>
+    <p class="tk-empty" id="pq-vacio"{% if pq_historial %} hidden{% endif %}>Todav&iacute;a no hiciste preguntas. Escrib&iacute; una arriba o toc&aacute; un ejemplo.</p>
+
+    <p class="pq-nota">Contesta con tus datos de este momento: ventas, stock, gastos, pedidos, clientes, caja, reservas y lo que se mira y se busca en la web (&uacute;ltimos 30 d&iacute;as). Puede equivocarse: si un n&uacute;mero es importante, chequealo en su pantalla. Si pregunt&aacute;s algo seguido (&ldquo;&iquest;y en agosto?&rdquo;), entiende de qu&eacute; ven&iacute;as hablando.</p>
+</section>

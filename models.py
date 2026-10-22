@@ -1869,6 +1869,28 @@ class Nota(db.Model):
         }
 
 
+class PreguntaIA(db.Model):
+    """Estrategia -> Preguntar: cada pregunta que Facundo le hizo a la IA sobre sus
+    datos, con la respuesta (texto con formato simple). Sirve de historial para volver
+    a verlas y para el tope de uso por hora. Tabla nueva (create_all), no toca nada mas.
+    Solo se guardan las preguntas que llegaron a la IA (con respuesta o con error)."""
+    __tablename__ = "preguntas_ia"
+
+    id = db.Column(db.Integer, primary_key=True)
+    fecha = db.Column(db.DateTime, nullable=False, default=datetime.utcnow, index=True)
+    pregunta = db.Column(db.Text, nullable=False)
+    respuesta = db.Column(db.Text, nullable=True)        # None si fallo
+    error = db.Column(db.String(300), nullable=True)     # motivo si fallo
+    tokens_entrada = db.Column(db.Integer, nullable=False, default=0)
+    tokens_salida = db.Column(db.Integer, nullable=False, default=0)
+    costo_usd = db.Column(db.Float, nullable=False, default=0.0)
+    segundos = db.Column(db.Float, nullable=True)
+
+    @property
+    def ok(self) -> bool:
+        return bool(self.respuesta) and not self.error
+
+
 class IdeaContenido(db.Model):
     """Idea para crear contenido (redes). Tabla nueva (create_all), no toca nada mas."""
     __tablename__ = "ideas_contenido"

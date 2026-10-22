@@ -10800,8 +10800,19 @@ def register_routes(app: Flask) -> None:
     def tareas_page():
         from models import Tarea, CATEGORIAS_TAREA, PRIORIDADES_TAREA, ESTADOS_TAREA
         hoy = today_uy()
-        vista = (request.args.get("vista") if request.args.get("vista") in ("ideas", "constancia", "notas")
+        vista = (request.args.get("vista") if request.args.get("vista") in ("ideas", "constancia", "notas", "preguntar")
                  else "tareas")
+        if vista == "preguntar":
+            import preguntar as _pq
+            from models import PreguntaIA
+            hist = (PreguntaIA.query.filter(PreguntaIA.respuesta.isnot(None), PreguntaIA.error.is_(None))
+                    .order_by(PreguntaIA.fecha.desc(), PreguntaIA.id.desc()).limit(30).all())
+            n_abiertas = Tarea.query.filter(Tarea.estado != "Hecha").count()
+            return render_template("tareas.html", vista=vista, n_abiertas=n_abiertas,
+                                   n_ideas_pend=_n_ideas_pend(), n_constancia=_n_constancia(),
+                                   pq_historial=[_pq.item_historial(p) for p in hist],
+                                   pq_sugerencias=_pq.SUGERENCIAS, pq_ia_ok=bool(config.ANTHROPIC_API_KEY),
+                                   pq_usadas=_pq.usadas_ultima_hora(), pq_tope=_pq.TOPE_POR_HORA)
         if vista == "notas":
             from models import Nota
             notas = (Nota.query.order_by(Nota.fijada.desc(), Nota.actualizada.desc(), Nota.id.desc()).all())
@@ -10895,6 +10906,81 @@ def register_routes(app: Flask) -> None:
         from models import Nota
         n = Nota.query.get_or_404(nota_id)
         db.session.delete(n)
+        db.session.commit()
+        return jsonify({"ok": True})
+
+    # ------------------------------------------------------------------
+    # Estrategia -> Preguntar: "Preguntale a tus datos" (la IA contesta con tus numeros)
+    # ------------------------------------------------------------------
+    @app.route("/admin/preguntar", methods=["POST"])
+    @auth.admin_required
+    def preguntar_datos():
+        """Recibe una pregunta en criollo, arma el resumen de datos del negocio (mismos
+        criterios que las pantallas), se lo manda a la IA y guarda pregunta + respuesta
+        en el historial. Devuelve JSON con la respuesta ya convertida a HTML."""
+        import preguntar as _pq
+        from models import PreguntaIA
+        data = request.get_json(silent=True) or {}
+        pregunta = " ".join(str(data.get("pregunta") or "").split())[:500]
+        if len(pregunta) < 3:
+            return jsonify({"ok": False, "error": "Escribí una pregunta."}), 400
+        if not config.ANTHROPIC_API_KEY:
+            return jsonify({"ok": False, "error": (
+                "La IA no está configurada: falta la API key de Anthropic (ANTHROPIC_API_KEY "
+                "en las variables de entorno de Render).")}), 503
+        usadas = _pq.usadas_ultima_hora()
+        if usadas >= _pq.TOPE_POR_HORA:
+            return jsonify({"ok": False, "usadas": usadas, "tope": _pq.TOPE_POR_HORA, "error": (
+                f"Llegaste al tope de {_pq.TOPE_POR_HORA} preguntas por hora. "
+                "Probá de nuevo en un rato.")}), 429
+        # Igual que la Caja y los informes: traer lo nuevo antes de leer los saldos.
+        try:
+            _sincronizar_caja()
+        except Exception:
+            db.session.rollback()
+        try:
+            compras_cli, activas_cli = _clientes_agregados()
+            resumen = _pq.armar_resumen(ventas_maps=_ventas_maps(), clientes_agg=(compras_cli, activas_cli),
+                                        caja=_resumen_caja(), norm_generos=_norm_generos)
+            datos_json, _recortes = _pq.resumen_a_json(resumen)
+        except Exception:
+            db.session.rollback()
+            app.logger.exception("Preguntar: no se pudo armar el resumen de datos")
+            return jsonify({"ok": False, "error": (
+                "No pude juntar tus datos para contestar. Probá de nuevo; si sigue, avisame.")}), 500
+
+        res = _pq.preguntar(pregunta, datos_json, _pq.previas_para_contexto())
+        fila = None
+        if res.llamo_api:
+            fila = PreguntaIA(pregunta=pregunta, respuesta=(res.texto if res.ok else None),
+                              error=(None if res.ok else (res.error or "error")[:300]),
+                              tokens_entrada=res.tokens_entrada, tokens_salida=res.tokens_salida,
+                              costo_usd=res.costo_usd, segundos=res.segundos)
+            db.session.add(fila)
+            db.session.commit()
+            if res.costo_usd > 0:
+                _track_api_cost(res.costo_usd)
+            try:
+                _pq.podar_historial()
+            except Exception:
+                db.session.rollback()
+        usadas = _pq.usadas_ultima_hora()
+        if not res.ok:
+            return jsonify({"ok": False, "error": res.error, "usadas": usadas, "tope": _pq.TOPE_POR_HORA}), 502
+        item = _pq.item_historial(fila)
+        return jsonify({"ok": True, "item": item, "usadas": usadas, "tope": _pq.TOPE_POR_HORA})
+
+    @app.route("/admin/preguntar/<int:pregunta_id>/borrar", methods=["POST"])
+    @auth.admin_required
+    def preguntar_borrar(pregunta_id):
+        """Saca una pregunta del historial."""
+        from models import PreguntaIA
+        p = PreguntaIA.query.get_or_404(pregunta_id)
+        # Se borra el texto pero queda la fila vacia para que siga contando en el tope
+        # por hora; las viejas se van solas con la poda del historial.
+        p.pregunta = ""
+        p.respuesta = None
+        p.error = "borrada"
         db.session.commit()
         return jsonify({"ok": True})
 

@@ -7,7 +7,9 @@
 <section class="page-head">
     <div>
         <h1 class="page-title">Estrategia</h1>
-        {% if vista == 'notas' %}
+        {% if vista == 'preguntar' %}
+        <p class="page-sub">Preguntale a tus números en criollo: la IA lee tus ventas, stock, gastos, pedidos y clientes de este momento.</p>
+        {% elif vista == 'notas' %}
         <p class="page-sub">{{ n_notas }} nota{{ 's' if n_notas != 1 else '' }} &middot; cuentas, ideas sueltas, lo que se te ocurra. Se guardan solas.</p>
         {% elif vista == 'constancia' %}
         <p class="page-sub">Tu constancia de publicaciones: marcá lo que vas subiendo cada día.</p>
@@ -24,9 +26,12 @@
     <a href="{{ url_for('tareas_page', vista='ideas') }}" class="{% if vista == 'ideas' %}is-on{% endif %}">Ideas <span>{{ n_ideas_pend }}</span></a>
     <a href="{{ url_for('tareas_page', vista='constancia') }}" class="{% if vista == 'constancia' %}is-on{% endif %}">Constancia{% if n_constancia %} <span>{{ n_constancia }}</span>{% endif %}</a>
     <a href="{{ url_for('tareas_page', vista='notas') }}" class="{% if vista == 'notas' %}is-on{% endif %}">Notas{% if n_notas %} <span>{{ n_notas }}</span>{% endif %}</a>
+    <a href="{{ url_for('tareas_page', vista='preguntar') }}" class="{% if vista == 'preguntar' %}is-on{% endif %}">Preguntar</a>
 </nav>
 
-{% if vista == 'notas' %}
+{% if vista == 'preguntar' %}
+{% include "_preguntar.html" %}
+{% elif vista == 'notas' %}
 {% include "_notas.html" %}
 {% elif vista == 'ideas' %}
 {% include "_ideas_contenido.html" %}
@@ -93,4 +98,5 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/tareas.js') }}"></script>
 {% if vista == 'notas' %}<script src="{{ url_for('static', filename='js/notas.js') }}"></script>{% endif %}
+{% if vista == 'preguntar' %}<script src="{{ url_for('static', filename='js/preguntar.js') }}"></script>{% endif %}
 {% endblock %}
