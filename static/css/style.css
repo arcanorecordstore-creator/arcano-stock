@@ -12582,3 +12582,8 @@ body.app .settings-card textarea { max-width: 100%; min-width: 0; }
     .pq-sugs::-webkit-scrollbar { display: none; }
     .pq-sug { flex: 0 0 auto; white-space: nowrap; font-size: 12px; }
 }
+
+/* ===== Stock: precio en SALE (v6.26) — lista tachada + el que se cobra, en un renglon ===== */
+.stock-table td.col-precio-sale { white-space: nowrap; }
+.stock-table .precio-tachado { color: var(--text-3); font-size: 0.86em; text-decoration-thickness: 1px; margin-right: 6px; }
+.stock-table .precio-sale { color: var(--text-1); }

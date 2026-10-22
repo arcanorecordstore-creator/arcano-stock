@@ -34,6 +34,28 @@
         return sp.outerHTML;
     }
 
+    // Precio de lista; si el disco esta en SALE (data-oferta menor al precio), el de
+    // lista va tachado y al lado el que se cobra, en el mismo renglon.
+    function pintarPrecio(td, valor) {
+        var oferta = Number(td.dataset.oferta || 0);
+        var lista = Number(valor) || 0;
+        td.innerHTML = '';
+        if (oferta > 0 && oferta < lista) {
+            var s = document.createElement('s');
+            s.className = 'precio-tachado';
+            s.textContent = fmtMiles(lista);
+            var n = document.createElement('span');
+            n.className = 'precio-sale';
+            n.textContent = fmtMiles(oferta);
+            td.appendChild(s);
+            td.appendChild(n);
+            td.classList.add('col-precio-sale');
+        } else {
+            td.textContent = fmtMiles(lista);
+            td.classList.remove('col-precio-sale');
+        }
+    }
+
     function flashCell(td, ok) {
         td.classList.remove('cell-saved', 'cell-error');
         void td.offsetWidth; // reflow para reiniciar animacion
@@ -50,7 +72,7 @@
             var campo = td.dataset.edit;
             var discId = td.dataset.discId;
             var actual = td.dataset.raw || '0';
-            var textoOriginal = td.textContent;
+            var htmlOriginal = td.innerHTML; // puede traer el precio tachado (SALE)
 
             var input = document.createElement('input');
             // Precio y stock en texto: un campo numerico del navegador leia "1.800" como
@@ -73,7 +95,7 @@
                 var nuevo = input.value.trim();
                 if (!guardando || nuevo === '' || nuevo === actual) {
                     // sin cambios: restaurar
-                    td.textContent = textoOriginal;
+                    td.innerHTML = htmlOriginal;
                     return;
                 }
                 if (campo === 'precio_uyu') {
@@ -84,16 +106,16 @@
                     var ant = Number(actual) || 0;
                     if (!isFinite(num) || num < 0) {
                         alert('Ese precio no es valido. Escribilo solo con numeros, ej: 1800 o 1.800');
-                        td.textContent = textoOriginal;
+                        td.innerHTML = htmlOriginal;
                         return;
                     }
                     if (ant > 0 && Math.round(num) < ant * 0.1 &&
                         !confirm('Vas a cambiar el precio de $' + fmtMiles(ant) + ' a $' + fmtMiles(Math.round(num)) + '. ¿Seguro?')) {
-                        td.textContent = textoOriginal;
+                        td.innerHTML = htmlOriginal;
                         return;
                     }
                     nuevo = String(Math.round(num));
-                    if (nuevo === actual) { td.textContent = textoOriginal; return; }
+                    if (nuevo === actual) { td.innerHTML = htmlOriginal; return; }
                 }
                 td.textContent = '...';
                 guardar(discId, campo, nuevo).then(function (res) {
@@ -101,7 +123,7 @@
                         td.dataset.raw = res.data.valor;
                         // Formatear segun el campo
                         if (campo === 'precio_uyu') {
-                            td.textContent = fmtMiles(res.data.valor);
+                            pintarPrecio(td, res.data.valor);
                         } else if (campo === 'costo_eur' || campo === 'envio_eur') {
                             td.textContent = Number(res.data.valor).toFixed(2);
                             td.dataset.raw = Number(res.data.valor).toFixed(2);
@@ -135,12 +157,12 @@
                             }
                         }
                     } else {
-                        td.textContent = textoOriginal;
+                        td.innerHTML = htmlOriginal;
                         flashCell(td, false);
                         if (res.data && res.data.error) alert(res.data.error);
                     }
                 }).catch(function () {
-                    td.textContent = textoOriginal;
+                    td.innerHTML = htmlOriginal;
                     flashCell(td, false);
                 });
             }
