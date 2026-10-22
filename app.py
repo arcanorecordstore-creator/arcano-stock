@@ -3176,6 +3176,7 @@ def register_routes(app: Flask) -> None:
                         .filter(ClienteFavorito.disc_id.in_(_ids_mismo))
                         .group_by(Cliente.id)
                         .order_by(db.func.max(ClienteFavorito.fecha).desc()).all())
+        import story as _story
         # disc.history ya viene ordenado desc por la relacion del modelo
         return render_template(
             "disc_detail.html",
@@ -3184,7 +3185,31 @@ def register_routes(app: Flask) -> None:
             history=disc.history,
             estados=ESTADOS_DISCO,
             tc=Setting.get_tc(),
+            story_variantes=_story.variantes_disponibles(disc),
+            story_default=_story.variante_por_defecto(disc),
+            story_nombre=_story.nombre_archivo(disc),
         )
+
+    @app.route("/admin/discs/<int:disc_id>/story.png")
+    @auth.admin_required
+    def disc_story_png(disc_id: int):
+        """Story de Instagram (PNG 1080x1920) del disco, lista para subir.
+        ?variante=nuevo|queda1|vendido|sale|preorder  ·  &descargar=1 la baja."""
+        import story as _story
+        from flask import send_file
+        disc = Disc.query.get_or_404(disc_id)
+        variante = (request.args.get("variante") or _story.variante_por_defecto(disc)).strip().lower()
+        if variante not in {k for k, _ in _story.variantes_disponibles(disc)}:
+            return "Esa variante no corresponde a este disco.", 400
+        png = _story.generar_story(disc, variante, app.config["COVERS_DIR"], app.static_folder)
+        descargar = request.args.get("descargar") == "1"
+        resp = send_file(
+            io.BytesIO(png), mimetype="image/png",
+            as_attachment=descargar, download_name=_story.nombre_archivo(disc),
+        )
+        # Se genera con los datos del momento (precio, estado): nunca de cache.
+        resp.headers["Cache-Control"] = "no-store"
+        return resp
 
     @app.route("/admin/discs/<int:disc_id>/upload-cover", methods=["POST"])
     @auth.admin_required
