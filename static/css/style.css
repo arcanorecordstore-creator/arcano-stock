@@ -12617,7 +12617,7 @@ button.ped-discos-toggle { background: none; border: 0; font-family: inherit; te
 .pv-ventana { font-weight: 400; color: var(--text-3); font-size: 12px; }
 /* Las barras nunca son un bloque gigante: ancho maximo y centradas */
 .pv-trend .pv-col { max-width: 110px; }
-.pv-trend, .pv-trend-labels-todas { justify-content: center; }
+.pv-trend, .pv-trend-labels.pv-trend-labels-todas { justify-content: center; }
 .pv-trend-labels-todas span.pv-lab { max-width: 110px; }
 .pv-trend .pv-col.fuera .pv-bar { opacity: .32; }
 .pv-trend .pv-col.fuera:hover .pv-bar { opacity: .55; }
