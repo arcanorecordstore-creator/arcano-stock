@@ -12632,3 +12632,10 @@ button.ped-discos-toggle { background: none; border: 0; font-family: inherit; te
 .pv-lab-u { color: var(--text-3); font-variant-numeric: tabular-nums; }
 .pv-lab.fuera .pv-lab-m { color: var(--text-3); font-weight: 400; }
 .pv-trend-nota { margin: 8px 0 0; font-size: 11px; color: var(--text-4); }
+
+/* ===== Estadisticas web (Umami) adentro del admin (v6.33) ===== */
+.est-marco { border: 1px solid var(--border-2); border-radius: 12px; overflow: hidden; background: var(--bg-1); }
+.est-marco iframe { display: block; width: 100%; height: calc(100vh - 210px); min-height: 520px; border: 0; }
+.est-pasos ol { margin: 8px 0 0 18px; display: flex; flex-direction: column; gap: 8px; }
+.est-pasos p { margin: 8px 0 0; }
+.est-pasos a, .mp-info-ok a { color: var(--text-1); text-decoration: underline; text-underline-offset: 2px; }

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Estad&iacute;sticas web &middot; Arcano{% endblock %}
+
+{% block content %}
+<div class="page-head">
+    <div>
+        <h1 class="page-title">Estad&iacute;sticas web</h1>
+        <p class="page-sub">Visitas a la tienda, de d&oacute;nde vienen y qu&eacute; miran (Umami, sin cookies).</p>
+    </div>
+    <div class="page-actions">
+        {% if umami_share_url %}<a href="{{ umami_share_url }}" target="_blank" rel="noopener" class="btn btn-ghost">Abrir en Umami &#8599;</a>{% endif %}
+        <a href="{{ url_for('settings_page') }}#umami_website_id" class="btn btn-ghost">Ajustes de Umami</a>
+    </div>
+</div>
+
+{% if umami_share_url %}
+<div class="est-marco">
+    <iframe src="{{ umami_share_url }}" title="Estad&iacute;sticas de la web (Umami)" loading="lazy" referrerpolicy="no-referrer"></iframe>
+</div>
+<p class="form-field-hint" style="margin-top: 8px;">Si el panel no se ve, abrilo con &ldquo;Abrir en Umami&rdquo; (arriba a la derecha).</p>
+{% elif umami_website_id %}
+<div class="settings-card est-pasos">
+    <h2>Umami ya est&aacute; midiendo la tienda &#10003;</h2>
+    <p>Para ver los n&uacute;meros ac&aacute; adentro falta un paso: en <a href="https://cloud.umami.is" target="_blank" rel="noopener">cloud.umami.is</a> entr&aacute; a tu sitio &rarr; <strong>Edit</strong> &rarr; <strong>Share URL</strong>, prend&eacute;lo y peg&aacute; ese link en <a href="{{ url_for('settings_page') }}#umami_share_url">Ajustes</a>.</p>
+    <p>Mientras tanto pod&eacute;s ver todo en <a href="https://cloud.umami.is" target="_blank" rel="noopener">cloud.umami.is</a>.</p>
+</div>
+{% else %}
+<div class="settings-card est-pasos">
+    <h2>Activar Umami (gratis, 5 minutos)</h2>
+    <ol>
+        <li>Cre&aacute; una cuenta en <a href="https://umami.is" target="_blank" rel="noopener">umami.is</a> con el plan <strong>Hobby</strong> (gratis: hasta 100.000 eventos por mes).</li>
+        <li><strong>Add website</strong>: nombre &ldquo;Arcano&rdquo;, dominio <code>arcanorecordstore.com</code>.</li>
+        <li>Copi&aacute; el <strong>Website ID</strong> y pegalo en <a href="{{ url_for('settings_page') }}#umami_website_id">Ajustes &rarr; Umami</a>. Desde ese momento la tienda empieza a medir.</li>
+        <li>Opcional: en el sitio de Umami &rarr; <strong>Edit</strong> &rarr; <strong>Share URL</strong>. Peg&aacute; ese link en Ajustes y vas a ver las estad&iacute;sticas ac&aacute;.</li>
+    </ol>
+</div>
+{% endif %}
+{% endblock %}

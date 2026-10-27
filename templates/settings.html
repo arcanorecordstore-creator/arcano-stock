@@ -502,6 +502,18 @@
                 </div>
             </div>
 
+            {# Umami: estadisticas de la web sin cookies (cuantas visitas, de donde vienen, que paginas) #}
+            <div class="form-field" style="margin-top: 14px;">
+                <label for="umami_website_id">Umami &mdash; estad&iacute;sticas de la web <span class="form-field-hint">(peg&aacute; el &ldquo;Website ID&rdquo; o el c&oacute;digo de seguimiento entero que te da Umami: se saca el ID solo)</span></label>
+                <input type="text" id="umami_website_id" name="umami_website_id" value="{{ umami_website_id or '' }}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" style="font-family: monospace;" autocomplete="off">
+                {% if umami_website_id %}
+                <p class="mp-info-ok">&#10003; Midiendo. No cuenta tus propias visitas mientras est&eacute;s logueado en el admin. Mir&aacute; los n&uacute;meros en <a href="{{ url_for('estadisticas_web') }}">Gesti&oacute;n &rarr; Estad&iacute;sticas web</a>.</p>
+                {% endif %}
+                <label for="umami_share_url" style="margin-top: 10px;">Link para compartir de Umami <span class="form-field-hint">(opcional: con esto ves las estad&iacute;sticas adentro del admin)</span></label>
+                <input type="url" id="umami_share_url" name="umami_share_url" value="{{ umami_share_url or '' }}" placeholder="https://cloud.umami.is/share/..." style="font-family: monospace;" autocomplete="off">
+                <p class="form-field-hint" style="margin-top: 6px;">C&oacute;mo: cre&aacute; una cuenta gratis en <strong>umami.is</strong> (plan Hobby) &rarr; <strong>Add website</strong> &rarr; nombre &ldquo;Arcano&rdquo; y dominio <code>arcanorecordstore.com</code> &rarr; copi&aacute; el <strong>Website ID</strong> y pegalo arriba. Para verlo adentro del admin: en Umami, en ese sitio &rarr; <strong>Edit</strong> &rarr; <strong>Share URL</strong> &rarr; prend&eacute;lo y peg&aacute; ese link en el segundo campo. Umami no usa cookies, as&iacute; que no cambia el aviso de cookies de la tienda. Dej&aacute; el ID vac&iacute;o para apagarlo.</p>
+            </div>
+
             <div class="form-field" style="margin-top: 22px; border-top: 1px solid var(--border-2, #333); padding-top: 18px;">
                 <label class="carrusel-toggle" style="font-size: 15px;">
                     <input type="checkbox" name="mercadopago_activo" value="1" {% if mercadopago_activo %}checked{% endif %}>

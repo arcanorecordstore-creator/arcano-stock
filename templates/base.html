@@ -66,7 +66,7 @@
                     {% endif %}
                 </a>
 
-                {% set gestion_activo = ep == 'contabilidad' or ep == 'ventas_panel' or ep.startswith('caja') or ep == 'pedidos' or ep == 'radar_demanda' or ep.startswith('admin_cliente') %}
+                {% set gestion_activo = ep == 'contabilidad' or ep == 'ventas_panel' or ep.startswith('caja') or ep == 'pedidos' or ep == 'radar_demanda' or ep == 'estadisticas_web' or ep.startswith('admin_cliente') %}
                 <div class="nav-group">
                     <button type="button" class="nav-link nav-group-btn {% if gestion_activo %}active{% endif %}" aria-haspopup="true" aria-expanded="false">Gesti&oacute;n <span class="nav-caret">&#9662;</span></button>
                     <div class="nav-group-menu">
@@ -76,6 +76,7 @@
                         <a href="{{ url_for('caja') }}" class="nav-link {% if ep.startswith('caja') %}active{% endif %}">Caja</a>
                         <a href="{{ url_for('pedidos') }}" class="nav-link {% if ep == 'pedidos' %}active{% endif %}">Pedidos</a>
                         <a href="{{ url_for('radar_demanda') }}" class="nav-link {% if ep == 'radar_demanda' %}active{% endif %}">Radar</a>
+                        <a href="{{ url_for('estadisticas_web') }}" class="nav-link {% if ep == 'estadisticas_web' %}active{% endif %}">Estad&iacute;sticas web</a>
                     </div>
                 </div>
 

@@ -32,6 +32,12 @@
        compu (localhost) ensuciaban los datos de Meta y Google. #}
     {% set _medir = (request.host or '').split(':')[0] not in ('localhost', '127.0.0.1', '0.0.0.0') %}
     {% if analytics_snippet and _medir %}{{ analytics_snippet|safe }}{% endif %}
+    {# Umami: estadisticas sin cookies. No mide en la compu (localhost) ni cuando el que
+       navega la tienda es el admin logueado (tus visitas no ensucian los numeros).
+       Las navegaciones sin recargar (pjax) las cuenta solo. #}
+    {% if umami_website_id and _medir and not session.get('admin_logged_in') %}
+    <script defer src="{{ umami_script_url }}" data-website-id="{{ umami_website_id }}"></script>
+    {% endif %}
     {% if meta_pixel_id and _medir %}
     <script>
     !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');

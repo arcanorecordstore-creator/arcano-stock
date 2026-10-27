@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.32"
+APP_VERSION = "6.33"
 import metrics
 import auth
 import mailer
@@ -4348,6 +4348,17 @@ def register_routes(app: Flask) -> None:
         # Redirect de la URL vieja a la nueva
         return redirect(url_for("contabilidad"))
 
+    @app.route("/admin/estadisticas")
+    @auth.admin_required
+    def estadisticas_web():
+        """Estadisticas de la web (Umami) adentro del admin: el panel compartido de
+        Umami en un marco, o los pasos para dejarlo andando."""
+        return render_template(
+            "admin_estadisticas.html",
+            umami_website_id=Setting.get("umami_website_id", ""),
+            umami_share_url=Setting.get("umami_share_url", ""),
+        )
+
     @app.route("/admin/radar")
     @auth.admin_required
     def radar_demanda():
@@ -7367,6 +7378,8 @@ def register_routes(app: Flask) -> None:
             public_whatsapp=Setting.get("public_whatsapp", ""),
             analytics_snippet=Setting.get("analytics_snippet", ""),
             meta_pixel_id=Setting.get("meta_pixel_id", ""),
+            umami_website_id=Setting.get("umami_website_id", ""),
+            umami_share_url=Setting.get("umami_share_url", ""),
             # Conversions API (token en Render) + catalogo de productos para Meta
             meta_capi_activo=meta_capi.configurado(),
             meta_capi_modo_prueba=bool(meta_capi.test_event_code()),
@@ -7660,6 +7673,10 @@ def register_routes(app: Flask) -> None:
             "analytics_snippet": Setting.get("analytics_snippet", ""),
             "meta_pixel_id": Setting.get("meta_pixel_id", ""),
             "meta_capi_activo": meta_capi.configurado(),
+            # Umami (estadisticas sin cookies). El script por defecto es el de Umami
+            # Cloud; si algun dia se instala uno propio, va en la variable UMAMI_SCRIPT_URL.
+            "umami_website_id": Setting.get("umami_website_id", ""),
+            "umami_script_url": os.environ.get("UMAMI_SCRIPT_URL") or "https://cloud.umami.is/script.js",
             "tip_label": Setting.get("tip_label", "Staff Picks"),
             "banner_url": _banner_url_si_existe(),
             "anuncio_texto": Setting.get("public_anuncio_texto", ""),
@@ -10611,6 +10628,8 @@ def register_routes(app: Flask) -> None:
             "public_card_tamano",
             "analytics_snippet",
             "meta_pixel_id",
+            "umami_website_id",
+            "umami_share_url",
             "tip_label",
             "carrusel_preorder",
             "carrusel_tips",
@@ -10671,6 +10690,16 @@ def register_routes(app: Flask) -> None:
             elif key == "meta_pixel_id":
                 import re as _re
                 value = _re.sub(r"\D", "", value)[:20]
+            # Umami: se acepta el ID solo o el codigo entero que da Umami (se saca el ID).
+            # Solo el formato de ID (evita inyeccion al insertarlo en el HTML).
+            elif key == "umami_website_id":
+                import re as _re
+                _m = _re.search(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}", value)
+                value = _m.group(0).lower() if _m else ""
+            # Umami: link para compartir (se muestra adentro del admin). Solo https.
+            elif key == "umami_share_url":
+                import re as _re
+                value = value if _re.match(r"^https://[^\s\"'<>]{4,400}$", value) else ""
             # Fire Sale: porcentaje entre 1 y 90
             elif key == "fire_sale_pct":
                 try:

@@ -31,6 +31,27 @@ window.arcanoGA = function (name, params) {
     if (typeof window.gtag === 'function') {
         try { window.gtag('event', name, params); } catch (e) {}
     }
+    // Umami: los pasos que importan para vender, con nombre en castellano
+    var umamiNombre = {
+        add_to_cart: 'Agregar al carrito', add_to_wishlist: 'Favorito',
+        begin_checkout: 'Iniciar compra', generate_lead: 'Reserva',
+        purchase: 'Compra', contact: 'Contacto'
+    }[name];
+    if (umamiNombre && document.querySelector('script[data-website-id]')) {
+        var ud = {};
+        if (params.value != null) ud.valor = Math.round(Number(params.value) || 0);
+        if (items.length === 1 && items[0].item_name) ud.disco = String(items[0].item_name).slice(0, 80);
+        else if (items.length > 1) ud.discos = items.length;
+        if (params.method) ud.via = String(params.method).slice(0, 40);
+        // El script de Umami carga con defer: si todavia no esta, reintentar un ratito
+        (function enviar(intento) {
+            if (window.umami && typeof window.umami.track === 'function') {
+                try { window.umami.track(umamiNombre, ud); } catch (e) {}
+            } else if (intento < 25) {
+                setTimeout(function () { enviar(intento + 1); }, 300);
+            }
+        })(0);
+    }
     if (typeof window.fbq === 'function') {
         try {
             var mapa = {
