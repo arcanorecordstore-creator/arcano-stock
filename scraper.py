@@ -32,6 +32,20 @@ MAX_COVER_BYTES = 8 * 1024 * 1024
 
 ALLOWED_DOMAINS = {"deejay.de", "www.deejay.de"}
 
+# Rotulos de deejay.de que aparecen como "estilo" pero no son generos musicales
+NO_GENEROS = {"news", "all", "vinyl only", "repress", "exclusive", "limited", "180g",
+              "charts", "sale", "pop", "hip-hop", "equipment", "fashion", "pop & rock"}
+
+# Encabezados para pedir la pagina. SIN "br" (Brotli): desde oct-2026 deejay.de
+# responde comprimido en Brotli si lo anunciamos y, si el servidor no tiene la
+# libreria para descomprimirlo, llega basura y no se lee ningun dato.
+HEADERS_PAGINA = {
+    "User-Agent": USER_AGENT,
+    "Accept-Language": "en-US,en;q=0.9,de;q=0.8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Encoding": "gzip, deflate",
+}
+
 
 @dataclass
 class ScrapeResult:
@@ -118,6 +132,9 @@ def _parse_deejay(soup: BeautifulSoup, page_url: str) -> dict:
             meta[prop.lower()] = content
 
     og_title = meta.get("og:title")
+    if og_title:
+        # Web nueva (oct-2026): "Artista - Titulo / Sello CAT - Vinyl | deejay.de"
+        og_title = re.sub(r"\s*\|\s*deejay\.de\s*$", "", og_title, flags=re.IGNORECASE)
     og_image = meta.get("og:image") or meta.get("og:image:secure_url")
     og_description = meta.get("og:description") or meta.get("description")
 
@@ -162,6 +179,80 @@ def _parse_deejay(soup: BeautifulSoup, page_url: str) -> dict:
         cover = og_image.replace("/l2/", "/xl/")
         out["cover_url"] = cover
 
+    # ---- Web nueva de deejay.de (oct-2026): cada dato en su lugar ----
+    #   <h2 class="artist"><a>Artista</a></h2>
+    #   <h1 class="pd-title" itemprop="inalbum name">Titulo</h1>
+    #   <span class="musiclabel"><strong>CAT001</strong><br><a>Sello</a></span>
+    #   <span class="medium disc1">12inch</span>
+    #   <span class="date-full">11.08.2026</span>
+    #   <div class="pd-styles" itemprop="genre"><a class="style-main">House</a><a class="style-sub">..</a>
+    #   <a class="track"><b class="track-pos">A1</b>..<span class="track-title">Titulo</span></a>
+    #   <div class="kaufen"><span class="price">11,56 &euro;</span>
+    h1 = soup.find(attrs={"itemprop": "inalbum name"}) or soup.select_one("h1.pd-title")
+    if h1:
+        t = _clean(h1.get_text())
+        if t and len(t) < 200:
+            out["titulo"] = t
+    if not out.get("artista"):
+        h2 = soup.select_one("h2.artist")
+        if h2:
+            nombres = [_clean(a.get_text()) for a in h2.find_all("a")] or [_clean(h2.get_text())]
+            nombres = [n for n in nombres if n]
+            if nombres:
+                out["artista"] = " / ".join(nombres)
+    if not out.get("sello"):
+        ml = soup.select_one("span.musiclabel")
+        if ml:
+            nombre = ml.find("a")
+            cat = ml.find("strong")
+            partes = [_clean(nombre.get_text()) if nombre else None, _clean(cat.get_text()) if cat else None]
+            sello = " ".join(p for p in partes if p)
+            if sello and len(sello) < 100:
+                out["sello"] = sello      # "Sello CAT001", como siempre se guardo
+    pr = soup.select_one("div.kaufen span.price") or soup.select_one(".kaufen .price")
+    if pr:
+        val = _to_float(pr.get_text(" "))
+        if val and 0.5 <= val <= 500:
+            out["costo_eur"] = val
+    df = soup.select_one("span.date-full")
+    if df:
+        m = re.search(r"\d{1,2}\.\d{1,2}\.(\d{4})", df.get_text())
+        if m:
+            out["anio"] = _to_int(m.group(1))
+    med = soup.select_one("span.medium")
+    if med:
+        medio = (_clean(med.get_text()) or "").lower().replace(" ", "")
+        # Se guarda "Vinyl" como siempre; solo los formatos chicos se distinguen
+        if medio.startswith("7inch"):
+            out["formato"] = '7"'
+        elif medio.startswith("10inch"):
+            out["formato"] = '10"'
+    bloque_gen = soup.find(attrs={"itemprop": "genre"})
+    if bloque_gen:
+        links = bloque_gen.select("a.style-main, a.style-sub") or bloque_gen.find_all("a")
+        generos = []
+        for a in links:
+            g = _clean(a.get_text())
+            if g and g.lower() not in NO_GENEROS and len(g) <= 30 and g not in generos:
+                generos.append(g)
+        if generos:
+            out["genero"] = " - ".join(generos[:6])
+    lineas, lados = [], set()
+    for a in soup.select("a.track"):
+        tit = a.select_one(".track-title")
+        if not tit:
+            continue
+        pos = a.select_one(".track-pos")
+        lado = (_clean(pos.get_text()) if pos else None) or str(len(lineas) + 1)
+        if lado in lados:
+            continue
+        lados.add(lado)
+        txt = _clean(tit.get_text())
+        if txt:
+            lineas.append(f"{lado}. {txt}")
+    if lineas:
+        out["tracklist"] = "\n".join(lineas[:20])
+
     # ---- Precio desde meta tags (mas confiable que el texto) ----
     # Deejay/OpenGraph suele exponer product:price:amount
     for price_key in ("product:price:amount", "og:price:amount", "twitter:data1"):
@@ -174,7 +265,7 @@ def _parse_deejay(soup: BeautifulSoup, page_url: str) -> dict:
                 out["costo_eur"] = val
 
     # ---- Tracklist desde meta description ----
-    if og_description:
+    if og_description and not out.get("tracklist"):
         track_matches = re.findall(
             r"\b([ABCDEFGH][12345]):\s*([^\n]+?)(?=\s*(?:[ABCDEFGH][12345]:|$))",
             og_description,
@@ -270,11 +361,7 @@ def _parse_deejay(soup: BeautifulSoup, page_url: str) -> dict:
             if not txt or len(txt) > 30:
                 continue
             # Filtrar links de menu principal (que suelen ser los mismos pero en nav superior)
-            low = txt.lower()
-            if low in (
-                "all", "exclusive", "charts", "sale", "pop", "hip-hop",
-                "equipment", "fashion", "pop & rock",
-            ):
+            if txt.lower() in NO_GENEROS:
                 continue
             if txt not in genres:
                 genres.append(txt)
@@ -309,8 +396,11 @@ def _parse_deejay(soup: BeautifulSoup, page_url: str) -> dict:
     if out.get("titulo") and "/" in out["titulo"]:
         out["titulo"] = _clean(out["titulo"].split("/")[0])
 
-    # ---- Formato: refinar si dice "Vinyl" generico ----
-    if out.get("formato") and out["formato"].lower() in ("vinyl", "excl vinyl"):
+    # ---- Formato: refinar si dice "Vinyl" generico (solo en la web vieja: la nueva
+    # trae el formato en <span class="medium"> y buscar '12"' en toda la pagina
+    # agarraba el de otros discos recomendados) ----
+    if (out.get("formato") and out["formato"].lower() in ("vinyl", "excl vinyl")
+            and not soup.select_one("span.medium")):
         if "12 Inch" in page_text or '12"' in page_text:
             out["formato"] = '12"'
         elif "7 Inch" in page_text or '7"' in page_text:
@@ -386,15 +476,7 @@ def scrape_url(url: str) -> ScrapeResult:
         scraper = cloudscraper.create_scraper(
             browser={"browser": "chrome", "platform": "windows", "desktop": True}
         )
-        resp = scraper.get(
-            url,
-            headers={
-                "User-Agent": USER_AGENT,
-                "Accept-Language": "en-US,en;q=0.9,de;q=0.8",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            },
-            timeout=REQUEST_TIMEOUT,
-        )
+        resp = scraper.get(url, headers=HEADERS_PAGINA, timeout=REQUEST_TIMEOUT)
     except cloudscraper.exceptions.CloudflareChallengeError:
         return ScrapeResult(
             ok=False,
@@ -482,44 +564,60 @@ def search_deejay(artista: str, titulo: str) -> Optional[str]:
         return None
 
     query = f"{artista} {titulo}".strip()
-    # URL de busqueda de Deejay.de
     from urllib.parse import quote_plus
-    search_url = f"https://www.deejay.de/?sb={quote_plus(query)}&type=Vinyl"
+    import unicodedata
 
-    try:
-        scraper_session = cloudscraper.create_scraper(
-            browser={"browser": "chrome", "platform": "windows", "desktop": True}
-        )
-        resp = scraper_session.get(
-            search_url,
-            headers={
-                "User-Agent": USER_AGENT,
-                "Accept-Language": "en-US,en;q=0.9,de;q=0.8",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-            },
-            timeout=REQUEST_TIMEOUT,
-        )
-    except Exception:
-        return None
+    def _norm(txt):
+        txt = unicodedata.normalize("NFKD", txt or "").encode("ascii", "ignore").decode().lower()
+        return re.sub(r"[^a-z0-9]+", " ", txt).strip()
 
-    if resp.status_code != 200:
-        return None
+    # Web nueva (oct-2026): la busqueda va en la direccion -> deejay.de/Artista+Titulo
+    # (la vieja "?sb=...&type=Vinyl" ahora muestra la portada y devolvia siempre el
+    # primer disco destacado). Si no encuentra con artista+titulo, prueba solo artista.
+    palabras_artista = [w for w in _norm(artista).split() if len(w) >= 3] or _norm(artista).split()
+    _comunes = {"the", "and", "vol", "ep", "lp", "remix", "remixes", "edit", "mix"}
+    palabras_titulo = [w for w in _norm(titulo).split() if len(w) >= 3 and w not in _comunes]
+    for intento, q in enumerate((query, artista.strip())):
+        search_url = "https://www.deejay.de/" + quote_plus(q)
+        try:
+            scraper_session = cloudscraper.create_scraper(
+                browser={"browser": "chrome", "platform": "windows", "desktop": True}
+            )
+            resp = scraper_session.get(search_url, headers=HEADERS_PAGINA, timeout=REQUEST_TIMEOUT)
+        except Exception:
+            return None
+        if resp.status_code != 200:
+            continue
+        html = resp.text or ""
+        if "cf-challenge" in html.lower() or "just a moment" in html.lower():
+            return None
+        try:
+            soup = BeautifulSoup(html, "html.parser")
+        except Exception:
+            return None
 
-    html = resp.text or ""
-    if "cf-challenge" in html.lower() or "just a moment" in html.lower():
-        return None
-
-    try:
-        soup = BeautifulSoup(html, "html.parser")
-    except Exception:
-        return None
-
-    # Los resultados son links a /<Artist>_<Title>_<CatNum>_Vinyl__<id>
-    # Buscamos el primer link de producto
-    for link in soup.find_all("a", href=True):
-        href = link["href"]
-        # Patron tipico: /<algo>_Vinyl__<numero>
-        if re.search(r"_Vinyl__\d+($|\?)", href):
+        # Resultados: links a /<Artista>_<Titulo>_<Cat>_Vinyl__<id> dentro de cada
+        # .artikel (los del menu de destacados no cuentan).
+        candidatos = []
+        for art in soup.select(".artikel"):
+            for link in art.find_all("a", href=True):
+                href = link["href"]
+                if re.search(r"__\d+($|\?)", href) and href not in candidatos:
+                    candidatos.append(href)
+        # Control: el resultado tiene que tener el nombre del artista y, entre los que
+        # lo tienen, gana el que mas palabras del titulo comparte. Buscando solo por
+        # artista (2do intento) se exige que coincida el titulo: si no, mejor no traer
+        # nada que poner la tapa de OTRO disco del mismo artista.
+        mejor, mejor_pts = None, -1
+        for href in candidatos:
+            h = " " + _norm(href) + " "
+            if palabras_artista and not any(f" {w} " in h for w in palabras_artista):
+                continue
+            pts = sum(1 for w in palabras_titulo if f" {w} " in h)
+            if pts > mejor_pts:
+                mejor, mejor_pts = href, pts
+        if mejor and (intento == 0 or not palabras_titulo or mejor_pts >= 1):
+            href = mejor
             if not href.startswith("http"):
                 href = "https://www.deejay.de" + href if href.startswith("/") else "https://www.deejay.de/" + href
             return href
