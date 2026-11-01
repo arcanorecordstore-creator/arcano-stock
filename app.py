@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.35"
+APP_VERSION = "6.36"
 import metrics
 import auth
 import mailer
@@ -4557,8 +4557,8 @@ def register_routes(app: Flask) -> None:
         return f"g{n}"
 
     _PERIODOS_VENTAS = [
-        ("hoy", "Hoy"), ("7dias", "7 dias"), ("mes_actual", "Este mes"),
-        ("mes_pasado", "Mes pasado"), ("anio", "Este ano"), ("todo", "Todo"),
+        ("hoy", "Hoy"), ("7dias", "7 días"), ("mes_actual", "Este mes"),
+        ("mes_pasado", "Mes pasado"), ("anio", "Este año"), ("todo", "Todo"),
     ]
     _CANALES_VENTA = [("web", "Web"), ("instagram", "Instagram"),
                       ("presencial", "Presencial"), ("otro", "Otro"), (None, "Sin definir")]
@@ -4730,17 +4730,29 @@ def register_routes(app: Flask) -> None:
             t_ini, t_fin = p_ini, p_fin
         else:
             trend_unidad = agrupar
-            t_fin = p_fin
-            if agrupar == "dia":
-                t_ini = t_fin - _td(days=30)
-            elif agrupar == "semana":
-                t_ini = _ultimo_dia - _td(days=_ultimo_dia.weekday()) - _td(weeks=23)
-            elif agrupar == "mes":
-                t_ini = _mes_mas(_ultimo_dia.replace(day=1), -11)
-            else:  # ano: desde el primer ano con ventas
+
+            def _inicio_ventana(fin_excl):
+                ult = fin_excl - _td(days=1)
+                if agrupar == "dia":
+                    return fin_excl - _td(days=30)
+                if agrupar == "semana":
+                    return ult - _td(days=ult.weekday()) - _td(weeks=23)
+                if agrupar == "mes":
+                    return _mes_mas(ult.replace(day=1), -11)
                 _primera = db.session.query(db.func.min(Disc.fecha_venta)).filter(Disc.estado == "Vendido").scalar()
-                _y0 = _primera.year if _primera else _ultimo_dia.year
-                t_ini = _ultimo_dia.replace(year=min(_y0, p_ini.year), month=1, day=1)
+                _y0 = _primera.year if _primera else ult.year
+                return ult.replace(year=min(_y0, p_ini.year), month=1, day=1)
+
+            # La ventana termina HOY si el periodo elegido entra en ella (asi, al tocar
+            # una barra, el grafico queda quieto y la barra elegida se marca); si el
+            # periodo es mas viejo, termina donde termina el periodo.
+            _hoy_fin = today_uy() + _td(days=1)
+            if agrupar == "ano" or _ultimo_dia >= _inicio_ventana(_hoy_fin):
+                t_fin = max(_hoy_fin, p_fin) if agrupar == "ano" else _hoy_fin
+            else:
+                t_fin = p_fin
+            t_ini = _inicio_ventana(t_fin)
+            _ultimo_dia = t_fin - _td(days=1)
 
         # Cubos: (inicio, fin exclusivo) de cada barra
         _cubos = []
@@ -4794,7 +4806,9 @@ def register_routes(app: Flask) -> None:
                 tmap[k][1] += d.copias_facturadas
         trend = [{"label": _etq(c0)[0], "titulo": _etq(c0)[1], "monto": round(tmap[c0][0]),
                   "uds": int(tmap[c0][1]),
-                  "fuera": not (c0 < fin_dt.date() and c1 > inicio_dt.date())} for c0, c1 in _cubos]
+                  "fuera": not (c0 < fin_dt.date() and c1 > inicio_dt.date()),
+                  "desde": c0.isoformat(), "hasta": (c1 - _td(days=1)).isoformat(),
+                  "elegido": c0 == inicio_dt.date() and c1 == fin_dt.date()} for c0, c1 in _cubos]
         trend_max = max((t["monto"] for t in trend), default=0) or 1
         trend_hay_fuera = any(t["fuera"] for t in trend)
         trend_ventana = {"dia": "últimos 30 días", "semana": "últimas 24 semanas",
@@ -4877,6 +4891,10 @@ def register_routes(app: Flask) -> None:
             cliente_por_disc=cliente_res, dias_venta=dias_venta,
             trend_unidad=trend_unidad, trend_agrupar=agrupar, trend_dia_ok=trend_dia_ok,
             trend_hay_fuera=trend_hay_fuera, trend_ventana=trend_ventana,
+            # Al tocar una barra: "volver" al periodo de antes (cartelito para sacar el filtro)
+            volver=(request.args.get("volver") or "") if dict(_PERIODOS_VENTAS).get(request.args.get("volver") or "") else "",
+            volver_label=dict(_PERIODOS_VENTAS).get(request.args.get("volver") or "", ""),
+            barra_elegida=next((t["titulo"] for t in trend if t.get("elegido")), None),
             canales=_CANALES_VENTA, metodos=_METODOS_VENTA,
             filtros={"canal": f_canal, "metodo": f_metodo, "q": f_q},
             hoy=today_uy(),

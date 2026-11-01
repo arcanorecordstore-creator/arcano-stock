@@ -12667,3 +12667,12 @@ button.ped-discos-toggle { background: none; border: 0; font-family: inherit; te
     .ccg-discos li { flex-direction: column; gap: 0; }
     .ccg-discos li a { white-space: normal; }
 }
+
+/* ===== Ventas: tocar una barra filtra la pagina (v6.36) ===== */
+a.pv-col { text-decoration: none; cursor: pointer; }
+a.pv-col:focus-visible { outline: 2px solid var(--text-1); outline-offset: 2px; border-radius: 3px; }
+.pv-trend .pv-col.elegido .pv-bar { opacity: 1; box-shadow: 0 0 0 2px var(--text-1); }
+.pv-lab.elegido .pv-lab-n, .pv-lab.elegido .pv-lab-m { color: var(--text-1); font-weight: 700; }
+.pv-filtro-barra { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin: -4px 0 12px; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--text-1) 6%, transparent); font-size: 13px; }
+.pv-filtro-barra .pv-tab { padding: 3px 10px; font-size: 12px; }
+#pv-grafico { scroll-margin-top: 140px; }

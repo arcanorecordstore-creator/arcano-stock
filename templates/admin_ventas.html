@@ -128,7 +128,14 @@
     </div>
 </div>
 
-<div class="pv-card">
+<div class="pv-card" id="pv-grafico">
+    {% if volver and barra_elegida %}
+    {# Se toco una barra: aviso de que la pagina esta filtrada + como volver #}
+    <div class="pv-filtro-barra">
+        <span>Viendo las ventas de <strong>{{ barra_elegida }}</strong></span>
+        <a href="{{ url_for('ventas_panel', periodo=volver) }}#pv-grafico" class="pv-tab">&#10005; Volver a {{ volver_label }}</a>
+    </div>
+    {% endif %}
     <div class="pv-card-head">
         <div class="pv-trend-titulo">
             <h2 class="pv-card-title">Facturado por {{ {'dia': 'd&iacute;a', 'semana': 'semana', 'mes': 'mes', 'ano': 'a&ntilde;o'}[trend_unidad or 'dia']|safe }}{% if trend_ventana %} <span class="pv-ventana">&middot; {{ trend_ventana }}</span>{% endif %}</h2>
@@ -155,14 +162,17 @@
     <div class="pv-trend-scroll">
     <div class="pv-trend-inner"{% if _con_valores %} style="min-width: {{ trend|length * (66 if trend|length <= 14 else 50) }}px"{% endif %}>
     <div class="pv-trend{% if _con_valores %} pv-trend-alta{% endif %}">
+        {% set _volver = volver or (periodo if periodo != 'custom' else '') %}
         {% for t in trend %}
-        <span class="pv-col{% if t.fuera %} fuera{% endif %}" data-label="{{ t.titulo or t.label }}" data-monto="$ {{ fmt(t.monto) }} &middot; {{ t.uds }} disco{{ '' if t.uds == 1 else 's' }}">
+        <a href="{{ url_for('ventas_panel', periodo='custom', desde=t.desde, hasta=t.hasta, canal=filtros.canal or None, metodo=filtros.metodo or None, q=filtros.q or None, volver=_volver or None) }}#pv-grafico"
+           class="pv-col{% if t.fuera %} fuera{% endif %}{% if t.elegido %} elegido{% endif %}" data-label="{{ t.titulo or t.label }}" data-monto="$ {{ fmt(t.monto) }} &middot; {{ t.uds }} disco{{ '' if t.uds == 1 else 's' }}"
+           aria-label="Ver las ventas de {{ t.titulo or t.label }}">
             <span class="pv-bar" style="height: {{ (t.monto / trend_max * 100)|round(1) }}%"></span>
-        </span>
+        </a>
         {% endfor %}
     </div>
     {% if _con_valores %}
-    <div class="pv-trend-labels pv-trend-labels-todas">{% for t in trend %}<span class="pv-lab{% if t.fuera %} fuera{% endif %}"><span class="pv-lab-n">{{ t.label }}</span><span class="pv-lab-m">$ {{ fmt(t.monto) }}</span><span class="pv-lab-u">{{ t.uds }} {% if trend|length <= 14 %}disco{{ '' if t.uds == 1 else 's' }}{% else %}u.{% endif %}</span></span>{% endfor %}</div>
+    <div class="pv-trend-labels pv-trend-labels-todas">{% for t in trend %}<span class="pv-lab{% if t.fuera %} fuera{% endif %}{% if t.elegido %} elegido{% endif %}"><span class="pv-lab-n">{{ t.label }}</span><span class="pv-lab-m">$ {{ fmt(t.monto) }}</span><span class="pv-lab-u">{{ t.uds }} {% if trend|length <= 14 %}disco{{ '' if t.uds == 1 else 's' }}{% else %}u.{% endif %}</span></span>{% endfor %}</div>
     {% else %}
     <div class="pv-trend-labels"><span>{{ trend[0].label if trend }}</span><span>{{ trend[-1].label if trend }}</span></div>
     {% endif %}
@@ -170,7 +180,7 @@
     </div>
     {# En el celular el grafico se desliza: arrancar mostrando lo mas reciente (derecha) #}
     <script>document.querySelectorAll('.pv-trend-scroll').forEach(function (s) { s.scrollLeft = s.scrollWidth; });</script>
-    {% if trend_hay_fuera %}<p class="pv-trend-nota">Las barras m&aacute;s claras quedan fuera del per&iacute;odo elegido arriba ({{ periodo_label }}).</p>{% endif %}
+    <p class="pv-trend-nota">Toc&aacute; una barra para ver abajo las ventas de ese {{ {'dia': 'd&iacute;a', 'semana': 'semana', 'mes': 'mes', 'ano': 'a&ntilde;o'}[trend_unidad or 'dia']|safe }}.{% if trend_hay_fuera and not barra_elegida %} Las m&aacute;s claras quedan fuera del per&iacute;odo elegido arriba ({{ periodo_label }}).{% endif %}</p>
 </div>
 
 <form method="get" class="pv-filters" id="pv-filters">
