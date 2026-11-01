@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.34"
+APP_VERSION = "6.35"
 import metrics
 import auth
 import mailer
@@ -4359,6 +4359,64 @@ def register_routes(app: Flask) -> None:
             umami_share_url=Setting.get("umami_share_url", ""),
         )
 
+    def _grupos_por_cobrar(discos):
+        """Los discos Reservados (lo que suma 'Por cobrar') agrupados por la reserva
+        que los tiene tomados; si no vinieron de una reserva, por el cliente; si no
+        tienen ninguno, sueltos. Cada grupo: nombre, link, discos con lo que falta
+        cobrar y la sena, total y dias desde que se reservo. Los mas viejos primero."""
+        from models import ReservaItem, Cliente
+        ids = [d.id for d in discos]
+        reserva_de = {}
+        if ids:
+            filas = (db.session.query(ReservaItem.disc_id, Reserva)
+                     .join(Reserva, Reserva.id == ReservaItem.reserva_id)
+                     .filter(ReservaItem.disc_id.in_(ids), Reserva.estado != "Cancelada")
+                     .order_by(Reserva.id.desc()).all())
+            for did, r in filas:
+                reserva_de.setdefault(did, r)
+            # Reservas viejas de un solo disco (antes del carrito multi-disco)
+            for r in (Reserva.query.filter(Reserva.disc_id.in_(ids), Reserva.estado != "Cancelada")
+                      .order_by(Reserva.id.desc()).all()):
+                reserva_de.setdefault(r.disc_id, r)
+        cids = {d.cliente_id for d in discos if d.cliente_id}
+        clientes = {c.id: c for c in Cliente.query.filter(Cliente.id.in_(cids)).all()} if cids else {}
+        hoy = today_uy()
+        grupos = {}
+        for d in discos:
+            r = reserva_de.get(d.id)
+            if r:
+                clave = ("r", r.id)
+                nombre = r.nombre or "Sin nombre"
+                link = url_for("admin_reserva_detail", reserva_id=r.id)
+                etiqueta = f"Reserva #{r.id}"
+            elif d.cliente_id and d.cliente_id in clientes:
+                clave = ("c", d.cliente_id)
+                nombre = clientes[d.cliente_id].nombre or "Sin nombre"
+                link = url_for("admin_cliente_detail", cliente_id=d.cliente_id)
+                etiqueta = "Cliente"
+            else:
+                clave = ("d", d.id)
+                nombre = "Sin cliente asignado"
+                link = url_for("disc_detail", disc_id=d.id)
+                etiqueta = "Disco"
+            g = grupos.setdefault(clave, {"nombre": nombre, "link": link, "etiqueta": etiqueta,
+                                          "discos": [], "total": 0.0, "desde": None})
+            fr = d.fecha_reserva.date() if d.fecha_reserva else None
+            g["discos"].append({
+                "id": d.id, "texto": f"{d.artista or ''} — {d.titulo or ''}".strip(" —"),
+                "falta": d.precio_falta_uyu, "sena": d.sena_efectiva,
+                "link": url_for("disc_detail", disc_id=d.id),
+            })
+            g["total"] += d.precio_falta_uyu or 0
+            if fr and (g["desde"] is None or fr < g["desde"]):
+                g["desde"] = fr
+        lista = list(grupos.values())
+        for g in lista:
+            g["total"] = round(g["total"], 2)
+            g["dias"] = (hoy - g["desde"]).days if g["desde"] else None
+        lista.sort(key=lambda g: (g["desde"] is None, g["desde"] or hoy))
+        return lista
+
     @app.route("/admin/radar")
     @auth.admin_required
     def radar_demanda():
@@ -5112,6 +5170,7 @@ def register_routes(app: Flask) -> None:
         retiros = [e for e in egresos_all if e.categoria == CAT_RETIRO_PERSONAL]
         recurrentes = EgresoRecurrente.query.order_by(EgresoRecurrente.categoria).all()
         por_cobrar = metrics.dinero_por_cobrar()
+        cobrar_grupos = _grupos_por_cobrar(por_cobrar["discos"])
         ingresos_egresos_6m = metrics.ingresos_vs_egresos_6m()
         from models import Pedido
         pedidos_lista = Pedido.query.order_by(Pedido.fecha.desc()).all()
@@ -5130,6 +5189,7 @@ def register_routes(app: Flask) -> None:
             cat_retiro=CAT_RETIRO_PERSONAL,
             monedas=["UYU", "USD", "EUR"],
             por_cobrar=por_cobrar,
+            cobrar_grupos=cobrar_grupos,
             ingresos_egresos_6m=ingresos_egresos_6m,
             pedidos_lista=pedidos_lista,
             recuperacion=metrics.recuperacion_inversion(),

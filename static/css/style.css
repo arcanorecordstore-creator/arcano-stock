@@ -12639,3 +12639,31 @@ button.ped-discos-toggle { background: none; border: 0; font-family: inherit; te
 .est-pasos ol { margin: 8px 0 0 18px; display: flex; flex-direction: column; gap: 8px; }
 .est-pasos p { margin: 8px 0 0; }
 .est-pasos a, .mp-info-ok a { color: var(--text-1); text-decoration: underline; text-underline-offset: 2px; }
+
+/* ===== Contabilidad: Por cobrar desplegable (v6.35) ===== */
+.conta-cobrar-det { margin-bottom: 28px; }
+.conta-cobrar-det > summary.conta-cobrar { list-style: none; cursor: pointer; margin-bottom: 0; }
+.conta-cobrar-det > summary.conta-cobrar::-webkit-details-marker { display: none; }
+.conta-cobrar-det > summary.conta-cobrar:hover { border-color: rgba(234,179,8,0.55); }
+.conta-cobrar-caret { display: inline-block; font-size: 11px; color: var(--text-3); margin-left: 4px; transition: transform .2s ease; }
+.conta-cobrar-det[open] .conta-cobrar-caret { transform: rotate(180deg); }
+.conta-cobrar-det[open] > summary.conta-cobrar { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.conta-cobrar-lista { border: 1px solid rgba(234,179,8,0.3); border-top: 0; border-radius: 0 0 12px 12px; padding: 4px 20px 10px; display: flex; flex-direction: column; }
+.conta-cobrar-grupo { padding: 12px 0; border-bottom: 1px solid var(--border-1); }
+.conta-cobrar-grupo:last-child { border-bottom: 0; }
+.ccg-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.ccg-quien { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ccg-nombre { font-weight: 600; color: var(--text-1); text-decoration: none; }
+.ccg-nombre:hover { text-decoration: underline; }
+.ccg-meta { font-size: 12px; color: var(--text-3); }
+.ccg-total { font-weight: 700; font-variant-numeric: tabular-nums; color: #eab308; white-space: nowrap; }
+.ccg-discos { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.ccg-discos li { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.ccg-discos li a { color: var(--text-2); text-decoration: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ccg-discos li a:hover { color: var(--text-1); text-decoration: underline; }
+.ccg-falta { font-variant-numeric: tabular-nums; color: var(--text-1); white-space: nowrap; }
+.ccg-sena { color: var(--text-3); font-size: 12px; }
+@media (max-width: 600px) {
+    .ccg-discos li { flex-direction: column; gap: 0; }
+    .ccg-discos li a { white-space: normal; }
+}

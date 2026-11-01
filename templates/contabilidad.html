@@ -119,13 +119,37 @@
 
 <!-- Dinero por cobrar -->
 {% if por_cobrar.titulos > 0 %}
-<section class="conta-cobrar">
+{# Click: se despliega abajo la lista de reservas que faltan cobrar #}
+<details class="conta-cobrar-det">
+<summary class="conta-cobrar">
     <div>
-        <span class="conta-cobrar-label">Por cobrar (reservas)</span>
-        <span class="conta-cobrar-detail">{{ por_cobrar.titulos }} disco(s) reservado(s), venta casi cerrada</span>
+        <span class="conta-cobrar-label">Por cobrar (reservas) <span class="conta-cobrar-caret" aria-hidden="true">&#9662;</span></span>
+        <span class="conta-cobrar-detail">{{ por_cobrar.titulos }} disco(s) reservado(s), venta casi cerrada &middot; toc&aacute; para ver qui&eacute;n debe</span>
     </div>
     <span class="conta-cobrar-value">$ {{ fmt_uyu(por_cobrar.total_uyu) }} UYU</span>
-</section>
+</summary>
+<div class="conta-cobrar-lista">
+    {% for g in cobrar_grupos %}
+    <div class="conta-cobrar-grupo">
+        <div class="ccg-head">
+            <div class="ccg-quien">
+                <a href="{{ g.link }}" class="ccg-nombre">{{ g.nombre }}</a>
+                <span class="ccg-meta">{{ g.etiqueta }}{% if g.dias is not none %} &middot; reservado hace {{ g.dias }} d&iacute;a{{ '' if g.dias == 1 else 's' }}{% endif %}</span>
+            </div>
+            <span class="ccg-total">$ {{ fmt_uyu(g.total) }}</span>
+        </div>
+        <ul class="ccg-discos">
+            {% for d in g.discos %}
+            <li>
+                <a href="{{ d.link }}">{{ d.texto }}</a>
+                <span class="ccg-falta">$ {{ fmt_uyu(d.falta) }}{% if d.sena %} <span class="ccg-sena">(se&ntilde;a $ {{ fmt_uyu(d.sena) }} ya cobrada)</span>{% endif %}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endfor %}
+</div>
+</details>
 {% endif %}
 
 <!-- ============================================================
