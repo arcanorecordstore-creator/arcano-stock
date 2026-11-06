@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.36"
+APP_VERSION = "6.37"
 import metrics
 import auth
 import mailer
@@ -87,6 +87,22 @@ def _reserva_registrar(ip):
 # Tope de discos que puede apartar un pedido SIN pago online (coordinar / transferencia).
 # Decision de Facundo (12/10/2026): maximo 10.
 MAX_DISCOS_SIN_PAGO = 10
+
+
+def celular_uy(tel):
+    """Celular de un cliente, en uno de los DOS formatos que acepta la tienda (pedido de
+    Facundo: con otros la gente cargaba numeros mal):
+        094442477        -> 09 + 7 digitos (9 en total)
+        +598 94442477    -> +598 + 9 + 7 digitos
+    Se toleran espacios, guiones y puntos al escribir ('094 442 477'), pero la cantidad
+    de digitos tiene que ser exacta. Devuelve el numero normalizado o None si no sirve."""
+    import re as _re
+    s = _re.sub(r"[\s\-.()]", "", str(tel or ""))
+    if _re.fullmatch(r"09\d{7}", s):
+        return s
+    if _re.fullmatch(r"\+5989\d{7}", s):
+        return "+598 " + s[4:]
+    return None
 
 
 def _wa_numero(tel):
@@ -1561,6 +1577,17 @@ def _buscar_o_crear_cliente(nombre=None, whatsapp=None, email=None, instagram=No
         if seguro:
             _q = _q.filter(Cliente.password_hash.is_(None))
         cli = _q.first()
+        # El mismo celular escrito distinto ("094442477" / "+598 94442477" /
+        # "094 442 477"): se compara el numero en si (los ultimos 8 digitos).
+        _nucleo = "".join(ch for ch in whatsapp if ch.isdigit())[-8:]
+        if not cli and len(_nucleo) == 8:
+            _q = Cliente.query.filter(Cliente.whatsapp.isnot(None))
+            if seguro:
+                _q = _q.filter(Cliente.password_hash.is_(None))
+            for _c in _q.all():
+                if "".join(ch for ch in (_c.whatsapp or "") if ch.isdigit())[-8:] == _nucleo:
+                    cli = _c
+                    break
     if not cli and ig:
         _q = Cliente.query.filter(db.func.lower(Cliente.instagram) == ig)
         if seguro:
@@ -8785,8 +8812,11 @@ def register_routes(app: Flask) -> None:
                 errores.append("Ingresa tu nombre.")
             if len(apellido) < 2:
                 errores.append("Ingresa tu apellido.")
-            if sum(c.isdigit() for c in whatsapp) < 7:
-                errores.append("Ingresa un celular valido (ej: 099 123 456).")
+            _cel = celular_uy(whatsapp)
+            if _cel:
+                whatsapp = _cel
+            else:
+                errores.append("Ingres&aacute; un celular v&aacute;lido: 094442477 o +598 94442477.")
             if not email:
                 errores.append("Ingresa tu email para enviarte la confirmacion.")
             elif not _email_valido(email):
@@ -9066,6 +9096,12 @@ def register_routes(app: Flask) -> None:
                 errores.append("La contrasena debe tener al menos 6 caracteres.")
             if password != password2:
                 errores.append("Las contrasenas no coinciden.")
+            if whatsapp:
+                _cel = celular_uy(whatsapp)
+                if _cel:
+                    whatsapp = _cel
+                else:
+                    errores.append("Ingres&aacute; un celular v&aacute;lido: 094442477 o +598 94442477.")
             _existente = (Cliente.query.filter(db.func.lower(Cliente.email) == email).first()
                           if email else None)
 
@@ -9455,8 +9491,11 @@ def register_routes(app: Flask) -> None:
                 errores.append("Ingresa tu nombre.")
             if len(apellido) < 2:
                 errores.append("Ingresa tu apellido.")
-            if sum(c.isdigit() for c in whatsapp) < 7:
-                errores.append("Ingresa un celular valido (ej: 099 123 456).")
+            _cel = celular_uy(whatsapp)
+            if _cel:
+                whatsapp = _cel
+            else:
+                errores.append("Ingres&aacute; un celular v&aacute;lido: 094442477 o +598 94442477.")
             if not email:
                 errores.append("Ingresa tu email para enviarte la confirmacion.")
             elif not _email_valido(email):

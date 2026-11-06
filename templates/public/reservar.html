@@ -45,8 +45,9 @@
         </div>
 
         <div class="form-field">
-            <label for="whatsapp">WhatsApp <span class="form-field-hint">(con codigo de pais)</span></label>
-            <input type="tel" id="whatsapp" name="whatsapp" required value="{{ form.whatsapp or '' }}" placeholder="+598 99 123 456">
+            <label for="whatsapp">Celular (WhatsApp)</label>
+            <input type="tel" id="whatsapp" name="whatsapp" autocomplete="tel" inputmode="tel" required value="{{ form.whatsapp or '' }}" pattern="(?:0[\s\-.]*9(?:[\s\-.]*\d){7}|\+[\s\-.]*598[\s\-.]*9(?:[\s\-.]*\d){7})" maxlength="20" title="Us&aacute; uno de estos formatos: 094442477 o +598 94442477" placeholder="094442477 o +598 94442477">
+            <span class="form-field-hint">Formato: <strong>094442477</strong> o <strong>+598 94442477</strong></span>
         </div>
 
         <div class="form-field">
