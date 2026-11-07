@@ -611,10 +611,16 @@ def ajustes_tc_por_pedido() -> dict:
                 n, suma = por_pedido[ped.id]
                 if n <= 0:
                     continue
+                # Si todavia no cargaste todos los discos del pedido (ej. pre-orders
+                # que faltan), a los cargados les toca SOLO su parte del costo: el
+                # total x (cargados / declarados). Antes se les tiraba el costo entero
+                # del pedido y cada disco quedaba carisimo (fix 7/11/2026).
+                base = max(int(ped.cant_discos or 0), n)
+                parte = n / base
                 if ped.usa_costo_manual:
-                    dif = (ped.costo_total_uyu or 0) - suma
+                    dif = (ped.costo_total_uyu or 0) * parte - suma
                 else:
-                    dif = ped.comision_uyu or 0
+                    dif = (ped.comision_uyu or 0) * parte
                 if dif:
                     res[ped.id] = dif / n
     except Exception:
