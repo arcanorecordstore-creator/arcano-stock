@@ -622,7 +622,10 @@ def ajustes_tc_por_pedido() -> dict:
                 # Mejor que por cantidad: por lo que valen en euros los discos cargados
                 # sobre el total en euros del pedido (los que faltan pueden ser mas
                 # caros o mas baratos). Solo con el pedido incompleto; completo = 1.
-                eur_pedido = (ped.costo_eur or 0) + (ped.envio_eur or 0) + (ped.servicio_eur or 0)
+                # costo_eur del pedido YA incluye envio y servicio (en el pedido figuran
+                # aparte como dato, "no suma al costo"); cada disco trae su parte de
+                # envio en envio_eur. No sumarlos de nuevo (fix 7/11/2026, pedido 9).
+                eur_pedido = ped.costo_eur or 0
                 if n < base and eur_pedido > 0 and eur_cargados > 0:
                     parte = min(1.0, eur_cargados / eur_pedido)
                 _por_euros = n < base and eur_pedido > 0 and eur_cargados > 0
