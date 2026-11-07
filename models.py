@@ -600,15 +600,17 @@ def ajustes_tc_por_pedido() -> dict:
         if cached is not None:
             return cached
     res = {}
+    _det = {}
     try:
         filas = (db.session.query(Disc.pedido_id, db.func.count(Disc.id),
-                                  db.func.sum(Disc.costo_final_uyu))
+                                  db.func.sum(Disc.costo_final_uyu),
+                                  db.func.sum(db.func.coalesce(Disc.costo_eur, 0) + db.func.coalesce(Disc.envio_eur, 0)))
                  .filter(Disc.pedido_id.isnot(None))
                  .group_by(Disc.pedido_id).all())
-        por_pedido = {pid: (n or 0, float(suma or 0)) for pid, n, suma in filas}
+        por_pedido = {pid: (n or 0, float(suma or 0), float(eur or 0)) for pid, n, suma, eur in filas}
         if por_pedido:
             for ped in Pedido.query.filter(Pedido.id.in_(list(por_pedido))).all():
-                n, suma = por_pedido[ped.id]
+                n, suma, eur_cargados = por_pedido[ped.id]
                 if n <= 0:
                     continue
                 # Si todavia no cargaste todos los discos del pedido (ej. pre-orders
@@ -617,17 +619,57 @@ def ajustes_tc_por_pedido() -> dict:
                 # del pedido y cada disco quedaba carisimo (fix 7/11/2026).
                 base = max(int(ped.cant_discos or 0), n)
                 parte = n / base
+                # Mejor que por cantidad: por lo que valen en euros los discos cargados
+                # sobre el total en euros del pedido (los que faltan pueden ser mas
+                # caros o mas baratos). Solo con el pedido incompleto; completo = 1.
+                eur_pedido = (ped.costo_eur or 0) + (ped.envio_eur or 0) + (ped.servicio_eur or 0)
+                if n < base and eur_pedido > 0 and eur_cargados > 0:
+                    parte = min(1.0, eur_cargados / eur_pedido)
+                _por_euros = n < base and eur_pedido > 0 and eur_cargados > 0
                 if ped.usa_costo_manual:
                     dif = (ped.costo_total_uyu or 0) * parte - suma
                 else:
                     dif = (ped.comision_uyu or 0) * parte
                 if dif:
                     res[ped.id] = dif / n
+                    _det[ped.id] = {
+                        "numero": ped.numero or ped.id, "manual": bool(ped.usa_costo_manual),
+                        "costo": round(ped.costo_total_uyu or 0), "comision": round(ped.comision_uyu or 0),
+                        "declarados": base, "cargados": n, "parte": round((ped.costo_total_uyu or 0) * parte),
+                        "suma": round(suma), "dif": round(dif), "por_disco": round(dif / n),
+                        "por_euros": _por_euros, "eur_cargados": round(eur_cargados, 2),
+                        "eur_pedido": round(eur_pedido, 2),
+                    }
     except Exception:
         res = {}
     if has_request_context():
         g._ajuste_tc_cache = res
+        g._ajuste_tc_detalle = _det
     return res
+
+
+def explicacion_ajuste_tc(pedido_id) -> str:
+    """La cuenta de la diferencia de cambio de un pedido, en palabras (para el
+    cartelito del dashboard)."""
+    from flask import g, has_request_context
+    ajustes_tc_por_pedido()
+    det = (getattr(g, "_ajuste_tc_detalle", None) or {}).get(pedido_id) if has_request_context() else None
+    if not det:
+        return ""
+    f = lambda v: "{:,.0f}".format(v).replace(",", ".")
+    if det["manual"]:
+        if det.get("por_euros"):
+            cuota = (f"segun lo que valen: {det['eur_cargados']:.2f} de {det['eur_pedido']:.2f} EUR del pedido"
+                     .replace(".", ","))
+        else:
+            cuota = f"{det['cargados']}/{det['declarados']}"
+        return (f"Pedido {det['numero']}: pagaste $ {f(det['costo'])} por {det['declarados']} discos. "
+                f"A los {det['cargados']} cargados les toca $ {f(det['parte'])} "
+                f"({cuota}). Esos discos suman $ {f(det['suma'])} "
+                f"(euros x tipo de cambio). Diferencia $ {f(det['dif'])} / {det['cargados']} = "
+                f"{'+' if det['por_disco'] > 0 else ''}{f(det['por_disco'])} por disco.")
+    return (f"Pedido {det['numero']}: comision del banco $ {f(det['comision'])} repartida entre "
+            f"{det['declarados']} discos = {'+' if det['por_disco'] > 0 else ''}{f(det['por_disco'])} por disco.")
 
 
 def invalidar_ajuste_tc() -> None:

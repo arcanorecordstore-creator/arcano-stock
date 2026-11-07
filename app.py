@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.38"
+APP_VERSION = "6.39"
 import metrics
 import auth
 import mailer
@@ -788,6 +788,9 @@ self.addEventListener('notificationclick', function(e){
     from security import init_security
     init_security(app)
     register_history(app)
+    # Cartelito del dashboard: la cuenta de la diferencia de cambio de cada pedido
+    from models import explicacion_ajuste_tc as _expl_tc
+    app.jinja_env.globals["explicacion_ajuste_tc"] = _expl_tc
 
     # Context processor: vars disponibles en todos los templates
     @app.context_processor
