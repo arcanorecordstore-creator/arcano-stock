@@ -1097,6 +1097,16 @@ document.addEventListener('click', function (e) {
         ids.forEach(function (x) { if (unicos.indexOf(x) < 0) unicos.push(x); });
         return unicos.slice(0, 80).join(',');
     }
+    document.addEventListener('click', function (e) {
+        var a = e.target.closest ? e.target.closest('a[data-con-gustos]') : null;
+        if (!a) return;
+        var g = gustos();
+        try {
+            var u = new URL(a.getAttribute('href'), location.href);
+            if (g) u.searchParams.set('gustos', g); else u.searchParams.delete('gustos');
+            a.setAttribute('href', u.pathname + u.search);
+        } catch (err) {}
+    }, true);
     Arcano.onContent(function () {
         var form = document.getElementById('public-filters');
         if (!form || form._mostrarInit) return;
@@ -1133,8 +1143,10 @@ document.addEventListener('click', function (e) {
             var b = m.querySelector('.filtro-menu-btn'); if (b) b.setAttribute('aria-expanded', 'false');
         });
     }
+    var conMouse = window.matchMedia && window.matchMedia('(hover: hover) and (pointer: fine)').matches;
     document.addEventListener('click', function (e) {
         var btn = e.target.closest ? e.target.closest('.filtro-menu-btn') : null;
+        if (btn && conMouse) return;   // con mouse lo maneja el hover
         if (btn) {
             var m = btn.closest('[data-filtro-menu]');
             var abrir = !m.classList.contains('abierto');

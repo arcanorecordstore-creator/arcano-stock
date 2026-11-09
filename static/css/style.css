@@ -12955,13 +12955,19 @@ body.modo-feed .public-main { padding-top: 8px; padding-bottom: 0; }
     padding: 8px; background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 12px;
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28); animation: filtroPanel 0.18s ease;
 }
-/* puente invisible entre el boton y el menu (para que el hover no se corte) */
-.filtro-menu-panel::before { content: ""; position: absolute; left: 0; right: 0; top: -10px; height: 10px; }
+/* puente invisible entre el boton y el menu (para que el hover no se corte). Va en el
+   menu y no en el panel: el panel tiene scroll y recortaba el puente. */
+.filtro-menu::after { content: ""; position: absolute; left: 0; right: 0; top: 100%; height: 12px; display: none; }
 @keyframes filtroPanel { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 .filtro-menu.abierto > .filtro-menu-panel { display: block; }
 @media (hover: hover) and (pointer: fine) {
-    .filtro-menu:hover > .filtro-menu-panel, .filtro-menu:focus-within > .filtro-menu-panel { display: block; }
+    .filtro-menu:hover::after { display: block; }
+    /* con mouse: SOLO el hover abre (o el teclado). Antes "focus-within" lo dejaba
+       enganchado abierto despues de un clic y se veian dos menus a la vez. */
+    .filtro-menu:hover > .filtro-menu-panel,
+    .filtro-menu:has(:focus-visible) > .filtro-menu-panel { display: block; }
     .filtro-menu:hover .filtro-caret { transform: rotate(180deg); }
+    .filtro-menu.abierto:not(:hover) > .filtro-menu-panel { display: none; }
 }
 .filtro-menu-panel .filter-checks { max-height: none; overflow: visible; gap: 0; }
 .filtro-menu-panel .filter-check {
@@ -12990,3 +12996,97 @@ body.modo-feed .public-main { padding-top: 8px; padding-bottom: 0; }
 }
 @media (prefers-reduced-motion: reduce) { .filtro-menu-panel { animation: none; } .filtro-caret { transition: none; } }
 .filtro-menu-panel { scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }
+
+/* Staff Picks: boton que se prende y se apaga (sin menu) */
+.filtro-chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; cursor: pointer;
+    border: 1px solid var(--border-2); border-radius: 999px; color: var(--text-1);
+    font-size: 12px; font-weight: 500; letter-spacing: 0.1em; text-transform: uppercase;
+    transition: border-color 0.2s ease, background-color 0.2s ease; user-select: none;
+}
+.filtro-chip input { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+.filtro-chip:hover { border-color: var(--text-3); }
+.filtro-chip:has(input:focus-visible) { outline: 2px solid var(--text-1); outline-offset: 2px; }
+.filtro-chip.is-activo, .filtro-chip:has(input:checked) { background: #E9D1AF; border-color: #E9D1AF; color: #3D3033; }
+@media (max-width: 860px) { .filtro-chip { padding: 7px 12px; font-size: 11px; } }
+
+/* =====================================================================
+   Playlists de la home (estilo "Start digging" de Wax Merchant)
+   Tapa = mosaico de 4 tapas de la lista + banda con el nombre (colores de marca)
+   ===================================================================== */
+.playlists { margin: 8px 0 30px; }
+.playlists-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.playlists-titulo { margin: 0; font-size: 14px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-1); }
+.playlists-sub { font-size: 12px; font-weight: 300; color: var(--text-3); }
+.playlists-fila { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.playlist-card {
+    position: relative; display: block; aspect-ratio: 1 / 1; border-radius: 14px; overflow: hidden;
+    text-decoration: none; isolation: isolate; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+}
+.playlist-mosaico { position: absolute; inset: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; z-index: -1; }
+.playlist-mosaico img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.6s cubic-bezier(0.2, 0.7, 0.2, 1); }
+.playlist-card:hover .playlist-mosaico img { transform: scale(1.04); }
+.playlist-banda {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 14px 12px;
+    display: flex; flex-direction: column; gap: 4px;
+}
+.playlist-nombre { font-size: clamp(15px, 1.6vw, 20px); font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; line-height: 1.1; }
+.playlist-pie { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; font-weight: 300; letter-spacing: 0.04em; }
+.playlist-play {
+    width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto;
+    font-size: 10px; padding-left: 2px; transition: transform 0.25s ease;
+}
+.playlist-card:hover .playlist-play { transform: translateX(2px); }
+/* Tonos de la banda: solo la paleta del manual (sin degradados) */
+.playlist-beige .playlist-banda { background: #E9D1AF; color: #3D3033; }
+.playlist-beige .playlist-play { background: #3D3033; color: #E9D1AF; }
+.playlist-negro .playlist-banda { background: #1E1C1C; color: #FFF7EC; }
+.playlist-negro .playlist-play { background: #FFF7EC; color: #1E1C1C; }
+.playlist-marron .playlist-banda { background: #3D3033; color: #E9D1AF; }
+.playlist-marron .playlist-play { background: #E9D1AF; color: #3D3033; }
+.playlist-crema .playlist-banda { background: #FFF7EC; color: #1E1C1C; }
+.playlist-crema .playlist-play { background: #1E1C1C; color: #FFF7EC; }
+.playlist-card:focus-visible { outline: 2px solid var(--text-1); outline-offset: 3px; }
+@media (max-width: 860px) {
+    .playlists-fila { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 62%; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 4px; }
+    .playlists-fila::-webkit-scrollbar { display: none; }
+    .playlist-card { scroll-snap-align: start; }
+}
+@media (prefers-reduced-motion: reduce) { .playlist-mosaico img, .playlist-play { transition: none; } }
+.feed-cuenta strong { font-weight: 500; color: var(--text-1); }
+.feed-aviso { margin: 0 0 10px; padding: 10px 14px; border: 1px solid var(--border-2); border-radius: 10px; font-size: 13px; color: var(--text-2); }
+
+/* ---- Playlists al costado izquierdo de los discos (columna que acompana al bajar) ---- */
+.public-layout.public-layout--barra.con-playlists {
+    display: grid; grid-template-columns: 250px minmax(0, 1fr); column-gap: 28px; align-items: start;
+}
+.con-playlists > .playlists { grid-column: 1; grid-row: 1 / span 2; position: sticky; top: 96px; margin: 6px 0 0; }
+.con-playlists > .filtros-barra, .con-playlists > .public-catalog { grid-column: 2; }
+.con-playlists .playlists-head { flex-direction: column; align-items: flex-start; gap: 2px; margin-bottom: 12px; }
+.con-playlists .playlists-fila { display: flex; flex-direction: column; gap: 10px; }
+/* Tarjeta horizontal: mosaico de tapas a la izquierda + banda de color con el nombre */
+.con-playlists .playlist-card {
+    aspect-ratio: auto; display: grid; grid-template-columns: 84px minmax(0, 1fr); height: 84px;
+    border-radius: 12px; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+.con-playlists .playlist-mosaico { position: relative; inset: auto; grid-column: 1; z-index: 0; }
+.con-playlists .playlist-banda {
+    position: relative; grid-column: 2; padding: 10px 12px; justify-content: space-between; height: 100%; box-sizing: border-box;
+}
+.con-playlists .playlist-nombre { font-size: 13px; letter-spacing: 0.08em; }
+.con-playlists .playlist-pie { font-size: 11px; }
+.con-playlists .playlist-pie > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.con-playlists .playlist-play { width: 26px; height: 26px; }
+.con-playlists .playlist-card:hover .playlist-mosaico img { transform: scale(1.05); }
+
+/* Celular / tablet: la columna pasa arriba de los discos, como fila deslizable */
+@media (max-width: 1024px) {
+    .public-layout.public-layout--barra.con-playlists { display: block; }
+    .con-playlists > .playlists { position: static; margin: 0 0 18px; }
+    .con-playlists .playlists-head { flex-direction: row; align-items: baseline; gap: 10px; }
+    .con-playlists .playlists-fila {
+        flex-direction: row; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 4px;
+    }
+    .con-playlists .playlists-fila::-webkit-scrollbar { display: none; }
+    .con-playlists .playlist-card { flex: 0 0 min(78%, 300px); scroll-snap-align: start; }
+}

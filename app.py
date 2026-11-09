@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.42"
+APP_VERSION = "6.43"
 import metrics
 import auth
 import mailer
@@ -8190,6 +8190,42 @@ def register_routes(app: Flask) -> None:
         ]
         return Response("\n".join(lines), mimetype="text/plain")
 
+    def _playlists_home(discos):
+        """Tarjetas de playlists de la home (estilo Wax Merchant): cada una abre el modo
+        scroll con su lista y lleva de tapa un mosaico con 4 tapas de esa lista."""
+        import random as _random
+
+        def _tapa(d):
+            if d.cover_local:
+                return url_for("serve_cover", filename=d.cover_local)
+            return d.cover_url or None
+        comprables = [d for d in discos if not d.esta_agotado and not d.es_mystery_box and _tapa(d)]
+        if not comprables:
+            return []
+        ahora = datetime.now()
+        nuevos = sorted((d for d in comprables if d.fecha_ingreso and d.fecha_ingreso >= ahora - timedelta(days=30)),
+                        key=lambda d: d.fecha_ingreso, reverse=True)
+        staff = [d for d in comprables if d.es_tip]
+        azar = list(comprables)
+        _random.shuffle(azar)
+        def _mosaico(lista):
+            lista = list(lista)[:4]
+            while lista and len(lista) < 4:
+                lista = lista + lista
+            return [_tapa(d) for d in lista[:4]]
+        out = [{"clave": "recomendados", "titulo": "Tus recomendaciones", "sub": "Seg\u00fan lo que te gusta",
+                "url": url_for("home", vista="scroll", lista="recomendados"), "tapas": _mosaico(azar[4:8] or azar),
+                "tono": "beige", "gustos": True}]
+        if nuevos:
+            out.append({"clave": "nuevos", "titulo": "Reci\u00e9n llegados", "sub": f"{len(nuevos)} discos \u00b7 30 d\u00edas",
+                        "url": url_for("home", vista="scroll", lista="nuevos"), "tapas": _mosaico(nuevos), "tono": "negro"})
+        if staff:
+            out.append({"clave": "staff", "titulo": "Staff Picks", "sub": "Elegidos por Arcano",
+                        "url": url_for("home", vista="scroll", lista="staff"), "tapas": _mosaico(staff), "tono": "marron"})
+        out.append({"clave": "azar", "titulo": "Todo al azar", "sub": f"{len(comprables)} discos para diggear",
+                    "url": url_for("home", vista="scroll", mezclar=1), "tapas": _mosaico(azar), "tono": "crema"})
+        return out
+
     def _conteos_mostrar(discos):
         """Cuantos discos hay en cada opcion de "Mostrar" (sobre todo lo publicado)."""
         ahora = datetime.now()
@@ -8271,10 +8307,15 @@ def register_routes(app: Flask) -> None:
             if sello_base(d.sello).lower() in sel:
                 p += 2.0
             p += sum(_peso(g) for g in _generos(d) if g in gen)
-            if p >= 1.0:
+            if p > 0:
                 puntaje[d.id] = round(p, 3)
-        # Solo los mas parecidos
-        mejores = sorted(puntaje, key=lambda i: puntaje[i], reverse=True)[:36]
+        # Los mas parecidos (minimo 1 punto); si con eso salen pocos (gustos con generos
+        # muy comunes), se completa con los que se parecen algo. Nunca queda vacia.
+        fuertes = [i for i in puntaje if puntaje[i] >= 1.0]
+        base = fuertes if len(fuertes) >= 8 else list(puntaje)
+        if not base:
+            return ([d for d in discos if d.es_tip], {}, {"sin_datos": True, "n": len(semillas)})
+        mejores = sorted(base, key=lambda i: puntaje[i], reverse=True)[:36]
         puntaje = {i: puntaje[i] for i in mejores}
         lista = [d for d in discos if d.id in puntaje]
         return lista, puntaje, {"sin_datos": False, "n": len(semillas)}
@@ -8321,8 +8362,27 @@ def register_routes(app: Flask) -> None:
             if request.args.get("mezclar") or not session.get("feed_semilla"):
                 session["feed_semilla"] = _random.randint(1, 10**9)
             feed = sorted((d for d in discs if not d.esta_agotado), key=lambda d: d.id)
-            _random.Random(session["feed_semilla"]).shuffle(feed)
-            return render_template("public/scroll.html", discs=feed, **_public_context())
+            # Playlists (las tarjetas de la home abren el modo scroll con una lista)
+            lista = (request.args.get("lista") or "").strip()
+            lista_titulo, rec_info = None, None
+            if lista == "recomendados":
+                feed, _punt, rec_info = _recomendar_para(feed)
+                feed.sort(key=lambda d: _punt.get(d.id, 0), reverse=True)
+                lista_titulo = "Tus recomendaciones"
+            elif lista == "nuevos":
+                _desde = datetime.now() - timedelta(days=30)
+                feed = [d for d in feed if d.fecha_ingreso and d.fecha_ingreso >= _desde]
+                feed.sort(key=lambda d: d.fecha_ingreso, reverse=True)
+                lista_titulo = "Recién llegados"
+            elif lista == "staff":
+                feed = [d for d in feed if d.es_tip]
+                _random.Random(session["feed_semilla"]).shuffle(feed)
+                lista_titulo = "Staff Picks"
+            else:
+                lista = ""
+                _random.Random(session["feed_semilla"]).shuffle(feed)
+            return render_template("public/scroll.html", discs=feed, lista=lista,
+                                   lista_titulo=lista_titulo, rec_info=rec_info, **_public_context())
 
         # Filtros
         q = (request.args.get("q") or "").strip()
@@ -8426,7 +8486,9 @@ def register_routes(app: Flask) -> None:
             discs = [d for d in discs if d.anio in _aset]
         if nuevos_dias:
             _desde = datetime.now() - timedelta(days=nuevos_dias)
-            discs = [d for d in discs if d.fecha_ingreso and d.fecha_ingreso >= _desde]
+            # Novedades = lo que entro y se puede comprar (los agotados no son novedad)
+            discs = [d for d in discs if d.fecha_ingreso and d.fecha_ingreso >= _desde
+                     and not (d.esta_agotado and not d.mostrar_preorder)]
         if estado_sel:
             def _estado_ok(d):
                 es_pre = d.estado in ("Pre-order", "Encargo") or getattr(d, "mostrar_preorder", False)
@@ -8677,6 +8739,7 @@ def register_routes(app: Flask) -> None:
             discs=discs_pagina,
             destacados=destacados,
             nuevos_ingresos=nuevos_ingresos,
+            playlists=_playlists_home(all_disponibles),
             preorders_carrusel=preorders_carrusel,
             tips_carrusel=tips_carrusel,
             mas_escuchados=mas_escuchados,

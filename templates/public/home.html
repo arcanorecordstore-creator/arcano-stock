@@ -221,19 +221,41 @@
     {{ carrusel(nuevos_ingresos, 'Nuevos ingresos', 'nuevos') }}
     {% endif %}
 
-    <div class="public-layout public-layout--barra">
+    <div class="public-layout public-layout--barra{% if playlists %} con-playlists{% endif %}">
+        {# Playlists al costado de los discos (estilo Wax Merchant): abren el modo scroll #}
+        {% if playlists %}
+        <aside class="playlists" aria-label="Playlists">
+            <div class="playlists-head">
+                <h2 class="playlists-titulo">Playlists</h2>
+                <span class="playlists-sub">Escuch&aacute; disco por disco, como diggeando en la tienda</span>
+            </div>
+            <div class="playlists-fila">
+                {% for pl in playlists %}
+                <a href="{{ pl.url }}" class="playlist-card playlist-{{ pl.tono }}"{% if pl.gustos %} data-con-gustos{% endif %}>
+                    <div class="playlist-mosaico" aria-hidden="true">
+                        {% for t in pl.tapas %}<img src="{{ t }}" alt="" loading="lazy" decoding="async">{% endfor %}
+                    </div>
+                    <div class="playlist-banda">
+                        <span class="playlist-nombre">{{ pl.titulo }}</span>
+                        <span class="playlist-pie"><span>{{ pl.sub }}</span><span class="playlist-play" aria-hidden="true">&#9654;</span></span>
+                    </div>
+                </a>
+                {% endfor %}
+            </div>
+        </aside>
+        {% endif %}
         {# Filtros en una barra de menus desplegables (como deejay.de / Yoyaku): se abren
            al pasar el mouse o con un toque, y al marcar una opcion se filtra solo. #}
-        {% set n_mostrar = (1 if filtro_nuevos else 0) + (filtro_estados|length) + (1 if filtro_staff else 0) + (1 if filtro_recomendados else 0) %}
         {% set n_precio = (1 if filtro_precio_min is not none else 0) + (1 if filtro_precio_max is not none else 0) %}
         <nav class="filtros-barra" id="public-sidebar" aria-label="Filtros">
+            {# Novedades: lo que entro en los ultimos 15 o 30 dias (se elige uno) #}
             <div class="filtro-menu" data-filtro-menu>
-                <button type="button" class="filtro-menu-btn{% if n_mostrar %} is-activo{% endif %}" aria-expanded="false" aria-haspopup="true">
-                    <span>Mostrar</span>{% if n_mostrar %}<span class="filtro-menu-n">{{ n_mostrar }}</span>{% endif %}
+                <button type="button" class="filtro-menu-btn{% if filtro_nuevos %} is-activo{% endif %}" aria-expanded="false" aria-haspopup="true">
+                    <span>{% if filtro_nuevos %}&Uacute;ltimos {{ filtro_nuevos }} d&iacute;as{% else %}Novedades{% endif %}</span>
                     <svg class="filtro-caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
                 </button>
                 <div class="filtro-menu-panel">
-                    <div class="filter-checks filter-checks-entero">
+                    <div class="filter-checks">
                         <label class="filter-check">
                             <input type="checkbox" name="nuevos" value="15" data-excluye="nuevos" {% if filtro_nuevos == 15 %}checked{% endif %}>
                             <span>&Uacute;ltimos 15 d&iacute;as</span><span class="filter-count">{{ mostrar_counts['15'] }}</span>
@@ -242,6 +264,17 @@
                             <input type="checkbox" name="nuevos" value="30" data-excluye="nuevos" {% if filtro_nuevos == 30 %}checked{% endif %}>
                             <span>&Uacute;ltimos 30 d&iacute;as</span><span class="filter-count">{{ mostrar_counts['30'] }}</span>
                         </label>
+                    </div>
+                </div>
+            </div>
+            {# Estado: disponible para llevar ya, o pre-order #}
+            <div class="filtro-menu" data-filtro-menu>
+                <button type="button" class="filtro-menu-btn{% if filtro_estados %} is-activo{% endif %}" aria-expanded="false" aria-haspopup="true">
+                    <span>Estado</span>{% if filtro_estados %}<span class="filtro-menu-n">{{ filtro_estados|length }}</span>{% endif %}
+                    <svg class="filtro-caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="filtro-menu-panel">
+                    <div class="filter-checks">
                         <label class="filter-check">
                             <input type="checkbox" name="estado" value="disponible" {% if 'disponible' in filtro_estados %}checked{% endif %}>
                             <span>Disponible</span><span class="filter-count">{{ mostrar_counts['disponible'] }}</span>
@@ -250,18 +283,14 @@
                             <input type="checkbox" name="estado" value="preorder" {% if 'preorder' in filtro_estados %}checked{% endif %}>
                             <span>Pre Order</span><span class="filter-count">{{ mostrar_counts['preorder'] }}</span>
                         </label>
-                        <label class="filter-check">
-                            <input type="checkbox" name="staff" value="1" {% if filtro_staff %}checked{% endif %}>
-                            <span>&#9733; Staff Picks</span><span class="filter-count">{{ mostrar_counts['staff'] }}</span>
-                        </label>
-                        <label class="filter-check">
-                            <input type="checkbox" name="recomendados" value="1" data-recomendados {% if filtro_recomendados %}checked{% endif %}>
-                            <span>Tus Recomendaciones</span>
-                        </label>
-                        <input type="hidden" name="gustos" value="" data-gustos disabled>
                     </div>
                 </div>
             </div>
+            {# Staff Picks: un boton que se prende y se apaga (sin menu) #}
+            <label class="filtro-chip{% if filtro_staff %} is-activo{% endif %}">
+                <input type="checkbox" name="staff" value="1" {% if filtro_staff %}checked{% endif %}>
+                <span>&#9733; Staff Picks</span>
+            </label>
             {% if generos %}
             <div class="filtro-menu" data-filtro-menu>
                 <button type="button" class="filtro-menu-btn{% if filtro_generos|length %} is-activo{% endif %}" aria-expanded="false" aria-haspopup="true">
