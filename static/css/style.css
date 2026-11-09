@@ -13122,3 +13122,81 @@ body.modo-feed .public-main { padding-top: 8px; padding-bottom: 0; }
 /* Los disenos de tienda (Picture, Funda viva, Tocadiscos) pintan los contadores con !important */
 body .filtro-menu-panel .filter-count { background: transparent !important; color: var(--text-3) !important; padding: 0 !important; }
 [data-theme="light"] .filtro-menu-panel .filter-check input[type="checkbox"]:not(:checked) { border-color: rgba(61, 48, 51, 0.38); }
+
+
+/* =====================================================================
+   Diggear (ex "modo scroll"): bloque de invitacion en la portada (v6.46)
+   Banda negra como los posteos de Arcano + tira de tapas que avanza sola.
+   ===================================================================== */
+.diggear {
+    position: relative; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    align-items: stretch; margin: 6px 0 30px; border-radius: 16px; overflow: hidden;
+    background: #1E1C1C; color: #FFF7EC; text-decoration: none; isolation: isolate;
+    border: 1px solid rgba(233, 209, 175, 0.14);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.22);
+}
+.diggear:focus-visible { outline: 2px solid var(--text-1); outline-offset: 3px; }
+.diggear-tira { position: relative; overflow: hidden; min-height: 230px; order: 2; }
+.diggear-tira::before, .diggear-tira::after {
+    content: ""; position: absolute; top: 0; bottom: 0; width: 70px; z-index: 1; pointer-events: none;
+}
+.diggear-tira::before { left: 0; background: linear-gradient(90deg, #1E1C1C, rgba(30, 28, 28, 0)); }
+.diggear-tira::after { right: 0; background: linear-gradient(270deg, #1E1C1C, rgba(30, 28, 28, 0)); }
+.diggear-cinta {
+    position: absolute; top: 50%; left: 0; display: flex; gap: 12px; width: max-content;
+    transform: translateY(-50%); animation: diggearCinta 60s linear infinite;
+}
+.diggear-cinta img {
+    width: 150px; height: 150px; object-fit: cover; border-radius: 8px; display: block; flex: 0 0 auto;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35); opacity: 0.92; transition: opacity 0.4s ease;
+}
+.diggear:hover .diggear-cinta img { opacity: 1; }
+@keyframes diggearCinta { from { transform: translate(0, -50%); } to { transform: translate(calc(-50% - 6px), -50%); } }
+.diggear-texto {
+    order: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 10px;
+    padding: 30px 30px 28px; position: relative; z-index: 2;
+}
+.diggear-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase; color: #E9D1AF;
+}
+.diggear-titulo {
+    margin: 0; font-size: clamp(26px, 3.4vw, 40px); font-weight: 500; line-height: 1.02;
+    letter-spacing: 0.04em; text-transform: uppercase; color: #FFF7EC; text-wrap: balance;
+}
+.diggear-sub { margin: 0; max-width: 40ch; font-size: 14px; font-weight: 300; line-height: 1.5; color: rgba(255, 247, 236, 0.74); }
+.diggear-cta {
+    margin-top: 6px; display: inline-flex; align-items: center; gap: 10px; padding: 12px 22px 12px 14px;
+    border-radius: 999px; background: #E9D1AF; color: #3D3033; font-size: 13px; font-weight: 500;
+    letter-spacing: 0.12em; text-transform: uppercase; transition: background-color 0.25s ease;
+}
+.diggear-cta-play {
+    width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center;
+    background: #3D3033; color: #E9D1AF; font-size: 10px; padding-left: 2px; transition: transform 0.25s ease;
+}
+.diggear:hover .diggear-cta { background: #FFF7EC; }
+.diggear:hover .diggear-cta-play { transform: translateX(2px); }
+.diggear:active .diggear-cta { opacity: 0.85; }
+.diggear-n { font-size: 11px; font-weight: 300; letter-spacing: 0.06em; color: rgba(255, 247, 236, 0.5); }
+
+/* Ecualizador chiquito (bloque y boton de la barra) */
+.diggear-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; }
+.diggear-eq i { display: block; width: 3px; height: 40%; border-radius: 1px; background: currentColor; animation: diggearEq 1.1s ease-in-out infinite; }
+.diggear-eq i:nth-child(2) { animation-delay: -0.35s; }
+.diggear-eq i:nth-child(3) { animation-delay: -0.7s; }
+@keyframes diggearEq { 0%, 100% { height: 35%; } 50% { height: 100%; } }
+.vista-scroll-btn .diggear-eq { height: 13px; }
+
+@media (max-width: 760px) {
+    .diggear { grid-template-columns: minmax(0, 1fr); margin: 4px 0 22px; border-radius: 14px; }
+    .diggear-tira { order: 1; min-height: 132px; }
+    .diggear-cinta img { width: 104px; height: 104px; border-radius: 6px; }
+    .diggear-tira::before, .diggear-tira::after { width: 36px; }
+    .diggear-texto { order: 2; padding: 4px 18px 20px; gap: 8px; }
+    .diggear-sub { font-size: 13px; }
+    .diggear-cta { align-self: stretch; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .diggear-cinta, .diggear-eq i { animation: none; }
+    .diggear-cta, .diggear-cta-play, .diggear-cinta img { transition: none; }
+}

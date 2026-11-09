@@ -79,27 +79,36 @@
     // Animacion sutil de la tapa al cambiar de track: sale apenas hacia el lado del
     // gesto y vuelve desde el otro con un fundido (sin rebotes ni cambios de tamano).
     var reducirMov = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    function imgDe(card) { return card.querySelector('.feed-cover img'); }
+    // Se mueve la tapa ENTERA (marco incluido), no la imagen adentro: asi nunca
+    // aparece un hueco al costado. Empuja apenas hacia el lado del gesto, con una
+    // inclinacion minima (como pasar un disco en la batea) y vuelve suave.
+    function tapaDe(card) { return card.querySelector('.feed-cover'); }
+    function soltarArrastre(tapa) { tapa.style.transform = ''; tapa.style.transition = ''; }
     function animarCambio(card, paso, desdeX) {
-        var img = imgDe(card);
-        if (!img || reducirMov || !img.animate) { if (img) img.style.transform = ''; return; }
-        var dir = paso > 0 ? -1 : 1;   // siguiente: se va a la izquierda
+        var tapa = tapaDe(card);
+        if (!tapa) return;
+        soltarArrastre(tapa);
+        if (reducirMov || !tapa.animate) return;
+        var dir = paso > 0 ? -1 : 1;   // siguiente: empuja a la izquierda
         var x0 = (typeof desdeX === 'number') ? desdeX : 0;
-        img.style.transform = '';
-        img.animate([
-            { transform: 'translateX(' + x0 + 'px)', opacity: 1 },
-            { transform: 'translateX(' + (dir * 34) + 'px)', opacity: 0.35, offset: 0.4 },
-            { transform: 'translateX(' + (-dir * 22) + 'px)', opacity: 0.35, offset: 0.41 },
-            { transform: 'translateX(0)', opacity: 1 }
-        ], { duration: 520, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' });
+        var lejos = dir * Math.max(Math.abs(x0) + 6, 18);
+        if (tapa._anim) tapa._anim.cancel();
+        tapa._anim = tapa.animate([
+            { transform: 'translateX(' + x0 + 'px) rotate(' + (x0 / 30) + 'deg)', opacity: 1, easing: 'cubic-bezier(0.3, 0, 0.5, 1)' },
+            { transform: 'translateX(' + lejos + 'px) rotate(' + (dir * 1.2) + 'deg)', opacity: 0.72, offset: 0.34, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' },
+            { transform: 'translateX(0) rotate(0deg)', opacity: 1 }
+        ], { duration: 560 });
     }
     function volverAlLugar(card, desdeX) {
-        var img = imgDe(card);
-        if (!img) return;
-        img.style.transform = '';
-        if (reducirMov || !img.animate || !desdeX) return;
-        img.animate([{ transform: 'translateX(' + desdeX + 'px)' }, { transform: 'translateX(0)' }],
-                    { duration: 320, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' });
+        var tapa = tapaDe(card);
+        if (!tapa) return;
+        soltarArrastre(tapa);
+        if (reducirMov || !tapa.animate || !desdeX) return;
+        if (tapa._anim) tapa._anim.cancel();
+        tapa._anim = tapa.animate([
+            { transform: 'translateX(' + desdeX + 'px) rotate(' + (desdeX / 30) + 'deg)' },
+            { transform: 'translateX(0) rotate(0deg)' }
+        ], { duration: 380, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' });
     }
     function cambiarTema(card, paso, desdeX) {
         var temas = temasDe(card); if (temas.length < 2) return;
@@ -287,9 +296,10 @@
                     if (x0 === null || reducirMov || temas.length < 2) return;
                     var t = e.touches[0], dx = t.clientX - x0, dy = t.clientY - y0;
                     if (Math.abs(dx) < Math.abs(dy) * 1.2) return;
-                    arrastreX = Math.max(-46, Math.min(46, dx * 0.3));
-                    var img = imgDe(card);
-                    if (img) img.style.transform = 'translateX(' + arrastreX + 'px)';
+                    arrastreX = Math.max(-40, Math.min(40, dx * 0.28));
+                    if (tapa._anim) { tapa._anim.cancel(); tapa._anim = null; }
+                    tapa.style.transition = 'none';
+                    tapa.style.transform = 'translateX(' + arrastreX + 'px) rotate(' + (arrastreX / 30) + 'deg)';
                 }, { passive: true });
                 tapa.addEventListener('touchend', function (e) {
                     if (x0 === null) return;

@@ -186,9 +186,9 @@
             <option value="artista" {% if filtro_orden == 'artista' %}selected{% endif %}>Por artista (A-Z)</option>
         </select>
         <button type="submit" class="btn btn-primary">Buscar</button>
-        <a href="{{ url_for('home', vista='scroll') }}" class="btn btn-ghost vista-scroll-btn" title="Modo scroll: un disco por pantalla, suena solo">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 7v6M9.5 10.5L12 13l2.5-2.5"/></svg>
-            <span>Modo scroll</span>
+        <a href="{{ url_for('home', vista='scroll') }}" class="btn btn-ghost vista-scroll-btn" title="Diggear: un disco por pantalla y suena solo">
+            <span class="diggear-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+            <span>Diggear</span>
         </a>
     </div>
 
@@ -200,6 +200,29 @@
         <span class="public-trust-item">Retiro en Pocitos</span>
         <span class="public-trust-item">Pag&aacute;s como quieras</span>
     </div>
+    {% endif %}
+
+    {# Diggear (ex "modo scroll"): invitacion grande a escuchar la tienda disco por
+       disco. Solo en la portada (pagina 1, sin busqueda ni filtros). #}
+    {% if diggear and not filtro_q and filtros_activos == 0 and (pagina or 1) == 1 %}
+    <a href="{{ url_for('home', vista='scroll') }}" class="diggear" aria-label="Diggear: escuch&aacute; la tienda disco por disco">
+        <div class="diggear-tira" aria-hidden="true">
+            <div class="diggear-cinta">
+                {% for t in diggear.tapas %}<img src="{{ t }}" alt="" loading="{{ 'eager' if loop.index <= 6 else 'lazy' }}" decoding="async">{% endfor %}
+                {% for t in diggear.tapas %}<img src="{{ t }}" alt="" loading="lazy" decoding="async">{% endfor %}
+            </div>
+        </div>
+        <div class="diggear-texto">
+            <span class="diggear-eyebrow"><span class="diggear-eq" aria-hidden="true"><i></i><i></i><i></i></span>Diggear</span>
+            <h2 class="diggear-titulo">Digge&aacute; la tienda</h2>
+            <p class="diggear-sub">Un disco por pantalla y suena solo. Desliz&aacute; para pasar al siguiente, como revolviendo la batea.</p>
+            <span class="diggear-cta">
+                <span class="diggear-cta-play" aria-hidden="true">&#9654;</span>
+                Empezar a diggear
+            </span>
+            <span class="diggear-n">{{ diggear.n }} discos para escuchar</span>
+        </div>
+    </a>
     {% endif %}
 
     {% if preorders_carrusel and car_preorder %}
@@ -222,7 +245,7 @@
     {% endif %}
 
     <div class="public-layout public-layout--barra{% if playlists %} con-playlists{% endif %}">
-        {# Playlists al costado de los discos (estilo Wax Merchant): abren el modo scroll #}
+        {# Playlists al costado de los discos (estilo Wax Merchant): abren Diggear #}
         {% if playlists %}
         <aside class="playlists" aria-label="Playlists">
             <div class="playlists-head">

@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.45"
+APP_VERSION = "6.46"
 import metrics
 import auth
 import mailer
@@ -8226,6 +8226,24 @@ def register_routes(app: Flask) -> None:
                     "url": url_for("home", vista="scroll", mezclar=1), "tapas": _mosaico(azar), "tono": "crema"})
         return out
 
+    def _diggear_home(discos):
+        """Bloque "Digge\u00e1 la tienda" de la home: invita a entrar a la vista de un
+        disco por pantalla (el antiguo "modo scroll"). Lleva una tira de tapas al azar
+        que se mueve sola y cuantos discos hay para escuchar."""
+        import random as _random
+        con_tapa = []
+        for d in discos:
+            if d.esta_agotado or d.es_mystery_box or d.oculto_web:
+                continue
+            tapa = url_for("serve_cover", filename=d.cover_local) if d.cover_local else (d.cover_url or None)
+            if tapa:
+                con_tapa.append(tapa)
+        if len(con_tapa) < 4:
+            return None
+        n = len(con_tapa)
+        _random.shuffle(con_tapa)
+        return {"tapas": con_tapa[:12], "n": n}
+
     def _conteos_mostrar(discos):
         """Cuantos discos hay en cada opcion de "Mostrar" (sobre todo lo publicado)."""
         ahora = datetime.now()
@@ -8599,28 +8617,32 @@ def register_routes(app: Flask) -> None:
         condiciones_count = Counter()
         precios = []
         for d in all_disponibles:
+            # Los contadores cuentan solo lo que se puede comprar: los agotados que se
+            # muestran igual (cartel VENDIDO) no suman, pero la opcion queda en la lista.
+            _n = 1 if ((d.estado == "Disponible" and (d.stock or 0) > 0 and (d.precio_uyu or 0) > 0)
+                       or d.estado in ("Pre-order", "Encargo")) else 0
             _tc = _tipo_condicion(d)
             if _tc:
-                condiciones_count[_tc] += 1
+                condiciones_count[_tc] += _n
             if d.sello:
                 _sb = sello_base(d.sello)
                 _nombre = sellos_display.setdefault(_sb.lower(), _sb)
-                sellos_count[_nombre] += 1
+                sellos_count[_nombre] += _n
             for g in _norm_generos(d.genero):
                 key = g.lower()
-                generos_count[key] += 1
+                generos_count[key] += _n
                 generos_display.setdefault(key, _pretty_genero(g))
             for tg in d.tags_list:
-                tags_count[tg] += 1
+                tags_count[tg] += _n
             if d.formato:
-                formatos_count[d.formato] += 1
+                formatos_count[d.formato] += _n
             if d.pais:
-                paises_count[d.pais] += 1
+                paises_count[d.pais] += _n
             dc = _decada(d.anio)
             if dc:
-                decadas_count[dc] += 1
+                decadas_count[dc] += _n
             if d.anio:
-                anios_count[d.anio] += 1
+                anios_count[d.anio] += _n
             if d.precio_uyu and d.precio_uyu > 0:
                 precios.append(d.precio_uyu)
 
@@ -8740,6 +8762,7 @@ def register_routes(app: Flask) -> None:
             destacados=destacados,
             nuevos_ingresos=nuevos_ingresos,
             playlists=_playlists_home(all_disponibles),
+            diggear=_diggear_home(all_disponibles),
             preorders_carrusel=preorders_carrusel,
             tips_carrusel=tips_carrusel,
             mas_escuchados=mas_escuchados,
