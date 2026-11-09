@@ -23,6 +23,32 @@
     var playlist = [], playIndex = 0, playCover = '';
     var modoEscucharTodo = false, escucharTodoTimer = null, playCountTimer = null;
     var engine = null, isPlaying = false, activeBtn = null, seeking = false;
+    var propietario = null;   // clave de quien arranco la lista (ej. una tarjeta del modo scroll)
+    // Fundido de entrada: cada tema arranca en volumen 0 y sube suave (~1,3 s) la PRIMERA
+    // vez que empieza a sonar (pausar y seguir no lo repite).
+    var fadePendiente = false, fadeTimer = null;
+    function volInicial() { return fadePendiente ? 0 : volumen; }
+    function alSonar() {
+        if (!fadePendiente) return;
+        fadePendiente = false;
+        if (fadeTimer) clearInterval(fadeTimer);
+        var paso = 0, PASOS = 14;
+        if (engine && engine.setVolume) engine.setVolume(0);
+        fadeTimer = setInterval(function () {
+            paso++;
+            if (!engine || !engine.setVolume) { clearInterval(fadeTimer); fadeTimer = null; return; }
+            var x = paso / PASOS;
+            engine.setVolume(volumen * x * x * (3 - 2 * x));   // curva suave
+            if (paso >= PASOS) { clearInterval(fadeTimer); fadeTimer = null; engine.setVolume(volumen); }
+        }, 90);
+    }
+    // Avisa a la pagina que cambio algo (tema, avance, play/pausa, cierre): el modo
+    // scroll lo usa para pintar los puntitos, el nombre del tema y la barra de cada tarjeta.
+    function avisar(tipo, extra) {
+        var d = { tipo: tipo, clave: propietario, index: playIndex, total: playlist.length, playing: isPlaying };
+        if (extra) for (var k in extra) d[k] = extra[k];
+        try { document.dispatchEvent(new CustomEvent('arcano:player', { detail: d })); } catch (e) {}
+    }
     var volumen = 1;
     try { var vs = localStorage.getItem('arcano-volume'); if (vs !== null) volumen = Math.min(1, Math.max(0, parseFloat(vs))); } catch (e) {}
 
@@ -76,6 +102,7 @@
     // ---- UI ----
     function setPlayingUI(p) {
         isPlaying = p;
+        avisar('estado');
         var pl = fpPlay.querySelector('.fp-ico-play'), pa = fpPlay.querySelector('.fp-ico-pause');
         // Los iconos son <svg>: en SVG "el.hidden = x" no cambia nada (no existe esa
         // propiedad), por eso el boton quedaba siempre en play. Se usa el atributo.
@@ -89,6 +116,7 @@
     }
     function setProgress(cur, dur) {
         if (seeking) return;
+        if (propietario) avisar('avance', { cur: cur || 0, dur: dur || 0 });
         fpTimeCur.textContent = fmt(cur);
         fpTimeTotal.textContent = fmt(dur);
         var pct = dur > 0 ? Math.min(100, cur / dur * 100) : 0;
@@ -111,6 +139,7 @@
 
     // ---- Motores ----
     function destruirEngine() {
+        if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; }
         if (escucharTodoTimer) { clearTimeout(escucharTodoTimer); escucharTodoTimer = null; }
         if (playCountTimer) { clearTimeout(playCountTimer); playCountTimer = null; }
         if (engine) { try { engine.destroy(); } catch (e) {} engine = null; }
@@ -120,11 +149,11 @@
     }
 
     function engineLocal(t) {
-        fpAudio.src = t.audioUrl; fpAudio.volume = volumen;
+        fpAudio.src = t.audioUrl; fpAudio.volume = volInicial();
         fpAudio.ontimeupdate = function () { setProgress(fpAudio.currentTime, fpAudio.duration || 0); };
         fpAudio.onended = onEnded;
         fpAudio.onerror = onEnded;  // sample roto (404, formato) -> saltar al siguiente en vez de colgar
-        fpAudio.onplay = function () { setPlayingUI(true); };
+        fpAudio.onplay = function () { setPlayingUI(true); alSonar(); };
         fpAudio.onpause = function () { setPlayingUI(false); };
         fpAudio.play().catch(function () {});
         return {
@@ -146,11 +175,11 @@
         whenSc(function () {
             w = SC.Widget(iframe);
             w.bind(SC.Widget.Events.READY, function () {
-                try { w.setVolume(volumen * 100); } catch (e) {}
+                try { w.setVolume(volInicial() * 100); } catch (e) {}
                 w.getDuration(function (d) { dur = (d || 0) / 1000; });
                 w.play();
             });
-            w.bind(SC.Widget.Events.PLAY, function () { setPlayingUI(true); });
+            w.bind(SC.Widget.Events.PLAY, function () { setPlayingUI(true); alSonar(); });
             w.bind(SC.Widget.Events.PAUSE, function () { setPlayingUI(false); });
             w.bind(SC.Widget.Events.PLAY_PROGRESS, function (e) {
                 if (!dur) w.getDuration(function (d) { dur = (d || 0) / 1000; });
@@ -179,12 +208,12 @@
                 playerVars: { autoplay: 1, start: parseInt(t.youtubeStart || 0, 10), rel: 0, modestbranding: 1, controls: 0, playsinline: 1 },
                 events: {
                     onReady: function (ev) {
-                        try { ev.target.setVolume(volumen * 100); ev.target.playVideo(); } catch (e) {}
+                        try { ev.target.setVolume(volInicial() * 100); ev.target.playVideo(); } catch (e) {}
                         dur = ev.target.getDuration() || 0;
                         poll = setInterval(function () { try { setProgress(ev.target.getCurrentTime(), ev.target.getDuration() || dur); } catch (e) {} }, 300);
                     },
                     onStateChange: function (ev) {
-                        if (ev.data === YT.PlayerState.PLAYING) setPlayingUI(true);
+                        if (ev.data === YT.PlayerState.PLAYING) { setPlayingUI(true); alSonar(); }
                         else if (ev.data === YT.PlayerState.PAUSED) setPlayingUI(false);
                         else if (ev.data === YT.PlayerState.ENDED) onEnded();
                     },
@@ -205,6 +234,8 @@
     function reproducirActual() {
         var t = playlist[playIndex]; if (!t) return;
         if (t.btn) activeBtn = t.btn;
+        fadePendiente = true;
+        avisar('tema', { titulo: (t.artist ? t.artist + ' - ' : '') + (t.title || '') });
         destruirEngine();
         resetProgress();
         mostrarInfo(t);
@@ -251,6 +282,7 @@
         }
     }
     function aplicarVolumen(v, guardar) {
+        if (fadeTimer) { clearInterval(fadeTimer); fadeTimer = null; } fadePendiente = false;
         volumen = Math.min(1, Math.max(0, v));
         if (engine && engine.setVolume) engine.setVolume(volumen);
         if (guardar !== false) { try { localStorage.setItem('arcano-volume', String(volumen)); } catch (e) {} }
@@ -300,6 +332,7 @@
     function cerrar() {
         destruirEngine();
         playlist = []; playIndex = 0; activeBtn = null;
+        avisar('cierre'); propietario = null;
         modoEscucharTodo = false; sincronizarListenAll();
         resetProgress(); setPlayingUI(false);
         if (fpCart) fpCart.hidden = true;
@@ -364,6 +397,7 @@
 
     // ---- Entradas de reproduccion ----
     function iniciarLista(tracks, cover, escucharTodo) {
+        propietario = null;
         playlist = tracks; playIndex = 0; playCover = cover || ''; modoEscucharTodo = !!escucharTodo;
         sincronizarListenAll(); mostrarPlayer(); reproducirActual();
     }
@@ -390,7 +424,7 @@
         var btns = [].slice.call(document.querySelectorAll('.public-track-play-btn'));
         if (btns.length <= 1) return false;
         if (togglearSiMismo(btn)) return true;
-        activeBtn = btn;
+        activeBtn = btn; propietario = null;
         playlist = btns.map(trackDeBtn); playIndex = btns.indexOf(btn); playCover = btn.dataset.coverUrl || ''; modoEscucharTodo = false;
         sincronizarListenAll(); mostrarPlayer(); reproducirActual(); return true;
     }
@@ -442,4 +476,25 @@
     }
     hookListenAll();
     window.ArcanoPlayer.rebind = hookListenAll;
+
+    // ---- API del modo scroll (feed.js) ----
+    // reproducir(lista, desde, tapa, clave): arranca la lista de temas de un disco.
+    // La clave identifica a la tarjeta: los avisos 'arcano:player' la traen, asi
+    // cada tarjeta sabe si el que suena es "su" disco.
+    window.ArcanoPlayer.reproducir = function (tracks, desde, cover, clave) {
+        if (!tracks || !tracks.length) return;
+        (tracks || []).forEach(function (t) { if (cover && !t.cover) t.cover = cover; });
+        playlist = tracks; playIndex = Math.max(0, Math.min(desde || 0, tracks.length - 1));
+        playCover = cover || ''; modoEscucharTodo = false; activeBtn = null; propietario = clave || null;
+        sincronizarListenAll(); mostrarPlayer(); reproducirActual();
+    };
+    window.ArcanoPlayer.irA = function (i) {
+        if (i < 0 || i >= playlist.length) return;
+        playIndex = i; reproducirActual();
+    };
+    window.ArcanoPlayer.toggle = function () { if (engine && engine.toggle) engine.toggle(); };
+    window.ArcanoPlayer.pausar = function () { if (engine && engine.toggle && isPlaying) engine.toggle(); };
+    window.ArcanoPlayer.seekPct = function (p) { if (engine && engine.seekPct) engine.seekPct(p); };
+    window.ArcanoPlayer.clave = function () { return propietario; };
+    window.ArcanoPlayer.sonando = function () { return isPlaying; };
 })();

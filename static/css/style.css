@@ -12676,3 +12676,184 @@ a.pv-col:focus-visible { outline: 2px solid var(--text-1); outline-offset: 2px; 
 .pv-filtro-barra { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin: -4px 0 12px; padding: 8px 12px; border-radius: 10px; background: color-mix(in srgb, var(--text-1) 6%, transparent); font-size: 13px; }
 .pv-filtro-barra .pv-tab { padding: 3px 10px; font-size: 12px; }
 #pv-grafico { scroll-margin-top: 140px; }
+
+/* =====================================================================
+   MODO SCROLL de la tienda (estilo Wax Merchant): un disco por pantalla
+   ===================================================================== */
+/* En el modo scroll la pantalla es del disco: fuera el reproductor flotante (la tapa
+   ya es el reproductor), el pie, la barra de anuncio y la invitacion a crear cuenta */
+body.modo-feed #floating-player,
+body.modo-feed .public-footer,
+body.modo-feed .public-anuncio-bar,
+body.modo-feed .public-cuenta-bar { display: none !important; }
+body.modo-feed .public-main { padding-top: 8px; padding-bottom: 0; }
+.vista-scroll-btn { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+
+.feed { position: relative; max-width: 560px; margin: 0 auto; }
+.feed-barra { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0 10px; }
+.feed-boton {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px;
+    border: 1px solid var(--border-2); border-radius: 999px; background: var(--bg-1);
+    color: var(--text-1); text-decoration: none; font-size: 13px; white-space: nowrap;
+}
+.feed-boton:hover { border-color: var(--text-3); }
+.feed-cuenta { font-size: 12px; color: var(--text-3); text-align: center; }
+
+/* La lista es su propio scroll, con "enganche": siempre queda un disco entero */
+.feed-lista {
+    height: var(--feed-alto, 78vh); overflow-y: auto; overscroll-behavior: contain;
+    scroll-snap-type: y mandatory; scrollbar-width: none;
+}
+.feed-lista::-webkit-scrollbar { display: none; }
+.feed-card {
+    --feed-ancho: min(100%, calc(var(--feed-alto, 78vh) - 175px));
+    height: var(--feed-alto, 78vh); box-sizing: border-box; padding: 4px 2px 12px;
+    scroll-snap-align: start; scroll-snap-stop: always;
+    display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px;
+}
+.feed-cover {
+    position: relative; width: var(--feed-ancho); aspect-ratio: 1 / 1; flex: 0 0 auto;
+    border-radius: 12px; overflow: hidden; background: var(--bg-2, #1d1a19);
+    touch-action: pan-y;
+}
+.feed-cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.feed-cover-vacia { width: 100%; height: 100%; display: grid; place-items: center; font-size: 56px; color: var(--text-3); }
+
+/* Controles sobre la tapa (fondo oscuro translucido: se lee en cualquier tapa y tema) */
+.feed-play, .feed-flecha {
+    position: absolute; border: 0; border-radius: 50%; display: grid; place-items: center;
+    background: rgba(10, 10, 10, 0.55); color: #fff; cursor: pointer;
+    -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px);
+    transition: opacity 0.2s ease, background-color 0.2s ease;
+}
+.feed-play { left: 50%; top: 44%; width: 64px; height: 64px; transform: translate(-50%, -50%); }
+.feed-card.is-playing .feed-play { opacity: 0.7; }
+.feed-play:hover, .feed-flecha:hover { background: rgba(10, 10, 10, 0.75); }
+.feed-flecha { top: 44%; width: 38px; height: 38px; transform: translateY(-50%); }
+.feed-flecha-izq { left: 10px; }
+.feed-flecha-der { right: 10px; }
+.feed-flecha:disabled { opacity: 0.25; cursor: default; }
+.feed-play:focus-visible, .feed-flecha:focus-visible, .feed-avance:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+.feed-sonido {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 30px 14px 12px;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0));
+    color: #fff; display: flex; flex-direction: column; align-items: center; gap: 7px;
+}
+.feed-puntos { display: flex; gap: 5px; }
+.feed-punto { width: 18px; height: 3px; border-radius: 2px; background: rgba(255, 255, 255, 0.4); transition: background-color 0.2s ease; }
+.feed-punto.on { background: #fff; }
+.feed-tema {
+    font-size: 13px; font-weight: 500; max-width: 100%;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.feed-avance { width: 100%; height: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.3); cursor: pointer; position: relative; }
+.feed-avance::after { content: ""; position: absolute; left: 0; right: 0; top: -8px; bottom: -8px; } /* mas facil de tocar */
+.feed-avance span { display: block; height: 100%; width: 0; background: #fff; border-radius: 2px; transition: width 0.3s linear; }
+.feed-sin-audio {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 12px 14px; text-align: center;
+    font-size: 12px; color: #fff; background: rgba(0, 0, 0, 0.6);
+}
+.feed-badges { position: absolute; top: 10px; left: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.feed-badges .public-card-badge { position: static; }
+
+.feed-info, .feed-acciones { width: var(--feed-ancho); }
+.feed-info { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.feed-datos { min-width: 0; }
+.feed-artista { display: block; font-size: 17px; font-weight: 700; color: var(--text-1); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-artista:hover { text-decoration: underline; }
+.feed-titulo { font-size: 15px; color: var(--text-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-sello { font-size: 12px; color: var(--text-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-precio { font-size: 17px; font-weight: 700; color: var(--text-1); white-space: nowrap; text-align: right; }
+.feed-precio .precio-tachado { display: block; font-size: 12px; font-weight: 400; color: var(--text-3); text-decoration: line-through; }
+.feed-acciones { display: flex; align-items: stretch; gap: 8px; }
+.feed-acciones .feed-carrito { flex: 1 1 0; min-width: 0; }
+.feed-ficha {
+    flex: 1 1 0; display: inline-flex; align-items: center; justify-content: center;
+    padding: 8px 12px; border: 1px solid var(--border-2); border-radius: 8px;
+    color: var(--text-1); text-decoration: none; font-size: 13px; white-space: nowrap;
+}
+.feed-ficha:hover { border-color: var(--text-3); }
+.feed-fav { flex: 0 0 auto; width: 42px; border: 1px solid var(--border-2) !important; border-radius: 8px; font-size: 18px; }
+.feed-vacio { padding: 40px 0; text-align: center; color: var(--text-3); }
+
+/* Ayuda de la primera vez + boton para arrancar el sonido */
+.feed-ayuda {
+    position: fixed; inset: 0; z-index: 80; display: grid; place-items: center;
+    background: rgba(10, 10, 10, 0.8); color: #fff; cursor: pointer;
+}
+.feed-ayuda[hidden], .feed-arrancar[hidden] { display: none; }
+.feed-ayuda-caja { display: flex; flex-direction: column; align-items: center; gap: 28px; padding: 24px; text-align: center; }
+.feed-ayuda-paso { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.feed-ayuda-paso strong { font-size: 18px; font-weight: 500; }
+.feed-ayuda-paso span { font-size: 13px; opacity: 0.8; }
+.feed-ayuda-cta {
+    margin-top: 4px; padding: 9px 16px; border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 999px;
+    font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.feed-arrancar {
+    position: absolute; left: 50%; top: 56px; transform: translateX(-50%); z-index: 20;
+    padding: 11px 20px; border: 0; border-radius: 999px; cursor: pointer;
+    background: rgba(10, 10, 10, 0.85); color: #fff; font-family: inherit; font-size: 14px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+@media (prefers-reduced-motion: reduce) {
+    .feed-avance span, .feed-punto, .feed-play, .feed-flecha { transition: none; }
+}
+
+/* ---- Modo scroll: estetica + animaciones (suaves, sin rebotes ni saltos de escala) ---- */
+/* Fondo de color de cada disco: su tapa muy difuminada, se funde al llegar */
+.feed-card { position: relative; isolation: isolate; overflow: hidden; border-radius: 22px; }
+.feed-card::before {
+    content: ""; position: absolute; inset: -12%; z-index: -2;
+    background-image: var(--feed-tapa, none); background-size: cover; background-position: center;
+    filter: blur(48px) saturate(1.3); opacity: 0; transition: opacity 0.9s ease;
+}
+.feed-card::after {
+    content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none;
+    background: linear-gradient(to bottom,
+        color-mix(in srgb, var(--bg-0) 15%, transparent) 0%,
+        color-mix(in srgb, var(--bg-0) 55%, transparent) 55%,
+        color-mix(in srgb, var(--bg-0) 88%, transparent) 100%);
+}
+.feed-card.is-activa::before { opacity: 0.6; }
+.feed-cover { box-shadow: 0 22px 60px rgba(0, 0, 0, 0.35); }
+
+/* Entrada del disco: tapa, datos y botones aparecen subiendo apenas, escalonados */
+.feed-card .feed-cover, .feed-card .feed-info, .feed-card .feed-acciones {
+    opacity: 0.35; transform: translateY(14px);
+    transition: opacity 0.6s ease, transform 0.75s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.feed-card .feed-cover { transform: translateY(8px); }
+.feed-card.is-activa .feed-cover, .feed-card.is-activa .feed-info, .feed-card.is-activa .feed-acciones { opacity: 1; transform: none; }
+.feed-card.is-activa .feed-info { transition-delay: 0.08s; }
+.feed-card.is-activa .feed-acciones { transition-delay: 0.16s; }
+
+/* Mientras suena: el play se desvanece (tocar la tapa pausa); vuelve al pausar */
+.feed-cover { cursor: pointer; }
+.feed-card.is-playing .feed-play { opacity: 0; pointer-events: none; }
+.feed-card.is-playing .feed-cover:hover .feed-play,
+.feed-card.is-playing .feed-play:focus-visible { opacity: 0.85; pointer-events: auto; }
+.feed-flecha { opacity: 0; transition: opacity 0.3s ease; }
+.feed-card.is-activa .feed-flecha { opacity: 1; }
+.feed-card.is-activa .feed-flecha:disabled { opacity: 0.25; }
+
+/* Nombre del tema: fundido al cambiar + ecualizador cuando suena */
+.feed-tema-fila { display: flex; align-items: center; justify-content: center; max-width: 100%; min-width: 0; }
+.feed-tema.entra { animation: feedTemaEntra 0.45s ease both; }
+@keyframes feedTemaEntra { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+.feed-eq { display: inline-flex; align-items: flex-end; gap: 2px; height: 11px; width: 0; margin-right: 0; opacity: 0; overflow: hidden; transition: width 0.3s ease, opacity 0.3s ease, margin 0.3s ease; flex: 0 0 auto; }
+.feed-eq i { display: block; width: 3px; height: 30%; background: #fff; border-radius: 1px; animation: feedEq 1.1s ease-in-out infinite; animation-play-state: paused; }
+.feed-eq i:nth-child(2) { animation-delay: -0.35s; }
+.feed-eq i:nth-child(3) { animation-delay: -0.7s; }
+.feed-card.is-playing .feed-eq { width: 13px; margin-right: 7px; opacity: 1; }
+.feed-card.is-playing .feed-eq i { animation-play-state: running; }
+@keyframes feedEq { 0%, 100% { height: 30%; } 50% { height: 100%; } }
+
+@media (prefers-reduced-motion: reduce) {
+    .feed-card .feed-cover, .feed-card .feed-info, .feed-card .feed-acciones { transform: none; transition: opacity 0.2s linear; }
+    .feed-card::before { transition: none; }
+    .feed-tema.entra { animation: none; }
+    .feed-eq i { animation: none; height: 60%; }
+}
+.feed-arrancar { white-space: nowrap; }

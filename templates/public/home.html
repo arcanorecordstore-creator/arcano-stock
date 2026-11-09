@@ -186,6 +186,10 @@
             <option value="artista" {% if filtro_orden == 'artista' %}selected{% endif %}>Por artista (A-Z)</option>
         </select>
         <button type="submit" class="btn btn-primary">Buscar</button>
+        <a href="{{ url_for('home', vista='scroll') }}" class="btn btn-ghost vista-scroll-btn" title="Modo scroll: un disco por pantalla, suena solo">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 7v6M9.5 10.5L12 13l2.5-2.5"/></svg>
+            <span>Modo scroll</span>
+        </a>
         <button type="button" class="btn btn-ghost public-sidebar-toggle" id="sidebar-toggle">
             Filtros{% if filtros_activos > 0 %} <span class="filters-badge">{{ filtros_activos }}</span>{% endif %}
         </button>

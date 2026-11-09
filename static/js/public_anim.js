@@ -362,13 +362,13 @@ document.addEventListener('click', function (e) {
                     // Tarjeta del catalogo/carrusel; en la ficha (o su barra de compra), la
                     // ficha misma. Antes caia en "document" y tomaba el nombre del primer
                     // disco de "Similares" (el id era el correcto, el nombre no).
-                    var card = btn.closest('.public-card') || btn.closest('.carrusel-card')
+                    var card = btn.closest('.public-card') || btn.closest('.carrusel-card') || btn.closest('.feed-card')
                         || (!btn.closest('.public-related') && document.querySelector('.public-disc')) || document;
                     // Animacion "vuela al carrito" (solo al agregar)
-                    var _flyImg = card.querySelector('.public-card-cover img') || card.querySelector('.carrusel-cover img') || card.querySelector('.public-disc-cover img');
+                    var _flyImg = card.querySelector('.public-card-cover img') || card.querySelector('.carrusel-cover img') || card.querySelector('.public-disc-cover img') || card.querySelector('.feed-cover img');
                     if (window.ArcanoFlyToCart) window.ArcanoFlyToCart(_flyImg);
-                    var tit = ((card.querySelector('.public-card-title') || card.querySelector('.carrusel-title-disc') || card.querySelector('.public-disc-title') || {}).textContent || '').trim();
-                    var art = ((card.querySelector('.public-card-artist') || card.querySelector('.carrusel-artist') || card.querySelector('.public-disc-artist') || {}).textContent || '').trim();
+                    var tit = ((card.querySelector('.public-card-title') || card.querySelector('.carrusel-title-disc') || card.querySelector('.public-disc-title') || card.querySelector('.feed-titulo') || {}).textContent || '').trim();
+                    var art = ((card.querySelector('.public-card-artist') || card.querySelector('.carrusel-artist') || card.querySelector('.public-disc-artist') || card.querySelector('.feed-artista') || {}).textContent || '').trim();
                     var _precio = parseFloat(btn.dataset.cartPrecio || '');
                     var _item = { item_id: String(id), item_name: (art ? art + ' - ' : '') + tit, quantity: 1 };
                     if (!isNaN(_precio)) _item.price = _precio;
@@ -535,8 +535,11 @@ document.addEventListener('click', function (e) {
 })();
 
 /* Carruseles de la home — scroll nativo deslizable con el dedo (swipe en mobile),
-   flechas en desktop. SIN autoplay: la gente desliza y no se mueve solo (feedback UX
-   de Mica: el auto-movimiento mareaba y no era responsive al tacto). */
+   flechas en desktop. Avance automatico SUAVE (pedido de Facundo, nov-2026): un disco
+   cada "velocidad" segundos (Ajustes), con el scroll nativo; FRENA apenas alguien lo
+   toca, le pasa el mouse o lo usa con teclado, y retoma solo tras unos segundos sin
+   tocarlo. Asi no se repite lo que marco Mica en agosto (mareaba y no respondia al
+   dedo). Con "reducir movimiento" activado no se mueve. */
 (function () {
     'use strict';
     Arcano.onContent(function () {
@@ -626,6 +629,44 @@ document.addEventListener('click', function (e) {
         }, { passive: true });
 
         actualizarProgreso();
+
+        // ---- Avance automatico ----
+        var reducir = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var segs = Math.max(3, Math.min(20, parseInt(carrusel.dataset.velocidad || '7', 10) || 7));
+        if (!reducir && cards.length > 1) {
+            var quietoHasta = 0, visible = true, encima = false;
+            var PAUSA_TOQUE = 8000;   // tras tocarlo, espera esto sin tocar para retomar
+            function frenar() { quietoHasta = Date.now() + PAUSA_TOQUE; }
+            ['pointerdown', 'touchstart', 'wheel', 'focusin', 'keydown'].forEach(function (ev) {
+                carrusel.addEventListener(ev, frenar, { passive: true });
+            });
+            carrusel.addEventListener('pointerenter', function (e) { if (e.pointerType === 'mouse') encima = true; });
+            carrusel.addEventListener('pointerleave', function (e) { if (e.pointerType === 'mouse') { encima = false; frenar(); } });
+            if ('IntersectionObserver' in window) {
+                new IntersectionObserver(function (en) { visible = en[0].isIntersecting; }, { threshold: 0.3 }).observe(carrusel);
+            }
+            function avanzar() {
+                if (!carrusel.isConnected) { clearInterval(carrusel._timer); return; }
+                if (document.hidden || !visible || encima || Date.now() < quietoHasta) return;
+                if (track && track.classList.contains('arrastrando')) return;
+                var max = viewport.scrollWidth - viewport.clientWidth;
+                if (max <= 1) return;
+                if (viewport.scrollLeft >= max - 4) { viewport.scrollTo({ left: 0, behavior: 'smooth' }); return; }
+                // Ir justo al comienzo de la tapa siguiente (asi el "enganche" no lo devuelve)
+                var borde = viewport.getBoundingClientRect().left + (parseFloat(getComputedStyle(viewport).paddingLeft) || 0);
+                for (var k = 0; k < cards.length; k++) {
+                    var delta = cards[k].getBoundingClientRect().left - borde;
+                    if (delta > 8) { viewport.scrollBy({ left: delta, behavior: 'smooth' }); return; }
+                }
+                viewport.scrollTo({ left: 0, behavior: 'smooth' });
+            }
+            if (carrusel._timer) clearInterval(carrusel._timer);
+            carrusel._timer = setInterval(avanzar, segs * 1000);
+            carrusel._autoEstado = function () {
+                return { visible: visible, encima: encima, quietoSeg: Math.max(0, Math.round((quietoHasta - Date.now()) / 1000)),
+                         max: viewport.scrollWidth - viewport.clientWidth, pos: viewport.scrollLeft };
+            };
+        }
     });
     });
 })();

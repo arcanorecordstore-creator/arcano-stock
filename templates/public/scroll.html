@@ -1,0 +1,138 @@
+{% extends "public/base.html" %}
+{# Modo scroll (estilo Wax Merchant): un disco por pantalla. Deslizar arriba/abajo
+   cambia de disco y el primer tema suena solo; deslizar a los costados (o las
+   flechas) cambia de tema. La musica la toca el reproductor de siempre (player.js);
+   feed.js maneja las tarjetas. Discos publicados, en orden aleatorio. #}
+
+{% block title %}Modo scroll &middot; Arcano Record Store{% endblock %}
+{% block robots %}noindex, follow{% endblock %}
+{% block canonical %}{{ url_for('home', _external=True) }}{% endblock %}
+
+{% block content %}
+<section class="feed" data-feed data-semilla="{{ session.get('feed_semilla', '') }}">
+    <div class="feed-barra">
+        <a href="{{ url_for('home') }}#catalogo" class="feed-boton" title="Volver a la grilla">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            Grilla
+        </a>
+        <span class="feed-cuenta">{{ discs|length }} discos al azar</span>
+        <a href="{{ url_for('home', vista='scroll', mezclar=1) }}" class="feed-boton" data-feed-mezclar title="Mezclar de nuevo">&#8635; Mezclar</a>
+    </div>
+
+    <div class="feed-lista" data-feed-lista>
+        {% for d in discs %}
+        {% set cover = url_for('serve_cover', filename=d.cover_local) if d.cover_local else (d.cover_url or '') %}
+        {% set temas = [] %}
+        {% for t in d.tracks_con_sample %}
+            {% set _ = temas.append({
+                'id': t.id,
+                'kind': t.sample_kind,
+                'audioUrl': url_for('serve_sample', filename=t.sample_local) if t.sample_kind == 'local' else '',
+                'youtubeId': t.youtube_video_id or '',
+                'youtubeStart': t.youtube_start or 0,
+                'soundcloudUrl': t.youtube_url if t.sample_kind == 'soundcloud' else '',
+                'title': t.titulo,
+                'artist': t.artista or d.artista,
+                'discId': d.id,
+                'disponible': (not d.esta_agotado)
+            }) %}
+        {% endfor %}
+        <article class="feed-card" data-feed-card data-clave="feed-{{ d.id }}" data-cover="{{ cover }}"{% if cover %} style="--feed-tapa: url('{{ cover }}')"{% endif %}
+                 data-tracks="{{ temas|tojson|forceescape }}">
+            <div class="feed-cover">
+                {% if cover %}
+                <img src="{{ cover }}" alt="{{ d.artista }} - {{ d.titulo }}" loading="{{ 'eager' if loop.index <= 2 else 'lazy' }}" decoding="async">
+                {% else %}
+                <div class="feed-cover-vacia">&#9834;</div>
+                {% endif %}
+                {% if temas %}
+                <button type="button" class="feed-flecha feed-flecha-izq" data-feed-prev aria-label="Tema anterior"{% if temas|length < 2 %} hidden{% endif %}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+                </button>
+                <button type="button" class="feed-play" data-feed-play aria-label="Reproducir">
+                    <svg class="feed-ico-play" viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                    <svg class="feed-ico-pausa" viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true" hidden><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
+                </button>
+                <button type="button" class="feed-flecha feed-flecha-der" data-feed-next aria-label="Tema siguiente"{% if temas|length < 2 %} hidden{% endif %}>
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+                </button>
+                <div class="feed-sonido">
+                    {% if temas|length > 1 %}
+                    <div class="feed-puntos" aria-hidden="true">{% for t in temas %}<span class="feed-punto{% if loop.first %} on{% endif %}"></span>{% endfor %}</div>
+                    {% endif %}
+                    <div class="feed-tema-fila">
+                        <span class="feed-eq" aria-hidden="true"><i></i><i></i><i></i></span>
+                        <span class="feed-tema" data-feed-tema>{{ temas[0].artist }} - {{ temas[0].title }}</span>
+                    </div>
+                    <div class="feed-avance" data-feed-avance role="slider" aria-label="Avance del tema" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><span data-feed-relleno></span></div>
+                </div>
+                {% else %}
+                <div class="feed-sin-audio">Este disco todav&iacute;a no tiene temas para escuchar</div>
+                {% endif %}
+                <div class="feed-badges">
+                    {% if d.mostrar_preorder %}<span class="public-card-badge public-card-badge-preorder">Pre-order</span>{% endif %}
+                    {% if d.en_oferta %}<span class="public-card-badge public-card-badge-sale">-{{ d.descuento_pct }}%</span>{% endif %}
+                    {% if d.mostrar_cartel_ultima %}<span class="public-card-badge public-card-badge-last">&Uacute;ltima copia</span>{% endif %}
+                </div>
+            </div>
+
+            <div class="feed-info">
+                <div class="feed-datos">
+                    <a href="{{ url_for('public_disc', disc_id=d.id) }}" class="feed-artista">{{ d.artista }}</a>
+                    <div class="feed-titulo">{{ d.titulo }}</div>
+                    {% if d.sello %}<div class="feed-sello">{{ d.sello }}{% if d.anio %} &middot; {{ d.anio }}{% endif %}</div>{% endif %}
+                </div>
+                <div class="feed-precio">
+                    {% if d.en_fire_sale_activo and cliente_actual %}
+                    <span class="precio-tachado">$ {{ '{:,.0f}'.format(d.precio_mostrar).replace(',', '.') }}</span>
+                    $ {{ '{:,.0f}'.format(d.precio_fire_sale).replace(',', '.') }}
+                    {% elif d.en_oferta %}
+                    <span class="precio-tachado">$ {{ '{:,.0f}'.format(d.precio_uyu).replace(',', '.') }}</span>
+                    $ {{ '{:,.0f}'.format(d.precio_mostrar).replace(',', '.') }}
+                    {% elif d.precio_uyu > 0 %}
+                    $ {{ '{:,.0f}'.format(d.precio_uyu).replace(',', '.') }}
+                    {% endif %}
+                </div>
+            </div>
+            <div class="feed-acciones">
+                {% if d.precio_uyu > 0 %}
+                {% if d.en_fire_sale_activo and not cliente_actual %}
+                <span class="cart-btn cart-btn-inline cart-btn-locked feed-carrito">&#128274; Inici&aacute; sesi&oacute;n para comprar</span>
+                {% else %}
+                <button type="button" class="cart-btn cart-btn-inline feed-carrito" data-cart-id="{{ d.id }}" data-cart-precio="{{ ((d.precio_fire_sale if (d.en_fire_sale_activo and cliente_actual) else d.precio_mostrar) or 0)|int }}" aria-label="Agregar {{ d.artista }} - {{ d.titulo }} al carrito">
+                    <span class="cart-label-add">Agregar al carrito</span>
+                    <span class="cart-label-in">&#10003; Agregado</span>
+                </button>
+                {% endif %}
+                {% endif %}
+                <a href="{{ url_for('public_disc', disc_id=d.id) }}" class="feed-ficha">Ver ficha</a>
+                <button type="button" class="fav-btn feed-fav" data-fav-id="{{ d.id }}" aria-label="Guardar en favoritos" title="Guardar en favoritos">
+                    <span class="fav-icon-off">&#9825;</span>
+                    <span class="fav-icon-on">&#9829;</span>
+                </button>
+            </div>
+        </article>
+        {% else %}
+        <p class="feed-vacio">Todav&iacute;a no hay discos publicados.</p>
+        {% endfor %}
+    </div>
+
+    {# Ayuda de la primera vez. Tocarla tambien sirve para que el celular deje sonar. #}
+    <div class="feed-ayuda" data-feed-ayuda hidden>
+        <div class="feed-ayuda-caja">
+            <div class="feed-ayuda-paso">
+                <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M12 4v16M7 9l5-5 5 5M7 15l5 5 5-5"/></svg>
+                <strong>Desliz&aacute; arriba / abajo</strong>
+                <span>para pasar de disco</span>
+            </div>
+            <div class="feed-ayuda-paso">
+                <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 12h16M9 7l-5 5 5 5M15 7l5 5-5 5"/></svg>
+                <strong>Desliz&aacute; a los costados</strong>
+                <span>para cambiar de tema</span>
+            </div>
+            <span class="feed-ayuda-cta">Toc&aacute; para empezar a escuchar</span>
+        </div>
+    </div>
+    <button type="button" class="feed-arrancar" data-feed-arrancar hidden>&#9654; Toc&aacute; para escuchar</button>
+</section>
+{% endblock %}

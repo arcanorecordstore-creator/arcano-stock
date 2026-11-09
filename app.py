@@ -8222,6 +8222,19 @@ def register_routes(app: Flask) -> None:
             all_disponibles = [d for d in all_disponibles if not getattr(d, "es_mystery_box", False)]
         discs = list(all_disponibles)
 
+        # Modo scroll (estilo Wax Merchant): un disco por pantalla, suena solo al llegar.
+        # Muestra TODOS los discos publicados que se pueden pedir, en orden aleatorio
+        # (decision de Facundo); los agotados que se muestran igual en la grilla no van.
+        if request.args.get("vista") == "scroll":
+            import random as _random
+            # El orden queda fijo durante la visita (al volver de una ficha seguis donde
+            # estabas); "Mezclar" (?mezclar=1) arma uno nuevo.
+            if request.args.get("mezclar") or not session.get("feed_semilla"):
+                session["feed_semilla"] = _random.randint(1, 10**9)
+            feed = sorted((d for d in discs if not d.esta_agotado), key=lambda d: d.id)
+            _random.Random(session["feed_semilla"]).shuffle(feed)
+            return render_template("public/scroll.html", discs=feed, **_public_context())
+
         # Filtros
         q = (request.args.get("q") or "").strip()
         sellos_sel = [s.strip() for s in request.args.getlist("sello") if s.strip()]
