@@ -12862,3 +12862,62 @@ body.modo-feed .public-main { padding-top: 8px; padding-bottom: 0; }
 /* Filtros "Mostrar": pocas opciones, sin cajita con scroll */
 .filter-checks.filter-checks-entero { max-height: none; overflow: visible; }
 .filtro-recomendacion-nota { margin: 0 0 14px; padding: 10px 14px; border: 1px solid var(--border-2); border-radius: 10px; font-size: 13px; color: var(--text-2); }
+
+/* ---- Modo scroll: controles con la identidad de Arcano (crema / beige / marron / negro) ---- */
+.feed-card { --fc-crema: #FFF7EC; --fc-beige: #E9D1AF; --fc-marron: #3D3033; --fc-negro: #1E1C1C; }
+/* Play/pausa: circulo crema, icono marron y dos "surcos" finos alrededor (como el logo) */
+.feed-play {
+    width: 62px; height: 62px; background: var(--fc-crema); color: var(--fc-marron);
+    -webkit-backdrop-filter: none; backdrop-filter: none;
+    box-shadow: 0 0 0 6px rgba(255, 247, 236, 0.22), 0 0 0 7px rgba(233, 209, 175, 0.55), 0 10px 30px rgba(0, 0, 0, 0.35);
+}
+.feed-play:hover { background: var(--fc-beige); }
+.feed-play svg { width: 22px; height: 22px; }
+.feed-play .feed-ico-play { margin-left: 3px; }
+/* Flechas: chicas, crema con icono marron (se leen sobre tapas claras y oscuras) */
+.feed-flecha {
+    width: 34px; height: 34px; background: rgba(255, 247, 236, 0.9); color: var(--fc-marron);
+    -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+}
+.feed-flecha:hover { background: var(--fc-crema); }
+.feed-flecha svg { width: 16px; height: 16px; }
+.feed-play:focus-visible, .feed-flecha:focus-visible, .feed-avance:focus-visible { outline: 2px solid var(--fc-beige); outline-offset: 3px; }
+
+/* Banda negra de abajo (sin degradado, como las bandas de los posteos) */
+.feed-sonido {
+    background: rgba(30, 28, 28, 0.82); padding: 10px 14px 9px; gap: 5px; align-items: stretch;
+    -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); color: var(--fc-crema);
+}
+.feed-sonido-arriba { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.feed-num { font-size: 10px; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fc-beige); }
+.feed-puntos { gap: 4px; }
+.feed-punto { width: 14px; height: 2px; background: rgba(255, 247, 236, 0.28); }
+.feed-punto.on { background: var(--fc-crema); }
+.feed-tema-fila { justify-content: flex-start; }
+.feed-tema {
+    font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+    text-shadow: none; color: var(--fc-crema);
+}
+.feed-eq i { background: var(--fc-beige); }
+/* Barra de avance: fina, crema, con perilla beige que se puede arrastrar */
+.feed-avance { height: 3px; margin-top: 4px; background: rgba(255, 247, 236, 0.22); border-radius: 2px; touch-action: none; }
+.feed-avance span { position: relative; background: var(--fc-crema); transition: width 0.25s linear; }
+.feed-avance.arrastrando span { transition: none; }
+.feed-perilla {
+    position: absolute; right: -6px; top: 50%; width: 11px; height: 11px; border-radius: 50%;
+    background: var(--fc-beige); box-shadow: 0 0 0 3px rgba(233, 209, 175, 0.25);
+    transform: translateY(-50%); opacity: 0; transition: opacity 0.2s ease;
+}
+.feed-card.is-playing .feed-perilla, .feed-avance:hover .feed-perilla, .feed-avance.arrastrando .feed-perilla { opacity: 1; }
+.feed-tiempos {
+    display: flex; justify-content: space-between; font-size: 10px; font-weight: 300;
+    letter-spacing: 0.08em; color: rgba(255, 247, 236, 0.7); font-variant-numeric: tabular-nums;
+}
+.feed-sin-audio { background: rgba(30, 28, 28, 0.82); color: var(--fc-crema); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; }
+@media (prefers-reduced-motion: reduce) { .feed-perilla, .feed-avance span { transition: none; } }
+.feed-arrancar {
+    background: #FFF7EC; color: #3D3033; font-size: 12px; font-weight: 500; letter-spacing: 0.1em;
+    text-transform: uppercase; padding: 10px 18px;
+    box-shadow: 0 0 0 5px rgba(255, 247, 236, 0.2), 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+.feed-arrancar:hover { background: #E9D1AF; }

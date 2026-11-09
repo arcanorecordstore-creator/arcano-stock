@@ -29,9 +29,17 @@
         return !!(P && P.clave && P.clave() === card.dataset.clave);
     }
 
+    function fmt(s) { s = Math.max(0, Math.floor(s || 0)); var m = Math.floor(s / 60), r = s % 60; return m + ':' + (r < 10 ? '0' : '') + r; }
+    function pintarTiempos(card, cur, dur) {
+        var c = card.querySelector('[data-feed-cur]'), d = card.querySelector('[data-feed-dur]');
+        if (c) c.textContent = fmt(cur);
+        if (d) d.textContent = dur > 0 ? fmt(dur) : '–:––';
+    }
     function pintarTema(card, i) {
         var temas = temasDe(card);
         var t = temas[i]; if (!t) return;
+        var num = card.querySelector('[data-feed-num]');
+        if (num) num.textContent = 'Tema ' + (i + 1) + ' / ' + temas.length;
         var el = card.querySelector('[data-feed-tema]');
         var txt = (t.artist ? t.artist + ' - ' : '') + (t.title || '');
         if (el && el.textContent !== txt) {
@@ -117,8 +125,8 @@
                 if (d.tipo === 'tema' || d.tipo === 'cierre') pintarAvance(card, 0);
                 return;
             }
-            if (d.tipo === 'tema') { card.dataset.i = String(d.index); pintarTema(card, d.index); pintarAvance(card, 0); }
-            else if (d.tipo === 'avance') { pintarAvance(card, d.dur > 0 ? d.cur / d.dur * 100 : 0); }
+            if (d.tipo === 'tema') { card.dataset.i = String(d.index); pintarTema(card, d.index); pintarAvance(card, 0); pintarTiempos(card, 0, 0); }
+            else if (d.tipo === 'avance') { if (!card.querySelector('.feed-avance.arrastrando')) pintarAvance(card, d.dur > 0 ? d.cur / d.dur * 100 : 0); pintarTiempos(card, d.cur, d.dur); }
             else if (d.tipo === 'cierre') { pintarPlay(card, false); pintarAvance(card, 0); }
             if (d.tipo !== 'avance') pintarPlay(card, d.playing && d.tipo !== 'cierre');
         });
@@ -206,11 +214,31 @@
 
             // Barra de avance: tocar para saltar
             var av = card.querySelector('[data-feed-avance]');
-            if (av) av.addEventListener('click', function (e) {
-                if (!esDuenio(card) || !window.ArcanoPlayer.seekPct) return;
-                var r = av.getBoundingClientRect();
-                window.ArcanoPlayer.seekPct(Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)));
-            });
+            if (av) {
+                var arrastre = false;
+                var pct = function (e) { var r = av.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)); };
+                av.addEventListener('pointerdown', function (e) {
+                    if (!esDuenio(card)) return;
+                    arrastre = true; av.classList.add('arrastrando');
+                    try { av.setPointerCapture(e.pointerId); } catch (err) {}
+                    pintarAvance(card, pct(e) * 100); e.preventDefault(); e.stopPropagation();
+                });
+                av.addEventListener('pointermove', function (e) { if (arrastre) pintarAvance(card, pct(e) * 100); });
+                var soltar = function (e) {
+                    if (!arrastre) return;
+                    arrastre = false; av.classList.remove('arrastrando');
+                    if (window.ArcanoPlayer.seekPct) window.ArcanoPlayer.seekPct(pct(e));
+                };
+                av.addEventListener('pointerup', soltar);
+                av.addEventListener('pointercancel', function () { arrastre = false; av.classList.remove('arrastrando'); });
+                av.addEventListener('click', function (e) { e.stopPropagation(); });
+                av.addEventListener('keydown', function (e) {
+                    if (!esDuenio(card) || !window.ArcanoPlayer.seekPct) return;
+                    var actual = parseFloat((card.querySelector('[data-feed-relleno]') || {}).style.width) || 0;
+                    if (e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); window.ArcanoPlayer.seekPct(Math.min(1, actual / 100 + 0.05)); }
+                    if (e.key === 'ArrowLeft') { e.preventDefault(); e.stopPropagation(); window.ArcanoPlayer.seekPct(Math.max(0, actual / 100 - 0.05)); }
+                });
+            }
 
             // Tocar la tapa (fuera de los botones) = pausa / sigue
             var tapa = card.querySelector('.feed-cover');
