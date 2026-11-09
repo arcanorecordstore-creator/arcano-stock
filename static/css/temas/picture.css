@@ -51,7 +51,7 @@ body.tema-picture .public-filters-top::before {
     font-size: clamp(32px, 4.6vw, 68px); line-height: 1.02; color: var(--fv-crema);
     margin: 34px 0 6px; max-width: 18ch;
 }
-body.tema-picture .public-search-bar input, body.tema-picture .public-filter-search, body.tema-picture .public-filter-select {
+body.tema-picture .public-search-bar input:not([type="checkbox"]):not([type="radio"]), body.tema-picture .public-filter-search, body.tema-picture .public-filter-select {
     background: var(--fv-deep) !important; border: 1px solid var(--border-2) !important; color: var(--fv-crema) !important; border-radius: 999px !important; padding-left: 18px !important;
 }
 body.tema-picture .public-search-bar input::placeholder { color: var(--fv-mute) !important; }

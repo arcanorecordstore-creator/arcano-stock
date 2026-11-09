@@ -35,7 +35,7 @@ body.tema-tocadiscos .public-filters-top::before {
     font-weight: 500; text-transform: uppercase; letter-spacing: .08em; color: var(--td-crema);
     font-size: clamp(32px, 5vw, 72px); line-height: 1; margin: 32px 0 4px;
 }
-body.tema-tocadiscos .public-search-bar input, body.tema-tocadiscos .public-filter-search, body.tema-tocadiscos .public-filter-select {
+body.tema-tocadiscos .public-search-bar input:not([type="checkbox"]):not([type="radio"]), body.tema-tocadiscos .public-filter-search, body.tema-tocadiscos .public-filter-select {
     background: var(--td-deep) !important; border: 1px solid var(--border-2) !important; color: var(--td-crema) !important; border-radius: 999px !important; padding-left: 18px !important;
 }
 body.tema-tocadiscos .public-search-bar input::placeholder { color: var(--td-mute) !important; }

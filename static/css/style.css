@@ -13090,3 +13090,35 @@ body.modo-feed .public-main { padding-top: 8px; padding-bottom: 0; }
     .con-playlists .playlists-fila::-webkit-scrollbar { display: none; }
     .con-playlists .playlist-card { flex: 0 0 min(78%, 300px); scroll-snap-align: start; }
 }
+
+/* ---- Casillas de los filtros con la identidad de Arcano ---- */
+.filtro-menu-panel { --casilla-on: #E9D1AF; --casilla-tilde: #3D3033; }
+[data-theme="light"] .filtro-menu-panel { --casilla-on: #3D3033; --casilla-tilde: #FFF7EC; }
+.filtro-menu-panel .filter-check input[type="checkbox"] {
+    -webkit-appearance: none; appearance: none; margin: 0; flex: 0 0 auto;
+    width: 18px; height: 18px; border-radius: 5px; cursor: pointer;
+    border: 1.5px solid var(--border-2); background: transparent;
+    display: inline-grid; place-content: center;
+    transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+.filtro-menu-panel .filter-check input[type="checkbox"]::after {
+    content: ""; width: 9px; height: 5px; margin-top: -2px;
+    border-left: 2px solid var(--casilla-tilde); border-bottom: 2px solid var(--casilla-tilde);
+    transform: rotate(-45deg); opacity: 0; transition: opacity 0.15s ease;
+}
+.filtro-menu-panel .filter-check:hover input[type="checkbox"] { border-color: var(--text-3); }
+.filtro-menu-panel .filter-check input[type="checkbox"]:checked { background: var(--casilla-on); border-color: var(--casilla-on); }
+.filtro-menu-panel .filter-check input[type="checkbox"]:checked::after { opacity: 1; }
+.filtro-menu-panel .filter-check input[type="checkbox"]:focus-visible { outline: 2px solid var(--casilla-on); outline-offset: 2px; }
+.filtro-menu-panel .filter-check input[type="checkbox"]:disabled { opacity: 0.4; cursor: default; }
+/* La opcion elegida se marca tambien en el texto */
+.filtro-menu-panel .filter-check:has(input:checked) { background: color-mix(in srgb, var(--casilla-on) 12%, transparent); }
+.filtro-menu-panel .filter-check:has(input:checked) span:first-of-type { font-weight: 500; }
+/* Contadores neutros y discretos */
+.filtro-menu-panel .filter-count { background: transparent; color: var(--text-3); padding: 0; font-size: 11px; }
+@media (prefers-reduced-motion: reduce) {
+    .filtro-menu-panel .filter-check input[type="checkbox"], .filtro-menu-panel .filter-check input[type="checkbox"]::after { transition: none; }
+}
+/* Los disenos de tienda (Picture, Funda viva, Tocadiscos) pintan los contadores con !important */
+body .filtro-menu-panel .filter-count { background: transparent !important; color: var(--text-3) !important; padding: 0 !important; }
+[data-theme="light"] .filtro-menu-panel .filter-check input[type="checkbox"]:not(:checked) { border-color: rgba(61, 48, 51, 0.38); }
