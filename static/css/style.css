@@ -13215,3 +13215,9 @@ body .filtro-menu-panel .filter-count { background: transparent !important; colo
 .feed-pistas::-webkit-scrollbar { display: none; }
 .feed-pista { position: relative; flex: 0 0 100%; height: 100%; scroll-snap-align: center; scroll-snap-stop: always; }
 .feed-pista img { width: 100%; height: 100%; object-fit: cover; display: block; -webkit-user-drag: none; user-select: none; }
+
+/* Sin desenfoque detras de la banda: con el carrusel moviendose abajo, el blur se
+   recalcula en cada cuadro y en el celular trababa el deslizamiento. */
+.feed-sonido { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(30, 28, 28, 0.9); }
+.feed-pistas { contain: paint; }
+.feed-pista img { transform: translateZ(0); }

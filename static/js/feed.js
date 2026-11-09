@@ -83,7 +83,7 @@
     var reducirMov = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     function pistasDe(card) { return card.querySelector('[data-feed-pistas]'); }
     function irAPista(card, i, suave) {
-        var sc = pistasDe(card); if (!sc) return;
+        var sc = pistasDe(card); if (!sc || sc._usuario) return;
         var hoja = sc.children[i]; if (!hoja) return;
         if (Math.abs(sc.scrollLeft - hoja.offsetLeft) < 2) return;
         sc.scrollTo({ left: hoja.offsetLeft, behavior: (suave && !reducirMov) ? 'smooth' : 'auto' });
@@ -101,24 +101,55 @@
         var temas = temasDe(card); if (temas.length < 2) return;
         var i = indiceDe(card) + paso;
         if (i < 0 || i >= temas.length) return;
+        var sc = pistasDe(card); if (sc) sc._usuario = false;   // flechas / teclado
         elegirTema(card, i);
     }
-    // Cuando el carrusel termina de moverse (y el dedo ya se solto), suena esa hoja
+    // Cuando el carrusel termina de moverse (y el dedo ya se solto), suena esa hoja.
+    // Mientras la persona lo mueve, el codigo NO toca el scroll (si no, pelea con el
+    // dedo y el enganche y parece trabado); y el reproductor arranca recien cuando
+    // el carrusel quedo quieto, para no frenar la animacion.
     function escucharPistas(card) {
         var sc = pistasDe(card); if (!sc) return;
         var espera = null, dedo = false;
         function asentar() {
             espera = null;
             if (dedo) return;
-            elegirTema(card, pistaVisible(sc));
+            sc._usuario = false;
+            var i = pistaVisible(sc);
+            if (i === indiceDe(card)) return;
+            card.dataset.i = String(i);
+            pintarTema(card, i);
+            if (puedeSonar()) {
+                var pedir = function () { if (indiceDe(card) === i) tocar(card, i); };
+                if (window.requestAnimationFrame) requestAnimationFrame(function () { setTimeout(pedir, 30); });
+                else setTimeout(pedir, 30);
+            }
         }
-        sc.addEventListener('touchstart', function () { dedo = true; }, { passive: true });
-        sc.addEventListener('touchend', function () { dedo = false; if (!espera) espera = setTimeout(asentar, 160); }, { passive: true });
-        sc.addEventListener('touchcancel', function () { dedo = false; }, { passive: true });
+        var tocando = function () { dedo = true; sc._usuario = true; clearTimeout(espera); espera = null; };
+        sc.addEventListener('touchstart', tocando, { passive: true });
+        sc.addEventListener('pointerdown', function (e) { if (e.pointerType !== 'mouse') tocando(); }, { passive: true });
+        var ultimoScroll = 0;
+        sc.addEventListener('scroll', function () { ultimoScroll = Date.now(); }, { passive: true });
+        // Si solo toco (sin deslizar), el carrusel vuelve a seguir al reproductor
+        var soltar = function () {
+            dedo = false;
+            setTimeout(function () {
+                var hoja = sc.children[pistaVisible(sc)];
+                if (!dedo && Date.now() - ultimoScroll > 150 && hoja && Math.abs(sc.scrollLeft - hoja.offsetLeft) < 2) sc._usuario = false;
+            }, 220);
+        };
+        sc.addEventListener('touchend', soltar, { passive: true });
+        sc.addEventListener('touchcancel', soltar, { passive: true });
+        sc.addEventListener('wheel', function () { sc._usuario = true; }, { passive: true });
         if ('onscrollend' in window) {
-            sc.addEventListener('scrollend', function () { clearTimeout(espera); espera = null; if (!dedo) asentar(); });
+            sc.addEventListener('scrollend', function () { if (!dedo) asentar(); });
         } else {
-            sc.addEventListener('scroll', function () { clearTimeout(espera); espera = setTimeout(asentar, 160); }, { passive: true });
+            // Navegadores sin "scrollend": esperar a que deje de moverse
+            sc.addEventListener('scroll', function () {
+                clearTimeout(espera);
+                espera = setTimeout(function () { if (!dedo) asentar(); else espera = null; }, 180);
+            }, { passive: true });
+            sc.addEventListener('touchend', function () { clearTimeout(espera); espera = setTimeout(asentar, 220); }, { passive: true });
         }
     }
 
