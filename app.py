@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.52"
+APP_VERSION = "6.53"
 import metrics
 import auth
 import mailer
@@ -8215,7 +8215,7 @@ def register_routes(app: Flask) -> None:
             return [_tapa(d) for d in lista[:4]]
         out = [{"clave": "recomendados", "titulo": "Tus recomendaciones", "sub": "Seg\u00fan lo que te gusta",
                 "url": url_for("home", vista="scroll", lista="recomendados"), "tapas": _mosaico(azar[4:8] or azar),
-                "tono": "beige", "gustos": True}]
+                "tono": "crema", "gustos": True}]
         if nuevos:
             out.append({"clave": "nuevos", "titulo": "Reci\u00e9n llegados", "sub": f"{len(nuevos)} discos \u00b7 30 d\u00edas",
                         "url": url_for("home", vista="scroll", lista="nuevos"), "tapas": _mosaico(nuevos), "tono": "negro"})
@@ -8229,12 +8229,17 @@ def register_routes(app: Flask) -> None:
         if sale:
             _max = max(d.descuento_pct for d in sale)
             sale.sort(key=lambda d: d.descuento_pct, reverse=True)
-            out.append({"clave": "sale", "titulo": "Discos en SALE", "sub": f"Hasta -{_max}%",
+            # SALE va PRIMERA (pedido de Facundo, v6.53)
+            out.insert(0, {"clave": "sale", "titulo": "Discos en SALE", "sub": f"Hasta -{_max}%",
                         "url": url_for("home", vista="scroll", lista="sale"), "tapas": _mosaico(sale),
                         "tono": "sale", "cinta": True})
         else:
             out.append({"clave": "azar", "titulo": "Todo al azar", "sub": f"{len(comprables)} discos para diggear",
-                        "url": url_for("home", vista="scroll"), "tapas": _mosaico(azar), "tono": "crema"})
+                        "url": url_for("home", vista="scroll"), "tapas": _mosaico(azar), "tono": "beige"})
+        # Orden pedido por Facundo (v6.53): SALE, Recien llegados, Staff Picks y al final
+        # Tus recomendaciones (si no hay SALE, Todo al azar queda antes de recomendaciones).
+        _orden = {"sale": 0, "nuevos": 1, "staff": 2, "azar": 3, "recomendados": 4}
+        out.sort(key=lambda pl: _orden.get(pl["clave"], 9))
         return out
 
     def _diggear_home(discos):

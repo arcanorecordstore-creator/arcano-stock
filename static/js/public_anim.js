@@ -1162,3 +1162,14 @@ document.addEventListener('click', function (e) {
     });
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') cerrarTodos(null); });
 })();
+
+/* Alto real del reproductor flotante en --fp-alto (la columna de playlists lo usa para
+   achicar sus tarjetas y que el reproductor no tape la ultima). v6.53 */
+(function () {
+    'use strict';
+    var fp = document.querySelector('.floating-player');
+    if (!fp || !window.ResizeObserver) return;
+    new ResizeObserver(function () {
+        document.documentElement.style.setProperty('--fp-alto', fp.offsetHeight + 'px');
+    }).observe(fp);
+})();
