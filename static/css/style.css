@@ -13114,7 +13114,13 @@ body.modo-feed .public-main { padding-top: 8px; padding-bottom: 0; }
     .con-playlists .playlist-banda { padding: 12px 14px; }
     .con-playlists .playlist-nombre { font-size: 14px; }
     .con-playlists .playlist-pie { font-size: 12px; }
-    .con-playlists .playlist-play { width: 30px; height: 30px; }
+    .con-playlists .playlist-play { width: 30px; height: 30px; flex: 0 0 auto; }
+    /* v6.54: el texto de abajo puede ocupar 2 lineas (antes se cortaba con "...") */
+    .con-playlists .playlist-pie { align-items: flex-end; }
+    .con-playlists .playlist-pie > span:first-child:not(.playlist-cinta) {
+        white-space: normal; text-overflow: clip; line-height: 1.3;
+        display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden;
+    }
 }
 
 /* v6.52: playlist "Discos en SALE" (reemplaza el boton rojo y a "Todo al azar").
