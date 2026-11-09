@@ -13095,10 +13095,10 @@ body.modo-feed .public-main { padding-top: 8px; padding-bottom: 0; }
    Cada tarjeta crece con la ventana (tope 140px) y el mosaico sigue cuadrado. */
 @media (min-width: 1025px) {
     .public-layout.public-layout--barra.con-playlists {
-        --pl-h: clamp(84px, calc((100vh - 230px) / 4), 140px);
+        --pl-h: clamp(84px, calc((100vh - 260px) / 4), 140px);
         grid-template-columns: calc(var(--pl-h) + 170px) minmax(0, 1fr);
     }
-    .con-playlists .playlists-fila { gap: 12px; }
+    .con-playlists .playlists-fila { gap: 22px; }
     .con-playlists .playlist-card { grid-template-columns: var(--pl-h) minmax(0, 1fr); height: var(--pl-h); }
     .con-playlists .playlist-banda { padding: 12px 14px; }
     .con-playlists .playlist-nombre { font-size: 14px; }
