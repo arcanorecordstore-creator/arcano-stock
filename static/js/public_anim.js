@@ -362,13 +362,13 @@ document.addEventListener('click', function (e) {
                     // Tarjeta del catalogo/carrusel; en la ficha (o su barra de compra), la
                     // ficha misma. Antes caia en "document" y tomaba el nombre del primer
                     // disco de "Similares" (el id era el correcto, el nombre no).
-                    var card = btn.closest('.public-card') || btn.closest('.carrusel-card')
+                    var card = btn.closest('.public-card') || btn.closest('.carrusel-card') || btn.closest('.feed-card')
                         || (!btn.closest('.public-related') && document.querySelector('.public-disc')) || document;
                     // Animacion "vuela al carrito" (solo al agregar)
-                    var _flyImg = card.querySelector('.public-card-cover img') || card.querySelector('.carrusel-cover img') || card.querySelector('.public-disc-cover img');
+                    var _flyImg = card.querySelector('.public-card-cover img') || card.querySelector('.carrusel-cover img') || card.querySelector('.public-disc-cover img') || card.querySelector('.feed-cover img');
                     if (window.ArcanoFlyToCart) window.ArcanoFlyToCart(_flyImg);
-                    var tit = ((card.querySelector('.public-card-title') || card.querySelector('.carrusel-title-disc') || card.querySelector('.public-disc-title') || {}).textContent || '').trim();
-                    var art = ((card.querySelector('.public-card-artist') || card.querySelector('.carrusel-artist') || card.querySelector('.public-disc-artist') || {}).textContent || '').trim();
+                    var tit = ((card.querySelector('.public-card-title') || card.querySelector('.carrusel-title-disc') || card.querySelector('.public-disc-title') || card.querySelector('.feed-titulo') || {}).textContent || '').trim();
+                    var art = ((card.querySelector('.public-card-artist') || card.querySelector('.carrusel-artist') || card.querySelector('.public-disc-artist') || card.querySelector('.feed-artista') || {}).textContent || '').trim();
                     var _precio = parseFloat(btn.dataset.cartPrecio || '');
                     var _item = { item_id: String(id), item_name: (art ? art + ' - ' : '') + tit, quantity: 1 };
                     if (!isNaN(_precio)) _item.price = _precio;
@@ -535,8 +535,9 @@ document.addEventListener('click', function (e) {
 })();
 
 /* Carruseles de la home — scroll nativo deslizable con el dedo (swipe en mobile),
-   flechas en desktop. SIN autoplay: la gente desliza y no se mueve solo (feedback UX
-   de Mica: el auto-movimiento mareaba y no era responsive al tacto). */
+   flechas en desktop. Movimiento automatico CONTINUO en loop (pedido de Facundo,
+   nov-2026, como housemates.uy): no frena con el mouse; la rueda lo mueve; con el
+   dedo se sigue pudiendo deslizar. Ver el bloque de abajo. */
 (function () {
     'use strict';
     Arcano.onContent(function () {
@@ -626,6 +627,79 @@ document.addEventListener('click', function (e) {
         }, { passive: true });
 
         actualizarProgreso();
+
+        // ---- Movimiento automatico continuo (como housemates.uy) ----
+        // Avanza solo, sin cortes y en loop infinito (las tapas se repiten al final).
+        // NO frena con el mouse encima. La rueda del mouse lo mueve en la direccion que
+        // corresponde. En el celular se puede deslizar: mientras el dedo esta apoyado
+        // queda quieto y despues sigue solo. Con "reducir movimiento" no se mueve.
+        var reducir = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        var segs = Math.max(3, Math.min(20, parseInt(carrusel.dataset.velocidad || '7', 10) || 7));
+        if (!reducir && cards.length > 2) {
+            var tira = carrusel.querySelector('.public-carrusel-track') || viewport;
+            // Copia de las tapas para el loop (oculta para lectores de pantalla)
+            [].slice.call(cards).forEach(function (c) {
+                var cl = c.cloneNode(true);
+                cl.setAttribute('data-clon', '');
+                cl.setAttribute('aria-hidden', 'true');
+                cl.querySelectorAll('a, button').forEach(function (el) { el.setAttribute('tabindex', '-1'); });
+                tira.appendChild(cl);
+            });
+            viewport.classList.add('auto-continuo');
+            function ancho() {   // largo de una vuelta = donde empieza la primera copia
+                var primera = tira.querySelector('[data-clon]');
+                return primera ? (primera.offsetLeft - cards[0].offsetLeft) : 0;
+            }
+            function velocidad() {   // px por segundo: una tapa cada "segs" segundos
+                var c0 = cards[0], c1 = cards[1];
+                var paso1 = c1 ? (c1.offsetLeft - c0.offsetLeft) : c0.offsetWidth;
+                return Math.max(10, paso1 / segs);
+            }
+            var pos = viewport.scrollLeft, quietoHasta = 0, dedo = false, visible = true, ultimo = 0;
+            function envolver() {
+                var w = ancho(); if (w <= 0) return;
+                if (pos >= w) pos -= w;
+                if (pos < 0) pos += w;
+            }
+            function sincronizar() { pos = viewport.scrollLeft; envolver(); }
+            // Dedo: quieto mientras esta apoyado; sigue 1,5 s despues de soltar
+            viewport.addEventListener('touchstart', function () { dedo = true; }, { passive: true });
+            viewport.addEventListener('touchend', function () { dedo = false; quietoHasta = Date.now() + 1500; sincronizar(); }, { passive: true });
+            viewport.addEventListener('touchcancel', function () { dedo = false; quietoHasta = Date.now() + 1500; }, { passive: true });
+            viewport.addEventListener('scroll', function () { if (dedo || Date.now() < quietoHasta) sincronizar(); }, { passive: true });
+            // Flechas: dejar que terminen su animacion y seguir desde ahi
+            [prev, next].forEach(function (b) {
+                if (b) b.addEventListener('click', function () { quietoHasta = Date.now() + 900; setTimeout(sincronizar, 850); });
+            });
+            if (track) track.addEventListener('pointerdown', function () { quietoHasta = Date.now() + 1500; });
+            // Rueda del mouse: mueve el carrusel (sensibilidad media) y no la pagina
+            viewport.addEventListener('wheel', function (e) {
+                var d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+                if (!d) return;
+                if (e.deltaMode === 1) d *= 16; else if (e.deltaMode === 2) d *= viewport.clientWidth;
+                e.preventDefault();
+                pos += d * 0.7;
+                envolver();
+                viewport.scrollLeft = pos;
+            }, { passive: false });
+            if ('IntersectionObserver' in window) {
+                new IntersectionObserver(function (en) { visible = en[0].isIntersecting; }).observe(carrusel);
+            }
+            function cuadro(t) {
+                if (!carrusel.isConnected) return;
+                var dt = ultimo ? Math.min(0.25, (t - ultimo) / 1000) : 0;
+                ultimo = t;
+                if (visible && !dedo && Date.now() >= quietoHasta && !document.hidden &&
+                    !(track && track.classList.contains('arrastrando'))) {
+                    pos += velocidad() * dt;
+                    envolver();
+                    viewport.scrollLeft = pos;
+                }
+                requestAnimationFrame(cuadro);
+            }
+            requestAnimationFrame(cuadro);
+            carrusel._autoEstado = function () { return { visible: visible, dedo: dedo, pos: Math.round(pos), vuelta: ancho() }; };
+        }
     });
     });
 })();
@@ -1007,5 +1081,41 @@ document.addEventListener('click', function (e) {
     window.addEventListener('resize', function () {
         clearTimeout(t);
         t = setTimeout(function () { var m = columnasReales(); if (m) guardar(m.cols); }, 300);
+    });
+})();
+
+/* Filtros "Mostrar": "Ultimos 15/30 dias" se excluyen entre si, y "Tus Recomendaciones"
+   manda al servidor los gustos guardados en este navegador (favoritos, carrito y discos
+   escuchados) para que arme las recomendaciones aunque la persona no tenga cuenta. */
+(function () {
+    'use strict';
+    function leer(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } }
+    function gustos() {
+        var ids = [].concat(leer('arcano-favs'), leer('arcano-cart'), leer('arcano-escuchados'))
+            .map(String).filter(function (x) { return /^\d+$/.test(x); });
+        var unicos = [];
+        ids.forEach(function (x) { if (unicos.indexOf(x) < 0) unicos.push(x); });
+        return unicos.slice(0, 80).join(',');
+    }
+    Arcano.onContent(function () {
+        var form = document.getElementById('public-filters');
+        if (!form || form._mostrarInit) return;
+        form._mostrarInit = true;
+        form.querySelectorAll('input[data-excluye]').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                if (!cb.checked) return;
+                form.querySelectorAll('input[data-excluye="' + cb.dataset.excluye + '"]').forEach(function (o) { if (o !== cb) o.checked = false; });
+            });
+        });
+        var rec = form.querySelector('[data-recomendados]'), oculto = form.querySelector('[data-gustos]');
+        function preparar() {
+            if (!rec || !oculto) return;
+            var g = rec.checked ? gustos() : '';
+            oculto.value = g;
+            oculto.disabled = !g;     // sin gustos no ensucia la direccion
+        }
+        preparar();
+        if (rec) rec.addEventListener('change', preparar);
+        form.addEventListener('submit', preparar, true);
     });
 })();

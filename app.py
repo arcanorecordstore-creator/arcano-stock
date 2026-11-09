@@ -8190,6 +8190,95 @@ def register_routes(app: Flask) -> None:
         ]
         return Response("\n".join(lines), mimetype="text/plain")
 
+    def _conteos_mostrar(discos):
+        """Cuantos discos hay en cada opcion de "Mostrar" (sobre todo lo publicado)."""
+        ahora = datetime.now()
+        def _pre(d):
+            return d.estado in ("Pre-order", "Encargo") or getattr(d, "mostrar_preorder", False)
+        # Igual que la lista: solo lo que se puede comprar (sin los agotados que se muestran)
+        discos = [d for d in discos if not (d.esta_agotado and not _pre(d))]
+        return {
+            "15": sum(1 for d in discos if d.fecha_ingreso and d.fecha_ingreso >= ahora - timedelta(days=15)),
+            "30": sum(1 for d in discos if d.fecha_ingreso and d.fecha_ingreso >= ahora - timedelta(days=30)),
+            "disponible": sum(1 for d in discos if d.estado == "Disponible" and not d.esta_agotado and not _pre(d)),
+            "preorder": sum(1 for d in discos if _pre(d)),
+            "staff": sum(1 for d in discos if d.es_tip),
+        }
+
+    def _recomendar_para(discos):
+        """Tus Recomendaciones: arma los gustos de la persona con lo que guardo en
+        favoritos, puso en el carrito y escucho (lo manda el navegador en ?gustos=) y, si
+        tiene cuenta, lo que guardo y compro. De esos discos saca artistas, sellos y
+        generos, y le muestra los parecidos que todavia no tiene (artista 3 puntos, sello
+        2, cada genero en comun 1). Sin datos todavia: los Staff Picks.
+        Devuelve (lista, {id: puntaje}, info para el cartel)."""
+        import re as _re
+        ids = set()
+        for x in (request.args.get("gustos") or "").split(","):
+            x = x.strip()
+            if x.isdigit():
+                ids.add(int(x))
+            if len(ids) >= 80:
+                break
+        cid = auth.cliente_actual_id()
+        if cid:
+            from models import ClienteFavorito
+            try:
+                ids |= {f.disc_id for f in ClienteFavorito.query.filter_by(cliente_id=cid).all()}
+                ids |= {d.id for d in Disc.query.filter(Disc.cliente_id == cid, Disc.estado == "Vendido").all()}
+            except Exception:
+                pass
+        semillas = Disc.query.filter(Disc.id.in_(ids)).all() if ids else []
+        if not semillas:
+            return ([d for d in discos if d.es_tip], {},
+                    {"sin_datos": True, "n": 0})
+
+        _NO_GEN = {"vinyl only", "repress", "exclusive", "limited", "180g", "news", "reissue"}
+
+        def _generos(d):
+            return {g.strip().lower() for g in _re.split(r"\s+-\s+|,|/", d.genero or "")
+                    if g.strip() and g.strip().lower() not in _NO_GEN}
+
+        def _artistas(d):
+            return {a.strip().lower() for a in _re.split(r"\s*(?:/|,|&| vs\.? | feat\.? )\s*", d.artista or "", flags=_re.I)
+                    if a.strip() and a.strip().lower() not in ("various", "various artists", "v.a.", "va")}
+        art, sel, gen = {}, {}, {}
+        for s in semillas:
+            for a in _artistas(s):
+                art[a] = art.get(a, 0) + 1
+            sb = sello_base(s.sello).lower()
+            if sb:
+                sel[sb] = sel.get(sb, 0) + 1
+            for g in _generos(s):
+                gen[g] = gen.get(g, 0) + 1
+        # Generos: los que tiene casi todo el catalogo (House, Tech...) pesan poco y los
+        # raros (Trance, Electro, Dub...) mucho; asi no se recomienda "todo".
+        import math as _math
+        total = max(1, len(discos))
+        frec = {}
+        for d in discos:
+            for g in _generos(d):
+                frec[g] = frec.get(g, 0) + 1
+        def _peso(g):
+            return _math.log((total + 1) / (frec.get(g, 0) + 1))
+        # Que ya tiene (o ya eligio): no se le recomienda. Las copias comparten slug.
+        ya = {(s.slug or s.id) for s in semillas}
+        puntaje = {}
+        for d in discos:
+            if (d.slug or d.id) in ya:
+                continue
+            p = 3.0 * sum(1 for a in _artistas(d) if a in art)
+            if sello_base(d.sello).lower() in sel:
+                p += 2.0
+            p += sum(_peso(g) for g in _generos(d) if g in gen)
+            if p >= 1.0:
+                puntaje[d.id] = round(p, 3)
+        # Solo los mas parecidos
+        mejores = sorted(puntaje, key=lambda i: puntaje[i], reverse=True)[:36]
+        puntaje = {i: puntaje[i] for i in mejores}
+        lista = [d for d in discos if d.id in puntaje]
+        return lista, puntaje, {"sin_datos": False, "n": len(semillas)}
+
     @app.route("/")
     def home():
         """Catalogo publico de discos disponibles."""
@@ -8222,6 +8311,19 @@ def register_routes(app: Flask) -> None:
             all_disponibles = [d for d in all_disponibles if not getattr(d, "es_mystery_box", False)]
         discs = list(all_disponibles)
 
+        # Modo scroll (estilo Wax Merchant): un disco por pantalla, suena solo al llegar.
+        # Muestra TODOS los discos publicados que se pueden pedir, en orden aleatorio
+        # (decision de Facundo); los agotados que se muestran igual en la grilla no van.
+        if request.args.get("vista") == "scroll":
+            import random as _random
+            # El orden queda fijo durante la visita (al volver de una ficha seguis donde
+            # estabas); "Mezclar" (?mezclar=1) arma uno nuevo.
+            if request.args.get("mezclar") or not session.get("feed_semilla"):
+                session["feed_semilla"] = _random.randint(1, 10**9)
+            feed = sorted((d for d in discs if not d.esta_agotado), key=lambda d: d.id)
+            _random.Random(session["feed_semilla"]).shuffle(feed)
+            return render_template("public/scroll.html", discs=feed, **_public_context())
+
         # Filtros
         q = (request.args.get("q") or "").strip()
         sellos_sel = [s.strip() for s in request.args.getlist("sello") if s.strip()]
@@ -8235,6 +8337,15 @@ def register_routes(app: Flask) -> None:
         sale_sel = request.args.get("sale") == "1"
         condicion_sel = [c.strip().lower() for c in request.args.getlist("condicion")
                          if c.strip().lower() in ("nuevo", "usado")]
+        # Filtros "Mostrar" (nov-2026): recien llegados, estado, Staff Picks y
+        # recomendaciones segun los gustos de cada persona.
+        nuevos_dias = _parse_int(request.args.get("nuevos"), None)
+        if nuevos_dias not in (15, 30):
+            nuevos_dias = None
+        estado_sel = [e for e in request.args.getlist("estado") if e in ("disponible", "preorder")]
+        staff_sel = request.args.get("staff") == "1"
+        recomendados_sel = request.args.get("recomendados") == "1"
+        recomendacion_info = None
         orden = (request.args.get("orden") or "nuevos").strip()
         con_sample = request.args.get("con_sample") == "1"
         precio_min = _parse_int(request.args.get("precio_min"), None)
@@ -8313,6 +8424,21 @@ def register_routes(app: Flask) -> None:
         if anio_sel:
             _aset = set(anio_sel)
             discs = [d for d in discs if d.anio in _aset]
+        if nuevos_dias:
+            _desde = datetime.now() - timedelta(days=nuevos_dias)
+            discs = [d for d in discs if d.fecha_ingreso and d.fecha_ingreso >= _desde]
+        if estado_sel:
+            def _estado_ok(d):
+                es_pre = d.estado in ("Pre-order", "Encargo") or getattr(d, "mostrar_preorder", False)
+                if "preorder" in estado_sel and es_pre:
+                    return True
+                return "disponible" in estado_sel and d.estado == "Disponible" and not d.esta_agotado and not es_pre
+            discs = [d for d in discs if _estado_ok(d)]
+        if staff_sel:
+            discs = [d for d in discs if d.es_tip]
+        _puntaje_rec = {}
+        if recomendados_sel:
+            discs, _puntaje_rec, recomendacion_info = _recomendar_para(discs)
 
         # Ordenamiento
         if orden == "precio_asc":
@@ -8323,6 +8449,9 @@ def register_routes(app: Flask) -> None:
             discs.sort(key=lambda d: (d.artista or "").lower())
         elif orden == "fecha":
             discs.sort(key=lambda d: d.fecha_ingreso or datetime.min, reverse=True)
+        elif _puntaje_rec:
+            # Tus Recomendaciones: primero lo que mas se parece a tus gustos
+            discs.sort(key=lambda d: _puntaje_rec.get(d.id, 0), reverse=True)
         else:
             # Por defecto: el orden manual que el admin arma arrastrando en el
             # dashboard (mayor = primero). Los discos nuevos entran arriba.
@@ -8338,7 +8467,8 @@ def register_routes(app: Flask) -> None:
         # Mystery Box fijada primera: solo en la vista de navegacion (sin busqueda ni
         # filtros). Si hay un filtro/genero activo, la box no aplica y no se muestra.
         _sin_filtros = (not any([q, sellos_sel, genero_sel, tags_sel, formato_sel,
-                                 pais_sel, decada_sel, anio_sel, con_sample, condicion_sel, sale_sel])
+                                 pais_sel, decada_sel, anio_sel, con_sample, condicion_sel, sale_sel,
+                                 nuevos_dias, estado_sel, staff_sel, recomendados_sel])
                         and precio_min is None and precio_max is None)
         if mystery_box is not None and _sin_filtros:
             discs = [mystery_box] + discs
@@ -8453,6 +8583,7 @@ def register_routes(app: Flask) -> None:
             bool(formato_sel), bool(pais_sel), bool(decada_sel),
             con_sample, precio_min is not None, precio_max is not None,
             bool(anio_sel), bool(condicion_sel), sale_sel,
+            bool(nuevos_dias), bool(estado_sel), staff_sel, recomendados_sel,
         ])
 
         # Secciones de la home: solo en pagina 1, sin filtros ni busqueda
@@ -8583,6 +8714,12 @@ def register_routes(app: Flask) -> None:
                          ("usado", "Usado", condiciones_count.get("usado", 0))],
             filtro_condiciones=condicion_sel,
             filtro_sale=sale_sel,
+            filtro_nuevos=nuevos_dias,
+            filtro_estados=estado_sel,
+            filtro_staff=staff_sel,
+            filtro_recomendados=recomendados_sel,
+            recomendacion_info=recomendacion_info,
+            mostrar_counts=_conteos_mostrar(all_disponibles),
             por_pagina=POR_PAGINA,
             cols=COLS,
             n_sale=sum(1 for d in all_disponibles if d.en_oferta and not d.esta_agotado),
