@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.56"
+APP_VERSION = "6.57"
 import metrics
 import auth
 import mailer
@@ -10518,6 +10518,12 @@ def register_routes(app: Flask) -> None:
             .order_by(Disc.artista.asc(), Disc.titulo.asc())
             .all()
         )
+        # Arriba de todo los Reservados que todavia no estan en ninguna reserva: el flujo
+        # de Facundo es marcar el disco Reservado en el dashboard y despues crear la
+        # reserva. Despues el resto de los Reservados y despues todo lo demas.
+        _en_reservas = _discos_en_otras_reservas(0)
+        discs.sort(key=lambda d: 0 if (d.estado == "Reservado" and d.id not in _en_reservas)
+                   else (1 if d.estado == "Reservado" else 2))
         from models import Cliente
         clientes = Cliente.query.order_by(Cliente.nombre.asc()).all()
         return render_template(

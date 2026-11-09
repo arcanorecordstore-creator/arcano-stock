@@ -129,7 +129,7 @@
             <div class="cargar-info">
                 <div class="cargar-title"><strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}</div>
                 <div class="cargar-sub">
-                    {% if d.sello %}{{ d.sello }} &middot; {% endif %}{{ d.estado }}
+                    {% if d.estado == 'Reservado' %}<span class="badge badge-reservado">Reservado</span> {% endif %}{% if d.sello %}{{ d.sello }}{% if d.estado != 'Reservado' %} &middot; {% endif %}{% endif %}{% if d.estado != 'Reservado' %}{{ d.estado }}{% endif %}
                     {% if d.origen == 'personal' %}&middot; <span class="venta-origen-personal">personal</span>{% endif %}
                 </div>
             </div>
