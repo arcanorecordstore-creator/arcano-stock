@@ -13283,3 +13283,10 @@ body .filtro-menu-panel .filter-count { background: transparent !important; colo
 .feed-sonido { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(30, 28, 28, 0.9); }
 .feed-pistas { contain: paint; }
 .feed-pista img { transform: translateZ(0); }
+
+/* ===== Reserva: agregar discos (v6.55) ===== */
+.reserva-agregar { margin-top: 14px; }
+.reserva-agregar > summary { list-style: none; cursor: pointer; display: inline-flex; }
+.reserva-agregar > summary::-webkit-details-marker { display: none; }
+.reserva-agregar-form { margin-top: 12px; }
+.reserva-agregar-buscar { width: 100%; margin-bottom: 10px; padding: 8px 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-1); color: var(--text-1); font: inherit; font-size: 14px; box-sizing: border-box; }

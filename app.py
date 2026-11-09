@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.54"
+APP_VERSION = "6.55"
 import metrics
 import auth
 import mailer
@@ -10791,6 +10791,44 @@ def register_routes(app: Flask) -> None:
                     db.session.commit()
                     flash(f"Asignaste {n} disco(s) a la reserva: quedaron Vendidos y se descont&oacute; el stock.", "success")
 
+            elif accion == "agregar_discos":
+                # Sumar discos a una reserva comun (el cliente pidio algo mas). Solo con
+                # la reserva Pendiente: se apartan igual que en la tienda (Disponible ->
+                # Reservado; Pre-order/Encargo -> tomado por esta reserva) y el total se
+                # actualiza solo (suma de los items). Pagada = la venta ya entro a la caja.
+                if reserva.estado != "Pendiente":
+                    flash("Solo se pueden agregar discos a una reserva Pendiente.", "warning")
+                    return redirect(url_for("admin_reserva_detail", reserva_id=reserva.id))
+                ids_add = [int(x) for x in request.form.getlist("disc_ids") if str(x).isdigit()]
+                ya = {it.disc_id for it in reserva.items_efectivos if it.disc_id}
+                cand = Disc.query.filter(Disc.id.in_(ids_add)).all() if ids_add else []
+                cand = [d for d in cand if d.id not in ya and not getattr(d, "es_mystery_box", False)
+                        and ((d.estado == "Disponible" and (d.stock or 0) > 0)
+                             or (d.estado in ("Pre-order", "Encargo") and not d.venta_grupo))]
+                if not cand:
+                    flash("Eleg&iacute; al menos un disco disponible para agregar.", "warning")
+                    return redirect(url_for("admin_reserva_detail", reserva_id=reserva.id))
+                perdidos = _apartar_para_pedido(reserva, cand, "agregado desde el admin")
+                agregados = [d for d in cand if d not in perdidos]
+                from models import Cliente, ReservaItem
+                cli = Cliente.query.get(reserva.cliente_id) if reserva.cliente_id else None
+                for d in agregados:
+                    db.session.add(ReservaItem(
+                        reserva_id=reserva.id, disc_id=d.id,
+                        artista_snap=d.artista, titulo_snap=d.titulo,
+                        precio_uyu_snap=(d.precio_mostrar or d.precio_uyu or 0),
+                    ))
+                    if cli and not d.cliente_id:
+                        d.cliente_id = cli.id
+                db.session.commit()
+                if agregados:
+                    flash(f"Agregaste {len(agregados)} disco(s) a la reserva: quedaron apartados para "
+                          f"{reserva.nombre or 'el cliente'}.", "success")
+                if perdidos:
+                    flash("No se pudo agregar: " + ", ".join(f"{d.artista} - {d.titulo}" for d in perdidos)
+                          + " (lo tomo otra reserva recien).", "warning")
+                return redirect(url_for("admin_reserva_detail", reserva_id=reserva.id))
+
             elif accion == "separar_item":
                 # Separar UN disco de la reserva: pasa a una reserva nueva (mismos datos del
                 # cliente y mismo estado) o a otra reserva del mismo cliente en el mismo
@@ -10923,6 +10961,16 @@ def register_routes(app: Flask) -> None:
         # Mystery Box: si la reserva tiene una caja, pasar el catalogo asignable para
         # el picker de "asignar discos" (disponibles, sin la propia box).
         tiene_mbox = any(it.es_mystery_box for it in reserva.items_efectivos)
+        discos_agregables = []
+        if reserva.estado == "Pendiente":
+            _ya = {it.disc_id for it in reserva.items_efectivos if it.disc_id}
+            discos_agregables = [
+                d for d in (Disc.query
+                            .filter(((Disc.estado == "Disponible") & (Disc.stock > 0))
+                                    | (Disc.estado.in_(["Pre-order", "Encargo"]) & Disc.venta_grupo.is_(None)))
+                            .filter((Disc.es_mystery_box.is_(None)) | (Disc.es_mystery_box == False))  # noqa: E712
+                            .order_by(Disc.artista.asc(), Disc.titulo.asc()).all())
+                if d.id not in _ya]
         discos_asignables = []
         if tiene_mbox:
             discos_asignables = (
@@ -10963,6 +11011,7 @@ def register_routes(app: Flask) -> None:
             metodos=_METODOS_RESERVA,
             tiene_mbox=tiene_mbox,
             discos_asignables=discos_asignables,
+            discos_agregables=discos_agregables,
         )
 
     # ----------------------------------------------------------------------
