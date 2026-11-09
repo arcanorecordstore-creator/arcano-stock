@@ -332,24 +332,9 @@
                 </div>
             </div>
             {% endif %}
-            {% if sellos %}
-            <div class="filtro-menu" data-filtro-menu>
-                <button type="button" class="filtro-menu-btn{% if filtro_sellos|length %} is-activo{% endif %}" aria-expanded="false" aria-haspopup="true">
-                    <span>Sellos</span>{% if filtro_sellos|length %}<span class="filtro-menu-n">{{ filtro_sellos|length }}</span>{% endif %}
-                    <svg class="filtro-caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
-                </button>
-                <div class="filtro-menu-panel">
-                    <div class="filter-checks">
-                        {% for s in sellos %}
-                        <label class="filter-check">
-                            <input type="checkbox" name="sello" value="{{ s }}" {% if s in filtro_sellos %}checked{% endif %}>
-                            <span>{{ s }}</span><span class="filter-count">{{ sellos_count[s] }}</span>
-                        </label>
-                        {% endfor %}
-                    </div>
-                </div>
-            </div>
-            {% endif %}
+            {# Sellos: se saco el menu (pedido de Facundo, nov-2026). Si se llega con un
+               sello elegido (ej. desde una ficha), se mantiene al usar los otros filtros. #}
+            {% for s in filtro_sellos %}<input type="hidden" name="sello" value="{{ s }}">{% endfor %}
             {% if anios %}
             <div class="filtro-menu" data-filtro-menu>
                 <button type="button" class="filtro-menu-btn{% if filtro_anios|length %} is-activo{% endif %}" aria-expanded="false" aria-haspopup="true">

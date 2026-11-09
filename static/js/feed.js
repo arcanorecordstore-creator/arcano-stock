@@ -1,7 +1,7 @@
 /* Modo scroll de la tienda (estilo Wax Merchant): un disco por pantalla.
    - Arriba/abajo (scroll con "enganche") cambia de disco; el disco que queda en
      pantalla suena solo (despues del primer toque: el celular no deja sonar antes).
-   - A los costados (deslizar o flechas) cambia de tema.
+   - A los costados (deslizar o flechas) cambia de track: carrusel con scroll nativo.
    La musica la toca el reproductor de siempre (window.ArcanoPlayer, player.js): aca
    solo se le dice que tocar y se pinta lo que avisa (evento 'arcano:player'). */
 (function () {
@@ -50,6 +50,7 @@
         var prev = card.querySelector('[data-feed-prev]'), next = card.querySelector('[data-feed-next]');
         if (prev) prev.disabled = (i <= 0);
         if (next) next.disabled = (i >= temas.length - 1);
+        irAPista(card, i, true);
     }
     function pintarPlay(card, sonando) {
         var b = card.querySelector('[data-feed-play]'); if (!b) return;
@@ -76,47 +77,49 @@
         if (esDuenio(card) && window.ArcanoPlayer.irA) window.ArcanoPlayer.irA(i);
         else window.ArcanoPlayer.reproducir(JSON.parse(JSON.stringify(temas)), i, card.dataset.cover || '', card.dataset.clave);
     }
-    // Animacion sutil de la tapa al cambiar de track: sale apenas hacia el lado del
-    // gesto y vuelve desde el otro con un fundido (sin rebotes ni cambios de tamano).
+    // Carrusel de tracks: cada track es una hoja de .feed-pistas y se pasa con el
+    // scroll nativo (sigue al dedo y engancha como un carrusel de verdad). Las flechas,
+    // el teclado y el reproductor mueven ese mismo scroll.
     var reducirMov = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    // Se mueve la tapa ENTERA (marco incluido), no la imagen adentro: asi nunca
-    // aparece un hueco al costado. Empuja apenas hacia el lado del gesto, con una
-    // inclinacion minima (como pasar un disco en la batea) y vuelve suave.
-    function tapaDe(card) { return card.querySelector('.feed-cover'); }
-    function soltarArrastre(tapa) { tapa.style.transform = ''; tapa.style.transition = ''; }
-    function animarCambio(card, paso, desdeX) {
-        var tapa = tapaDe(card);
-        if (!tapa) return;
-        soltarArrastre(tapa);
-        if (reducirMov || !tapa.animate) return;
-        var dir = paso > 0 ? -1 : 1;   // siguiente: empuja a la izquierda
-        var x0 = (typeof desdeX === 'number') ? desdeX : 0;
-        var lejos = dir * Math.max(Math.abs(x0) + 6, 18);
-        if (tapa._anim) tapa._anim.cancel();
-        tapa._anim = tapa.animate([
-            { transform: 'translateX(' + x0 + 'px) rotate(' + (x0 / 30) + 'deg)', opacity: 1, easing: 'cubic-bezier(0.3, 0, 0.5, 1)' },
-            { transform: 'translateX(' + lejos + 'px) rotate(' + (dir * 1.2) + 'deg)', opacity: 0.72, offset: 0.34, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' },
-            { transform: 'translateX(0) rotate(0deg)', opacity: 1 }
-        ], { duration: 560 });
+    function pistasDe(card) { return card.querySelector('[data-feed-pistas]'); }
+    function irAPista(card, i, suave) {
+        var sc = pistasDe(card); if (!sc) return;
+        var hoja = sc.children[i]; if (!hoja) return;
+        if (Math.abs(sc.scrollLeft - hoja.offsetLeft) < 2) return;
+        sc.scrollTo({ left: hoja.offsetLeft, behavior: (suave && !reducirMov) ? 'smooth' : 'auto' });
     }
-    function volverAlLugar(card, desdeX) {
-        var tapa = tapaDe(card);
-        if (!tapa) return;
-        soltarArrastre(tapa);
-        if (reducirMov || !tapa.animate || !desdeX) return;
-        if (tapa._anim) tapa._anim.cancel();
-        tapa._anim = tapa.animate([
-            { transform: 'translateX(' + desdeX + 'px) rotate(' + (desdeX / 30) + 'deg)' },
-            { transform: 'translateX(0) rotate(0deg)' }
-        ], { duration: 380, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' });
+    function pistaVisible(sc) {
+        var paso = sc.children[1] ? sc.children[1].offsetLeft - sc.children[0].offsetLeft : sc.clientWidth;
+        return Math.max(0, Math.min(sc.children.length - 1, Math.round(sc.scrollLeft / (paso || 1))));
     }
-    function cambiarTema(card, paso, desdeX) {
-        var temas = temasDe(card); if (temas.length < 2) return;
-        var i = indiceDe(card) + paso;
-        if (i < 0 || i >= temas.length) { volverAlLugar(card, desdeX); return; }
-        animarCambio(card, paso, desdeX);
+    function elegirTema(card, i) {
+        if (i === indiceDe(card)) return;
         if (puedeSonar()) tocar(card, i);
         else { card.dataset.i = String(i); pintarTema(card, i); }
+    }
+    function cambiarTema(card, paso) {
+        var temas = temasDe(card); if (temas.length < 2) return;
+        var i = indiceDe(card) + paso;
+        if (i < 0 || i >= temas.length) return;
+        elegirTema(card, i);
+    }
+    // Cuando el carrusel termina de moverse (y el dedo ya se solto), suena esa hoja
+    function escucharPistas(card) {
+        var sc = pistasDe(card); if (!sc) return;
+        var espera = null, dedo = false;
+        function asentar() {
+            espera = null;
+            if (dedo) return;
+            elegirTema(card, pistaVisible(sc));
+        }
+        sc.addEventListener('touchstart', function () { dedo = true; }, { passive: true });
+        sc.addEventListener('touchend', function () { dedo = false; if (!espera) espera = setTimeout(asentar, 160); }, { passive: true });
+        sc.addEventListener('touchcancel', function () { dedo = false; }, { passive: true });
+        if ('onscrollend' in window) {
+            sc.addEventListener('scrollend', function () { clearTimeout(espera); espera = null; if (!dedo) asentar(); });
+        } else {
+            sc.addEventListener('scroll', function () { clearTimeout(espera); espera = setTimeout(asentar, 160); }, { passive: true });
+        }
     }
 
     // El disco que quedo en pantalla
@@ -177,6 +180,7 @@
         var navAlto = (nav && getComputedStyle(nav).display !== 'none') ? nav.getBoundingClientRect().height : 0;
         var alto = Math.max(380, window.innerHeight - (top - (window.scrollY || 0)) - navAlto);
         estado.raiz.style.setProperty('--feed-alto', alto + 'px');
+        estado.cards.forEach(function (c) { irAPista(c, indiceDe(c), false); });
     }
 
     function desmontar() {
@@ -220,6 +224,15 @@
             botonArrancar: raiz.querySelector('[data-feed-arrancar]')
         };
         document.body.classList.add('modo-feed');
+        // Anotar el orden de esta visita en la direccion (?s=): "atras" desde una ficha
+        // vuelve al mismo orden; entrar de nuevo desde la tienda arma uno nuevo.
+        try {
+            var u = new URL(location.href);
+            if (raiz.dataset.s && u.searchParams.get('s') !== raiz.dataset.s) {
+                u.searchParams.set('s', raiz.dataset.s);
+                history.replaceState(history.state, '', u.pathname + u.search + u.hash);
+            }
+        } catch (e) {}
         medir();
         window.addEventListener('resize', medir);
         document.addEventListener('keydown', alTeclado);
@@ -284,34 +297,8 @@
                 if (esDuenio(card)) window.ArcanoPlayer.toggle(); else tocar(card);
             });
 
-            // Deslizar a los costados sobre la tapa = cambiar de tema
-            var x0 = null, y0 = null;
-            if (tapa) {
-                var arrastreX = 0;
-                tapa.addEventListener('touchstart', function (e) {
-                    var t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; arrastreX = 0;
-                }, { passive: true });
-                // Mientras se desliza de costado, la tapa acompana un poco al dedo
-                tapa.addEventListener('touchmove', function (e) {
-                    if (x0 === null || reducirMov || temas.length < 2) return;
-                    var t = e.touches[0], dx = t.clientX - x0, dy = t.clientY - y0;
-                    if (Math.abs(dx) < Math.abs(dy) * 1.2) return;
-                    arrastreX = Math.max(-40, Math.min(40, dx * 0.28));
-                    if (tapa._anim) { tapa._anim.cancel(); tapa._anim = null; }
-                    tapa.style.transition = 'none';
-                    tapa.style.transform = 'translateX(' + arrastreX + 'px) rotate(' + (arrastreX / 30) + 'deg)';
-                }, { passive: true });
-                tapa.addEventListener('touchend', function (e) {
-                    if (x0 === null) return;
-                    var t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0;
-                    x0 = y0 = null;
-                    estado.tocado = true;
-                    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) cambiarTema(card, dx < 0 ? 1 : -1, arrastreX);
-                    else volverAlLugar(card, arrastreX);
-                    arrastreX = 0;
-                }, { passive: true });
-                tapa.addEventListener('touchcancel', function () { x0 = y0 = null; volverAlLugar(card, arrastreX); arrastreX = 0; }, { passive: true });
-            }
+            // Deslizar a los costados = carrusel de tracks (scroll nativo)
+            escucharPistas(card);
         });
 
         // Volviste de una ficha: quedarte en el disco donde estabas (mismo orden)

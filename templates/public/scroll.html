@@ -9,7 +9,7 @@
 {% block canonical %}{{ url_for('home', _external=True) }}{% endblock %}
 
 {% block content %}
-<section class="feed" data-feed data-semilla="{{ (lista or 'todo') ~ '-' ~ session.get('feed_semilla', '') }}">
+<section class="feed" data-feed data-semilla="{{ (lista or 'todo') ~ '-' ~ semilla }}" data-s="{{ semilla }}">
     {% if lista == 'recomendados' and rec_info and rec_info.sin_datos %}
     <p class="feed-aviso">Todav&iacute;a no conocemos tus gustos: guard&aacute; favoritos o escuch&aacute; discos y ac&aacute; te vamos a recomendar parecidos. Mientras tanto, nuestros Staff Picks.</p>
     {% endif %}
@@ -19,7 +19,7 @@
             Grilla
         </a>
         <span class="feed-cuenta">{% if lista_titulo %}<strong>{{ lista_titulo }}</strong> &middot; {% endif %}{% if not lista_titulo %}<strong>Diggear</strong> &middot; {% endif %}{{ discs|length }} disco{{ '' if discs|length == 1 else 's' }}{% if not lista %} al azar{% endif %}</span>
-        <a href="{{ url_for('home', vista='scroll', mezclar=1, lista=lista or None) }}" class="feed-boton" data-feed-mezclar{% if lista == 'recomendados' %} data-con-gustos{% endif %} title="Mezclar de nuevo">&#8635; Mezclar</a>
+        <a href="{{ url_for('home', vista='scroll', lista=lista or None) }}" class="feed-boton" data-feed-mezclar{% if lista == 'recomendados' %} data-con-gustos{% endif %} title="Mezclar de nuevo">&#8635; Mezclar</a>
     </div>
 
     <div class="feed-lista" data-feed-lista>
@@ -43,7 +43,18 @@
         <article class="feed-card" data-feed-card data-clave="feed-{{ d.id }}" data-cover="{{ cover }}"{% if cover %} style="--feed-tapa: url('{{ cover }}')"{% endif %}
                  data-tracks="{{ temas|tojson|forceescape }}">
             <div class="feed-cover">
-                {% if cover %}
+                {% if temas|length > 1 %}
+                {# Un track por hoja: se desliza a los costados con el scroll nativo del
+                   celular (como un carrusel de Instagram) y la hoja que queda suena. #}
+                <div class="feed-pistas" data-feed-pistas>
+                    {% set disco_n = loop.index %}
+                    {% for t in temas %}
+                    <div class="feed-pista" aria-label="Track {{ loop.index }}: {{ t.title }}">
+                        {% if cover %}<img src="{{ cover }}" alt="{{ d.artista }} - {{ d.titulo }}" loading="{{ 'eager' if (disco_n <= 2 and loop.first) else 'lazy' }}" decoding="async" draggable="false">{% else %}<div class="feed-cover-vacia">&#9834;</div>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% elif cover %}
                 <img src="{{ cover }}" alt="{{ d.artista }} - {{ d.titulo }}" loading="{{ 'eager' if loop.index <= 2 else 'lazy' }}" decoding="async">
                 {% else %}
                 <div class="feed-cover-vacia">&#9834;</div>

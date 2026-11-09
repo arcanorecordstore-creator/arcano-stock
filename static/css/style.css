@@ -13200,3 +13200,18 @@ body .filtro-menu-panel .filter-count { background: transparent !important; colo
     .diggear-cinta, .diggear-eq i { animation: none; }
     .diggear-cta, .diggear-cta-play, .diggear-cinta img { transition: none; }
 }
+
+
+/* ---- Diggear: carrusel de tracks (v6.47) ----
+   Cada track es una hoja; se pasa con el scroll nativo (sigue al dedo, engancha en
+   cada hoja). Los controles (flechas, play, banda) quedan fijos encima. */
+.feed-cover { touch-action: manipulation; }
+.feed-pistas {
+    position: absolute; inset: 0; display: flex; gap: 10px;
+    overflow-x: auto; overflow-y: hidden; scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+    background: var(--fc-negro, #1E1C1C);
+}
+.feed-pistas::-webkit-scrollbar { display: none; }
+.feed-pista { position: relative; flex: 0 0 100%; height: 100%; scroll-snap-align: center; scroll-snap-stop: always; }
+.feed-pista img { width: 100%; height: 100%; object-fit: cover; display: block; -webkit-user-drag: none; user-select: none; }

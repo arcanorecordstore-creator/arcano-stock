@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.46"
+APP_VERSION = "6.47"
 import metrics
 import auth
 import mailer
@@ -8223,7 +8223,7 @@ def register_routes(app: Flask) -> None:
             out.append({"clave": "staff", "titulo": "Staff Picks", "sub": "Elegidos por Arcano",
                         "url": url_for("home", vista="scroll", lista="staff"), "tapas": _mosaico(staff), "tono": "marron"})
         out.append({"clave": "azar", "titulo": "Todo al azar", "sub": f"{len(comprables)} discos para diggear",
-                    "url": url_for("home", vista="scroll", mezclar=1), "tapas": _mosaico(azar), "tono": "crema"})
+                    "url": url_for("home", vista="scroll"), "tapas": _mosaico(azar), "tono": "crema"})
         return out
 
     def _diggear_home(discos):
@@ -8375,10 +8375,11 @@ def register_routes(app: Flask) -> None:
         # (decision de Facundo); los agotados que se muestran igual en la grilla no van.
         if request.args.get("vista") == "scroll":
             import random as _random
-            # El orden queda fijo durante la visita (al volver de una ficha seguis donde
-            # estabas); "Mezclar" (?mezclar=1) arma uno nuevo.
-            if request.args.get("mezclar") or not session.get("feed_semilla"):
-                session["feed_semilla"] = _random.randint(1, 10**9)
+            # Cada vez que se entra, un orden nuevo (decision de Facundo, nov-2026). La
+            # pagina se anota su "semilla" en la direccion (?s=), asi al volver de una
+            # ficha con "atras" el orden es el mismo y seguis en el disco donde estabas.
+            _s = (request.args.get("s") or "").strip()
+            semilla = int(_s) if (_s.isdigit() and len(_s) <= 10) else _random.randint(1, 10**9)
             feed = sorted((d for d in discs if not d.esta_agotado), key=lambda d: d.id)
             # Playlists (las tarjetas de la home abren el modo scroll con una lista)
             lista = (request.args.get("lista") or "").strip()
@@ -8394,12 +8395,12 @@ def register_routes(app: Flask) -> None:
                 lista_titulo = "Recién llegados"
             elif lista == "staff":
                 feed = [d for d in feed if d.es_tip]
-                _random.Random(session["feed_semilla"]).shuffle(feed)
+                _random.Random(semilla).shuffle(feed)
                 lista_titulo = "Staff Picks"
             else:
                 lista = ""
-                _random.Random(session["feed_semilla"]).shuffle(feed)
-            return render_template("public/scroll.html", discs=feed, lista=lista,
+                _random.Random(semilla).shuffle(feed)
+            return render_template("public/scroll.html", discs=feed, lista=lista, semilla=semilla,
                                    lista_titulo=lista_titulo, rec_info=rec_info, **_public_context())
 
         # Filtros
