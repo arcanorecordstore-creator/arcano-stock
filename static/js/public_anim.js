@@ -541,7 +541,7 @@ document.addEventListener('click', function (e) {
 (function () {
     'use strict';
     Arcano.onContent(function () {
-    document.querySelectorAll('.public-carrusel').forEach(function (carrusel) {
+    document.querySelectorAll('.public-carrusel').forEach(function (carrusel, nCarrusel) {
         if (carrusel._carInit) return;
         carrusel._carInit = true;
         var viewport = carrusel.querySelector('.public-carrusel-viewport');
@@ -655,6 +655,9 @@ document.addEventListener('click', function (e) {
                 var paso1 = c1 ? (c1.offsetLeft - c0.offsetLeft) : c0.offsetWidth;
                 return Math.max(10, paso1 / segs);
             }
+            // Sentido alternado: el 1.o carrusel va hacia la derecha, el 2.o hacia la
+            // izquierda, el 3.o de nuevo a la derecha... (pedido de Facundo, v6.49)
+            var sentido = (nCarrusel % 2) ? -1 : 1;
             var pos = viewport.scrollLeft, quietoHasta = 0, dedo = false, visible = true, ultimo = 0;
             function envolver() {
                 var w = ancho(); if (w <= 0) return;
@@ -691,7 +694,7 @@ document.addEventListener('click', function (e) {
                 ultimo = t;
                 if (visible && !dedo && Date.now() >= quietoHasta && !document.hidden &&
                     !(track && track.classList.contains('arrastrando'))) {
-                    pos += velocidad() * dt;
+                    pos += sentido * velocidad() * dt;
                     envolver();
                     viewport.scrollLeft = pos;
                 }

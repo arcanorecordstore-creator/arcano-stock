@@ -13091,6 +13091,21 @@ body.modo-feed .public-main { padding-top: 8px; padding-bottom: 0; }
     .con-playlists .playlist-card { flex: 0 0 min(78%, 300px); scroll-snap-align: start; }
 }
 
+/* v6.49: en la compu la columna de Playlists ocupa el alto de la pantalla.
+   Cada tarjeta crece con la ventana (tope 140px) y el mosaico sigue cuadrado. */
+@media (min-width: 1025px) {
+    .public-layout.public-layout--barra.con-playlists {
+        --pl-h: clamp(84px, calc((100vh - 230px) / 4), 140px);
+        grid-template-columns: calc(var(--pl-h) + 170px) minmax(0, 1fr);
+    }
+    .con-playlists .playlists-fila { gap: 12px; }
+    .con-playlists .playlist-card { grid-template-columns: var(--pl-h) minmax(0, 1fr); height: var(--pl-h); }
+    .con-playlists .playlist-banda { padding: 12px 14px; }
+    .con-playlists .playlist-nombre { font-size: 14px; }
+    .con-playlists .playlist-pie { font-size: 12px; }
+    .con-playlists .playlist-play { width: 30px; height: 30px; }
+}
+
 /* ---- Casillas de los filtros con la identidad de Arcano ---- */
 .filtro-menu-panel { --casilla-on: #E9D1AF; --casilla-tilde: #3D3033; }
 [data-theme="light"] .filtro-menu-panel { --casilla-on: #3D3033; --casilla-tilde: #FFF7EC; }
