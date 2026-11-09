@@ -13110,6 +13110,36 @@ body.modo-feed .public-main { padding-top: 8px; padding-bottom: 0; }
     .con-playlists .playlist-play { width: 30px; height: 30px; }
 }
 
+/* v6.52: playlist "Discos en SALE" (reemplaza el boton rojo y a "Todo al azar").
+   Colores de la marca (beige + marron); llama la atencion con movimiento suave:
+   una cinta que corre, un destello que cruza la tarjeta y el borde que respira. */
+.playlist-sale .playlist-banda { background: #E9D1AF; color: #3D3033; }
+.playlist-sale .playlist-play { background: #3D3033; color: #E9D1AF; }
+.playlist-sale::after {
+    content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none;
+    background: linear-gradient(105deg, transparent 35%, rgba(255, 247, 236, 0.5) 50%, transparent 65%);
+    transform: translateX(-130%); animation: saleDestello 6s ease-in-out infinite;
+}
+@keyframes saleDestello { 0% { transform: translateX(-130%); } 25%, 100% { transform: translateX(130%); } }
+.playlist-card.playlist-sale { animation: saleRespira 3s ease-in-out infinite; }
+@keyframes saleRespira {
+    0%, 100% { box-shadow: 0 0 0 1px rgba(233, 209, 175, 0.18), 0 18px 34px -8px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.3); }
+    50% { box-shadow: 0 0 0 1px rgba(233, 209, 175, 0.85), 0 0 28px rgba(233, 209, 175, 0.32), 0 18px 34px -8px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.3); }
+}
+.playlist-pie > .playlist-cinta,
+.con-playlists .playlist-pie > .playlist-cinta {
+    display: block; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: clip;
+    background: #3D3033; color: #E9D1AF; border-radius: 999px; padding: 6px 0;
+    font-size: 10px; font-weight: 500; letter-spacing: 0.12em; line-height: 1.2; white-space: nowrap;
+}
+.playlist-cinta-tira { display: inline-flex; white-space: nowrap; animation: saleCinta 9s linear infinite; }
+@keyframes saleCinta { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+    .playlist-sale::after { display: none; }
+    .playlist-card.playlist-sale, .playlist-cinta-tira { animation: none; }
+    .playlist-cinta-tira { padding-left: 10px; }
+}
+
 /* ---- Casillas de los filtros con la identidad de Arcano ---- */
 .filtro-menu-panel { --casilla-on: #E9D1AF; --casilla-tilde: #3D3033; }
 [data-theme="light"] .filtro-menu-panel { --casilla-on: #3D3033; --casilla-tilde: #FFF7EC; }

@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.51"
+APP_VERSION = "6.52"
 import metrics
 import auth
 import mailer
@@ -8222,8 +8222,19 @@ def register_routes(app: Flask) -> None:
         if staff:
             out.append({"clave": "staff", "titulo": "Staff Picks", "sub": "Elegidos por Arcano",
                         "url": url_for("home", vista="scroll", lista="staff"), "tapas": _mosaico(staff), "tono": "marron"})
-        out.append({"clave": "azar", "titulo": "Todo al azar", "sub": f"{len(comprables)} discos para diggear",
-                    "url": url_for("home", vista="scroll"), "tapas": _mosaico(azar), "tono": "crema"})
+        # Discos en SALE reemplaza a "Todo al azar" (decision de Facundo, v6.52): destaca las
+        # ofertas con movimiento (cinta + destello + borde que respira). Si no hay ninguna
+        # oferta vigente vuelve "Todo al azar" para no dejar el hueco.
+        sale = [d for d in comprables if d.en_oferta]
+        if sale:
+            _max = max(d.descuento_pct for d in sale)
+            sale.sort(key=lambda d: d.descuento_pct, reverse=True)
+            out.append({"clave": "sale", "titulo": "Discos en SALE", "sub": f"Hasta -{_max}%",
+                        "url": url_for("home", vista="scroll", lista="sale"), "tapas": _mosaico(sale),
+                        "tono": "sale", "cinta": True})
+        else:
+            out.append({"clave": "azar", "titulo": "Todo al azar", "sub": f"{len(comprables)} discos para diggear",
+                        "url": url_for("home", vista="scroll"), "tapas": _mosaico(azar), "tono": "crema"})
         return out
 
     def _diggear_home(discos):
@@ -8397,6 +8408,10 @@ def register_routes(app: Flask) -> None:
                 feed = [d for d in feed if d.es_tip]
                 _random.Random(semilla).shuffle(feed)
                 lista_titulo = "Staff Picks"
+            elif lista == "sale":
+                feed = [d for d in feed if d.en_oferta]
+                _random.Random(semilla).shuffle(feed)
+                lista_titulo = "Discos en SALE"
             else:
                 lista = ""
                 _random.Random(semilla).shuffle(feed)

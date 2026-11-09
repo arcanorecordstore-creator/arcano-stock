@@ -260,7 +260,7 @@
                     </div>
                     <div class="playlist-banda">
                         <span class="playlist-nombre">{{ pl.titulo }}</span>
-                        <span class="playlist-pie"><span>{{ pl.sub }}</span><span class="playlist-play" aria-hidden="true">&#9654;</span></span>
+                        <span class="playlist-pie">{% if pl.cinta %}<span class="playlist-cinta" aria-label="{{ pl.sub }}"><span class="playlist-cinta-tira" aria-hidden="true">{% for _v in range(2) %}<span>{% for _r in range(3) %}SALE &middot; {{ pl.sub|upper }} &middot;&nbsp;{% endfor %}</span>{% endfor %}</span></span>{% else %}<span>{{ pl.sub }}</span>{% endif %}<span class="playlist-play" aria-hidden="true">&#9654;</span></span>
                     </div>
                 </a>
                 {% endfor %}
@@ -430,8 +430,6 @@
     </button>
     {% if filtro_sale %}
     <a href="{{ url_sin_sale }}" class="sale-volver-btn" data-mantener-posicion title="Volver a ver todos los discos"><span aria-hidden="true">&larr;</span> Volver al cat&aacute;logo</a>
-    {% elif n_sale %}
-    <a href="{{ url_sale }}" class="sale-filter-btn" data-mantener-posicion title="Ver solo los discos en oferta">Discos en SALE!</a>
     {% endif %}
 </div>
 
