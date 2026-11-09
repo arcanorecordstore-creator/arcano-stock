@@ -12859,3 +12859,6 @@ body.modo-feed .public-main { padding-top: 8px; padding-bottom: 0; }
 .feed-arrancar { white-space: nowrap; }
 /* Carruseles con movimiento continuo: sin "enganche" ni scroll suave (los pelea el loop) */
 .public-carrusel-viewport.auto-continuo { scroll-snap-type: none; scroll-behavior: auto; }
+/* Filtros "Mostrar": pocas opciones, sin cajita con scroll */
+.filter-checks.filter-checks-entero { max-height: none; overflow: visible; }
+.filtro-recomendacion-nota { margin: 0 0 14px; padding: 10px 14px; border: 1px solid var(--border-2); border-radius: 10px; font-size: 13px; color: var(--text-2); }

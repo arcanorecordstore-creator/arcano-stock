@@ -1083,3 +1083,39 @@ document.addEventListener('click', function (e) {
         t = setTimeout(function () { var m = columnasReales(); if (m) guardar(m.cols); }, 300);
     });
 })();
+
+/* Filtros "Mostrar": "Ultimos 15/30 dias" se excluyen entre si, y "Tus Recomendaciones"
+   manda al servidor los gustos guardados en este navegador (favoritos, carrito y discos
+   escuchados) para que arme las recomendaciones aunque la persona no tenga cuenta. */
+(function () {
+    'use strict';
+    function leer(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } }
+    function gustos() {
+        var ids = [].concat(leer('arcano-favs'), leer('arcano-cart'), leer('arcano-escuchados'))
+            .map(String).filter(function (x) { return /^\d+$/.test(x); });
+        var unicos = [];
+        ids.forEach(function (x) { if (unicos.indexOf(x) < 0) unicos.push(x); });
+        return unicos.slice(0, 80).join(',');
+    }
+    Arcano.onContent(function () {
+        var form = document.getElementById('public-filters');
+        if (!form || form._mostrarInit) return;
+        form._mostrarInit = true;
+        form.querySelectorAll('input[data-excluye]').forEach(function (cb) {
+            cb.addEventListener('change', function () {
+                if (!cb.checked) return;
+                form.querySelectorAll('input[data-excluye="' + cb.dataset.excluye + '"]').forEach(function (o) { if (o !== cb) o.checked = false; });
+            });
+        });
+        var rec = form.querySelector('[data-recomendados]'), oculto = form.querySelector('[data-gustos]');
+        function preparar() {
+            if (!rec || !oculto) return;
+            var g = rec.checked ? gustos() : '';
+            oculto.value = g;
+            oculto.disabled = !g;     // sin gustos no ensucia la direccion
+        }
+        preparar();
+        if (rec) rec.addEventListener('change', preparar);
+        form.addEventListener('submit', preparar, true);
+    });
+})();

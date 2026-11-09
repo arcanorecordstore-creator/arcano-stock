@@ -233,6 +233,38 @@
                 {% endif %}
             </div>
 
+            {# Mostrar (nov-2026): recien llegados, estado, Staff Picks y Tus Recomendaciones #}
+            <div class="filter-block">
+                <div class="filter-block-title">Mostrar</div>
+                <div class="filter-checks filter-checks-entero">
+                    <label class="filter-check">
+                        <input type="checkbox" name="nuevos" value="15" data-excluye="nuevos" {% if filtro_nuevos == 15 %}checked{% endif %}>
+                        <span>&Uacute;ltimos 15 d&iacute;as</span><span class="filter-count">{{ mostrar_counts['15'] }}</span>
+                    </label>
+                    <label class="filter-check">
+                        <input type="checkbox" name="nuevos" value="30" data-excluye="nuevos" {% if filtro_nuevos == 30 %}checked{% endif %}>
+                        <span>&Uacute;ltimos 30 d&iacute;as</span><span class="filter-count">{{ mostrar_counts['30'] }}</span>
+                    </label>
+                    <label class="filter-check">
+                        <input type="checkbox" name="estado" value="disponible" {% if 'disponible' in filtro_estados %}checked{% endif %}>
+                        <span>Disponible</span><span class="filter-count">{{ mostrar_counts['disponible'] }}</span>
+                    </label>
+                    <label class="filter-check">
+                        <input type="checkbox" name="estado" value="preorder" {% if 'preorder' in filtro_estados %}checked{% endif %}>
+                        <span>Pre Order</span><span class="filter-count">{{ mostrar_counts['preorder'] }}</span>
+                    </label>
+                    <label class="filter-check">
+                        <input type="checkbox" name="staff" value="1" {% if filtro_staff %}checked{% endif %}>
+                        <span>&#9733; Staff Picks</span><span class="filter-count">{{ mostrar_counts['staff'] }}</span>
+                    </label>
+                    <label class="filter-check">
+                        <input type="checkbox" name="recomendados" value="1" data-recomendados {% if filtro_recomendados %}checked{% endif %}>
+                        <span>Tus Recomendaciones</span>
+                    </label>
+                    <input type="hidden" name="gustos" value="" data-gustos disabled>
+                </div>
+            </div>
+
             {% if condiciones|selectattr(2)|list %}
             <div class="filter-block">
                 <div class="filter-block-title">Condición</div>
@@ -322,6 +354,12 @@
         <div class="public-catalog" id="catalogo">
 
 
+{% if filtro_recomendados and recomendacion_info %}
+<p class="filtro-recomendacion-nota">
+    {% if recomendacion_info.sin_datos %}Todav&iacute;a no conocemos tus gustos: guard&aacute; discos en favoritos, sumalos al carrito o escuchalos y ac&aacute; te vamos a recomendar parecidos. Mientras tanto, nuestros Staff Picks.
+    {% else %}Elegidos seg&uacute;n {{ recomendacion_info.n }} disco{{ '' if recomendacion_info.n == 1 else 's' }} que te gustaron (favoritos, carrito, lo que escuchaste{% if cliente_actual %} y tus compras{% endif %}). Primero, los m&aacute;s parecidos.{% endif %}
+</p>
+{% endif %}
 {% if discs %}
 <div class="public-results-head">
     <p class="public-results-count">
@@ -506,7 +544,7 @@
 
 {% else %}
 <div class="public-empty">
-    {% if filtro_q or filtro_sellos or filtro_generos or filtro_tags or filtro_formatos or filtro_paises or filtro_decadas or filtro_con_sample or filtro_precio_min is not none or filtro_precio_max is not none or filtro_anios or filtro_condiciones or filtro_sale %}
+    {% if filtro_q or filtro_sellos or filtro_generos or filtro_tags or filtro_formatos or filtro_paises or filtro_decadas or filtro_con_sample or filtro_precio_min is not none or filtro_precio_max is not none or filtro_anios or filtro_condiciones or filtro_sale or filtro_nuevos or filtro_estados or filtro_staff or filtro_recomendados %}
         <p>No encontramos discos con esos filtros.</p>
         <a href="{{ url_for('home') }}" class="btn btn-ghost">Ver todo el catalogo</a>
     {% else %}

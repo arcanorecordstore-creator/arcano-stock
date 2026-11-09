@@ -247,7 +247,17 @@
         // ensuciaria el chart de "lo mas escuchado" con un click). destruirEngine
         // limpia este timer al saltar/cerrar antes de que se cumpla.
         if (!modoEscucharTodo && t.id) {
-            playCountTimer = setTimeout(function () { registrarPlay(t.id); }, 8000);
+            playCountTimer = setTimeout(function () {
+                registrarPlay(t.id);
+                // Discos escuchados (los ultimos 30): alimentan "Tus Recomendaciones"
+                if (t.discId) {
+                    try {
+                        var esc = JSON.parse(localStorage.getItem('arcano-escuchados') || '[]').filter(function (x) { return String(x) !== String(t.discId); });
+                        esc.unshift(String(t.discId));
+                        localStorage.setItem('arcano-escuchados', JSON.stringify(esc.slice(0, 30)));
+                    } catch (e) {}
+                }
+            }, 8000);
         }
         setPlayingUI(true);
         if (t.kind === 'local') engine = engineLocal(t);
