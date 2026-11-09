@@ -52,7 +52,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.55"
+APP_VERSION = "6.56"
 import metrics
 import auth
 import mailer
@@ -4446,6 +4446,20 @@ def register_routes(app: Flask) -> None:
             g["dias"] = (hoy - g["desde"]).days if g["desde"] else None
         lista.sort(key=lambda g: (g["desde"] is None, g["desde"] or hoy))
         return lista
+
+    def _discos_en_otras_reservas(reserva_id):
+        """ids de discos que ya estan en OTRA reserva activa (no cancelada). Un disco
+        Reservado a mano (sin reserva) se puede sumar a una reserva; uno que ya es de
+        otra reserva no (seria sacarselo a otro cliente)."""
+        from models import ReservaItem
+        ids = {did for (did,) in (db.session.query(ReservaItem.disc_id)
+                                  .join(Reserva, Reserva.id == ReservaItem.reserva_id)
+                                  .filter(Reserva.id != reserva_id, Reserva.estado != "Cancelada",
+                                          ReservaItem.disc_id.isnot(None)).all())}
+        ids |= {did for (did,) in (db.session.query(Reserva.disc_id)
+                                   .filter(Reserva.id != reserva_id, Reserva.estado != "Cancelada",
+                                           Reserva.disc_id.isnot(None)).all())}
+        return ids
 
     @app.route("/admin/radar")
     @auth.admin_required
@@ -10802,9 +10816,12 @@ def register_routes(app: Flask) -> None:
                 ids_add = [int(x) for x in request.form.getlist("disc_ids") if str(x).isdigit()]
                 ya = {it.disc_id for it in reserva.items_efectivos if it.disc_id}
                 cand = Disc.query.filter(Disc.id.in_(ids_add)).all() if ids_add else []
+                _otras = _discos_en_otras_reservas(reserva.id)
                 cand = [d for d in cand if d.id not in ya and not getattr(d, "es_mystery_box", False)
                         and ((d.estado == "Disponible" and (d.stock or 0) > 0)
-                             or (d.estado in ("Pre-order", "Encargo") and not d.venta_grupo))]
+                             or (d.estado in ("Pre-order", "Encargo") and not d.venta_grupo)
+                             # Reservado a mano (sin otra reserva): se suma tal cual
+                             or (d.estado == "Reservado" and d.id not in _otras))]
                 if not cand:
                     flash("Eleg&iacute; al menos un disco disponible para agregar.", "warning")
                     return redirect(url_for("admin_reserva_detail", reserva_id=reserva.id))
@@ -10964,13 +10981,17 @@ def register_routes(app: Flask) -> None:
         discos_agregables = []
         if reserva.estado == "Pendiente":
             _ya = {it.disc_id for it in reserva.items_efectivos if it.disc_id}
+            _otras = _discos_en_otras_reservas(reserva.id)
             discos_agregables = [
                 d for d in (Disc.query
                             .filter(((Disc.estado == "Disponible") & (Disc.stock > 0))
-                                    | (Disc.estado.in_(["Pre-order", "Encargo"]) & Disc.venta_grupo.is_(None)))
+                                    | (Disc.estado.in_(["Pre-order", "Encargo"]) & Disc.venta_grupo.is_(None))
+                                    | (Disc.estado == "Reservado"))
                             .filter((Disc.es_mystery_box.is_(None)) | (Disc.es_mystery_box == False))  # noqa: E712
                             .order_by(Disc.artista.asc(), Disc.titulo.asc()).all())
-                if d.id not in _ya]
+                if d.id not in _ya and not (d.estado == "Reservado" and d.id in _otras)]
+            # Los Reservados a mano primero: suelen ser los que buscas para esta reserva
+            discos_agregables.sort(key=lambda d: d.estado != "Reservado")
         discos_asignables = []
         if tiene_mbox:
             discos_asignables = (

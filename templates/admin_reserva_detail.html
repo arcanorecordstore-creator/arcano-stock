@@ -335,27 +335,42 @@ Montevideo, Uruguay</div>
             {% if reserva.estado == 'Pendiente' and not tiene_mbox %}
             {# Agregar discos a la reserva (el cliente pidio algo mas) #}
             <details class="reserva-agregar">
-                <summary class="btn btn-ghost btn-sm">+ Agregar discos a esta reserva</summary>
-                <form method="post" action="{{ url_for('admin_reserva_detail', reserva_id=reserva.id) }}" class="reserva-agregar-form">
+                <summary class="ra-toggle"><span class="ra-plus" aria-hidden="true">+</span> Agregar discos a esta reserva <span class="ra-caret" aria-hidden="true">&#9662;</span></summary>
+                <form method="post" action="{{ url_for('admin_reserva_detail', reserva_id=reserva.id) }}" class="ra-form">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="accion" value="agregar_discos">
                     {% if discos_agregables %}
-                    <input type="text" class="input reserva-agregar-buscar" placeholder="Buscar disco por artista, t&iacute;tulo o sello..." autocomplete="off">
-                    <div class="mbox-picker">
+                    <div class="ra-buscar">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                        <input type="search" class="ra-buscar-input" placeholder="Buscar por artista, t&iacute;tulo o sello" autocomplete="off" aria-label="Buscar disco">
+                    </div>
+                    <div class="ra-lista">
                         {% for d in discos_agregables %}
-                        <label class="mbox-pick-row" data-txt="{{ ((d.artista or '') ~ ' ' ~ (d.titulo or '') ~ ' ' ~ (d.sello or '')) | lower }}">
-                            <input type="checkbox" name="disc_ids" value="{{ d.id }}">
-                            <span class="mbox-pick-info">
-                                <strong>{{ d.artista }}</strong> &mdash; {{ d.titulo }}
-                                <span class="mbox-pick-sello">$ {{ '{:,.0f}'.format(d.precio_mostrar or d.precio_uyu or 0).replace(',', '.') }}{% if d.estado != 'Disponible' %} &middot; {{ d.estado }}{% endif %}{% if d.sello %} &middot; {{ d.sello }}{% endif %}</span>
+                        <label class="ra-row" data-txt="{{ ((d.artista or '') ~ ' ' ~ (d.titulo or '') ~ ' ' ~ (d.sello or '')) | lower }}">
+                            <input type="checkbox" class="ra-check" name="disc_ids" value="{{ d.id }}">
+                            <span class="ra-box" aria-hidden="true"></span>
+                            {% if d.cover_local %}
+                            <img src="{{ url_for('serve_cover', filename=d.cover_local) }}" alt="" class="ra-cover" loading="lazy">
+                            {% elif (d.cover_url or '').startswith('http') %}
+                            <img src="{{ d.cover_url }}" alt="" class="ra-cover" loading="lazy">
+                            {% else %}
+                            <span class="ra-cover ra-cover-vacia" aria-hidden="true">&#9834;</span>
+                            {% endif %}
+                            <span class="ra-info">
+                                <span class="ra-title">{{ d.artista }} &mdash; {{ d.titulo }}</span>
+                                <span class="ra-meta">{% if d.estado != 'Disponible' %}<span class="badge {{ {'Pre-order': 'badge-preorder', 'Reservado': 'badge-reservado'}.get(d.estado, 'badge-encargo') }}">{{ d.estado }}</span>{% endif %}{{ d.sello or '' }}</span>
                             </span>
+                            <span class="ra-precio">$ {{ '{:,.0f}'.format(d.precio_mostrar or d.precio_uyu or 0).replace(',', '.') }}</span>
                         </label>
                         {% endfor %}
+                        <p class="ra-vacio" hidden>No hay discos con esa b&uacute;squeda.</p>
                     </div>
-                    <p class="form-field-hint" style="margin-top:8px;">Quedan <strong>apartados</strong> para este cliente (Reservado) y se suman al total. Pasan a Vendidos cuando marques la reserva como Pagada.</p>
-                    <button type="submit" class="btn btn-primary btn-sm" style="margin-top:8px;">Agregar los discos marcados</button>
+                    <div class="ra-pie">
+                        <span class="ra-nota">Quedan apartados para este cliente y se suman al total.</span>
+                        <button type="submit" class="btn btn-primary btn-sm ra-submit" disabled>Eleg&iacute; los discos</button>
+                    </div>
                     {% else %}
-                    <p class="form-field-hint">No hay discos disponibles para agregar.</p>
+                    <p class="ra-vacio">No hay discos disponibles para agregar.</p>
                     {% endif %}
                 </form>
             </details>
@@ -440,15 +455,31 @@ Montevideo, Uruguay</div>
         });
     });
 })();
-// Buscador del "Agregar discos a esta reserva"
-document.querySelectorAll('.reserva-agregar-buscar').forEach(function (inp) {
-    var rows = inp.closest('form').querySelectorAll('.mbox-pick-row');
-    inp.addEventListener('input', function () {
-        var q = inp.value.trim().toLowerCase();
+// "Agregar discos a esta reserva": buscador, fila marcada y contador en el boton
+document.querySelectorAll('.ra-form').forEach(function (form) {
+    var inp = form.querySelector('.ra-buscar-input');
+    var rows = form.querySelectorAll('.ra-row');
+    var vacio = form.querySelector('.ra-lista .ra-vacio');
+    var btn = form.querySelector('.ra-submit');
+    function contar() {
+        var n = form.querySelectorAll('.ra-check:checked').length;
+        rows.forEach(function (r) { r.classList.toggle('is-on', r.querySelector('.ra-check').checked); });
+        if (btn) {
+            btn.disabled = n === 0;
+            btn.textContent = n === 0 ? 'Eleg\u00ed los discos' : ('Agregar ' + n + ' disco' + (n === 1 ? '' : 's'));
+        }
+    }
+    form.addEventListener('change', contar);
+    if (inp) inp.addEventListener('input', function () {
+        var q = inp.value.trim().toLowerCase(), vis = 0;
         rows.forEach(function (r) {
-            r.style.display = (!q || (r.dataset.txt || '').indexOf(q) !== -1) ? '' : 'none';
+            var ok = !q || (r.dataset.txt || '').indexOf(q) !== -1;
+            r.style.display = ok ? '' : 'none';
+            if (ok) vis++;
         });
+        if (vacio) vacio.hidden = vis > 0;
     });
+    contar();
 });
 </script>
 
