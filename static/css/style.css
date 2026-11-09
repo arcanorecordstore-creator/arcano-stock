@@ -12857,3 +12857,5 @@ body.modo-feed .public-main { padding-top: 8px; padding-bottom: 0; }
     .feed-eq i { animation: none; height: 60%; }
 }
 .feed-arrancar { white-space: nowrap; }
+/* Carruseles con movimiento continuo: sin "enganche" ni scroll suave (los pelea el loop) */
+.public-carrusel-viewport.auto-continuo { scroll-snap-type: none; scroll-behavior: auto; }
