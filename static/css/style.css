@@ -13095,11 +13095,15 @@ body.modo-feed .public-main { padding-top: 8px; padding-bottom: 0; }
    Cada tarjeta crece con la ventana (tope 140px) y el mosaico sigue cuadrado. */
 @media (min-width: 1025px) {
     .public-layout.public-layout--barra.con-playlists {
-        --pl-h: clamp(84px, calc((100vh - 260px) / 4), 140px);
+        --pl-h: clamp(84px, calc((100vh - 290px) / 4), 136px);
         grid-template-columns: calc(var(--pl-h) + 170px) minmax(0, 1fr);
     }
-    .con-playlists .playlists-fila { gap: 22px; }
-    .con-playlists .playlist-card { grid-template-columns: var(--pl-h) minmax(0, 1fr); height: var(--pl-h); }
+    .con-playlists .playlists-fila { gap: 32px; }
+    /* Sombra flotante (opcion B elegida por Facundo, v6.51): despega la tarjeta del fondo marron */
+    .con-playlists .playlist-card {
+        grid-template-columns: var(--pl-h) minmax(0, 1fr); height: var(--pl-h);
+        box-shadow: 0 18px 34px -8px rgba(0, 0, 0, 0.65), 0 4px 10px rgba(0, 0, 0, 0.3);
+    }
     .con-playlists .playlist-banda { padding: 12px 14px; }
     .con-playlists .playlist-nombre { font-size: 14px; }
     .con-playlists .playlist-pie { font-size: 12px; }
