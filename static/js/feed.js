@@ -39,7 +39,7 @@
         var temas = temasDe(card);
         var t = temas[i]; if (!t) return;
         var num = card.querySelector('[data-feed-num]');
-        if (num) num.textContent = 'Tema ' + (i + 1) + ' / ' + temas.length;
+        if (num) num.textContent = 'Track ' + (i + 1) + ' / ' + temas.length;
         var el = card.querySelector('[data-feed-tema]');
         var txt = (t.artist ? t.artist + ' - ' : '') + (t.title || '');
         if (el && el.textContent !== txt) {
@@ -76,10 +76,36 @@
         if (esDuenio(card) && window.ArcanoPlayer.irA) window.ArcanoPlayer.irA(i);
         else window.ArcanoPlayer.reproducir(JSON.parse(JSON.stringify(temas)), i, card.dataset.cover || '', card.dataset.clave);
     }
-    function cambiarTema(card, paso) {
+    // Animacion sutil de la tapa al cambiar de track: sale apenas hacia el lado del
+    // gesto y vuelve desde el otro con un fundido (sin rebotes ni cambios de tamano).
+    var reducirMov = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function imgDe(card) { return card.querySelector('.feed-cover img'); }
+    function animarCambio(card, paso, desdeX) {
+        var img = imgDe(card);
+        if (!img || reducirMov || !img.animate) { if (img) img.style.transform = ''; return; }
+        var dir = paso > 0 ? -1 : 1;   // siguiente: se va a la izquierda
+        var x0 = (typeof desdeX === 'number') ? desdeX : 0;
+        img.style.transform = '';
+        img.animate([
+            { transform: 'translateX(' + x0 + 'px)', opacity: 1 },
+            { transform: 'translateX(' + (dir * 34) + 'px)', opacity: 0.35, offset: 0.4 },
+            { transform: 'translateX(' + (-dir * 22) + 'px)', opacity: 0.35, offset: 0.41 },
+            { transform: 'translateX(0)', opacity: 1 }
+        ], { duration: 520, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' });
+    }
+    function volverAlLugar(card, desdeX) {
+        var img = imgDe(card);
+        if (!img) return;
+        img.style.transform = '';
+        if (reducirMov || !img.animate || !desdeX) return;
+        img.animate([{ transform: 'translateX(' + desdeX + 'px)' }, { transform: 'translateX(0)' }],
+                    { duration: 320, easing: 'cubic-bezier(0.2, 0.7, 0.2, 1)' });
+    }
+    function cambiarTema(card, paso, desdeX) {
         var temas = temasDe(card); if (temas.length < 2) return;
         var i = indiceDe(card) + paso;
-        if (i < 0 || i >= temas.length) return;
+        if (i < 0 || i >= temas.length) { volverAlLugar(card, desdeX); return; }
+        animarCambio(card, paso, desdeX);
         if (puedeSonar()) tocar(card, i);
         else { card.dataset.i = String(i); pintarTema(card, i); }
     }
@@ -252,16 +278,29 @@
             // Deslizar a los costados sobre la tapa = cambiar de tema
             var x0 = null, y0 = null;
             if (tapa) {
+                var arrastreX = 0;
                 tapa.addEventListener('touchstart', function (e) {
-                    var t = e.touches[0]; x0 = t.clientX; y0 = t.clientY;
+                    var t = e.touches[0]; x0 = t.clientX; y0 = t.clientY; arrastreX = 0;
+                }, { passive: true });
+                // Mientras se desliza de costado, la tapa acompana un poco al dedo
+                tapa.addEventListener('touchmove', function (e) {
+                    if (x0 === null || reducirMov || temas.length < 2) return;
+                    var t = e.touches[0], dx = t.clientX - x0, dy = t.clientY - y0;
+                    if (Math.abs(dx) < Math.abs(dy) * 1.2) return;
+                    arrastreX = Math.max(-46, Math.min(46, dx * 0.3));
+                    var img = imgDe(card);
+                    if (img) img.style.transform = 'translateX(' + arrastreX + 'px)';
                 }, { passive: true });
                 tapa.addEventListener('touchend', function (e) {
                     if (x0 === null) return;
                     var t = e.changedTouches[0], dx = t.clientX - x0, dy = t.clientY - y0;
                     x0 = y0 = null;
                     estado.tocado = true;
-                    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) cambiarTema(card, dx < 0 ? 1 : -1);
+                    if (Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy) * 1.4) cambiarTema(card, dx < 0 ? 1 : -1, arrastreX);
+                    else volverAlLugar(card, arrastreX);
+                    arrastreX = 0;
                 }, { passive: true });
+                tapa.addEventListener('touchcancel', function () { x0 = y0 = null; volverAlLugar(card, arrastreX); arrastreX = 0; }, { passive: true });
             }
         });
 

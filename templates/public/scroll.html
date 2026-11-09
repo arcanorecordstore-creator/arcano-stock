@@ -49,20 +49,20 @@
                 <div class="feed-cover-vacia">&#9834;</div>
                 {% endif %}
                 {% if temas %}
-                <button type="button" class="feed-flecha feed-flecha-izq" data-feed-prev aria-label="Tema anterior"{% if temas|length < 2 %} hidden{% endif %}>
+                <button type="button" class="feed-flecha feed-flecha-izq" data-feed-prev aria-label="Track anterior"{% if temas|length < 2 %} hidden{% endif %}>
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
                 </button>
                 <button type="button" class="feed-play" data-feed-play aria-label="Reproducir">
                     <svg class="feed-ico-play" viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
                     <svg class="feed-ico-pausa" viewBox="0 0 24 24" width="26" height="26" fill="currentColor" aria-hidden="true" hidden><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>
                 </button>
-                <button type="button" class="feed-flecha feed-flecha-der" data-feed-next aria-label="Tema siguiente"{% if temas|length < 2 %} hidden{% endif %}>
+                <button type="button" class="feed-flecha feed-flecha-der" data-feed-next aria-label="Track siguiente"{% if temas|length < 2 %} hidden{% endif %}>
                     <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
                 </button>
                 {# Banda negra de abajo (como las bandas de los posteos de Arcano) #}
                 <div class="feed-sonido">
                     <div class="feed-sonido-arriba">
-                        <span class="feed-num" data-feed-num>Tema 1 / {{ temas|length }}</span>
+                        <span class="feed-num" data-feed-num>Track 1 / {{ temas|length }}</span>
                         {% if temas|length > 1 %}
                         <div class="feed-puntos" aria-hidden="true">{% for t in temas %}<span class="feed-punto{% if loop.first %} on{% endif %}"></span>{% endfor %}</div>
                         {% endif %}
@@ -71,7 +71,7 @@
                         <span class="feed-eq" aria-hidden="true"><i></i><i></i><i></i></span>
                         <span class="feed-tema" data-feed-tema>{{ temas[0].artist }} - {{ temas[0].title }}</span>
                     </div>
-                    <div class="feed-avance" data-feed-avance role="slider" aria-label="Avance del tema" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><span data-feed-relleno><i class="feed-perilla"></i></span></div>
+                    <div class="feed-avance" data-feed-avance role="slider" aria-label="Avance del track" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" tabindex="0"><span data-feed-relleno><i class="feed-perilla"></i></span></div>
                     <div class="feed-tiempos" aria-hidden="true"><span data-feed-cur>0:00</span><span data-feed-dur>&ndash;:&ndash;&ndash;</span></div>
                 </div>
                 {% else %}
@@ -136,7 +136,7 @@
             <div class="feed-ayuda-paso">
                 <svg viewBox="0 0 24 24" width="34" height="34" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><path d="M4 12h16M9 7l-5 5 5 5M15 7l5 5-5 5"/></svg>
                 <strong>Desliz&aacute; a los costados</strong>
-                <span>para cambiar de tema</span>
+                <span>para cambiar de track</span>
             </div>
             <span class="feed-ayuda-cta">Toc&aacute; para empezar a escuchar</span>
         </div>
