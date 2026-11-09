@@ -1119,3 +1119,31 @@ document.addEventListener('click', function (e) {
         form.addEventListener('submit', preparar, true);
     });
 })();
+
+/* Barra de filtros con menus desplegables (como deejay.de / Yoyaku). En la compu se
+   abren al pasar el mouse (CSS) y tambien con un clic; en el celular, con un toque.
+   Abrir uno cierra los demas; tocar afuera o Escape cierra. Al marcar una opcion el
+   filtro se aplica solo (auto-aplicar de arriba). */
+(function () {
+    'use strict';
+    function cerrarTodos(salvo) {
+        document.querySelectorAll('[data-filtro-menu].abierto').forEach(function (m) {
+            if (m === salvo) return;
+            m.classList.remove('abierto');
+            var b = m.querySelector('.filtro-menu-btn'); if (b) b.setAttribute('aria-expanded', 'false');
+        });
+    }
+    document.addEventListener('click', function (e) {
+        var btn = e.target.closest ? e.target.closest('.filtro-menu-btn') : null;
+        if (btn) {
+            var m = btn.closest('[data-filtro-menu]');
+            var abrir = !m.classList.contains('abierto');
+            cerrarTodos(m);
+            m.classList.toggle('abierto', abrir);
+            btn.setAttribute('aria-expanded', abrir ? 'true' : 'false');
+            return;
+        }
+        if (!(e.target.closest && e.target.closest('[data-filtro-menu]'))) cerrarTodos(null);
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') cerrarTodos(null); });
+})();

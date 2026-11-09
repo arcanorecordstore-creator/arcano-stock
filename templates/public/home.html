@@ -190,9 +190,6 @@
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M12 7v6M9.5 10.5L12 13l2.5-2.5"/></svg>
             <span>Modo scroll</span>
         </a>
-        <button type="button" class="btn btn-ghost public-sidebar-toggle" id="sidebar-toggle">
-            Filtros{% if filtros_activos > 0 %} <span class="filters-badge">{{ filtros_activos }}</span>{% endif %}
-        </button>
     </div>
 
     {# M8 - Tira de confianza / como funciona (solo en la vista principal, sin filtros) #}
@@ -224,132 +221,155 @@
     {{ carrusel(nuevos_ingresos, 'Nuevos ingresos', 'nuevos') }}
     {% endif %}
 
-    <div class="public-layout">
-        <aside class="public-sidebar" id="public-sidebar">
-            <div class="public-sidebar-head">
-                <span class="public-sidebar-title">Filtros{% if filtros_activos > 0 %} <span class="filters-badge">{{ filtros_activos }}</span>{% endif %}</span>
-                {% if filtros_activos > 0 or filtro_q or filtro_orden != 'nuevos' %}
-                <a href="{{ url_for('home') }}" class="public-sidebar-clear">Limpiar</a>
-                {% endif %}
-            </div>
-
-            {# Mostrar (nov-2026): recien llegados, estado, Staff Picks y Tus Recomendaciones #}
-            <div class="filter-block">
-                <div class="filter-block-title">Mostrar</div>
-                <div class="filter-checks filter-checks-entero">
-                    <label class="filter-check">
-                        <input type="checkbox" name="nuevos" value="15" data-excluye="nuevos" {% if filtro_nuevos == 15 %}checked{% endif %}>
-                        <span>&Uacute;ltimos 15 d&iacute;as</span><span class="filter-count">{{ mostrar_counts['15'] }}</span>
-                    </label>
-                    <label class="filter-check">
-                        <input type="checkbox" name="nuevos" value="30" data-excluye="nuevos" {% if filtro_nuevos == 30 %}checked{% endif %}>
-                        <span>&Uacute;ltimos 30 d&iacute;as</span><span class="filter-count">{{ mostrar_counts['30'] }}</span>
-                    </label>
-                    <label class="filter-check">
-                        <input type="checkbox" name="estado" value="disponible" {% if 'disponible' in filtro_estados %}checked{% endif %}>
-                        <span>Disponible</span><span class="filter-count">{{ mostrar_counts['disponible'] }}</span>
-                    </label>
-                    <label class="filter-check">
-                        <input type="checkbox" name="estado" value="preorder" {% if 'preorder' in filtro_estados %}checked{% endif %}>
-                        <span>Pre Order</span><span class="filter-count">{{ mostrar_counts['preorder'] }}</span>
-                    </label>
-                    <label class="filter-check">
-                        <input type="checkbox" name="staff" value="1" {% if filtro_staff %}checked{% endif %}>
-                        <span>&#9733; Staff Picks</span><span class="filter-count">{{ mostrar_counts['staff'] }}</span>
-                    </label>
-                    <label class="filter-check">
-                        <input type="checkbox" name="recomendados" value="1" data-recomendados {% if filtro_recomendados %}checked{% endif %}>
-                        <span>Tus Recomendaciones</span>
-                    </label>
-                    <input type="hidden" name="gustos" value="" data-gustos disabled>
+    <div class="public-layout public-layout--barra">
+        {# Filtros en una barra de menus desplegables (como deejay.de / Yoyaku): se abren
+           al pasar el mouse o con un toque, y al marcar una opcion se filtra solo. #}
+        {% set n_mostrar = (1 if filtro_nuevos else 0) + (filtro_estados|length) + (1 if filtro_staff else 0) + (1 if filtro_recomendados else 0) %}
+        {% set n_precio = (1 if filtro_precio_min is not none else 0) + (1 if filtro_precio_max is not none else 0) %}
+        <nav class="filtros-barra" id="public-sidebar" aria-label="Filtros">
+            <div class="filtro-menu" data-filtro-menu>
+                <button type="button" class="filtro-menu-btn{% if n_mostrar %} is-activo{% endif %}" aria-expanded="false" aria-haspopup="true">
+                    <span>Mostrar</span>{% if n_mostrar %}<span class="filtro-menu-n">{{ n_mostrar }}</span>{% endif %}
+                    <svg class="filtro-caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="filtro-menu-panel">
+                    <div class="filter-checks filter-checks-entero">
+                        <label class="filter-check">
+                            <input type="checkbox" name="nuevos" value="15" data-excluye="nuevos" {% if filtro_nuevos == 15 %}checked{% endif %}>
+                            <span>&Uacute;ltimos 15 d&iacute;as</span><span class="filter-count">{{ mostrar_counts['15'] }}</span>
+                        </label>
+                        <label class="filter-check">
+                            <input type="checkbox" name="nuevos" value="30" data-excluye="nuevos" {% if filtro_nuevos == 30 %}checked{% endif %}>
+                            <span>&Uacute;ltimos 30 d&iacute;as</span><span class="filter-count">{{ mostrar_counts['30'] }}</span>
+                        </label>
+                        <label class="filter-check">
+                            <input type="checkbox" name="estado" value="disponible" {% if 'disponible' in filtro_estados %}checked{% endif %}>
+                            <span>Disponible</span><span class="filter-count">{{ mostrar_counts['disponible'] }}</span>
+                        </label>
+                        <label class="filter-check">
+                            <input type="checkbox" name="estado" value="preorder" {% if 'preorder' in filtro_estados %}checked{% endif %}>
+                            <span>Pre Order</span><span class="filter-count">{{ mostrar_counts['preorder'] }}</span>
+                        </label>
+                        <label class="filter-check">
+                            <input type="checkbox" name="staff" value="1" {% if filtro_staff %}checked{% endif %}>
+                            <span>&#9733; Staff Picks</span><span class="filter-count">{{ mostrar_counts['staff'] }}</span>
+                        </label>
+                        <label class="filter-check">
+                            <input type="checkbox" name="recomendados" value="1" data-recomendados {% if filtro_recomendados %}checked{% endif %}>
+                            <span>Tus Recomendaciones</span>
+                        </label>
+                        <input type="hidden" name="gustos" value="" data-gustos disabled>
+                    </div>
                 </div>
             </div>
-
-            {% if condiciones|selectattr(2)|list %}
-            <div class="filter-block">
-                <div class="filter-block-title">Condición</div>
-                <div class="filter-checks">
-                    {% for valor, nombre, cnt in condiciones %}
-                    <label class="filter-check{% if not cnt %} is-disabled{% endif %}">
-                        <input type="checkbox" name="condicion" value="{{ valor }}" {% if valor in filtro_condiciones %}checked{% endif %}{% if not cnt and valor not in filtro_condiciones %} disabled{% endif %}>
-                        <span>{{ nombre }}</span><span class="filter-count">{{ cnt }}</span>
-                    </label>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
             {% if generos %}
-            <div class="filter-block">
-                <div class="filter-block-title">Género</div>
-                <div class="filter-checks">
-                    {% for g, cnt in generos %}
-                    <label class="filter-check">
-                        <input type="checkbox" name="genero" value="{{ g }}" {% if g in filtro_generos %}checked{% endif %}>
-                        <span>{{ g }}</span><span class="filter-count">{{ cnt }}</span>
-                    </label>
-                    {% endfor %}
+            <div class="filtro-menu" data-filtro-menu>
+                <button type="button" class="filtro-menu-btn{% if filtro_generos|length %} is-activo{% endif %}" aria-expanded="false" aria-haspopup="true">
+                    <span>G&eacute;nero</span>{% if filtro_generos|length %}<span class="filtro-menu-n">{{ filtro_generos|length }}</span>{% endif %}
+                    <svg class="filtro-caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="filtro-menu-panel">
+                    <div class="filter-checks">
+                        {% for g, cnt in generos %}
+                        <label class="filter-check">
+                            <input type="checkbox" name="genero" value="{{ g }}" {% if g in filtro_generos %}checked{% endif %}>
+                            <span>{{ g }}</span><span class="filter-count">{{ cnt }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
             {% endif %}
-
-            <div class="filter-block">
-                <div class="filter-block-title">Precio (UYU)</div>
-                <div class="filter-price-row">
-                    <input type="number" name="precio_min" class="filter-price-input" placeholder="Desde" value="{{ filtro_precio_min if filtro_precio_min is not none else '' }}" min="0" step="1" inputmode="numeric">
-                    <span class="filter-price-sep">&mdash;</span>
-                    <input type="number" name="precio_max" class="filter-price-input" placeholder="Hasta" value="{{ filtro_precio_max if filtro_precio_max is not none else '' }}" min="0" step="1" inputmode="numeric">
-                </div>
-            </div>
-
-            {% if anios %}
-            <div class="filter-block">
-                <div class="filter-block-title">A&ntilde;o</div>
-                <div class="filter-checks">
-                    {% for a, cnt in anios %}
-                    <label class="filter-check">
-                        <input type="checkbox" name="anio" value="{{ a }}" {% if a in filtro_anios %}checked{% endif %}>
-                        <span>{{ a }}</span><span class="filter-count">{{ cnt }}</span>
-                    </label>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
-            {% if paises %}
-            <div class="filter-block">
-                <div class="filter-block-title">País</div>
-                <div class="filter-checks">
-                    {% for p, cnt in paises %}
-                    <label class="filter-check">
-                        <input type="checkbox" name="pais" value="{{ p }}" {% if p in filtro_paises %}checked{% endif %}>
-                        <span>{{ p }}</span><span class="filter-count">{{ cnt }}</span>
-                    </label>
-                    {% endfor %}
-                </div>
-            </div>
-            {% endif %}
-
-
-            {# Los tags se sacaron de la tienda: ya no hay filtro de tags. #}
             {% if sellos %}
-            <div class="filter-block">
-                <div class="filter-block-title">Sellos</div>
-                <div class="filter-checks">
-                    {% for s in sellos %}
-                    <label class="filter-check">
-                        <input type="checkbox" name="sello" value="{{ s }}" {% if s in filtro_sellos %}checked{% endif %}>
-                        <span>{{ s }}</span><span class="filter-count">{{ sellos_count[s] }}</span>
-                    </label>
-                    {% endfor %}
+            <div class="filtro-menu" data-filtro-menu>
+                <button type="button" class="filtro-menu-btn{% if filtro_sellos|length %} is-activo{% endif %}" aria-expanded="false" aria-haspopup="true">
+                    <span>Sellos</span>{% if filtro_sellos|length %}<span class="filtro-menu-n">{{ filtro_sellos|length }}</span>{% endif %}
+                    <svg class="filtro-caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="filtro-menu-panel">
+                    <div class="filter-checks">
+                        {% for s in sellos %}
+                        <label class="filter-check">
+                            <input type="checkbox" name="sello" value="{{ s }}" {% if s in filtro_sellos %}checked{% endif %}>
+                            <span>{{ s }}</span><span class="filter-count">{{ sellos_count[s] }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
                 </div>
             </div>
             {% endif %}
-
-            <div class="filter-block filter-block-actions">
-                <button type="submit" class="btn btn-primary btn-block">Aplicar filtros</button>
+            {% if anios %}
+            <div class="filtro-menu" data-filtro-menu>
+                <button type="button" class="filtro-menu-btn{% if filtro_anios|length %} is-activo{% endif %}" aria-expanded="false" aria-haspopup="true">
+                    <span>A&ntilde;o</span>{% if filtro_anios|length %}<span class="filtro-menu-n">{{ filtro_anios|length }}</span>{% endif %}
+                    <svg class="filtro-caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="filtro-menu-panel">
+                    <div class="filter-checks">
+                        {% for a, cnt in anios %}
+                        <label class="filter-check">
+                            <input type="checkbox" name="anio" value="{{ a }}" {% if a in filtro_anios %}checked{% endif %}>
+                            <span>{{ a }}</span><span class="filter-count">{{ cnt }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
-        </aside>
+            {% endif %}
+            <div class="filtro-menu" data-filtro-menu>
+                <button type="button" class="filtro-menu-btn{% if n_precio %} is-activo{% endif %}" aria-expanded="false" aria-haspopup="true">
+                    <span>Precio</span>{% if n_precio %}<span class="filtro-menu-n">{{ n_precio }}</span>{% endif %}
+                    <svg class="filtro-caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="filtro-menu-panel">
+                    <div class="filter-price-row">
+                        <input type="number" name="precio_min" class="filter-price-input" placeholder="Desde" value="{{ filtro_precio_min if filtro_precio_min is not none else '' }}" min="0" step="1" inputmode="numeric">
+                        <span class="filter-price-sep">&mdash;</span>
+                        <input type="number" name="precio_max" class="filter-price-input" placeholder="Hasta" value="{{ filtro_precio_max if filtro_precio_max is not none else '' }}" min="0" step="1" inputmode="numeric">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-sm filtro-precio-ok">Aplicar</button>
+                </div>
+            </div>
+            {% if condiciones|selectattr(2)|list %}
+            <div class="filtro-menu" data-filtro-menu>
+                <button type="button" class="filtro-menu-btn{% if filtro_condiciones|length %} is-activo{% endif %}" aria-expanded="false" aria-haspopup="true">
+                    <span>Condici&oacute;n</span>{% if filtro_condiciones|length %}<span class="filtro-menu-n">{{ filtro_condiciones|length }}</span>{% endif %}
+                    <svg class="filtro-caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="filtro-menu-panel">
+                    <div class="filter-checks">
+                        {% for valor, nombre, cnt in condiciones %}
+                        <label class="filter-check{% if not cnt %} is-disabled{% endif %}">
+                            <input type="checkbox" name="condicion" value="{{ valor }}" {% if valor in filtro_condiciones %}checked{% endif %}{% if not cnt and valor not in filtro_condiciones %} disabled{% endif %}>
+                            <span>{{ nombre }}</span><span class="filter-count">{{ cnt }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% if paises %}
+            <div class="filtro-menu" data-filtro-menu>
+                <button type="button" class="filtro-menu-btn{% if filtro_paises|length %} is-activo{% endif %}" aria-expanded="false" aria-haspopup="true">
+                    <span>Pa&iacute;s</span>{% if filtro_paises|length %}<span class="filtro-menu-n">{{ filtro_paises|length }}</span>{% endif %}
+                    <svg class="filtro-caret" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
+                <div class="filtro-menu-panel">
+                    <div class="filter-checks">
+                        {% for p, cnt in paises %}
+                        <label class="filter-check">
+                            <input type="checkbox" name="pais" value="{{ p }}" {% if p in filtro_paises %}checked{% endif %}>
+                            <span>{{ p }}</span><span class="filter-count">{{ cnt }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% if filtros_activos > 0 or filtro_q or filtro_orden != 'nuevos' %}
+            <a href="{{ url_for('home') }}" class="filtros-limpiar">&#10005; Limpiar filtros</a>
+            {% endif %}
+        </nav>
 
         <div class="public-catalog" id="catalogo">
 

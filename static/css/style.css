@@ -12921,3 +12921,72 @@ body.modo-feed .public-main { padding-top: 8px; padding-bottom: 0; }
     box-shadow: 0 0 0 5px rgba(255, 247, 236, 0.2), 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 .feed-arrancar:hover { background: #E9D1AF; }
+
+/* =====================================================================
+   Barra de filtros con menus desplegables (reemplaza el panel lateral)
+   ===================================================================== */
+.public-layout.public-layout--barra { display: block; }
+.filtros-barra {
+    position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+    margin: 6px 0 22px; padding: 10px 0; border-top: 1px solid var(--border-1); border-bottom: 1px solid var(--border-1);
+}
+.filtro-menu { position: relative; }
+.filtro-menu-btn {
+    display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px;
+    border: 1px solid var(--border-2); border-radius: 999px; background: transparent;
+    color: var(--text-1); font-family: inherit; font-size: 12px; font-weight: 500;
+    letter-spacing: 0.1em; text-transform: uppercase; cursor: pointer;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+.filtro-menu-btn:hover, .filtro-menu.abierto .filtro-menu-btn { border-color: var(--text-3); }
+.filtro-menu-btn:focus-visible { outline: 2px solid var(--text-1); outline-offset: 2px; }
+/* Con algo elegido: beige de marca con texto marron (se lee igual en claro y oscuro) */
+.filtro-menu-btn.is-activo { background: #E9D1AF; border-color: #E9D1AF; color: #3D3033; }
+.filtro-menu-n {
+    min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: inline-grid; place-items: center;
+    background: #3D3033; color: #FFF7EC; font-size: 10px; letter-spacing: 0;
+}
+.filtro-caret { transition: transform 0.2s ease; opacity: 0.7; }
+.filtro-menu.abierto .filtro-caret { transform: rotate(180deg); }
+
+.filtro-menu-panel {
+    display: none; position: absolute; left: 0; top: calc(100% + 8px); z-index: 40;
+    min-width: 240px; max-width: min(320px, 90vw); max-height: 360px; overflow-y: auto;
+    padding: 8px; background: var(--bg-1); border: 1px solid var(--border-2); border-radius: 12px;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.28); animation: filtroPanel 0.18s ease;
+}
+/* puente invisible entre el boton y el menu (para que el hover no se corte) */
+.filtro-menu-panel::before { content: ""; position: absolute; left: 0; right: 0; top: -10px; height: 10px; }
+@keyframes filtroPanel { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+.filtro-menu.abierto > .filtro-menu-panel { display: block; }
+@media (hover: hover) and (pointer: fine) {
+    .filtro-menu:hover > .filtro-menu-panel, .filtro-menu:focus-within > .filtro-menu-panel { display: block; }
+    .filtro-menu:hover .filtro-caret { transform: rotate(180deg); }
+}
+.filtro-menu-panel .filter-checks { max-height: none; overflow: visible; gap: 0; }
+.filtro-menu-panel .filter-check {
+    padding: 8px 10px; border-radius: 8px; gap: 10px; font-size: 13px; color: var(--text-1);
+    transition: background-color 0.15s ease;
+}
+.filtro-menu-panel .filter-check:hover { background: var(--bg-2); }
+.filtro-menu-panel .filter-check span:first-of-type { flex: 1 1 auto; min-width: 0; }
+.filtro-menu-panel .filter-check input { accent-color: #E9D1AF; width: 15px; height: 15px; flex: 0 0 auto; }
+.filtro-menu-panel .filter-check.is-disabled { opacity: 0.45; }
+.filtro-menu-panel .filter-price-row { padding: 6px 4px 10px; }
+.filtro-precio-ok { width: 100%; }
+.filtros-limpiar {
+    margin-left: auto; font-size: 12px; letter-spacing: 0.06em; color: var(--text-3);
+    text-decoration: none; padding: 8px 4px;
+}
+.filtros-limpiar:hover { color: var(--text-1); text-decoration: underline; }
+
+/* Celular: los menus se abren a lo ancho, debajo de la barra */
+@media (max-width: 860px) {
+    .filtros-barra { gap: 6px; }
+    .filtro-menu { position: static; }
+    .filtro-menu-panel { left: 0; right: 0; max-width: none; min-width: 0; top: calc(100% - 4px); }
+    .filtro-menu-btn { padding: 7px 12px; font-size: 11px; }
+    .filtros-limpiar { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .filtro-menu-panel { animation: none; } .filtro-caret { transition: none; } }
+.filtro-menu-panel { scrollbar-width: thin; scrollbar-color: var(--border-2) transparent; }
