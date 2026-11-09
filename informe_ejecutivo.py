@@ -30,7 +30,7 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
 import metrics
-from models import Disc, Pedido, Reserva, Setting
+from models import Disc, Pedido, Reserva, Setting, pedidos_ordenados
 
 # ---------------------------------------------------------------------------
 # Identidad de marca (manual set. 2026): tipografia, paleta y logo salen de
@@ -473,7 +473,7 @@ def generar_pdf_ejecutivo(periodo="mes_actual", desde=None, hasta=None, resumen_
     seis_m = metrics.ingresos_vs_egresos_6m()
     arc_per = metrics.arcano_vs_personal_6m()
     mets = metrics.get_all_metrics()
-    pedidos = Pedido.query.order_by(Pedido.fecha.desc()).all()
+    pedidos = pedidos_ordenados()
     rc = resumen_caja or {}
 
     out = io.BytesIO()

@@ -18,7 +18,7 @@ from reportlab.graphics.charts.legends import Legend
 
 import metrics
 import marca_pdf as MARCA
-from models import Disc, Pedido, MovimientoCaja, Setting
+from models import Disc, Pedido, MovimientoCaja, Setting, pedidos_ordenados
 
 # Identidad de marca (manual set. 2026) desde marca_pdf: misma paleta, misma
 # tipografia y mismo logo que el resto de los informes.
@@ -110,7 +110,7 @@ def generar_informe_pdf(periodo="mes_actual", desde=None, hasta=None,
     por_cobrar = metrics.dinero_por_cobrar()
     seis_m = metrics.ingresos_vs_egresos_6m()
     arc_per = metrics.arcano_vs_personal_6m()
-    pedidos = Pedido.query.order_by(Pedido.fecha.desc()).all()
+    pedidos = pedidos_ordenados()
 
     # "Plata en caja": usar el MISMO numero que la pantalla de Caja (_resumen_caja
     # -> disponible), que el route pasa aca. Antes se recalculaba a mano sumando los

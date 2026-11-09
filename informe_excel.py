@@ -14,7 +14,7 @@ from openpyxl.chart import BarChart, Reference
 from openpyxl.utils import get_column_letter
 
 import metrics
-from models import Disc, Pedido, MovimientoCaja, Setting
+from models import Disc, Pedido, MovimientoCaja, Setting, pedidos_ordenados
 
 # --- Paleta / estilos ---
 NEGRO = "0A0A0A"
@@ -326,7 +326,7 @@ def generar_excel(periodo="mes_actual", desde=None, hasta=None,
     # ==================== HOJA 4: PEDIDOS ====================
     ws = wb.create_sheet("Pedidos")
     _titulo_hoja(ws, "Pedidos (compras de stock)", "Estado a hoy")
-    peds = Pedido.query.order_by(Pedido.fecha.desc()).all()
+    peds = pedidos_ordenados()
     f = _encabezados(ws, 4,
                      ["Numero", "Fecha", "Proveedor", "Costo", "Recaudado", "Resultado",
                       "Margen %", "Rotacion %", "Discos", "Vendidos"],

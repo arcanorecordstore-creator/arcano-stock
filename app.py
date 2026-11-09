@@ -43,6 +43,7 @@ from models import (
     fire_sale_config,
     MYSTERY_BOX_PRECIOS,
     mystery_box_precio,
+    pedidos_ordenados,
 )
 import vision
 import scraper
@@ -52,7 +53,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.57"
+APP_VERSION = "6.58"
 import metrics
 import auth
 import mailer
@@ -831,7 +832,7 @@ self.addEventListener('notificationclick', function(e){
             """Lista de pedidos para el selector del form del disco."""
             try:
                 from models import Pedido
-                return Pedido.query.order_by(Pedido.fecha.desc()).all()
+                return pedidos_ordenados()
             except Exception:
                 return []
 
@@ -5235,7 +5236,7 @@ def register_routes(app: Flask) -> None:
         cobrar_grupos = _grupos_por_cobrar(por_cobrar["discos"])
         ingresos_egresos_6m = metrics.ingresos_vs_egresos_6m()
         from models import Pedido
-        pedidos_lista = Pedido.query.order_by(Pedido.fecha.desc()).all()
+        pedidos_lista = pedidos_ordenados()
         return render_template(
             "contabilidad.html",
             tc=Setting.get_tc(),
@@ -6551,6 +6552,9 @@ def register_routes(app: Flask) -> None:
             .order_by(Pedido.fecha.desc())
             .all()
         )
+        # Por numero de pedido, el mas alto arriba (10, 9, 8...)
+        from models import clave_orden_pedido
+        lista.sort(key=clave_orden_pedido, reverse=True)
         # Para comparacion: mejor y peor por margen (solo los que tienen ventas)
         con_ventas = [p for p in lista if p.discos_vendidos > 0 and p.costo_total_uyu > 0]
         mejor_pedido = max(con_ventas, key=lambda p: p.margen_pct) if con_ventas else None
@@ -6758,7 +6762,7 @@ def register_routes(app: Flask) -> None:
         from openpyxl.styles import Font, PatternFill, Alignment
         import io
 
-        pedidos = Pedido.query.order_by(Pedido.fecha.desc()).all()
+        pedidos = pedidos_ordenados()
         wb = openpyxl.Workbook()
 
         header_font = Font(bold=True, color="FFFFFF", name="Arial")
@@ -6890,7 +6894,7 @@ def register_routes(app: Flask) -> None:
 
         FONT, FONT_M, FONT_B = MARCA.FONT, MARCA.FONT_M, MARCA.FONT_B
 
-        pedidos = Pedido.query.order_by(Pedido.fecha.desc()).all()
+        pedidos = pedidos_ordenados()
         output = io.BytesIO()
         doc = SimpleDocTemplate(output, pagesize=landscape(A4),
                                 leftMargin=1*cm, rightMargin=1*cm, topMargin=1.2*cm, bottomMargin=1.4*cm)

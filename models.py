@@ -588,6 +588,25 @@ class Setting(db.Model):
         cls.set("categorias_egreso_extra", ",".join(extras))
 
 
+def pedidos_ordenados():
+    """Todos los pedidos, el de numero mas alto primero (10, 9, 8...). Antes se ordenaban
+    solo por fecha y, con la misma fecha (o la del 9 posterior), el 9 quedaba arriba del
+    10. Los que no tienen numero van al final, por fecha."""
+    import re as _re
+    from datetime import date as _date
+
+    return sorted(Pedido.query.all(), key=clave_orden_pedido, reverse=True)
+
+
+def clave_orden_pedido(p):
+    """Clave para ordenar pedidos por numero (usar con reverse=True: el mas alto primero)."""
+    import re as _re
+    from datetime import date as _date
+    m = _re.search(r"\d+", p.numero or "")
+    n = int(m.group(0)) if m else None
+    return (n is not None, n or 0, p.fecha or _date.min, p.id)
+
+
 def ajustes_tc_por_pedido() -> dict:
     """{pedido_id: ajuste por disco en UYU}. Para cada pedido con costo real cargado
     (costo manual = lo que salio de la cuenta), la diferencia entre ese costo (+ la
