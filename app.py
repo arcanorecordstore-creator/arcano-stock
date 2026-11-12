@@ -53,7 +53,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.59"
+APP_VERSION = "6.60"
 import metrics
 import auth
 import mailer
@@ -125,6 +125,37 @@ def _vendible_web(d):
     return (d is not None and not d.esta_agotado and not d.oculto_web
             and not getattr(d, "es_mystery_box", False)
             and (d.precio_uyu or 0) > 0)
+
+
+def _nombre_con_link(texto):
+    """True si un nombre trae un link o algo que no es un nombre (spam de bots: se
+    registran con 'https://...' de nombre para que la web lo muestre o lo mande por
+    mail). Una persona real no escribe una direccion web en 'Nombre'."""
+    import re as _re
+    t = str(texto or "")
+    return bool(_re.search(r"https?:|://|www\.|[<>{}\[\]=]|\.(?:com|net|org|ru|xyz|io|info|top|site|online|link|ly|me)\b",
+                           t, _re.I))
+
+
+_registro_ip_hist: dict = {}  # ip -> timestamps de cuentas creadas
+
+
+def _registro_limitado(tope=3, ventana=3600):
+    """Tope de cuentas nuevas por conexion (3 por hora): un bot no puede llenar la
+    base de clientes falsos. Devuelve True si se paso."""
+    import time as _t
+    from flask import request as _rq
+    ahora = _t.time()
+    ip = _rq.headers.get("X-Forwarded-For", _rq.remote_addr or "")
+    marcas = [x for x in _registro_ip_hist.get(ip, []) if ahora - x < ventana]
+    if len(marcas) >= tope:
+        _registro_ip_hist[ip] = marcas
+        return True
+    marcas.append(ahora)
+    _registro_ip_hist[ip] = marcas
+    if len(_registro_ip_hist) > 5000:
+        _registro_ip_hist.clear()
+    return False
 
 
 _mail_cuenta_hist: dict = {}  # clave (ip o email) -> timestamps de mails del registro
@@ -9102,6 +9133,8 @@ def register_routes(app: Flask) -> None:
             errores = []
             if len(nombre_pila) < 2:
                 errores.append("Ingresa tu nombre.")
+            elif _nombre_con_link(nombre_pila) or _nombre_con_link(apellido):
+                errores.append("Escrib&iacute; solo tu nombre y apellido (sin links ni direcciones web).")
             if len(apellido) < 2:
                 errores.append("Ingresa tu apellido.")
             _cel = celular_uy(whatsapp)
@@ -9379,9 +9412,17 @@ def register_routes(app: Flask) -> None:
             password = request.form.get("password") or ""
             password2 = request.form.get("password2") or ""
 
+            # Trampa para bots: un campo que la persona no ve. Si viene lleno es un bot:
+            # no se crea nada y la pantalla no dice por que.
+            if (request.form.get("sitio_web") or "").strip():
+                flash("Te mandamos un mail para seguir: revis&aacute; tu correo.", "info")
+                return redirect(url_for("cliente_login_page"))
+
             errores = []
             if len(nombre) < 2:
                 errores.append("Ingresa tu nombre.")
+            elif _nombre_con_link(nombre):
+                errores.append("Escrib&iacute; solo tu nombre (sin links ni direcciones web).")
             if not _email_valido(email):
                 errores.append("Ingresa un email valido.")
             if len(password) < 6:
@@ -9452,6 +9493,13 @@ def register_routes(app: Flask) -> None:
                           "Instagram y te activamos la cuenta.", "error")
                 return redirect(url_for("cliente_login_page"))
 
+            if _registro_limitado():
+                flash("Se crearon demasiadas cuentas desde esta conexi&oacute;n. Prob&aacute; de nuevo en un rato.", "error")
+                return render_template(
+                    "public/cliente_registro.html",
+                    form={"nombre": nombre, "email": email, "whatsapp": whatsapp or ""},
+                    **_public_context(),
+                )
             cliente = Cliente(nombre=nombre, email=email, whatsapp=whatsapp)
             cliente.set_password(password)
             db.session.add(cliente)
@@ -9781,6 +9829,8 @@ def register_routes(app: Flask) -> None:
                 errores.append("Dejanos 2 referencias para armarte la Mystery Box: un link, un track, un artista, un g&eacute;nero o un sello.")
             if len(nombre_pila) < 2:
                 errores.append("Ingresa tu nombre.")
+            elif _nombre_con_link(nombre_pila) or _nombre_con_link(apellido):
+                errores.append("Escrib&iacute; solo tu nombre y apellido (sin links ni direcciones web).")
             if len(apellido) < 2:
                 errores.append("Ingresa tu apellido.")
             _cel = celular_uy(whatsapp)

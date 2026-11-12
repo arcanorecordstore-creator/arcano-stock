@@ -17,6 +17,11 @@
     </ul>
 
     <form method="post" action="{{ url_for('cliente_registro') }}" class="public-auth-form">
+        {# Trampa para bots: las personas no lo ven ni lo completan #}
+        <div style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden;" aria-hidden="true">
+            <label for="sitio_web">Sitio web</label>
+            <input type="text" id="sitio_web" name="sitio_web" tabindex="-1" autocomplete="off" value="">
+        </div>
         <div class="form-field">
             <label for="nombre">Nombre</label>
             <input type="text" id="nombre" name="nombre" required value="{{ form.nombre or '' }}" autofocus>
