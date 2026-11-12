@@ -186,7 +186,7 @@
             <option value="artista" {% if filtro_orden == 'artista' %}selected{% endif %}>Por artista (A-Z)</option>
         </select>
         <button type="submit" class="btn btn-primary">Buscar</button>
-        <a href="{{ url_for('home', vista='scroll') }}" class="btn btn-ghost vista-scroll-btn" title="Diggear: un disco por pantalla y suena solo">
+        <a href="{{ url_diggear }}" class="btn btn-ghost vista-scroll-btn" title="Diggear: un disco por pantalla y suena solo">
             <span class="diggear-eq" aria-hidden="true"><i></i><i></i><i></i></span>
             <span>Diggear</span>
         </a>

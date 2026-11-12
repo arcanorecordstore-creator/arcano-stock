@@ -53,7 +53,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.58"
+APP_VERSION = "6.59"
 import metrics
 import auth
 import mailer
@@ -8404,42 +8404,30 @@ def register_routes(app: Flask) -> None:
             all_disponibles = [d for d in all_disponibles if not getattr(d, "es_mystery_box", False)]
         discs = list(all_disponibles)
 
-        # Modo scroll (estilo Wax Merchant): un disco por pantalla, suena solo al llegar.
-        # Muestra TODOS los discos publicados que se pueden pedir, en orden aleatorio
-        # (decision de Facundo); los agotados que se muestran igual en la grilla no van.
-        if request.args.get("vista") == "scroll":
-            import random as _random
-            # Cada vez que se entra, un orden nuevo (decision de Facundo, nov-2026). La
-            # pagina se anota su "semilla" en la direccion (?s=), asi al volver de una
-            # ficha con "atras" el orden es el mismo y seguis en el disco donde estabas.
-            _s = (request.args.get("s") or "").strip()
-            semilla = int(_s) if (_s.isdigit() and len(_s) <= 10) else _random.randint(1, 10**9)
-            feed = sorted((d for d in discs if not d.esta_agotado), key=lambda d: d.id)
-            # Playlists (las tarjetas de la home abren el modo scroll con una lista)
-            lista = (request.args.get("lista") or "").strip()
-            lista_titulo, rec_info = None, None
-            if lista == "recomendados":
-                feed, _punt, rec_info = _recomendar_para(feed)
-                feed.sort(key=lambda d: _punt.get(d.id, 0), reverse=True)
-                lista_titulo = "Tus recomendaciones"
-            elif lista == "nuevos":
-                _desde = datetime.now() - timedelta(days=30)
-                feed = [d for d in feed if d.fecha_ingreso and d.fecha_ingreso >= _desde]
-                feed.sort(key=lambda d: d.fecha_ingreso, reverse=True)
-                lista_titulo = "Recién llegados"
-            elif lista == "staff":
-                feed = [d for d in feed if d.es_tip]
-                _random.Random(semilla).shuffle(feed)
-                lista_titulo = "Staff Picks"
-            elif lista == "sale":
-                feed = [d for d in feed if d.en_oferta]
-                _random.Random(semilla).shuffle(feed)
-                lista_titulo = "Discos en SALE"
-            else:
-                lista = ""
-                _random.Random(semilla).shuffle(feed)
-            return render_template("public/scroll.html", discs=feed, lista=lista, semilla=semilla,
-                                   lista_titulo=lista_titulo, rec_info=rec_info, **_public_context())
+        # Diggear (ex modo scroll): un disco por pantalla, suena solo al llegar. Es solo
+        # OTRA VISTA del catalogo (nov-2026): usa los mismos filtros que la grilla, asi
+        # "Grilla" <-> "Diggear" cambia la vista sin perder lo que la persona filtro.
+        # Las playlists de la portada (?lista=) son atajos a un filtro del catalogo.
+        es_diggear = request.args.get("vista") == "scroll"
+        lista = (request.args.get("lista") or "").strip() if es_diggear else ""
+        if lista not in ("recomendados", "nuevos", "staff", "sale"):
+            lista = ""
+        _LISTA_A_FILTRO = {"sale": ("sale", "1"), "staff": ("staff", "1"),
+                           "nuevos": ("nuevos", "30"), "recomendados": ("recomendados", "1")}
+
+        def _url_vista(scroll):
+            """La misma busqueda/filtros, en la otra vista (sin pagina ni semilla)."""
+            args = request.args.to_dict(flat=False)
+            for k in ("vista", "s", "pagina", "lista"):
+                args.pop(k, None)
+            if lista and scroll:
+                args["lista"] = [lista]          # Mezclar: misma playlist
+            elif lista:
+                k, v = _LISTA_A_FILTRO[lista]    # Grilla: el filtro equivalente
+                args[k] = [v]
+            if scroll:
+                args["vista"] = ["scroll"]
+            return url_for("home", **args) + ("" if scroll else "#catalogo")
 
         # Filtros
         q = (request.args.get("q") or "").strip()
@@ -8451,17 +8439,17 @@ def register_routes(app: Flask) -> None:
         decada_sel = [d.strip() for d in request.args.getlist("decada") if d.strip()]
         # Condicion: 'nuevo' (Nuevo / Sellado) o 'usado' (cualquier "Usado - ...")
         # Solo los discos en SALE (precio de oferta), desde el boton junto a "Escuchar todo"
-        sale_sel = request.args.get("sale") == "1"
+        sale_sel = request.args.get("sale") == "1" or lista == "sale"
         condicion_sel = [c.strip().lower() for c in request.args.getlist("condicion")
                          if c.strip().lower() in ("nuevo", "usado")]
         # Filtros "Mostrar" (nov-2026): recien llegados, estado, Staff Picks y
         # recomendaciones segun los gustos de cada persona.
-        nuevos_dias = _parse_int(request.args.get("nuevos"), None)
+        nuevos_dias = _parse_int(request.args.get("nuevos"), None) or (30 if lista == "nuevos" else None)
         if nuevos_dias not in (15, 30):
             nuevos_dias = None
         estado_sel = [e for e in request.args.getlist("estado") if e in ("disponible", "preorder")]
-        staff_sel = request.args.get("staff") == "1"
-        recomendados_sel = request.args.get("recomendados") == "1"
+        staff_sel = request.args.get("staff") == "1" or lista == "staff"
+        recomendados_sel = request.args.get("recomendados") == "1" or lista == "recomendados"
         recomendacion_info = None
         orden = (request.args.get("orden") or "nuevos").strip()
         con_sample = request.args.get("con_sample") == "1"
@@ -8583,12 +8571,50 @@ def register_routes(app: Flask) -> None:
         # Para el contador: solo los que se pueden comprar (sin agotados ni la box).
         total_comprables = sum(1 for d in discs if not (d.esta_agotado and not d.mostrar_preorder))
 
-        # Mystery Box fijada primera: solo en la vista de navegacion (sin busqueda ni
-        # filtros). Si hay un filtro/genero activo, la box no aplica y no se muestra.
-        _sin_filtros = (not any([q, sellos_sel, genero_sel, tags_sel, formato_sel,
+        _sin_filtros_base = (not any([q, sellos_sel, genero_sel, tags_sel, formato_sel,
                                  pais_sel, decada_sel, anio_sel, con_sample, condicion_sel, sale_sel,
                                  nuevos_dias, estado_sel, staff_sel, recomendados_sel])
                         and precio_min is None and precio_max is None)
+        if es_diggear:
+            # Diggear con lo ya filtrado. Solo lo que se puede pedir (sin agotados).
+            import random as _random
+            # Orden: si la persona eligio un orden, se respeta; Recien llegados y Tus
+            # recomendaciones tienen el suyo; si no, al azar. La "semilla" va en la
+            # direccion (?s=): al volver de una ficha con "atras" el orden es el mismo.
+            _s = (request.args.get("s") or "").strip()
+            semilla = int(_s) if (_s.isdigit() and len(_s) <= 10) else _random.randint(1, 10**9)
+            feed = [d for d in discs if not d.esta_agotado]
+            _orden_elegido = orden in ("precio_asc", "precio_desc", "artista", "fecha")
+            if lista == "nuevos" and not _orden_elegido:
+                feed.sort(key=lambda d: d.fecha_ingreso or datetime.min, reverse=True)
+            elif not _orden_elegido and not _puntaje_rec:
+                feed.sort(key=lambda d: d.id)
+                _random.Random(semilla).shuffle(feed)
+            lista_titulo = {"recomendados": "Tus recomendaciones", "nuevos": "Recién llegados",
+                            "staff": "Staff Picks", "sale": "Discos en SALE"}.get(lista)
+            _filtrado = not _sin_filtros_base
+            if not lista_titulo and _filtrado:
+                # Si viene de la grilla con un solo atajo puesto (ej. SALE), se llama igual
+                _solos = [t for f, t in ((sale_sel, "Discos en SALE"), (staff_sel, "Staff Picks"),
+                                         (recomendados_sel, "Tus recomendaciones"),
+                                         (nuevos_dias, "Recién llegados")) if f]
+                _otros = any([q, sellos_sel, genero_sel, tags_sel, formato_sel, pais_sel, decada_sel,
+                              anio_sel, con_sample, condicion_sel, estado_sel])                     or precio_min is not None or precio_max is not None
+                if len(_solos) == 1 and not _otros:
+                    lista_titulo = _solos[0]
+                elif q and not any([sellos_sel, genero_sel, tags_sel]):
+                    lista_titulo = "“" + q + "”"
+                else:
+                    lista_titulo = "Tu búsqueda"
+            al_azar = not _orden_elegido and not _puntaje_rec and lista != "nuevos"
+            return render_template("public/scroll.html", discs=feed, lista=lista, semilla=semilla,
+                                   lista_titulo=lista_titulo, rec_info=recomendacion_info,
+                                   al_azar=al_azar, url_grilla=_url_vista(False),
+                                   url_mezclar=_url_vista(True), **_public_context())
+
+        # Mystery Box fijada primera: solo en la vista de navegacion (sin busqueda ni
+        # filtros). Si hay un filtro/genero activo, la box no aplica y no se muestra.
+        _sin_filtros = _sin_filtros_base
         if mystery_box is not None and _sin_filtros:
             discs = [mystery_box] + discs
 
@@ -8797,6 +8823,7 @@ def register_routes(app: Flask) -> None:
 
         return render_template(
             "public/home.html",
+            url_diggear=_url_vista(True),
             discs=discs_pagina,
             destacados=destacados,
             nuevos_ingresos=nuevos_ingresos,

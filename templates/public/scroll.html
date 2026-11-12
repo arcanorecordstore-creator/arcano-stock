@@ -14,12 +14,12 @@
     <p class="feed-aviso">Todav&iacute;a no conocemos tus gustos: guard&aacute; favoritos o escuch&aacute; discos y ac&aacute; te vamos a recomendar parecidos. Mientras tanto, nuestros Staff Picks.</p>
     {% endif %}
     <div class="feed-barra">
-        <a href="{{ url_for('home') }}#catalogo" class="feed-boton" title="Volver a la grilla">
+        <a href="{{ url_grilla }}" class="feed-boton" title="Ver estos discos en grilla">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
             Grilla
         </a>
-        <span class="feed-cuenta">{% if lista_titulo %}<strong>{{ lista_titulo }}</strong> &middot; {% endif %}{% if not lista_titulo %}<strong>Diggear</strong> &middot; {% endif %}{{ discs|length }} disco{{ '' if discs|length == 1 else 's' }}{% if not lista %} al azar{% endif %}</span>
-        <a href="{{ url_for('home', vista='scroll', lista=lista or None) }}" class="feed-boton" data-feed-mezclar{% if lista == 'recomendados' %} data-con-gustos{% endif %} title="Mezclar de nuevo">&#8635; Mezclar</a>
+        <span class="feed-cuenta">{% if lista_titulo %}<strong>{{ lista_titulo }}</strong> &middot; {% endif %}{% if not lista_titulo %}<strong>Diggear</strong> &middot; {% endif %}{{ discs|length }} disco{{ '' if discs|length == 1 else 's' }}{% if al_azar and not lista_titulo %} al azar{% endif %}</span>
+        <a href="{{ url_mezclar }}" class="feed-boton" data-feed-mezclar{% if lista == 'recomendados' %} data-con-gustos{% endif %} title="Mezclar de nuevo">&#8635; Mezclar</a>
     </div>
 
     <div class="feed-lista" data-feed-lista>
