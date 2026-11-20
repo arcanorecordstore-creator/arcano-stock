@@ -53,7 +53,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.60"
+APP_VERSION = "6.61"
 import metrics
 import auth
 import mailer
@@ -10599,12 +10599,13 @@ def register_routes(app: Flask) -> None:
             .order_by(Disc.artista.asc(), Disc.titulo.asc())
             .all()
         )
-        # Arriba de todo los Reservados que todavia no estan en ninguna reserva: el flujo
-        # de Facundo es marcar el disco Reservado en el dashboard y despues crear la
-        # reserva. Despues el resto de los Reservados y despues todo lo demas.
+        # Arriba de todo los Reservados y Encargos que todavia no estan en ninguna reserva:
+        # el flujo de Facundo es marcar el disco Reservado/Encargo en el dashboard y
+        # despues crear la reserva. Despues el resto de esos y despues todo lo demas.
         _en_reservas = _discos_en_otras_reservas(0)
-        discs.sort(key=lambda d: 0 if (d.estado == "Reservado" and d.id not in _en_reservas)
-                   else (1 if d.estado == "Reservado" else 2))
+        _APARTADOS = ("Reservado", "Encargo")
+        discs.sort(key=lambda d: 0 if (d.estado in _APARTADOS and d.id not in _en_reservas)
+                   else (1 if d.estado in _APARTADOS else 2))
         from models import Cliente
         clientes = Cliente.query.order_by(Cliente.nombre.asc()).all()
         return render_template(
@@ -11077,8 +11078,8 @@ def register_routes(app: Flask) -> None:
                             .filter((Disc.es_mystery_box.is_(None)) | (Disc.es_mystery_box == False))  # noqa: E712
                             .order_by(Disc.artista.asc(), Disc.titulo.asc()).all())
                 if d.id not in _ya and not (d.estado == "Reservado" and d.id in _otras)]
-            # Los Reservados a mano primero: suelen ser los que buscas para esta reserva
-            discos_agregables.sort(key=lambda d: d.estado != "Reservado")
+            # Los Reservados y Encargos primero: suelen ser los que buscas para esta reserva
+            discos_agregables.sort(key=lambda d: d.estado not in ("Reservado", "Encargo"))
         discos_asignables = []
         if tiene_mbox:
             discos_asignables = (
