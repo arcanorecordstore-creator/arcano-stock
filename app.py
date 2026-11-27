@@ -53,7 +53,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.61"
+APP_VERSION = "6.62"
 import metrics
 import auth
 import mailer
@@ -5140,7 +5140,15 @@ def register_routes(app: Flask) -> None:
             return bool(reserva.cliente_id) and d.cliente_id == reserva.cliente_id
         if d.estado == "Reservado":
             h = _ultimo("Reservado")
-            return bool(h and h.nota and _patron.search(h.nota))
+            if h and h.nota and _patron.search(h.nota):
+                return True
+            # Reservado A MANO (desde el Stock) y despues sumado a esta reserva, o separado
+            # de otra: el historial no nombra a esta reserva. Si el disco esta en esta
+            # reserva y en ninguna otra activa, es suyo (antes borrarla lo dejaba trabado
+            # en Reservado, sumando en "Por cobrar" sin reserva).
+            en_esta = (reserva.disc_id == d.id
+                       or any(it.disc_id == d.id for it in (reserva.items_efectivos or [])))
+            return en_esta and d.id not in _discos_en_otras_reservas(reserva.id)
         if d.estado in ("Pre-order", "Encargo"):
             return d.venta_grupo == f"r{reserva.id}"
         return False
