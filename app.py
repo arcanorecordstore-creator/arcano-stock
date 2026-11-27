@@ -53,7 +53,7 @@ import buscar_foto as busqueda_foto
 # Version del proyecto. UNICA fuente de verdad: la muestran el pie del admin y
 # el pie de la tienda publica. Al entregar un cambio, se bumpea SOLO aca.
 # ---------------------------------------------------------------------------
-APP_VERSION = "6.62"
+APP_VERSION = "6.63"
 import metrics
 import auth
 import mailer
@@ -10940,6 +10940,54 @@ def register_routes(app: Flask) -> None:
                 if perdidos:
                     flash("No se pudo agregar: " + ", ".join(f"{d.artista} - {d.titulo}" for d in perdidos)
                           + " (lo tomo otra reserva recien).", "warning")
+                return redirect(url_for("admin_reserva_detail", reserva_id=reserva.id))
+
+            elif accion == "quitar_item":
+                # Sacar UN disco de la reserva (el cliente ya no lo quiere). Si el estado
+                # del disco lo puso esta reserva (Reservado o Vendido) vuelve a Disponible;
+                # un Pre-order / Encargo tomado por esta reserva se suelta. El total de la
+                # reserva baja solo (es la suma de los discos que quedan).
+                from models import ReservaItem
+                try:
+                    _item_id = int(request.form.get("item_id") or 0)
+                except ValueError:
+                    _item_id = 0
+                item = ReservaItem.query.filter_by(id=_item_id, reserva_id=reserva.id).first()
+                _n_items = ReservaItem.query.filter_by(reserva_id=reserva.id).count()
+                if item is None or getattr(item, "es_mystery_box", False):
+                    flash("Ese disco no se puede quitar.", "error")
+                elif _n_items < 2:
+                    flash("Es el &uacute;nico disco de la reserva: si ya no lo quiere, "
+                          "cancel&aacute; o elimin&aacute; la reserva.", "warning")
+                else:
+                    d = item.disco
+                    _nom = f"{item.artista_snap or ''} - {item.titulo_snap or ''}"
+                    _liberado, _aviso = False, ""
+                    if d is not None:
+                        if d.estado in ("Pre-order", "Encargo"):
+                            if d.venta_grupo == f"r{reserva.id}":
+                                d.venta_grupo = None
+                            _liberado = True
+                        elif d.estado in ("Reservado", "Vendido") and _disco_es_de_reserva(d, reserva):
+                            _desvender_disco(d, nota=f"Quitado de la reserva #{reserva.id}")
+                            _liberado = True
+                        elif d.estado in ("Reservado", "Vendido"):
+                            _aviso = (f" El disco sigue {d.estado}: lo tiene otra reserva o venta.")
+                        if getattr(d, "sena_cobrada", False):
+                            _aviso += " Ojo: ten&iacute;a una se&ntilde;a cobrada, fijate en su ficha si la devolviste."
+                    # Reservas viejas de un solo disco guardan el disco tambien en la reserva
+                    if reserva.disc_id and item.disc_id and reserva.disc_id == item.disc_id:
+                        _otro = (ReservaItem.query.filter(ReservaItem.reserva_id == reserva.id,
+                                                          ReservaItem.id != item.id,
+                                                          ReservaItem.disc_id.isnot(None)).first())
+                        reserva.disc_id = _otro.disc_id if _otro else None
+                    reserva.items.remove(item)
+                    db.session.delete(item)
+                    db.session.commit()
+                    flash(f"Quitaste {_nom} de la reserva."
+                          + (" Volvi&oacute; a Disponible." if _liberado and d is not None
+                             and d.estado == "Disponible" else "")
+                          + _aviso, "success")
                 return redirect(url_for("admin_reserva_detail", reserva_id=reserva.id))
 
             elif accion == "separar_item":

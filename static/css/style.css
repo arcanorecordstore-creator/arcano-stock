@@ -13325,3 +13325,9 @@ body .filtro-menu-panel .filter-count { background: transparent !important; colo
     .ra-cover { width: 36px; height: 36px; }
     .ra-precio { font-size: 13px; }
 }
+
+/* ===== Reserva: quitar un disco (v6.63) ===== */
+.reserva-separar, .reserva-quitar { display: inline-flex; vertical-align: middle; margin-right: 6px; }
+.reserva-quitar { margin-top: 8px; }
+.reserva-quitar-btn { color: var(--text-3); }
+.reserva-quitar-btn:hover { color: var(--danger, #b4483c); border-color: currentColor; }

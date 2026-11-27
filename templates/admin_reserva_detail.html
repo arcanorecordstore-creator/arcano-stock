@@ -322,6 +322,16 @@ Montevideo, Uruguay</div>
                         <button type="submit" class="btn btn-ghost btn-xs">Separar</button>
                     </form>
                     {% endif %}
+                    {# Quitar este disco de la reserva: vuelve a Disponible #}
+                    {% if item.id and reserva.estado != 'Cancelada' and (reserva.items|list|length) >= 2 %}
+                    <form method="post" class="reserva-quitar"
+                          onsubmit="return confirm('¿Quitar {{ (item.artista_snap or '')|replace("'", "")|e }} - {{ (item.titulo_snap or '')|replace("'", "")|e }} de esta reserva? {% if reserva.estado == 'Pagada' %}Se deshace su venta y {% endif %}el disco vuelve a Disponible.');">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="accion" value="quitar_item">
+                        <input type="hidden" name="item_id" value="{{ item.id }}">
+                        <button type="submit" class="btn btn-ghost btn-xs reserva-quitar-btn">Quitar de la reserva</button>
+                    </form>
+                    {% endif %}
                 </div>
             </div>
             {% endif %}
